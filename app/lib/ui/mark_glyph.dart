@@ -17,8 +17,8 @@ final _susCycle = svgPath('M13 8a5 5 0 1 1-1.5-3.6M13 2.5v2.5h-2.5');
 
 class _GlyphPainter extends CustomPainter {
   final Glyph g;
-  final Color color;
-  const _GlyphPainter(this.g, this.color);
+  final Color color, vein;
+  const _GlyphPainter(this.g, this.color, this.vein);
   @override
   void paint(Canvas canvas, Size s) {
     canvas.scale(s.width / 16);
@@ -30,7 +30,7 @@ class _GlyphPainter extends CustomPainter {
         canvas.drawPath(_plantLeaves, fill);
       case Glyph.veg:
         canvas.drawPath(_vegLeaf, fill);
-        canvas.drawPath(_vegVein, stroke(1.2, M2Color.white)); // the vein is white in M2 (stroke="#fff")
+        canvas.drawPath(_vegVein, stroke(1.2, vein)); // the vein is white in M2 (stroke="#fff"), the chip's tint when selected
       case Glyph.halal:
         canvas.drawCircle(const Offset(8, 8), 6, stroke(1.5));
         canvas.drawPath(_halalBars, stroke(1.5));
@@ -48,14 +48,15 @@ class _GlyphPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_GlyphPainter o) => o.g != g || o.color != color;
+  bool shouldRepaint(_GlyphPainter o) => o.g != g || o.color != color || o.vein != vein;
 }
 
 class MarkGlyph extends StatelessWidget {
   final Glyph glyph;
   final Color color;
   final double size;
-  const MarkGlyph(this.glyph, {super.key, required this.color, required this.size});
+  final Color vein;
+  const MarkGlyph(this.glyph, {super.key, required this.color, required this.size, this.vein = M2Color.white});
   @override
-  Widget build(BuildContext context) => ExcludeSemantics(child: CustomPaint(size: Size.square(size), painter: _GlyphPainter(glyph, color)));
+  Widget build(BuildContext context) => ExcludeSemantics(child: CustomPaint(size: Size.square(size), painter: _GlyphPainter(glyph, color, vein)));
 }

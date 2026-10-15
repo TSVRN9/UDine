@@ -31,6 +31,8 @@ class SearchController extends ChangeNotifier {
   String query = '';
   Set<Lens> lenses = const {};
   SearchResult result = const SearchResult();
+  /// bumps whenever the result is made again (a keystroke, a lens, data, a preference), never on a plate change
+  int generation = 0;
   bool _disposed = false;
   bool _charles = false;
 
@@ -93,6 +95,7 @@ class SearchController extends ChangeNotifier {
 
   void _compute() {
     final ix = index;
+    generation++;
     result = ix == null ? const SearchResult() : runSearch(ix, query: query, lenses: lenses, favorites: prefs.favorites, plate: plate.state);
     notifyListeners();
   }

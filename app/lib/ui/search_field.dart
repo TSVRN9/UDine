@@ -34,7 +34,9 @@ class SearchField extends StatelessWidget {
   final String hint;
   final ValueChanged<String> onChanged;
   final VoidCallback onClear;
-  const SearchField({super.key, required this.controller, required this.focus, required this.hint, required this.onChanged, required this.onClear});
+  /// the keyboard's search key; the field keeps its focus
+  final VoidCallback? onSubmit;
+  const SearchField({super.key, required this.controller, required this.focus, required this.hint, required this.onChanged, required this.onClear, this.onSubmit});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -52,7 +54,7 @@ class SearchField extends StatelessWidget {
                 Semantics(
                   textField: true, label: 'Search dishes',
                   child: EditableText(
-                    controller: controller, focusNode: focus, onChanged: onChanged, maxLines: 1, autocorrect: false, enableSuggestions: false,
+                    controller: controller, focusNode: focus, onChanged: onChanged, onEditingComplete: onSubmit ?? () {}, maxLines: 1, autocorrect: false, enableSuggestions: false,
                     style: M2Layout.fieldText.style(M2Color.ink), cursorColor: M2Color.vm, backgroundCursorColor: M2Color.hair, selectionColor: M2Color.tint,
                     keyboardType: TextInputType.text, textInputAction: TextInputAction.search,
                   ),

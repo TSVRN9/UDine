@@ -18,6 +18,7 @@ import '../hall/dish_row.dart';
 import '../hall/meal_list.dart' show DietNote;
 import '../halls/hall_page.dart';
 import '../halls/halls_model.dart';
+import 'glide.dart';
 import 'search_controller.dart';
 import 'search_entries.dart';
 
@@ -46,6 +47,9 @@ class _SearchScreenState extends State<SearchScreen> {
   final _keys = <String, GlobalKey>{};
   SearchController? _c;
   bool _reveal = false;
+  List<SearchEntry> _entries = const [];
+  final _glide = GlideTracker();
+  int _gen = 0;
 
   @override
   void initState() {
@@ -76,7 +80,13 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void _changed() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    final c = _c!;
+    if (c.generation != _gen) {
+      _gen = c.generation;
+      _glide.snapshot();
+    }
+    setState(() {});
   }
 
   @override
@@ -91,6 +101,19 @@ class _SearchScreenState extends State<SearchScreen> {
 
   void _query(String q) {
     _c?.setQuery(q);
+  }
+
+  /// M2: the keyboard's search key presses the first row's + (or, once it is on the plate, its stepper's +).
+  void _submit() {
+    final e = _entries.whereType<NowEntry>().firstOrNull, c = _c;
+    if (e == null || c?.index == null) return;
+    final meal = c!.index!.meal, g = e.row.g, ctx = e.cafe ? g.places.first : null, f = findItem(_plate.state, meal, g.key, ctx);
+    if (f != null) {
+      _plate.step(f.plate.id, g.key, 1);
+    } else {
+      _plate.add(meal, g.name, g.refs);
+    }
+    Haptics.add();
   }
 
   // ---- rows
@@ -182,7 +205,7 @@ class _SearchScreenState extends State<SearchScreen> {
       case CafeHit(:final item):
         final p = fx.places.firstWhere((p) => p.key == key), h = fx.hours[key];
         return PlaceRow(
-          name: name, detail: item ?? p.building, status: h == null ? '' : statusText(h, now), open: h != null && isOpenNow(h, now), photo: photoOf(key, name),
+          name: name, detail: item ?? p.building, clampDetail: item != null, status: h == null ? '' : statusText(h, now), open: h != null && isOpenNow(h, now), photo: photoOf(key, name),
           onTap: () => _push(HallMenuPage(place: key, top: widget.top)),
         );
       case HallHit():
@@ -232,7 +255,7 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget _entry(SearchEntry e, SearchController c) {
     return KeyedSubtree(
       key: ValueKey(e.id),
-      child: switch (e) {
+      child: Glide(id: e.id, tracker: _glide, generation: c.generation, child: switch (e) {
         GroupHead(:final title) => Padding(
             padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.groupTop, M2Space.gutter, M2Layout.groupBottom),
             child: Semantics(header: true, child: Text(title, style: M2Text.station.normal().style(M2Color.dm))),
@@ -251,7 +274,7 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         ExtrasSlot() => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: widget.extras!(context, c.query.trim())),
         CustomEntry(:final query, :final solid) => CustomFoodButton(label: 'Add “$query” as a custom food', solid: solid, onTap: () => widget.onCustom?.call(query)),
-      },
+      }),
     );
   }
 
@@ -263,6 +286,8 @@ class _SearchScreenState extends State<SearchScreen> {
     final entries = c == null || ix == null
         ? const <SearchEntry>[]
         : searchEntries(raw: c.result, query: c.query, lenses: c.lenses, meal: meal, prefs: scope.prefs.diet, reveal: _reveal, track: !scope.menusOnly, hasExtras: extras.isNotEmpty);
+    _entries = entries;
+    final ids = {for (var i = 0; i < entries.length; i++) entries[i].id: i}; // a row that survives a keystroke keeps its element at its new index
     final idle = c != null && c.query.trim().isEmpty && c.lenses.isEmpty;
     return ColoredBox(
       color: M2Color.chalk,
@@ -280,6 +305,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   padding: EdgeInsets.fromLTRB(M2Space.gutter, top + M2Layout.searchHeadTop, M2Space.gutter, M2Layout.searchHeadBottom),
                   child: SearchField(
                     controller: _text, focus: _focus, hint: 'Search ${mealLabel[meal]!.toLowerCase()} at every hall', onChanged: _query,
+                    onSubmit: _submit,
                     onClear: () {
                       _text.clear();
                       _query('');
@@ -291,7 +317,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
             SliverToBoxAdapter(child: _lenses(c)),
             if (idle && widget.idle != null) SliverToBoxAdapter(child: widget.idle),
-            SliverList(delegate: SliverChildBuilderDelegate((context, i) => _entry(entries[i], c!), childCount: entries.length, addAutomaticKeepAlives: false)),
+            SliverList(delegate: SliverChildBuilderDelegate((context, i) => _entry(entries[i], c!), childCount: entries.length, addAutomaticKeepAlives: false, findChildIndexCallback: (k) => ids[(k as ValueKey<String>).value])),
             SliverToBoxAdapter(child: SizedBox(height: M2Layout.listFoot + safeBottom(context) + MediaQuery.viewInsetsOf(context).bottom)),
           ],
         ),

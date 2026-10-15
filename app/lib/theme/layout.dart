@@ -182,7 +182,7 @@ abstract final class M2Layout {
   static const fieldHint = M2Type(17.0, null, 'LibreFranklin', FontWeight.w400); // `::placeholder`: slate, weight 400
   static const clearBox = 48.0, clearGlyph = 24.0, clearStroke = 2.2; // `.icon`
   static const lensesTop = 12.0, lensesBottom = 12.0, lensGap = 8.0; // `.lenses` padding 12 20, gap 8
-  static const lensGlyph = 16.0; // `.chip .gl`
+  static const lensGlyph = 16.0, lensGlyphGap = 4.0; // `.chip .gl` (margin-right -2 on the chip's 6 gap)
   static const groupTop = 14.0, groupBottom = 2.0; // `.sgrp` padding 14 20 2
   static const emptyTop = 28.0, emptyBottom = 8.0; // `.empty` padding 28 20 8
   static const placeRowMin = 60.0, placeRowPadV = 8.0, placeRowGap = 12.0, placeTextTop = 2.0; // `.prow2`

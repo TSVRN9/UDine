@@ -1,12 +1,13 @@
 // M2's Search groups (renderSearch, results, cafeResults, placeHits, laterHits) over the bake-off fixture's 15 days.
-// M2's vectors.json carries no search cases, so these assert M2's rules (the issue-solver read them from src.html), not recorded
-// outputs; `vectors_search` below stays skipped until the generator in ~/.cache/udine-scratch/flutter/m2vec-search.js has been run.
+// The first groups assert M2's rules (read from src.html); the last group runs M2's own `search` cases from vectors.json.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/core/m2/board.dart';
 import 'package:udine/core/m2/plate.dart';
 import 'package:udine/core/m2/search.dart';
 import 'package:udine/core/m2/where.dart';
+import 'package:udine/core/m2/menu_view.dart' show noPrefs;
 import 'package:udine/core/search.dart';
+import 'package:udine/screens/search/search_entries.dart';
 import 'support.dart';
 
 final now = DateTime.parse('2026-10-08T12:41:00-04:00');
@@ -133,5 +134,37 @@ void main() {
     expect(r2.now.firstWhere((x) => x.g.name == g.g.name).d, same(g.g.refs[b]));
   });
 
-  test('M2 vectors.json search cases', () {}, skip: 'vectors.json has no search cases yet: run ~/.cache/udine-scratch/flutter/m2vec-search.js against the M2-r11 build and regenerate');
+  group('M2 vectors.json search cases', () {
+    for (final v in vectors['search'] as List) {
+      final lenses = {for (final l in (v['lens'] as List? ?? const [])) Lens.values.byName(l)};
+      test('${v['q'].isEmpty ? '(idle)' : v['q']}${lenses.isEmpty ? '' : ' ${lenses.map((l) => l.name).join('+')}'}${v['newton'] == true ? ' (Charles River on)' : ''}', () {
+        final e = searchEntries(
+          raw: run(v['q'], lenses: lenses, newton: v['newton'] == true), query: v['q'], lenses: lenses, meal: 'lunch', prefs: noPrefs, reveal: false, track: false, hasExtras: false);
+        final groups = <Map<String, Object?>>[];
+        Map<String, Object?> cur = {'title': null, 'rows': <String>[]};
+        for (final x in e) {
+          final rows = cur['rows']! as List<String>;
+          switch (x) {
+            case GroupHead(:final title):
+              groups.add(cur);
+              cur = {'title': title, 'rows': <String>[]};
+            case HallCardsEntry(:final keys):
+              rows.addAll([for (final k in keys) 'hall:$k']);
+            case PlaceEntry(:final hit):
+              rows.add(hit is GrabHit ? 'grab:${hit.key}' : 'cafe:${hit.key}');
+            case NowEntry(:final row, :final cafe):
+              rows.add('${cafe ? 'cafe-dish' : 'dish'}:${row.g.key}');
+            case LaterEntry(:final row):
+              rows.add('later:${row.d.key}');
+            case EmptyEntry(:final text):
+              rows.add('empty:$text');
+            case DietLine() || ExtrasSlot() || CustomEntry():
+              break;
+          }
+        }
+        groups.add(cur);
+        expect([for (final g in groups) if (g['title'] != null || (g['rows']! as List).isNotEmpty) g], v['groups']);
+      });
+    }
+  });
 }
