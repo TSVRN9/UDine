@@ -12,6 +12,7 @@ import 'data/source.dart';
 import 'data/supabase_source.dart';
 import 'motion/routes.dart';
 import 'shell/app_scope.dart';
+import 'shell/plate_model.dart';
 import 'shell/prefs.dart';
 import 'ui/photo.dart' show Photos;
 
@@ -29,6 +30,7 @@ class Boot {
   final UdineStore? store;
   final AppPrefs prefs;
   final hider = BandHider();
+  final plate = PlateModel();
 
   /// The user's database was saved by a newer build (they installed an older one): the file is never opened for writing, tracking
   /// stays off, and nothing the user does is saved. Menus, hours and busy work as ever, cached in a throwaway in-memory database.
@@ -49,6 +51,7 @@ class Boot {
       final client = http.Client();
       repo = Repository(UmassSource(client), cache, supabase: SupabaseSource(client));
     }
+    if (flags != null) await store?.setScores(healthfulness: flags.scores.health, carbon: flags.scores.carbon);
     final prefs = await AppPrefs.load(store, pins: pinsFlag == null ? null : _fivePins.take(pinsFlag).toList());
     if (flags == null) repo.launch(); // warm today and tomorrow; never throws
     return Boot(repo, store, prefs);
@@ -63,5 +66,5 @@ class Boot {
     return ((await openStore(inMemoryDatabasePath) as StoreReady).db, null);
   }
 
-  Widget wrap(Widget child) => AppScope(repo: repo, store: store, prefs: prefs, hider: hider, child: child);
+  Widget wrap(Widget child) => AppScope(repo: repo, store: store, prefs: prefs, hider: hider, plate: plate, child: child);
 }

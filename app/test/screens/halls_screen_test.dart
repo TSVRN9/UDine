@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/data/recorded/recorded.dart';
 import 'package:udine/motion/container_transform.dart';
 import 'package:udine/screens/halls/hall_page.dart';
+import 'package:udine/screens/hall/dish_row.dart';
 import 'package:udine/shell/shell.dart';
 import 'package:udine/theme/tokens.dart';
 import 'package:udine/ui/ui.dart';
@@ -14,6 +15,12 @@ void main() {
 
   Finder band(String name) => find.text(name);
   List<int> lamps(WidgetTester t) => [for (final m in t.widgetList<Meter>(find.byType(Meter))) m.lit];
+  /// The page's menu has landed (its spinner turns until then, so the frames never settle before).
+  Future<void> menuIn(WidgetTester t) async {
+    await until(t, () => find.byType(Spinner).evaluate().isEmpty && find.byType(DishRow).evaluate().isNotEmpty);
+    await t.pumpAndSettle();
+  }
+
   Future<void> ready(WidgetTester t) => until(t, () => find.text('Open until midnight').evaluate().isNotEmpty && find.byType(Meter).evaluate().isNotEmpty);
 
   testWidgets('Halls at rest: the date, the meal, four bands with hours and a meter, the area rows with their counts', (t) async {
@@ -60,11 +67,13 @@ void main() {
       expect(find.byType(HallPage), findsOneWidget);
       expect(find.byType(ContainerWindow), findsOneWidget);
       expect(bandOpacity(), 0);
+      await until(t, () => find.byType(DishRow).evaluate().isNotEmpty); // (the menu's own spinner turns until it lands)
       await t.pumpAndSettle();
       await t.tap(find.bySemanticsLabel('Back'));
       await t.pumpAndSettle();
       expect(find.byType(HallPage), findsNothing);
       expect(bandOpacity(), 1);
+      await drain(t);
     });
 
     testWidgets('a band tap during a close is taken, the same band and another', (t) async {
@@ -72,7 +81,7 @@ void main() {
       await ready(t);
       for (final again in ['Hampshire', 'Franklin']) {
         await t.tap(band('Hampshire'));
-        await t.pumpAndSettle();
+        await menuIn(t);
         await t.binding.handlePopRoute();
         await t.pump();
         await t.pump(const Duration(milliseconds: 16));
@@ -82,21 +91,43 @@ void main() {
         await t.pump();
         await t.pump(const Duration(milliseconds: 16));
         expect(find.byType(HallPage), findsNWidgets(2), reason: 'the tap on $again opened a second page over the closing one');
-        await t.pumpAndSettle();
+        await menuIn(t);
         expect(find.byType(HallPage), findsOneWidget);
         await t.binding.handlePopRoute();
         await t.pumpAndSettle();
         expect(find.byType(HallPage), findsNothing);
+        await drain(t);
       }
+    });
+
+    testWidgets('a drag down on the menu closes the page only while its list is at the top', (t) async {
+      await openApp(t, await bootRecorded(t));
+      await ready(t);
+      await t.tap(band('Hampshire'));
+      await menuIn(t);
+      final list = t.state<ScrollableState>(find.byType(Scrollable).first).position;
+      list.jumpTo(300);
+      await t.pumpAndSettle();
+      await t.dragFrom(const Offset(200, 500), const Offset(0, 120)); // scrolls the list back up, not the page away
+      await t.pumpAndSettle();
+      expect(find.byType(HallPage), findsOneWidget);
+      expect(list.pixels, lessThan(300));
+      list.jumpTo(0);
+      await t.pumpAndSettle();
+      await t.dragFrom(const Offset(200, 500), const Offset(0, 400));
+      await t.pumpAndSettle();
+      expect(find.byType(HallPage), findsNothing);
+      await drain(t);
     });
 
     testWidgets('a pin opens its page the same way, at 84 dp', (t) async {
       await openApp(t, await bootRecorded(t, pins: ['Harvest Market']));
       await ready(t);
       await t.tap(band('Harvest Market'));
-      await t.pumpAndSettle();
+      await menuIn(t);
       expect(find.byType(HallPage), findsOneWidget);
       expect(t.getSize(find.byType(Band, skipOffstage: false).last).height, M2Layout.bandCompact);
+      await drain(t);
     });
 
     testWidgets('an area row pushes a page; the edge swipe and Android back close it', (t) async {
@@ -124,10 +155,11 @@ void main() {
       await openApp(t, await bootRecorded(t));
       await ready(t);
       await t.tap(band('Berkshire'));
-      await t.pumpAndSettle();
+      await menuIn(t);
       await t.tap(find.text('You'));
       await t.pumpAndSettle();
       expect(find.byType(HallPage), findsNothing);
+      await drain(t);
     });
 
     testWidgets('the tab bar and the plate bar slot never move while a page opens', (t) async {
@@ -141,8 +173,9 @@ void main() {
         await t.pump(const Duration(milliseconds: 80));
         expect(t.getRect(find.byType(M2TabBar)), bar);
       }
-      await t.pumpAndSettle();
+      await menuIn(t);
       expect(t.getRect(find.byType(M2TabBar)), bar);
+      await drain(t);
     });
 
     testWidgets('reduced motion: the page crossfades in place', (t) async {
@@ -154,7 +187,8 @@ void main() {
       await t.pump(const Duration(milliseconds: 40));
       expect(find.byType(ContainerWindow), findsNothing);
       expect(find.byType(HallPage), findsOneWidget);
-      await t.pumpAndSettle();
+      await menuIn(t);
+      await drain(t);
     });
   });
 
