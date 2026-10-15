@@ -144,6 +144,47 @@ void main() {
     expect(pdf.rendered, hasLength(6), reason: 'scrolling back draws nothing again');
   });
 
+  testWidgets('a page whose render failed is asked for again when the view next moves, not left a blank card', (t) async {
+    phone(t);
+    final pdf = await syntheticPages(t, count: 2)..failOnce.add(0);
+    await t.runAsync(() => cache.fetch(lunchUrl));
+    await t.pumpWidget(Directionality(
+      textDirection: TextDirection.ltr,
+      child: MediaQuery(data: const MediaQueryData(size: Size(390, 844)), child: PdfMenuPage(top: 24, url: lunchUrl, label: 'Lunch', cache: cache, open: pdf.call)),
+    ));
+    await t.pump();
+    await t.pump();
+    expect(find.byType(Image), findsOneWidget, reason: 'page 0 failed, page 1 drew');
+    await t.drag(find.byType(PdfZoomView), const Offset(0, -40));
+    await t.pumpAndSettle();
+    expect(pdf.rendered, [0, 1, 0]);
+    expect(find.byType(Image), findsNWidgets(2));
+  });
+
+  testWidgets('a document whose close fails does not raise when the page goes', (t) async {
+    final pdf = await open(t);
+    pdf.closeFails = true;
+    await loaded(t);
+    await t.pumpWidget(const SizedBox());
+    await t.pump();
+  });
+
+  testWidgets("Try again asks the repository to forget its offline window first", (t) async {
+    status = 500;
+    var forgot = 0;
+    phone(t);
+    final pages = await syntheticPages(t);
+    await t.pumpWidget(Directionality(
+      textDirection: TextDirection.ltr,
+      child: MediaQuery(data: const MediaQueryData(size: Size(390, 844)), child: PdfMenuPage(top: 24, url: lunchUrl, label: 'Lunch', cache: cache, open: pages.call, onRetry: () => forgot++)),
+    ));
+    await until(t, () => find.text('Try again').evaluate().isNotEmpty);
+    status = 200;
+    await t.tap(find.text('Try again'));
+    await loaded(t);
+    expect(forgot, 1);
+  });
+
   testWidgets('the document is closed when the page goes', (t) async {
     final pdf = await open(t);
     await loaded(t);

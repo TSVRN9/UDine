@@ -24,32 +24,42 @@ class _Synthetic extends ImageProvider<_Synthetic> {
 const letter = 11 / 8.5;
 
 class FakeDoc implements PdfDoc {
-  FakeDoc(this.image, this.count, this.rendered);
+  FakeDoc(this.image, this.count, this.rendered, this.failOnce, this.closeFails);
   final ui.Image image;
   final int count;
   final List<int> rendered;
+  final Set<int> failOnce;
+  final bool closeFails;
   bool closed = false;
   @override
   List<double> get aspects => [for (var i = 0; i < count; i++) letter];
   @override
   Future<ImageProvider?> render(int index, double width) async {
     rendered.add(index);
+    if (failOnce.remove(index)) throw StateError('render failed');
     return _Synthetic(image);
   }
 
   @override
-  Future<void> close() async => closed = true;
+  Future<void> close() async {
+    closed = true;
+    if (closeFails) throw StateError('close failed');
+  }
 }
 
 /// A [PdfOpen] over synthetic letter pages; [rendered] lists every page asked for, in order, and [docs] every document opened.
 class SyntheticPdf {
   SyntheticPdf(this._image, this.count);
+
+  /// pages whose next render throws, once
+  final failOnce = <int>{};
+  bool closeFails = false;
   final ui.Image _image;
   final int count;
   final rendered = <int>[];
   final docs = <FakeDoc>[];
   Future<PdfDoc> call(File file) async {
-    final d = FakeDoc(_image, count, rendered);
+    final d = FakeDoc(_image, count, rendered, failOnce, closeFails);
     docs.add(d);
     return d;
   }

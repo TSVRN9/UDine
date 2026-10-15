@@ -23,11 +23,14 @@ const _spinner = Align(alignment: Alignment.topCenter, child: Padding(padding: E
 /// one under another, on chalk. Loading is the spinner (it shows itself after 400 ms), then the pages fade in where they end up; a menu
 /// kept on the phone opens at once. Not saved (offline) and failed say so, with Try again for a failure.
 class PdfMenuPage extends StatefulWidget {
-  const PdfMenuPage({super.key, required this.top, required this.url, required this.label, required this.cache, required this.open});
+  const PdfMenuPage({super.key, required this.top, required this.url, required this.label, required this.cache, required this.open, this.onRetry});
   final double top;
   final String url, label;
   final PdfCache? cache;
   final PdfOpen open;
+
+  /// Runs before Try again loads: the repository forgets its offline window, so a deliberate retry is never skipped by it.
+  final VoidCallback? onRetry;
   @override
   State<PdfMenuPage> createState() => _PdfMenuPageState();
 }
@@ -56,7 +59,7 @@ class _PdfMenuPageState extends State<PdfMenuPage> with SingleTickerProviderStat
   }
 
   void _closeDoc() {
-    _doc?.close();
+    _doc?.close().catchError((Object _) {}); // (a failed close has nobody left to tell)
     _doc = null;
   }
 
@@ -114,7 +117,10 @@ class _PdfMenuPageState extends State<PdfMenuPage> with SingleTickerProviderStat
     final name = menuName(widget.label);
     final Widget body;
     if (_error != null) {
-      body = _line("The ${name.toLowerCase()} menu didn't load.", _load);
+      body = _line("The ${name.toLowerCase()} menu didn't load.", () {
+        widget.onRetry?.call();
+        _load();
+      });
     } else if (_notSaved) {
       body = _line("You're offline, and this menu isn't saved on this phone.", null);
     } else if (_doc == null) {
@@ -190,8 +196,15 @@ class _PdfZoomViewState extends State<PdfZoomView> with SingleTickerProviderStat
       final h = pw * _aspects[i];
       if (y + h >= top - slack && y <= bottom + slack && _asked.add(i)) {
         widget.doc.render(i, pw).then((img) {
-          if (mounted && img != null) setState(() => _img[i] = img);
-        }, onError: (Object _) {});
+          if (!mounted) return;
+          if (img == null) {
+            _asked.remove(i); // nothing came back: ask again the next time the view moves, never a blank card for good
+          } else {
+            setState(() => _img[i] = img);
+          }
+        }, onError: (Object _) {
+          _asked.remove(i);
+        });
       }
       y += h + M2Layout.pdfPageGap;
     }
@@ -303,7 +316,7 @@ class _PdfMenuByIndexState extends State<PdfMenuByIndex> {
         final links = menu is RetailMenuPdf ? menu.links : const <PdfLink>[];
         if (widget.index < links.length) {
           final l = links[widget.index];
-          return PdfMenuPage(key: ValueKey(l.url), top: widget.top, url: l.url, label: l.label, cache: scope.repo.pdfs, open: scope.pdfOpen);
+          return PdfMenuPage(key: ValueKey(l.url), top: widget.top, url: l.url, label: l.label, cache: scope.repo.pdfs, open: scope.pdfOpen, onRetry: scope.repo.retryNetwork);
         }
         return ColoredBox(
           color: M2Color.chalk,

@@ -28,7 +28,7 @@ class _PdfRowsState extends State<PdfRows> {
           title: menuName(links[i].label), last: i == links.length - 1,
           notSaved: widget.offline && !(scope.repo.pdfs?.file(links[i].url).existsSync() ?? false),
           onTap: () async {
-            await Nav.push<void>(context, (_) => PdfMenuPage(top: widget.top, url: links[i].url, label: links[i].label, cache: scope.repo.pdfs, open: scope.pdfOpen));
+            await Nav.push<void>(context, (_) => PdfMenuPage(top: widget.top, url: links[i].url, label: links[i].label, cache: scope.repo.pdfs, open: scope.pdfOpen, onRetry: scope.repo.retryNetwork));
             if (mounted) setState(() {}); // a menu opened just now is kept: its row no longer says Not saved
           },
         ),
