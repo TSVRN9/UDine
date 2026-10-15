@@ -6,6 +6,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:udine/core/store/db.dart';
 import 'package:udine/core/store/log_book.dart';
 import 'package:udine/core/store/store.dart';
+import 'package:udine/core/ranking.dart' show LoggedDish;
 
 const nut = '{"servingSize":"1 cup","calories":210,"caloriesFromFat":54,"totalFatG":6,"satFatG":1.5,"transFatG":0,"cholesterolMg":10,"sodiumMg":340,"totalCarbG":30,"dietaryFiberG":3,"sugarsG":4,"proteinG":9.5}';
 String src(String d) => '{"type":"umass-menu","dishName":"$d","hallTid":1}';
@@ -82,5 +83,24 @@ void main() {
     await Future.wait(taps);
     expect(await servingsOf('a'), 4);
     expect(shown('a'), 4);
+  });
+
+  test('a pick moves both of RN\'s Elo tracks and keeps what was ranked before', () async {
+    await db.insert('preferences_kv', {'key': 'ranked_dishes', 'value_json': '[{"dishName":"Posole","hallTid":1,"rating":1520,"comparisonCount":2}]'});
+    final out = await book.pick(const LoggedDish('Burger', 2), const LoggedDish('Posole', 1));
+    expect(out.map((d) => d.dishName), containsAll(['Burger', 'Posole']));
+    final s = UdineStore(db);
+    final dishes = await s.rankedDishes(), foods = await s.rankedFoods();
+    expect(dishes.firstWhere((d) => d.dishName == 'Burger').comparisonCount, 1);
+    expect(dishes.firstWhere((d) => d.dishName == 'Posole').comparisonCount, 3);
+    expect(dishes.firstWhere((d) => d.dishName == 'Burger').rating, greaterThan(1500));
+    expect(foods.map((f) => f.dishName).toSet(), {'Burger', 'Posole'});
+    expect((await book.rankedDishes()).length, 2);
+  });
+
+  test('the export is every device-local table, in the exporters\' own files', () async {
+    expect((await book.exportFiles(json: true)).keys, ['udine-export.json', 'udine-ranked-dishes.json', 'udine-ranked-foods.json', 'udine-favorites.json', 'udine-custom-foods.json']);
+    expect((await book.exportFiles(json: false)).keys.first, 'udine-export.csv');
+    expect((await book.exportFiles(json: false))['udine-export.csv'], await UdineStore(db).exportCsv().then((m) => m['udine-export.csv']));
   });
 }
