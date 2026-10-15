@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import '../theme/tokens.dart';
+import 'mark_glyph.dart';
 import 'press.dart';
 
 /// `.chip`: a 44 dp filter chip. Off: a 1.5 dp slate ring over chalk. On (`aria-pressed`): tonal, `tint` ground, maroon ring, bold, and a
@@ -8,7 +9,9 @@ class FilterChipButton extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback? onTap;
-  const FilterChipButton({super.key, required this.label, required this.selected, this.onTap});
+  /// a lens that has its own mark wears it, on or off, in place of the check
+  final Glyph? glyph;
+  const FilterChipButton({super.key, required this.label, required this.selected, this.onTap, this.glyph});
 
   static const _off = M2Type(15, null, 'LibreFranklin', FontWeight.w500), _on = M2Type(15, null, 'LibreFranklin', FontWeight.w600);
 
@@ -27,7 +30,8 @@ class FilterChipButton extends StatelessWidget {
                 border: Border.all(color: selected ? M2Color.vm : M2Layout.chipRing, width: M2Layout.rule),
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                if (selected) ...[const _Check(), const SizedBox(width: M2Layout.chipGap)],
+                if (glyph != null) ...[MarkGlyph(glyph!, color: selected ? M2Color.dm : M2Color.ink, size: M2Layout.lensGlyph), const SizedBox(width: M2Layout.chipGap)]
+                else if (selected) ...[const _Check(), const SizedBox(width: M2Layout.chipGap)],
                 Text(label, style: (selected ? _on : _off).style(selected ? M2Color.dm : M2Color.ink), maxLines: 1),
               ]),
             ),

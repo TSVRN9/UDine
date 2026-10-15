@@ -174,4 +174,26 @@ abstract final class M2Layout {
   static const mcGap = 6.0; // `.lrow .mc` gap: "Not saved" and the chevron
   static const namesRowMin = 48.0; // `.cbody .lrow` min-height
   static const pinGlyphStroke = 2.2; // `.icon svg` stroke-width
+
+  // Search (`.shead`, `.field`, `.lenses`, `.sgrp`, `.prow2`, `.hcards`, `.hcard`, `.ht`, `.cnm`, `.empty`, `.custom`)
+  static const searchHeadTop = 12.0, searchHeadBottom = 14.0; // `.shead` padding: calc(var(--st) + 12px) 20px 14px
+  static const fieldH = 52.0, fieldPadL = 16.0, fieldPadR = 4.0, fieldGap = 10.0, fieldIcon = 20.0, fieldIconStroke = 2.2; // `.field`, `.field svg`
+  static const fieldText = M2Type(17.0, null, 'LibreFranklin', FontWeight.w500); // `.field input`
+  static const fieldHint = M2Type(17.0, null, 'LibreFranklin', FontWeight.w400); // `::placeholder`: slate, weight 400
+  static const clearBox = 48.0, clearGlyph = 24.0, clearStroke = 2.2; // `.icon`
+  static const lensesTop = 12.0, lensesBottom = 12.0, lensGap = 8.0; // `.lenses` padding 12 20, gap 8
+  static const lensGlyph = 16.0; // `.chip .gl`
+  static const groupTop = 14.0, groupBottom = 2.0; // `.sgrp` padding 14 20 2
+  static const emptyTop = 28.0, emptyBottom = 8.0; // `.empty` padding 28 20 8
+  static const placeRowMin = 60.0, placeRowPadV = 8.0, placeRowGap = 12.0, placeTextTop = 2.0; // `.prow2`
+  static const placeStatus = M2Type(14.0, null, 'LibreFranklin', FontWeight.w500); // `.prow2 .r`
+  static const cardH = 76.0, cardTextTop = 13.0, cardMeterGap = 10.0; // `.band.hcard`, `.hcard .bt`, `.st` gap
+  static const cardsTop = 4.0, cardsBottom = 8.0; // `.hcards` margin
+  static const laneMin = 66.0; // `.lane` min-height
+  static const tagSize = 18.0, tagGap = 2.0, tagRight = 14.0, tagRightCafe = 4.0, tagCafeMax = 110.0, tagCafeLeft = 4.0; // `.row .tags .ht`, `.tags`, `.lane .tags`
+  static const tagLetter = M2Type(12.0, 12.0, 'Oswald', FontWeight.w600); // `.row .tags .ht`: 12 dp
+  static const tagCafe = M2Type(13.0, 16.9, 'LibreFranklin', FontWeight.w400); // `.tags .cnm`: 13 dp at 1.3
+  static const laterGapX = 16.0, nextToTags = 12.0; // `.row.later .m` column-gap; `.lnext` margin-right 2 + `.mg` gap 4 + `.mg .lnext+.tags` margin-left 6
+  static const customMin = 52.0, customMargin = 8.0, customPadX = 16.0, customGap = 10.0, customRing = Color.fromRGBO(136, 28, 28, 0.5); // `.custom`
+  static const customPlus = 20.0; // `.custom` svg
 }
