@@ -100,7 +100,7 @@ void main() {
     test('area rows say "N of M open now" once the hours are known', () {
       final v = vm(Loaded(hours()));
       expect(v.areas.map((a) => a.name), ['Campus Center', 'North, by Worcester', 'Library and academic core', 'Southwest, by Hampshire and Berkshire']);
-      expect(v.areas.map((a) => a.count), ['12 of 12 open now', '7 of 7 open now', '4 of 4 open now', '5 of 5 open now']);
+      expect(v.areas.map((a) => a.count), ['12 of 12 open now', '8 of 8 open now', '4 of 4 open now', '5 of 5 open now']);
     });
     test('a hall closed for the day says so', () {
       final v = vm(Loaded(hours()), now: easternInstant(DateTime.utc(2026, 10, 8, 23, 59, 30)));

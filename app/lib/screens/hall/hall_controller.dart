@@ -8,6 +8,7 @@ import '../../core/occupancy.dart';
 import '../../core/m2/schedule.dart' show NetMode;
 import '../../core/stations.dart' show normalizeStationName;
 import '../../core/types.dart';
+import '../../core/content.dart' show RetailMenuPdf;
 import '../../data/repository.dart';
 
 /// What a place's list says for one day (CONCEPT R9 §4): nothing yet, the menu, "isn't saved on this phone", or "didn't load".
@@ -203,7 +204,11 @@ class HallController extends ChangeNotifier {
   /// Whether the place has a dish menu at all: a hall always; a café once its location id is known and today's foodpro menu has dishes
   /// (cafeMenu.ts's waterfall: no dishes today, and it is its standing menu).
   /// ponytail: today only (M2 decides across every day), and a café's page re-lays when today's empty menu arrives.
-  bool get hasMenu => !cafe || _hoursValue == null || (cafeLocationId != null && (items(0)?.isNotEmpty ?? true));
+  bool get hasMenu => !cafe || _hoursValue == null || (cafeLocationId != null && (items(0)?.isNotEmpty ?? !_listsPdfs));
+
+  /// A café that lists its menus as PDFs (The Commonwealth has a foodpro id but posts no dishes): while today's dishes are unknown, and
+  /// offline where an empty menu is never kept, its PDFs are the page, not "isn't saved".
+  bool get _listsPdfs => cafeLoc != null && switch (resolveCafeMenu(const [], cafeLoc!)) { StandingCafeMenu(menu: RetailMenuPdf()) => true, _ => false };
 
   /// What `core/m2` reads: the 15 days from today, with every loaded day's menu in place, the place and its hours.
   Board get board => _board ??= _makeBoard();

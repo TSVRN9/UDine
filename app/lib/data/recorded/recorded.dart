@@ -66,6 +66,7 @@ Future<Repository> recordedRepository(RecordedFlags f, Database db, {
   final repo = Repository(UmassSource(net), db, supabase: SupabaseSource(net), now: at == null ? null : () => at, pdfs: PdfCache(pdfDir ?? Directory.systemTemp.createTempSync('udine-pdf'), net));
   if (f.net == NetMode.offline) {
     await repo.launch(pins: pins);
+    await repo.savePdfs(f.savedPdfs);
     net.mode = NetMode.offline;
   }
   return repo;

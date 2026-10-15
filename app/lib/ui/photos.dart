@@ -13,7 +13,7 @@ const cafePhoto = {
   "Peet's Coffee & Tea": 'peet-s-coffee-tea.jpg', 'Procrastination Station': 'procrastination-station.jpg',
   'Whitmore Café': 'whitmore-caf.jpg', 'Carney Café': 'carney-caf.jpg', 'Post & Bean Café': 'post-bean-caf.jpg',
   'Hampshire Café': 'hampshire-caf.jpg', 'Argo Tea': 'argo-tea.jpg', 'Roots Café': 'roots-caf.jpg', 'Courtside Café': 'courtside-caf.jpg',
-  'Terrace': 'terrace.png',
+  'Terrace': 'terrace.png', 'The Commonwealth Restaurant': 'the-commonwealth-restaurant.jpg',
 };
 
 /// The asset path for a place's photo, or null.

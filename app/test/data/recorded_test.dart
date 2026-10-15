@@ -49,6 +49,10 @@ void main() {
       expect(recordedFlags('/?data=recorded&scores=carbon')!.scores, (health: false, carbon: true));
       expect(recordedFlags('/?data=recorded')!.scores, (health: false, carbon: false));
     });
+    test('saved=pdf:Lunch names the menus opened before; other saved entries are not PDFs', () {
+      expect(recordedFlags('/?data=recorded&saved=pdf:Lunch,Green Fields,pdf:Dinner')!.savedPdfs, {'Lunch', 'Dinner'});
+      expect(recordedFlags('/?data=recorded')!.savedPdfs, isEmpty);
+    });
     test('avoid=Milk,Eggs and only=Halal set the Avoid list and "Only show" tags for a capture', () {
       final f = recordedFlags('/?data=recorded&avoid=Milk,Eggs&only=Halal')!;
       expect(f.avoid, ['Milk', 'Eggs']);
@@ -293,6 +297,14 @@ void main() {
       addTearDown(() => other.deleteSync(recursive: true));
       final bare = await recordedRepository(recordedFlags('/?data=recorded&at=2026-10-08T12:41&net=offline')!, db, read: _read, readPdf: fake, pdfDir: other);
       expect((await bare.pdfs!.open((await links(pinned)).first).toList()).last, isA<NotSaved<File>>());
+    });
+
+    test('offline with saved=pdf:Lunch: Lunch opens, the other menus are not saved', () async {
+      final r = await rec('/?data=recorded&at=2026-10-08T12:41&net=offline&saved=pdf:Lunch');
+      final urls = await links(r);
+      expect(await r.pdfs!.open(urls[0]).toList(), [isA<Loaded<File>>()]);
+      expect((await r.pdfs!.open(urls[2]).toList()).last, isA<NotSaved<File>>());
+      expect(asked, ['Lunch.pdf']);
     });
 
     test('a checkout without the local PDFs fails the menu, not the app', () async {
