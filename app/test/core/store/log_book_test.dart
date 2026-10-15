@@ -83,4 +83,34 @@ void main() {
     expect(await servingsOf('a'), 4);
     expect(shown('a'), 4);
   });
+
+  Future<void> settle() => Future<void>.delayed(const Duration(milliseconds: 300));
+
+  for (var ticks = 1; ticks <= 5; ticks++) {
+    test('a failed edit then another $ticks zero-delay ticks later: the failed one is still read back', () async {
+      final a = book.meals.first.items[0], b = book.meals.first.items[1];
+      final failed = book.setServings(a, 0).then<Object?>((_) => null, onError: (Object e) => e); // (caught at once: nobody awaits it for a few ticks)
+      for (var i = 0; i < ticks; i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      final fine = book.setServings(b, 3);
+      expect(await failed, isNotNull);
+      await fine;
+      await settle();
+      expect(await servingsOf('a'), 1);
+      expect(shown('a'), 1);
+      expect(shown('b'), 3);
+    });
+  }
+
+  test('a re-read asked for while a stepper edit is pending (Log\'s) still lands: the new meal shows', () async {
+    await db.insert('log_entries', {'id': 'n', 'logged_at': '2026-10-08T12:41:00.000', 'source_json': src('Pizza'), 'servings': 1, 'nutrition_json': nut});
+    final edit = book.setServings(book.meals.first.items.first, 2);
+    final reread = book.reload();
+    final later = book.setServings(book.meals.first.items[1], 3); // shown before the re-read returns
+    await Future.wait([edit, reread, later]);
+    await settle();
+    expect(book.meals.expand((m) => m.items).map((i) => i.id), contains('n'));
+    expect(shown('a'), 2);
+  });
 }
