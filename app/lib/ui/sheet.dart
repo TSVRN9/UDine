@@ -109,9 +109,11 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
   // the finger on the sheet: M2's one pointer stream, kept beside the framework's drag (which moves the sheet) for the two things it cannot do
   int? _pointer;
   VelocityTracker? _vt;
-  double _g0 = 0, _lastY = 0, _pastTop = 0;
-  bool _below = false;
-  final _over = ValueNotifier<double>(0); // how far the rubber band has taken the sheet past its top, in dp
+  double _g0 = 0, _lastY = 0, _pastTop = 0, _y = 0;
+  bool _below = false, _owned = false;
+  /// How far the sheet is drawn above the framework's height, in dp: the rubber band's overshoot, and what the framework's drag took
+  /// off the sheet while the finger was still unwinding that overshoot (the sheet is drawn at `_y` then, whatever the framework did).
+  final _over = ValueNotifier<double>(0);
 
   @override
   void initState() {
@@ -227,6 +229,7 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
       _px = px;
       widget.onSize?.call(px);
     }
+    if (_owned) _over.value = _y - px;
     if (px > 1) _opened = true;
     final lb = _leaveBelow;
     if (lb != null && px <= lb && _leave != null) {
@@ -250,8 +253,10 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
     _vt = VelocityTracker.withKind(e.kind)..addPosition(e.timeStamp, e.position);
     _lastY = e.position.dy;
     _g0 = _dsc.isAttached ? _dsc.size * _h + _over.value : _px;
+    _y = _g0;
     _pastTop = _unrubber(_over.value, _h); // (a sheet caught on its way back from the rubber band)
-    _below = _g0 < _max - 2; // M2: from the top, the body scrolls; from below, the finger has the sheet whatever it does
+    _owned = _pastTop > 0;
+    _below = _g0 < _max - 2 || _owned; // M2: from the top, the body scrolls; from below, the finger has the sheet whatever it does
   }
 
   void _move(PointerMoveEvent e) {
@@ -259,12 +264,15 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
     _vt!.addPosition(e.timeStamp, e.position);
     final up = _lastY - e.position.dy;
     _lastY = e.position.dy;
-    final atTop = _dsc.isAttached && _dsc.size * _h >= _max - 0.5;
-    // (the framework's drag stops at the top; what the finger does past it is the rubber band's)
-    if (_below && (_pastTop > 0 || (atTop && up > 0))) {
-      _pastTop = (_pastTop + up).clamp(0.0, double.infinity);
-      _over.value = sheetRubber(_pastTop, _h);
-    }
+    if (!_below) return;
+    // the sheet's height under the finger, 1:1 through the rubber curve past the top; the framework's drag is cancelled out of it
+    final y0 = _owned ? _y : (_dsc.isAttached ? _dsc.size * _h : _px);
+    final past = _pastTop > 0 ? _pastTop + up : y0 + up - _max;
+    if (past <= 0 && !_owned) return;
+    _owned = true;
+    _pastTop = past > 0 ? past : 0;
+    _y = past > 0 ? _max + sheetRubber(past, _h) : (_max + past).clamp(widget.min, _max);
+    _over.value = _y - (_dsc.isAttached ? _dsc.size * _h : _px);
   }
 
   void _up(PointerEvent e) {
@@ -273,6 +281,7 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
     final v = e is PointerUpEvent ? -_vt!.getVelocity().pixelsPerSecond.dy : 0.0; // dp/s, upward
     final px = (_dsc.isAttached ? _dsc.size * _h : _px) + _over.value;
     _pastTop = 0;
+    _owned = false;
     if ((px - _g0).abs() < 0.5) return; // (a tap, or the body scrolled)
     // after the framework's own release has run: it is what this replaces
     scheduleMicrotask(() {
@@ -322,7 +331,7 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
         ValueListenableBuilder<double>(
           valueListenable: _over,
           builder: (_, over, sheet) => Stack(fit: StackFit.expand, children: [
-            Positioned(left: 0, right: 0, bottom: 0, height: over, child: ColoredBox(color: widget.color)), // (what the lifted sheet leaves bare)
+            Positioned(left: 0, right: 0, bottom: 0, height: over < 0 ? 0 : over, child: ColoredBox(color: widget.color)), // (what the lifted sheet leaves bare)
             Transform.translate(offset: Offset(0, -over), child: sheet),
           ]),
           child: DraggableScrollableSheet(

@@ -171,6 +171,29 @@ void main() {
     expect(h.px, closeTo(844 - 32, 1));
   });
 
+  testWidgets('reversing past the top, the sheet follows the finger 1:1 through the rubber curve on every frame, then on down', (t) async {
+    final h = SheetHandle();
+    await boot(t, h);
+    await t.pumpAndSettle();
+    final g = await drag(t, const Offset(195, 700), -20, 35);
+    double top() => t.getTopLeft(find.byType(CustomScrollView)).dy;
+    final past = 32 - top(); // how far the rubber band has taken it
+    expect(past, greaterThan(50));
+    // the finger's own excess past the top: the inverse of the curve
+    final excess = 844 / M2Motion.sheetReleaseRubber * (1 / (1 - past / 844) - 1);
+    var worst = 0.0;
+    for (var k = 1; k <= 60; k++) {
+      await g.moveBy(const Offset(0, 10), timeStamp: Duration(milliseconds: 16 * (35 + k)));
+      await t.pump(const Duration(milliseconds: 16));
+      final left = excess - 10 * k;
+      final want = left > 0 ? 32 - sheetRubber(left, 844) : 32 - left; // past the unwound band it is 1:1 with the finger
+      worst = [worst, (top() - want).abs()].reduce((a, b) => a > b ? a : b);
+    }
+    expect(worst, lessThan(1));
+    await g.up();
+    await t.pumpAndSettle();
+  });
+
   test('sheetReleaseTarget: the nearest detent to the projection; a mid at the top is no detent', () {
     double to(double px, double v, {double? mid = 400}) => sheetReleaseTarget(px: px, v: v, min: 0, max: 812, mid: mid);
     expect(to(540, 0), 400);
