@@ -151,6 +151,7 @@ void main() {
     tw('a names list, with the description first and Add a custom food after', (t) async {
       await cafe(t, 'c2'); // Yum! Bakery
       await until(t, () => inCafe('Menu').evaluate().isNotEmpty);
+      expect(inCafe('Yum! Bakery is a full-service bakery located in the Blue Wall. Enjoy our homemade cookies, pastries, cakes, French macarons as well as many seasonal treats.'), findsOneWidget);
       expect(find.byType(MealSliver), findsNothing);
       expect(inCafe('Add a custom food'), findsOneWidget);
       expect(find.textContaining("doesn't list its menu"), findsNothing);

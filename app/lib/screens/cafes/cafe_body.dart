@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../core/m2/board.dart' show Place;
-import '../../core/content.dart' show RetailMenuPdf;
+import '../../core/content.dart' show RetailMenuPdf, htmlToText;
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import 'cafes_model.dart';
@@ -17,7 +17,7 @@ class CafeStandingBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pdf = kind is PdfBody;
-    Widget desc(double top) => place.description.isEmpty ? const SizedBox.shrink() : Padding(padding: EdgeInsets.only(top: top), child: Text(place.description, style: M2Text.desc.style(M2Color.ink)));
+    Widget desc(double top) => place.description.isEmpty ? const SizedBox.shrink() : Padding(padding: EdgeInsets.only(top: top), child: Text(htmlToText(place.description), style: M2Text.desc.style(M2Color.ink)));
     Widget h3(String t, double top) => Padding(padding: EdgeInsets.only(top: top, bottom: M2Layout.h3Bottom), child: Semantics(header: true, child: Text(t, style: M2Text.section.style(M2Color.dm))));
     return Padding(
       padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Space.cafeBodyTop, M2Space.gutter, 0),
