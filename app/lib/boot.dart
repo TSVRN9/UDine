@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:sqflite/sqflite.dart';
 
 import 'core/hours.dart';
+import 'core/m2/board.dart' show dishKey, halls, MenuItem, M2MenuItem;
+import 'core/types.dart' show MealPeriod;
 import 'core/store/db.dart';
 import 'core/store/store.dart';
 import 'data/recorded/recorded.dart';
@@ -54,7 +56,9 @@ class Boot {
     if (flags != null) await store?.setScores(healthfulness: flags.scores.health, carbon: flags.scores.carbon);
     final prefs = await AppPrefs.load(store, pins: pinsFlag == null ? null : _fivePins.take(pinsFlag).toList());
     if (flags == null) repo.launch(); // warm today and tomorrow; never throws
-    return Boot(repo, store, prefs);
+    final boot = Boot(repo, store, prefs);
+    await boot.seedPlate(route);
+    return boot;
   }
 
   /// The database the repository caches in, and the user store over it (null when a newer build owns the file).
@@ -64,6 +68,22 @@ class Boot {
     if (r is StoreReady) return (r.db, UdineStore(r.db));
     debugPrint('udine.db was written by a newer build: menus only, nothing is written to it');
     return ((await openStore(inMemoryDatabasePath) as StoreReady).db, null);
+  }
+
+  /// `/plate?seed=benchmark` (a screenshot route): M2's benchmark plate, Beef Brisket Noodle Bowl x1 and Golden BBQ Chicken Thigh x2,
+  /// added the way Search adds them (the brisket serves Worcester and Berkshire, the thigh only Worcester, which narrows the plate).
+  Future<void> seedPlate(String route) async {
+    final u = Uri.parse(route);
+    if (u.path != '/plate' || u.queryParameters['seed'] != 'benchmark') return;
+    Future<MenuItem?> lunch(String place, String name) async {
+      final s = await repo.menu(halls.indexOf(place) + 1, repo.today).firstWhere((s) => s is Loaded<List<MenuItem>>);
+      return (s as Loaded<List<MenuItem>>).value.where((d) => d.mealPeriod == MealPeriod.lunch && d.key == dishKey(name)).firstOrNull;
+    }
+    const brisket = 'Beef Brisket Noodle Bowl', thigh = 'Golden BBQ Chicken Thigh';
+    final b = {for (final h in ['W', 'B']) h: ?await lunch(h, brisket)}, t = {'W': ?await lunch('W', thigh)};
+    plate.add('lunch', brisket, b);
+    plate.add('lunch', thigh, t);
+    plate.add('lunch', thigh, t);
   }
 
   Widget wrap(Widget child) => AppScope(repo: repo, store: store, prefs: prefs, hider: hider, plate: plate, child: child);
