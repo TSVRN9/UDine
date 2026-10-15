@@ -109,23 +109,29 @@ class Repository {
   // ponytail: one window for every feed and place, cleared by any success or [retryNetwork]; per-host backoff if a feed can be down while others are up.
   static const offlineWindow = Duration(seconds: 30);
 
-  int _inFlight = 0;
-  final _waiting = <Completer<void>>[];
+  /// Background work (a prefetch of places nobody has opened) holds at most this many of the [maxInFlight] slots, so a fetch the user just
+  /// asked for starts at once, or after one release when other foreground fetches fill the rest.
+  static const backgroundSlots = 2;
+
+  int _inFlight = 0, _backgroundInFlight = 0;
+  final _waiting = <Completer<void>>[], _waitingBackground = <Completer<void>>[];
   DateTime? _offlineUntil;
 
   /// "Try again": the next fetch asks the network whatever the last one said.
   void retryNetwork() => _offlineUntil = null;
 
-  /// Runs [fetch] when one of the [maxInFlight] slots is free. Inside the offline window it does not run: it throws Unreachable
+  /// Runs [fetch] when one of the [maxInFlight] slots is free: a waiting foreground job always goes before a background one, and
+  /// a [background] job never holds more than [backgroundSlots]. Inside the offline window it does not run: it throws Unreachable
   /// as the network would, so the caller's offline path (saved copy, NotSaved) answers. Unreachable starts the window; any
   /// answer ends it.
-  Future<T> _pooled<T>(Future<T> Function() fetch) async {
-    if (_inFlight >= maxInFlight) {
-      final turn = Completer<void>();
-      _waiting.add(turn);
-      await turn.future; // a finishing fetch hands its slot over
-    } else {
+  Future<T> _pooled<T>(Future<T> Function() fetch, {bool background = false}) async {
+    if (_inFlight < maxInFlight && (!background || _backgroundInFlight < backgroundSlots)) {
       _inFlight++;
+      if (background) _backgroundInFlight++;
+    } else {
+      final turn = Completer<void>();
+      (background ? _waitingBackground : _waiting).add(turn);
+      await turn.future; // a finishing fetch hands its slot over (and has counted it)
     }
     try {
       final until = _offlineUntil;
@@ -139,10 +145,19 @@ class Repository {
       _offlineUntil = now().add(offlineWindow);
       rethrow;
     } finally {
-      if (_waiting.isEmpty) {
-        _inFlight--;
-      } else {
-        _waiting.removeAt(0).complete();
+      _inFlight--;
+      if (background) _backgroundInFlight--;
+      while (_inFlight < maxInFlight) {
+        if (_waiting.isNotEmpty) {
+          _inFlight++;
+          _waiting.removeAt(0).complete();
+        } else if (_waitingBackground.isNotEmpty && _backgroundInFlight < backgroundSlots) {
+          _inFlight++;
+          _backgroundInFlight++;
+          _waitingBackground.removeAt(0).complete();
+        } else {
+          break;
+        }
       }
     }
   }
@@ -150,7 +165,8 @@ class Repository {
   String get today => effectiveTodayIso(now(), defaultRolloverHour);
 
   /// Menu for a hall (tid 1-4) or a café's foodpro location id.
-  Stream<DataState<List<MenuItem>>> menu(int locationId, String date) => _load(
+  Stream<DataState<List<MenuItem>>> menu(int locationId, String date, {bool background = false}) => _load(
+    background: background,
     key: _menuKey(locationId, date),
     fetch: () => source.menu(locationId, date),
     parse: (raw, _) => parseMenuResponse(locationId, date, raw is Map<String, dynamic> ? raw : const {}),
@@ -163,8 +179,8 @@ class Repository {
   /// Menus fetched in this session by place-day (an empty one included: it is never final on disk, but it is not asked for again).
   final _fetched = <String, List<MenuItem>>{};
   /// Every (location id, date) given, once, through the one door Search and the dish sheet share: a place-day this session has had is
-  /// not asked for again, a saved final one asks for nothing (both as [menu] does), and every fetch goes through [_pooled], so at most
-  /// [maxInFlight] are in flight and, once the network is known to be down, none are asked and what is saved answers. A place-day with
+  /// not asked for again, a saved final one asks for nothing (both as [menu] does), and every fetch goes through [_pooled] as background work, so at most
+  /// [maxInFlight] are in flight (and a fetch the user asks for meanwhile goes first) and, once the network is known to be down, none are asked and what is saved answers. A place-day with
   /// no answer is left out. They start [maxInFlight] at a time, and [stopped] is checked before each wave.
   Future<Map<(int, String), List<MenuItem>>> prefetchMenus(Iterable<(int, String)> days, {bool Function()? stopped}) async {
     final out = <(int, String), List<MenuItem>>{}, todo = days.toList();
@@ -175,7 +191,7 @@ class Repository {
         return;
       }
       List<MenuItem>? got;
-      await for (final s in menu(d.$1, d.$2)) {
+      await for (final s in menu(d.$1, d.$2, background: true)) {
         if (s case Loaded(:final value) || LoadedOffline(:final value)) got = value;
       }
       if (got != null) out[d] = got;
@@ -423,6 +439,7 @@ class Repository {
     bool Function(T value, DateTime fetchedAt)? isFinal,
     Duration quietWithin = Duration.zero,
     void Function(T value)? onFetched,
+    bool background = false,
   }) {
     final c = StreamController<DataState<T>>();
     () async {
@@ -459,7 +476,7 @@ class Repository {
           slow = Timer(stillLoadingAfter, () => c.add(StillLoading()));
         }
         try {
-          final raw = await _pooled(fetch);
+          final raw = await _pooled(fetch, background: background);
           final value = parse(raw, true);
           onFetched?.call(value);
           slow?.cancel();
