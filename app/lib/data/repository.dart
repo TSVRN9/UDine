@@ -105,7 +105,66 @@ class Repository {
     quietWithin: menuFresh,
     isEmpty: (items) => items.isEmpty,
     isFinal: (items, fetchedAt) => items.isNotEmpty && !fetchedAt.isBefore(_dayStart(date)),
+    onFetched: (items) => _fetched[_menuKey(locationId, date)] = items,
   );
+
+  /// Menus fetched in this session by place-day (an empty one included: it is never final on disk, but it is not asked for again).
+  final _fetched = <String, List<MenuItem>>{};
+  DateTime? _unreachableAt;
+  final _gate = _Gate(4);
+
+  /// How long after the network was found down nothing is asked of it.
+  static const offlineQuiet = Duration(seconds: 30);
+  bool get _recentlyOffline => _unreachableAt != null && now().difference(_unreachableAt!) < offlineQuiet;
+
+  /// The saved copy of a place-day, whatever its age, or null.
+  Future<List<MenuItem>?> savedMenu(int locationId, String date) async {
+    final rows = await db.query('preferences_kv', columns: ['value_json'], where: 'key = ?', whereArgs: [_menuKey(locationId, date)]);
+    if (rows.isEmpty) return null;
+    try {
+      final e = jsonDecode(rows.first['value_json']! as String) as Map<String, dynamic>;
+      final items = parseMenuResponse(locationId, date, e['raw'] is Map<String, dynamic> ? e['raw'] as Map<String, dynamic> : const {});
+      return items.isEmpty ? null : items;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Every (location id, date) given, once, through the one door Search and the dish sheet share: a place-day this session has had is
+  /// not asked for again, a saved final one asks for nothing (both as [menu] does), at most [cap] requests are in flight at once, and
+  /// once the network is known to be down (an [Unreachable] in the last [offlineQuiet]) only what is saved answers. A place-day with no
+  /// answer is left out. [stopped] is checked before each one starts.
+  Future<Map<(int, String), List<MenuItem>>> prefetchMenus(Iterable<(int, String)> days, {int? cap, bool Function()? stopped}) async {
+    if (cap != null) _gate.limit = cap;
+    final out = <(int, String), List<MenuItem>>{};
+    await Future.wait([
+      for (final d in days)
+        () async {
+          final key = _menuKey(d.$1, d.$2);
+          final had = _fetched[key];
+          if (had != null) {
+            out[d] = had;
+            return;
+          }
+          await _gate.acquire();
+          try {
+            if (stopped?.call() ?? false) return;
+            List<MenuItem>? got;
+            if (_recentlyOffline) {
+              got = await savedMenu(d.$1, d.$2);
+            } else {
+              await for (final s in menu(d.$1, d.$2)) {
+                if (s case Loaded(:final value) || LoadedOffline(:final value)) got = value;
+              }
+            }
+            if (got != null) out[d] = got;
+          } finally {
+            _gate.release();
+          }
+        }(),
+    ]);
+    return out;
+  }
 
   Stream<DataState<CafeMenu>> cafeMenu(RetailLocationHours loc, String date) {
     final id = loc.locationId;
@@ -289,6 +348,7 @@ class Repository {
     bool Function(T value)? isEmpty,
     bool Function(T value, DateTime fetchedAt)? isFinal,
     Duration quietWithin = Duration.zero,
+    void Function(T value)? onFetched,
   }) {
     final c = StreamController<DataState<T>>();
     () async {
@@ -327,6 +387,7 @@ class Repository {
         try {
           final raw = await fetch();
           final value = parse(raw, true);
+          onFetched?.call(value);
           slow?.cancel();
           if (saved != null && isEmpty != null && isEmpty(value)) {
             return; // a later empty answer is the glitch, never news: keep the render and the saved copy
@@ -339,6 +400,7 @@ class Repository {
             }, conflictAlgorithm: ConflictAlgorithm.replace);
           }
         } on Unreachable {
+          _unreachableAt = now();
           slow?.cancel();
           if (saved == null) {
             c.add(NotSaved());
@@ -357,5 +419,31 @@ class Repository {
       }
     }();
     return c.stream;
+  }
+}
+
+/// At most `limit` holders at a time, the rest waiting in order.
+class _Gate {
+  _Gate(this.limit);
+  int limit;
+  int _held = 0;
+  final _waiting = <Completer<void>>[];
+
+  Future<void> acquire() async {
+    if (_held < limit) {
+      _held++;
+      return;
+    }
+    final c = Completer<void>();
+    _waiting.add(c);
+    await c.future;
+  }
+
+  void release() {
+    if (_waiting.isNotEmpty) {
+      _waiting.removeAt(0).complete(); // the slot passes on
+    } else {
+      _held--;
+    }
   }
 }

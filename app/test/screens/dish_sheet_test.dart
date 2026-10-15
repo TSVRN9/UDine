@@ -15,7 +15,8 @@ const base = '/hall/worcester?meal=lunch';
 
 Future<void> tapRow(WidgetTester t, int i) async {
   await t.tap(find.byType(DishRow).at(i), warnIfMissed: false);
-  await t.pumpAndSettle();
+  await t.pump();
+  await sheetUp(t); // (the where answer's requests end before the test does)
 }
 
 void main() {
