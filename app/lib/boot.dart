@@ -51,7 +51,11 @@ class Boot {
       final client = http.Client();
       repo = Repository(UmassSource(client), cache, supabase: SupabaseSource(client));
     }
-    if (flags != null) await store?.setScores(healthfulness: flags.scores.health, carbon: flags.scores.carbon);
+    if (flags != null) {
+      await store?.setScores(healthfulness: flags.scores.health, carbon: flags.scores.carbon);
+      if (flags.avoid.isNotEmpty) await store?.setAvoid(flags.avoid);
+      if (flags.onlyShow.isNotEmpty) await store?.setOnlyShow(flags.onlyShow);
+    }
     final prefs = await AppPrefs.load(store, pins: pinsFlag == null ? null : _fivePins.take(pinsFlag).toList());
     if (flags == null) repo.launch(); // warm today and tomorrow; never throws
     return Boot(repo, store, prefs);
