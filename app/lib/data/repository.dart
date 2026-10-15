@@ -86,8 +86,8 @@ String addDays(String iso, int days) {
 /// menu_cache:* rows are never touched. Raw responses are stored and re-parsed on read, so parser fixes apply to old
 /// entries and fields toJson omits (health, carbon) survive.
 class Repository {
-  Repository(this.source, this.db, {this.supabase, this.pdfs, DateTime Function()? now, this.stillLoadingAfter = const Duration(milliseconds: 400)})
-    : now = now ?? DateTime.now {
+  Repository(this.source, this.db, {this.supabase, this.pdfs, DateTime Function()? now, Duration? stillLoadingAfter})
+    : now = now ?? DateTime.now, stillLoadingAfter = stillLoadingAfter ?? stillLoadingDelay {
     pdfs?.pool = _pooled; // PDFs take the same slots and honour the same offline window as the menus
   }
   final UmassSource source;
