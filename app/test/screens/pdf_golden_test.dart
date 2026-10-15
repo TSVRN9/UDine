@@ -23,7 +23,7 @@ void main() {
   for (final w in [360.0, 390.0]) {
     final n = w.toInt();
     Future<void> shot(WidgetTester t, String name, String route, {NetMode net = NetMode.ok, List<String> pins = const [], bool saveLunch = false, bool menu = false, bool linked = true, bool loading = false, Future<void> Function(WidgetTester)? then}) async {
-      final boot = await bootRecorded(t, net: net, pins: pins, pages: await syntheticPages(t), pdfsLinked: linked);
+      final boot = await bootRecorded(t, net: net, pins: pins, pages: (await syntheticPages(t)).call, pdfsLinked: linked);
       if (saveLunch) {
         final feed = jsonDecode(File('assets/recorded/locations-2026-10-11.json').readAsStringSync()) as List;
         final html = feed.cast<Map<String, dynamic>>().firstWhere((l) => l['location_title'] == commonwealth)['breakfast_menu'] as String;

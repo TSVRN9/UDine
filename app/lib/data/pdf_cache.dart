@@ -29,6 +29,9 @@ class PdfCache {
     return '${h.toUnsigned(64).toRadixString(16).padLeft(16, '0')}.pdf';
   }
 
+  /// Fetches in flight by URL: a second ask (the launch prefetch and a tap on the same menu) joins the first, and [prune] knows whose `.part` is live.
+  final _fetching = <String, Future<File>>{};
+
   File file(String url) => File('${dir.path}/${_name(url)}');
 
   /// Saved: Loaded at once. Otherwise Loading, then Loaded / NotSaved (no route to UMass) / Failed (bad answer, not a PDF, not UMass's).
@@ -52,7 +55,14 @@ class PdfCache {
 
   /// Fetches [url] into its file (throws [Unreachable], [BadStatus] or [ArgumentError]). A body without the %PDF header is refused:
   /// the viewer would render whatever the server sent. Written to a temp name first, so a half-written file is never a hit.
-  Future<File> fetch(String url) async {
+  Future<File> fetch(String url) {
+    final f = _fetching[url] ??= _fetch(url).whenComplete(() {
+      _fetching.remove(url); // (a block: whenComplete awaits a returned Future, and remove returns this very one)
+    });
+    return f;
+  }
+
+  Future<File> _fetch(String url) async {
     if (!isUmassDiningHost(url)) throw ArgumentError.value(url, 'url', 'not a umassdining.com link');
     final bytes = await pool(() => sendBytes(client, timeout, 'GET', Uri.parse(url)));
     if (bytes.length < 5 || String.fromCharCodes(bytes.take(5)) != '%PDF-') throw FormatException('not a PDF', url);
@@ -62,10 +72,10 @@ class PdfCache {
     return tmp.rename(f.path);
   }
 
-  /// Deletes every saved file whose URL is not in [keep] (and any leftover half-written one).
+  /// Deletes every saved file whose URL is not in [keep], and any leftover half-written one unless a fetch in flight owns it.
   Future<void> prune(Set<String> keep) async {
     if (!dir.existsSync()) return;
-    final names = {for (final u in keep) _name(u)};
+    final names = {for (final u in keep) _name(u), for (final u in _fetching.keys) '${_name(u)}.part'};
     for (final e in dir.listSync()) {
       if (e is File && !names.contains(e.uri.pathSegments.last)) await e.delete();
     }

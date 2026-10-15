@@ -111,6 +111,33 @@ void main() {
     expect(dir.listSync().map((e) => e.path.split('/').last), [cache.file(lunch).path.split('/').last]);
   });
 
+  test('prune leaves the .part of a fetch still in flight alone, and drops a stray one once nothing is writing', () async {
+    final gate = Completer<void>();
+    var calls = 0;
+    final slow = PdfCache(dir, MockClient((req) async {
+      calls++;
+      await gate.future;
+      return http.Response.bytes(pdf(), 200);
+    }));
+    dir.createSync(recursive: true);
+    final part = File('${slow.file(lunch).path}.part')..writeAsBytesSync(utf8.encode('%PDF-1.4 half'));
+    final stray = File('${slow.file(dinner).path}.part')..writeAsBytesSync(utf8.encode('%PDF-1.4 crash'));
+    final f = slow.fetch(lunch);
+    await slow.prune({});
+    expect(part.existsSync(), isTrue, reason: 'its writer is alive');
+    expect(stray.existsSync(), isFalse, reason: 'nobody is writing it');
+    gate.complete();
+    await f;
+    expect(slow.file(lunch).existsSync(), isTrue);
+    expect(calls, 1);
+  });
+
+  test('two fetches of one URL share one request and one write', () async {
+    final a = cache.fetch(lunch), b = cache.fetch(lunch);
+    expect((await a).path, (await b).path);
+    expect(calls, hasLength(1));
+  });
+
   test('fetches run through the pool when there is one', () async {
     var ran = 0;
     cache.pool = <T>(job) {

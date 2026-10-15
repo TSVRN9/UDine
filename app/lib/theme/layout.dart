@@ -157,6 +157,7 @@ abstract final class M2Layout {
   static const pdfGutter = 16.0; // `.page[data-p=pdf] .pbody` padding-inline: the pages' gutters, not the 20 of text
   static const pdfBodyTop = 12.0, pdfBodyBottom = 20.0, pdfPageGap = 12.0; // `.page[data-p=pdf] .pbody` padding 12 16 20, `.pdfp` margin-bottom 12
   static const pdfMinZoom = 1.0, pdfMaxZoom = 4.0, pdfTapZoom = 2.5; // pinch 1x to 4x; double-tap 2.5x at the point, and back to 1x
+  static const pdfRenderAhead = 0.5; // a page is drawn once it is within half a view height of the view
   static const pdfRenderScale = 3.0; // pages are drawn at 3x the screen width: sharp at 1x, soft past 3x (M2 draws 1074 px for 390)
   static const pdfShadow = Color.fromRGBO(36, 10, 14, 0.2), pdfShadowDy = 1.0, pdfShadowBlur = 3.0; // `.pdfp` box-shadow 0 1px 3px
   static const mcGap = 6.0; // `.lrow .mc` gap: "Not saved" and the chevron
