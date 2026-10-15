@@ -24,6 +24,7 @@ import 'screens/hall/hall_controller.dart' show mealsOfItems;
 import 'shell/app_scope.dart';
 import 'shell/plate_model.dart';
 import 'shell/prefs.dart';
+import 'shell/share.dart';
 import 'ui/photo.dart' show Photos;
 
 /// `?pins=N` (screenshots; M2's own flag): the first N of M2's five, held in memory and never saved. In recorded mode `?pins=A,B` names them.
@@ -35,6 +36,9 @@ const _fivePins = ['Wasabi', 'Tamales', "Peet's Coffee & Tea", 'Harvest Market',
 class Boot {
   Boot(this.repo, this.store, this.prefs, {this.pdfOpen = pdfxOpen});
   final PdfOpen pdfOpen;
+  /// the OS share sheet Export hands its files to; a test replaces it
+  @visibleForTesting
+  ShareFiles share = shareFiles;
   final Repository repo;
 
   /// The device store; null when the file was written by a newer build (menus only, below).
@@ -123,5 +127,5 @@ class Boot {
     }
   }
 
-  Widget wrap(Widget child) => AppScope(repo: repo, store: store, log: log, prefs: prefs, hider: hider, plate: plate, pdfOpen: pdfOpen, child: child);
+  Widget wrap(Widget child) => AppScope(repo: repo, store: store, log: log, prefs: prefs, hider: hider, plate: plate, pdfOpen: pdfOpen, share: share, child: child);
 }

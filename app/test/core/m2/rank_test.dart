@@ -17,13 +17,14 @@ void main() {
     expect(rankedOrder([a], [r(b, 1700, 4), r(a, 1500, 1)]), [a]);
   });
 
-  test('the next pair is the two least-compared dishes; a pair taken this visit is not offered again', () {
-    expect(nextPair([a, b, c], [r(a, 1500, 3), r(b, 1500, 0), r(c, 1500, 1)], {}), (b, c));
-    expect(nextPair([a, b, c], [r(a, 1500, 3), r(b, 1500, 0), r(c, 1500, 1)], {pairKey(b, c)}), (a, b));
+  test('the next pair is the two least-compared dishes, log order breaking ties', () {
+    expect(nextPair([a, b, c], [r(a, 1500, 3), r(b, 1500, 0), r(c, 1500, 1)]), (b, c));
+    expect(nextPair([a, b, c], const []), (a, b));
   });
 
-  test('no pair with fewer than two dishes, or once every pair was taken', () {
-    expect(nextPair([a], const [], {}), isNull);
-    expect(nextPair([a, b], const [], {pairKey(b, a)}), isNull);
+  test('no pair with fewer than two dishes, or once every dish has been set against all the others', () {
+    expect(nextPair([a], const []), isNull);
+    expect(nextPair([a, b, c], [r(a, 1500, 2), r(b, 1500, 2), r(c, 1500, 2)]), isNull);
+    expect(nextPair([a, b, c], [r(a, 1500, 2), r(b, 1500, 2), r(c, 1500, 1)]), isNotNull);
   });
 }

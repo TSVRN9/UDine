@@ -13,6 +13,7 @@ import '../screens/hall/hall_route.dart';
 import '../screens/halls/hall_page.dart';
 import '../screens/halls/halls_screen.dart';
 import '../screens/you/day_page.dart';
+import '../screens/you/settings_pages.dart';
 import '../screens/you/you_screen.dart';
 import '../theme/tokens.dart';
 import '../ui/ui.dart';
@@ -112,11 +113,12 @@ class ShellState extends State<Shell> implements ShellApi {
         ),
       );
 
-  /// `/you/day/2026-10-07` opens that day over You at launch (a screenshot route).
+  /// `/you/day/2026-10-07`, `/you/diet`, `/you/rank`, `/you/export` and `/you/favs` open that page over You at launch (screenshot routes).
   Route<void>? _youLaunch(String route, double top) {
     final s = Uri.parse(route).pathSegments;
-    if (s.length != 3 || s[0] != 'you' || s[1] != 'day') return null;
-    return BaseRoute<void>(settings: RouteSettings(name: route), builder: (_) => DayPage(top: top, day: s[2]));
+    if (s.isEmpty || s[0] != 'you') return null;
+    final page = switch (s) { [_, 'day', final d] => DayPage(top: top, day: d), [_, 'diet'] => DietPage(top: top), [_, 'rank'] => RankPage(top: top), [_, 'export'] => ExportPage(top: top), [_, 'favs'] => FavoritesPage(top: top), _ => null };
+    return page == null ? null : BaseRoute<void>(settings: RouteSettings(name: route), builder: (_) => page);
   }
 
   void _select(int i) {

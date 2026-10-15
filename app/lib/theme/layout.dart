@@ -185,4 +185,7 @@ abstract final class M2Layout {
   static const lgoneName = M2Type(16.0, null, 'LibreFranklin', FontWeight.w500); // `.lgone .n`: the row's name at 500
   static const mealCalNum = M2Type(18.0, null, 'Oswald', FontWeight.w600, tabular: true); // `.lrow .mc b`
   static const emptyTop = 28.0, emptyBottom = 8.0; // `.empty` padding 28 20 8
+  // Which was better? and Export (`.vs`, `.vs .or`, `.stack`)
+  static const vsMin = 96.0, vsPad = 16.0, vsGap = 12.0, vsTop = 12.0; // `.vs button` min-height 96, padding 16; `.vs, .stack` gap 12, margin-top 12
+  static const vsName = M2Type(22.0, 25.3, 'Oswald', FontWeight.w600, tabular: true); // `.vs button`: 600 22/1.15 Oswald
 }

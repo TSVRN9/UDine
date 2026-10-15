@@ -7,11 +7,12 @@ import '../data/repository.dart';
 import '../motion/routes.dart';
 import 'plate_model.dart';
 import 'prefs.dart';
+import 'share.dart';
 
 /// What every screen under the shell reads: the repository (live or recorded), the device store, the preferences and which band a
 /// card is open from. The members are the notifiers; the scope itself never changes.
 class AppScope extends InheritedWidget {
-  const AppScope({super.key, required this.repo, required this.store, this.log, required this.prefs, required this.hider, required this.plate, this.pdfOpen = pdfxOpen, required super.child});
+  const AppScope({super.key, required this.repo, required this.store, this.log, required this.prefs, required this.hider, required this.plate, this.pdfOpen = pdfxOpen, this.share = shareFiles, required super.child});
   final Repository repo;
   /// null when a newer build owns the database: menus only, nothing is written
   final UdineStore? store;
@@ -23,6 +24,8 @@ class AppScope extends InheritedWidget {
   final PlateModel plate;
   /// how a café's menu PDF is drawn (tests hand in synthetic pages)
   final PdfOpen pdfOpen;
+  /// the OS share sheet (tests hand in a recorder)
+  final ShareFiles share;
 
   static AppScope of(BuildContext context) => context.getInheritedWidgetOfExactType<AppScope>()!;
 

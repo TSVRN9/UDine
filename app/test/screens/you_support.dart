@@ -3,6 +3,7 @@ import 'package:udine/boot.dart';
 import 'package:udine/dev/log_seed.dart';
 export 'package:udine/dev/log_seed.dart' show seedToday, seedEarlier;
 import 'package:udine/screens/you/day_page.dart';
+import 'package:udine/screens/you/settings_pages.dart';
 import 'package:udine/screens/you/you_screen.dart';
 import 'support.dart';
 
@@ -20,7 +21,7 @@ Future<Boot> bootYou(WidgetTester t, [History h = History.full]) async {
 
 Future<void> openYou(WidgetTester t, Boot b, {double w = 390, String route = '/you', bool reduced = false}) async {
   await openApp(t, b, route: route, w: w, reduced: reduced);
-  await until(t, () => find.byType(route.startsWith('/you/day') ? DayPage : YouScreen).evaluate().isNotEmpty);
+  await until(t, () => find.byType(route.startsWith('/you/day') ? DayPage : route == '/you' ? YouScreen : SettingsPage).evaluate().isNotEmpty);
   await t.pumpAndSettle();
 }
 

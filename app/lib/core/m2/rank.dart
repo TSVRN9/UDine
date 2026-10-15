@@ -17,16 +17,14 @@ List<LoggedDish> rankedOrder(List<LoggedDish> pool, List<RankedDish> ranked) {
     });
 }
 
-String pairKey(LoggedDish x, LoggedDish y) => ([x, y].map((d) => '${d.dishName}@${d.hallTid}').toList()..sort()).join('|');
-
-/// The next pair to ask: the two dishes compared least so far (log order breaks ties), skipping pairs already taken in this visit. Null when
-/// fewer than two dishes are logged or every pair has been taken.
-(LoggedDish, LoggedDish)? nextPair(List<LoggedDish> pool, List<RankedDish> ranked, Set<String> taken) {
+/// The next pair to ask: the two dishes compared least so far (log order breaks ties). Null when fewer than two dishes are logged or every
+/// dish has been set against as many others as there are (its count reached the rest of the pool): then "Your ranking" shows.
+(LoggedDish, LoggedDish)? nextPair(List<LoggedDish> pool, List<RankedDish> ranked) {
+  if (pool.every((d) => _count(ranked, d) >= pool.length - 1)) return null;
   (LoggedDish, LoggedDish)? best;
   var bestCost = 1 << 30;
   for (var i = 0; i < pool.length; i++) {
     for (var j = i + 1; j < pool.length; j++) {
-      if (taken.contains(pairKey(pool[i], pool[j]))) continue;
       final cost = _count(ranked, pool[i]) + _count(ranked, pool[j]);
       if (cost < bestCost) {
         bestCost = cost;
