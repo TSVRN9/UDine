@@ -51,8 +51,10 @@ void main() {
     addTearDown(c.dispose);
     await ready(c);
     expect(c.index, isNotNull);
+    await Future<void>.delayed(const Duration(milliseconds: 200));
     final sends = net.sends;
-    expect(sends, greaterThan(0));
+    // the hours, the four halls' busy curves, and today and tomorrow of every hall and café that has a menu: each once, nothing else
+    expect(sends, 1 + 4 + 2 * (4 + c.cafeIds.length));
     for (final q in ['p', 'pi', 'piz', 'pizz', 'pizza']) {
       c.setQuery(q);
     }

@@ -61,20 +61,29 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _onTab();
+    _start(); // (dependencies also change when the keyboard comes up: that must never touch the selection)
+  }
+
+  /// The one load, the first time the tab is the one showing: the route's query and lenses go in, the caret after the query.
+  void _start() {
+    if (_c != null || widget.tab.value != widget.index || !mounted) return;
+    final scope = AppScope.of(context);
+    _c = SearchController(scope.repo, scope.prefs, scope.plate)..addListener(_changed);
+    for (final l in widget.lenses) {
+      _c!.toggleLens(l);
+    }
+    _c!.setQuery(widget.query);
+    _text.selection = TextSelection.collapsed(offset: _text.text.length);
+    _focus.requestFocus();
   }
 
   void _onTab() {
     if (widget.tab.value != widget.index || !mounted) return;
     if (_c == null) {
-      final scope = AppScope.of(context);
-      _c = SearchController(scope.repo, scope.prefs, scope.plate)..addListener(_changed);
-      for (final l in widget.lenses) {
-        _c!.toggleLens(l);
-      }
-      _c!.setQuery(widget.query);
+      _start();
+      return;
     }
-    // arriving at Search is arriving at the field: the keyboard up, the last query selected to be typed over (M2 `selectQ`)
+    // coming back to Search is coming back to the field: the last query selected to be typed over (M2 `selectQ`)
     _text.selection = TextSelection(baseOffset: 0, extentOffset: _text.text.length);
     _focus.requestFocus();
   }
