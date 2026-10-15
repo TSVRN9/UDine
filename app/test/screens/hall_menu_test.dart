@@ -167,6 +167,10 @@ void main() {
       expect(t.widget<Opacity>(find.byKey(const ValueKey('fade-list'))).opacity, lessThan(1)); // arriving
       await t.pumpAndSettle();
       expect(t.widget<Opacity>(find.byKey(const ValueKey('fade-list'))).opacity, 1);
+      for (var i = 0; i < 6; i++) {
+        await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30)));
+        await t.pump(const Duration(seconds: 2)); // the slow busy calls still to come
+      }
       await drain(t);
     });
 

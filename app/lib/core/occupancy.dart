@@ -35,12 +35,19 @@ const _vsBand = 0.25;
 const _vsMinPeople = 10;
 
 class OccupancyRead {
-  const OccupancyRead({required this.level, required this.vsUsual, required this.usuallyClearsAt, required this.confidence, required this.lamps});
+  const OccupancyRead({required this.level, required this.vsUsual, required this.usuallyClearsAt, required this.confidence, required this.lamps, this.board, this.nowHour = 0});
 
   /// Lit lamps of the band meter and the header board, 1-5 (owner, 2026-10-14): the live headcount as a share of the day's typical
   /// peak, capped at the peak. No usable curve (no rows, every bucket under [minSamples], a peak of 0) falls back to the level:
   /// 1, 3 or 5. Confidence never changes it.
   final int lamps;
+
+  /// The header board (lamps 0 = no bucket for the hour, drawn unlit): one column per hour the curve holds buckets for, its highest bucket as a share of the day's peak, in the
+  /// meter's lamps. Null exactly when the meter falls back to the level (no usable curve). Confidence never changes it.
+  final List<({int hour, int lamps})>? board;
+
+  /// The Eastern hour of the read, the board's column that shows the live [lamps].
+  final int nowHour;
 
   /// 0 not busy, 1 moderate, 2 busy, for this hour (the thresholds are hourly).
   final int level;
@@ -61,9 +68,9 @@ class OccupancyRead {
   }
 }
 
-/// [typical] is the curve for [occupancyDow] of [now]; [live] null (no sensor, offline) gives no read. Buckets are matched
+/// [typical] is the curve for [occupancyDow] of [now]; [tomorrow] the next weekday's, for a hall open past midnight: its early buckets can hold the clearing time; [live] null (no sensor, offline) gives no read. Buckets are matched
 /// on Eastern wall time, so DST days line up with the RPC's own wall-clock grouping.
-OccupancyRead? occupancyRead({required List<OccupancyBucket> typical, required SensorLevels? live, required DateTime now}) {
+OccupancyRead? occupancyRead({required List<OccupancyBucket> typical, List<OccupancyBucket> tomorrow = const [], required SensorLevels? live, required DateTime now}) {
   if (live == null) return null;
   final level = live.count >= live.moderate ? 2 : live.count >= live.notBusy ? 1 : 0;
   final wall = easternWall(now);
@@ -74,6 +81,15 @@ OccupancyRead? occupancyRead({required List<OccupancyBucket> typical, required S
   for (final b in typical) {
     if (b.minuteOfDay == nowMin) cur = b;
     if (b.minuteOfDay > nowMin && b.medianLevel < level && (clears == null || b.minuteOfDay < clears.minuteOfDay)) clears = b;
+  }
+  var clearsMin = clears?.minuteOfDay;
+  if (clears == null) {
+    for (final b in tomorrow) {
+      if (b.medianLevel < level && (clearsMin == null || b.minuteOfDay + 1440 < clearsMin)) {
+        clears = b;
+        clearsMin = b.minuteOfDay + 1440;
+      }
+    }
   }
 
   VsUsual? vs;
@@ -88,9 +104,22 @@ OccupancyRead? occupancyRead({required List<OccupancyBucket> typical, required S
   final curveUsable = peak > 0 && typical.any((b) => b.samples >= minSamples);
   return OccupancyRead(
     level: level,
+    board: curveUsable ? _board(typical, peak) : null,
+    nowHour: wall.hour,
     lamps: curveUsable ? lamps(live.count * 100 / peak) : const [1, 3, 5][level],
     vsUsual: vs,
-    usuallyClearsAt: clears == null ? null : easternInstant(DateTime.utc(wall.year, wall.month, wall.day, 0, clears.minuteOfDay)),
+    usuallyClearsAt: clearsMin == null ? null : easternInstant(DateTime.utc(wall.year, wall.month, wall.day, 0, clearsMin)),
     confidence: sure ? Confidence.good : Confidence.low,
   );
+}
+
+/// An hour's column is its highest bucket as a share of the peak, sub-floor buckets included. An hour the curve holds no bucket for is not here:
+/// the board's span fill draws it unlit (lamps 0), which is not a measured quiet hour.
+List<({int hour, int lamps})> _board(List<OccupancyBucket> typical, int peak) {
+  final top = <int, int>{};
+  for (final b in typical) {
+    final h = b.minuteOfDay ~/ 60;
+    if (b.medianHeadcount > (top[h] ?? -1)) top[h] = b.medianHeadcount;
+  }
+  return [for (final h in top.keys.toList()..sort()) (hour: h, lamps: lamps(top[h]! * 100 / peak))];
 }
