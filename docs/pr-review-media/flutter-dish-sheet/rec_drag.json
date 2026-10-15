@@ -1,10 +1,10 @@
 {
-  "sha": "67f6ac3e4003dea5890181c80a53a3b9f36537d9",
+  "sha": "32ba15133202bb3c3b4e1d473723fd21d979f796",
   "branch": "flutter/dish-sheet",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/port-dish",
   "route": "/hall/worcester?meal=lunch&data=recorded&at=2026-10-08T12:41&dish=Golden+BBQ+Chicken+Thigh&photos=off",
   "device": "sdk_gphone64_x86_64",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-15T07:02:40Z"
+  "ts": "2026-10-15T08:22:25Z"
 }
