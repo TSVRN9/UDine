@@ -24,6 +24,9 @@ class AppScope extends InheritedWidget {
   /// how a café's menu PDF is drawn (tests hand in synthetic pages)
   final PdfOpen pdfOpen;
 
+  /// a newer build owns the database: nothing is written, so nothing that records (a custom food) is offered
+  bool get menusOnly => store == null;
+
   static AppScope of(BuildContext context) => context.getInheritedWidgetOfExactType<AppScope>()!;
 
   @override

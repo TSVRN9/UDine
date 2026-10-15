@@ -49,8 +49,8 @@ class Boot {
   /// stays off, and nothing the user does is saved. Menus, hours and busy work as ever, cached in a throwaway in-memory database.
   bool get menusOnly => store == null;
 
-  /// [dbPath] is a test seam (the device path by default).
-  static Future<Boot> open(String route, {String? dbPath}) async {
+  /// [dbPath] and [read] (the recordings' reader) are test seams (the device path and the app bundle by default).
+  static Future<Boot> open(String route, {String? dbPath, Future<String> Function(String name)? read}) async {
     if (photosOff(route)) Photos.enabled = false;
     final flags = recordedFlags(route);
     final pinsQuery = Uri.parse(route).queryParameters['pins'], pinsFlag = int.tryParse(pinsQuery ?? '');
@@ -65,7 +65,7 @@ class Boot {
     if (flags != null) {
       // `at` is Eastern wall-clock time, as M2 reads it, wherever the device is
       final a = flags.at;
-      repo = await recordedRepository(RecordedFlags(at: a == null ? null : easternInstant(DateTime.utc(a.year, a.month, a.day, a.hour, a.minute)), net: flags.net, savedPdfs: flags.savedPdfs), cache, pins: prefs.pins);
+      repo = await recordedRepository(RecordedFlags(at: a == null ? null : easternInstant(DateTime.utc(a.year, a.month, a.day, a.hour, a.minute)), net: flags.net, savedPdfs: flags.savedPdfs, noEvents: flags.noEvents), cache, pins: prefs.pins, read: read);
     } else {
       final client = http.Client();
       repo = Repository(UmassSource(client), cache, supabase: SupabaseSource(client), pdfs: PdfCache(Directory('${(await getApplicationSupportDirectory()).path}/pdf'), client));

@@ -49,7 +49,9 @@ class HoursEvent {
   final int expires; // unix seconds
   final List<List<String>> links;
   final String? hoursTitle;
-  const HoursEvent({required this.title, required this.scope, required this.expires, required this.links, this.hoursTitle});
+  /// the feed's banner (a UMass Dining URL), empty when it has none
+  final String image;
+  const HoursEvent({required this.title, required this.scope, required this.expires, required this.links, this.hoursTitle, this.image = ''});
 }
 
 class Board {

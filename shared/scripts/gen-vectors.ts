@@ -380,8 +380,112 @@ const exportCases: Case[] = [
   exp("entries_json", "single usda entry", [ENTRIES[2]]),
 ];
 
+// --- packaged ---------------------------------------------------------------------------------------
+// Raw OFF / USDA answers in, what the TS clients map them to out. The OFF cases start from the recorded
+// 2026-10-13 fixture (docs/design/.../flows/packaged-2026-10-13.json; its search hits are reshaped into cgi/search.pl's
+// `products`, the endpoint searchProducts calls).
+const FLOW = JSON.parse(readFileSync(new URL("../../docs/design/explorations/2026-10-ui-overhaul/flows/packaged-2026-10-13.json", import.meta.url), "utf8"));
+const offProducts = FLOW.search.hits.map((h: Json) => ({ code: h.code, product_name: h.product_name, nutriments: h.nutriments }));
+const offSearchCase = (name: string, response: unknown, page?: number): Case => ({ kind: "off_search", name, input: { query: "x", ...(page ? { page } : {}), response } });
+const usdaCase = (dataType: "generic" | "branded", name: string, response: unknown, page?: number): Case => ({
+  kind: "usda_search",
+  name: `${dataType}: ${name}`,
+  input: { dataType, query: "x", ...(page ? { page } : {}), response },
+});
+const fdcNutrients = (extra: Json[] = []) => [
+  { nutrientName: "Protein", unitName: "G", value: 3.5 },
+  { nutrientName: "Total lipid (fat)", unitName: "G", value: 1.25 },
+  { nutrientName: "Carbohydrate, by difference", unitName: "G", value: 20 },
+  { nutrientName: "Energio", unitName: "KCAL", value: 1 },
+  { nutrientName: "Energy", unitName: "kJ", value: 650 },
+  { nutrientName: "Energy", unitName: "kcal", value: 155 },
+  { nutrientName: "Sugars, total including NLEA", unitName: "G", value: 6 },
+  { nutrientName: "Fiber, total dietary", unitName: "G", value: 2.4 },
+  { nutrientName: "Sodium, Na", unitName: "MG", value: 321 },
+  { nutrientName: "Cholesterol", unitName: "MG", value: 12 },
+  { nutrientName: "Fatty acids, total saturated", unitName: "G", value: 0.5 },
+  { nutrientName: "Fatty acids, total trans", unitName: "G", value: 0.1 },
+  ...extra,
+];
+const packaged: Case[] = [
+  offSearchCase("recorded 'clif bar' page 1 of 10000 hits: per-100g fallback, missing nutriments are 0", { count: FLOW.search.count, products: offProducts }),
+  offSearchCase(
+    "per-serving values win when energy-kcal_serving exists; the serving size is carried; sodium is grams in OFF, mg out; ingredients and allergens",
+    {
+      count: 1,
+      products: [{ ...FLOW.product, code: FLOW.product.code, nutriments: { ...FLOW.product.nutriments, "trans-fat_serving": 0.5, cholesterol_100g: 0.02 } }],
+    },
+  ),
+  offSearchCase("serving data present but serving_size absent: empty serving size", { count: 1, products: [{ code: "1", product_name: "A", nutriments: { "energy-kcal_serving": 90 } }] }),
+  offSearchCase("serving data without energy-kcal_serving is per 100g, mixing in the per-serving fields that exist", {
+    count: 1,
+    products: [{ code: "1", product_name: "A", serving_size: "30 g", nutriments: { "fat_serving": 2, "fat_100g": 9, "energy-kcal_100g": 400 } }],
+  }),
+  offSearchCase("a zero per-serving value is a value, not a fallback", {
+    count: 1,
+    products: [{ code: "1", product_name: "A", serving_size: "1 bar", nutriments: { "energy-kcal_serving": 0, "energy-kcal_100g": 400, fat_serving: 0, fat_100g: 9 } }],
+  }),
+  offSearchCase("hits without a code or a name are dropped; empty ingredients are omitted; allergen tags are cleaned", {
+    count: 4,
+    products: [
+      { product_name: "No code" },
+      { code: "2" },
+      { code: "3", product_name: "Nuts", ingredients_text: "", allergens_tags: ["en:tree-nuts", "fr:lait", "milk", "en:", "en:soy_beans"], nutriments: { "energy-kcal_100g": 1 } },
+      { code: "4", product_name: "Bare" },
+    ],
+  }),
+  offSearchCase("count says more pages: hasMore", { count: 41, products: [{ code: "1", product_name: "A" }] }, 2),
+  offSearchCase("count says no more pages", { count: 40, products: [{ code: "1", product_name: "A" }] }, 2),
+  offSearchCase("count absent, short page: no more", { products: [{ code: "1", product_name: "A" }] }),
+  offSearchCase("count absent, products absent", {}),
+  offSearchCase("count absent, a full page of 20: more", { products: Array.from({ length: 20 }, (_, i) => ({ code: `c${i}`, product_name: `P${i}` })) }),
+  offSearchCase("count absent, a full page of 20 where some are dropped: not full, no more", {
+    products: Array.from({ length: 20 }, (_, i) => (i === 0 ? { product_name: "no code" } : { code: `c${i}`, product_name: `P${i}` })),
+  }),
+  { kind: "off_product", name: "recorded product 0722252068484", input: { barcode: FLOW.product.code, response: { status: 1, product: FLOW.product } } },
+  { kind: "off_product", name: "status 0 is no product", input: { barcode: "0", response: { status: 0 } } },
+  { kind: "off_product", name: "status 1 without a product is no product", input: { barcode: "0", response: { status: 1 } } },
+  { kind: "off_product", name: "bare product: name 'Unknown product', empty serving, zeros", input: { barcode: "5", response: { status: 1, product: {} } } },
+  usdaCase("generic", "Foundation food: always per 100g; kcal row picked over kJ; findNutrient is a name substring match", {
+    currentPage: 1,
+    totalPages: 3,
+    foods: [{ fdcId: 171688, description: "Apples, raw", foodNutrients: fdcNutrients() }],
+  }),
+  usdaCase("branded", "branded food with ingredients; fdcId becomes a string", {
+    currentPage: 2,
+    totalPages: 2,
+    foods: [{ fdcId: 1234567, description: "CHOCOLATE CHIP BAR", ingredients: "OATS, SUGAR", foodNutrients: fdcNutrients() }],
+  }, 2),
+  usdaCase("generic", "energy only in kJ is 0 calories; empty ingredients omitted; no description is 'Unknown food'", {
+    foods: [{ fdcId: 9, ingredients: "", foodNutrients: [{ nutrientName: "Energy", unitName: "kJ", value: 650 }, { nutrientName: "Protein" }] }],
+  }),
+  usdaCase("generic", "no foodNutrients, no paging fields: one page, no more", { foods: [{ fdcId: 10, description: "Water" }] }),
+  usdaCase("branded", "no foods, current page past total pages", { currentPage: 5, totalPages: 4 }, 5),
+  usdaCase("generic", "first matching row wins (a second Protein row is ignored)", {
+    foods: [
+      {
+        fdcId: 11,
+        description: "Dup",
+        foodNutrients: [
+          { nutrientName: "Protein", unitName: "G", value: 1 },
+          { nutrientName: "Protein, total", unitName: "G", value: 99 },
+        ],
+      },
+    ],
+  }),
+];
+
 // --- write ----------------------------------------------------------------------------------------
 const FILES: Record<string, { about: string }> = {
+  "packaged.json": {
+    about:
+      "Packaged-food search mapping (openFoodFacts.ts, usdaFoodData.ts); the HTTP answer is fed in, no network. " +
+      "kind=off_search: input {query, page?, response} where response is cgi/search.pl's JSON -> {results: [{barcode, productName, nutrition, ingredients?, allergens?}], hasMore} (searchProducts; hits missing code or product_name are dropped). " +
+      "kind=off_product: input {barcode, response} (api/v2/product JSON) -> {barcode, productName, servingSize, nutrition} or null (lookupBarcode). " +
+      "kind=usda_search: input {dataType: generic (Foundation, SR Legacy) | branded, query, page?, response} where response is FDC /foods/search JSON -> {results: [{fdcId, productName, nutrition, ingredients?}], hasMore} (searchFoods / searchBrandedFoods). " +
+      "nutrition is NutritionFacts: OFF prefers *_serving over *_100g per field (serving size 'per 100g' when energy-kcal_serving is absent), sodium grams -> mg; USDA is always 'per 100g'. A zero is a value, not a fallback. " +
+      "Out of scope here (Dart-only, tested in app/test/data/packaged_test.dart): brand-leading names, dropping zero-calorie hits, name dedupe.",
+  },
   "export.json": {
     about:
       "Device-data exporters (storage.ts export*AsJson / export*AsCsv). kind=<rows>_<json|csv>, rows being entries (LogEntry[]), ranked_dishes, ranked_foods, favorites or custom_foods: input is the row array -> the exported string, byte for byte. " +
@@ -415,7 +519,7 @@ const FILES: Record<string, { about: string }> = {
   },
 };
 
-const CASES: Record<string, Case[]> = { "foodpro.json": foodpro, "hours.json": hours, "match-query.json": matchQuery, "favorite-match.json": favoriteMatch, "export.json": exportCases };
+const CASES: Record<string, Case[]> = { "foodpro.json": foodpro, "hours.json": hours, "match-query.json": matchQuery, "favorite-match.json": favoriteMatch, "export.json": exportCases, "packaged.json": packaged };
 for (const [file, { about }] of Object.entries(FILES)) {
   const cases = CASES[file];
   const adapters = ADAPTERS[file];

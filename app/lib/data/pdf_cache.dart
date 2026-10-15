@@ -13,7 +13,7 @@ typedef Pool = Future<T> Function<T>(Future<T> Function() job);
 /// Café menu PDFs kept on the phone: one file per URL under [dir] (the app support directory's `pdf/`). A saved file is the answer, with no
 /// request: a changed URL is simply another file, and [prune] drops the ones the feed no longer lists.
 class PdfCache {
-  PdfCache(this.dir, this.client, {this.timeout = const Duration(seconds: 15), this.stillLoadingAfter = const Duration(milliseconds: 400)});
+  PdfCache(this.dir, this.client, {this.timeout = const Duration(seconds: 15), Duration? stillLoadingAfter}) : stillLoadingAfter = stillLoadingAfter ?? stillLoadingDelay;
   final Directory dir;
   final http.Client client;
   final Duration timeout, stillLoadingAfter;

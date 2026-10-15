@@ -19,6 +19,14 @@ import 'dish_support.dart';
 import 'plate_support.dart';
 import 'support.dart';
 
+/// Search's field holds focus and its cursor never stops blinking, so pumpAndSettle can't settle there: pump the motion out and let its real I/O land.
+Future<void> settleSearch(WidgetTester t) async {
+  for (var i = 0; i < 12; i++) {
+    await t.pump(const Duration(milliseconds: 100));
+    await drain(t);
+  }
+}
+
 void main() {
   setUpAll(loadFonts);
 
@@ -186,16 +194,16 @@ void main() {
       t.widget<PlateLabelSheet>(find.byType(PlateLabelSheet)).handle.close();
       await t.pumpAndSettle();
       await t.tap(find.text('Add something else'));
-      await t.pumpAndSettle();
+      await t.pump();
+      await settleSearch(t);
       expect(t.widget<M2TabBar>(find.byType(M2TabBar)).selected, 1);
       expect(plateHandle(t).px, M2Layout.barMin);
       await t.tap(find.text('Worcester lunch, 3 items'));
-      await t.pumpAndSettle();
+      await settleSearch(t);
       await t.tap(find.text('Clear plate'));
-      await t.pumpAndSettle();
+      await settleSearch(t);
       expect(b.plate.state.plates, isEmpty);
       expect(bar, findsNothing);
-      await drain(t);
     });
   });
 
