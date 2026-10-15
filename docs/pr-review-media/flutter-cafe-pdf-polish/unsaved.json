@@ -1,10 +1,10 @@
 {
-  "sha": "67757ab817097b77db34ed227f9e3885de29bf2e",
+  "sha": "c983e5d75207680091a7940fc40ca6a3592246ef",
   "branch": "flutter/cafe-pdf-polish",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/port-cafe-pdf-polish",
   "route": "/cafe/29/menu/0?data=recorded&at=2026-10-08T12:41&net=offline&photos=off",
   "device": "sdk_gphone64_x86_64",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-15T07:30:30Z"
+  "ts": "2026-10-15T07:45:43Z"
 }
