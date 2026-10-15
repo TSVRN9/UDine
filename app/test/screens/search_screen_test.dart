@@ -6,6 +6,7 @@ import 'package:udine/screens/hall/dish_row.dart';
 import 'package:udine/screens/hall/hall_menu.dart';
 import 'package:udine/screens/search/search_screen.dart';
 import 'package:udine/shell/app_scope.dart';
+import 'package:udine/shell/plate_model.dart';
 import 'package:udine/ui/ui.dart';
 import '../fonts.dart';
 import 'support.dart';
@@ -36,7 +37,7 @@ Future<void> type(WidgetTester t, String q) async {
 }
 
 bool focused(WidgetTester t) => t.widget<EditableText>(find.byType(EditableText)).focusNode.hasFocus;
-plateOf(WidgetTester t) => AppScope.of(t.element(find.byType(SearchScreen))).plate;
+PlateModel plateOf(WidgetTester t) => AppScope.of(t.element(find.byType(SearchScreen))).plate;
 
 void main() {
   setUpAll(loadFonts);
