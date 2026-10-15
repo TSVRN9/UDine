@@ -4,7 +4,8 @@ import 'package:flutter/widgets.dart';
 import 'package:udine/ui/ui.dart' show Button;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/boot.dart';
-import 'package:udine/core/m2/board.dart' show Macro, clockMeal;
+import 'package:udine/core/hours.dart' show easternInstant;
+import 'package:udine/core/m2/board.dart' show Macro;
 import 'package:udine/core/m2/log.dart';
 import 'package:udine/core/m2/plate.dart';
 import 'package:udine/core/types.dart';
@@ -160,7 +161,7 @@ void main() {
 
   group('entry points', () {
     testWidgets('a café that lists no menu: Add a custom food opens the form empty, for the meal the clock is in', (t) async {
-      final b = await bootRecorded(t);
+      final b = await bootRecorded(t, at: easternInstant(DateTime.utc(2026, 10, 8, 19, 0))); // 7 PM: dinner, not the recorded 12:41's lunch
       await openApp(t, b, route: '/cafe/0');
       await until(t, () => find.text('Add a custom food').evaluate().isNotEmpty);
       await t.pump(const Duration(milliseconds: 600));
@@ -172,7 +173,7 @@ void main() {
       await typeIn(t, 'Calories', '200');
       await t.tap(find.text('Add to plate'));
       await t.pumpAndSettle();
-      expect(b.plate.state.plates.single.meal, clockMeal(b.repo.now()));
+      expect(b.plate.state.plates.single.meal, 'dinner');
       await drain(t);
     });
 
