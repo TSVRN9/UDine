@@ -1,0 +1,10 @@
+{
+  "sha": "609e1ad540602b1dca25bf4a10f116846347c369",
+  "branch": "flutter/hall-menu-busy",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/port-hallmenu-t3",
+  "route": "/hall/franklin?meal=lunch&data=recorded&at=2026-10-08T12:41&net=slow&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-10-15T05:12:16Z"
+}
