@@ -8,9 +8,12 @@ enum NetMode { ok, slow, offline, fail }
 const recordedAvailable = !kReleaseMode;
 
 class RecordedFlags {
-  const RecordedFlags({this.at, this.net = NetMode.ok, this.scores = (health: false, carbon: false), this.avoid = const [], this.onlyShow = const []});
+  const RecordedFlags({this.at, this.net = NetMode.ok, this.scores = (health: false, carbon: false), this.avoid = const [], this.onlyShow = const [], this.savedPdfs = const {}});
   final DateTime? at;
   final NetMode net;
+
+  /// `saved=pdf:Lunch,pdf:Dinner` (M2's own flag): menus opened before, so offline has them. Names are the menu's (`menuName`).
+  final Set<String> savedPdfs;
   /// `scores=health,carbon`: the You switches a capture has no screen to set yet.
   final ({bool health, bool carbon}) scores;
   /// `avoid=Milk,Eggs` and `only=Halal`: You's Avoid list and "Only show" tags, likewise.
@@ -26,6 +29,7 @@ RecordedFlags? recordedFlags(String route, {bool available = recordedAvailable})
   return RecordedFlags(
     at: q['at'] == null ? null : DateTime.parse(q['at']!),
     net: NetMode.values.asNameMap()[q['net']] ?? NetMode.ok,
+    savedPdfs: {for (final x in (q['saved'] ?? '').split(',')) if (x.startsWith('pdf:')) x.substring(4)},
     scores: (health: (q['scores'] ?? '').split(',').contains('health'), carbon: (q['scores'] ?? '').split(',').contains('carbon')),
     avoid: [for (final a in (q['avoid'] ?? '').split(',')) if (a.isNotEmpty) a],
     onlyShow: [for (final a in (q['only'] ?? '').split(',')) if (a.isNotEmpty) a],
