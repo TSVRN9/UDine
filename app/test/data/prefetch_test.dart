@@ -25,7 +25,7 @@ void main() {
     calls.add(req.url);
     peak = max(peak, ++inFlight);
     try {
-      await Future<void>.delayed(const Duration(milliseconds: 15));
+      await Future<void>.delayed(const Duration(milliseconds: 60));
       if (!online) throw const SocketException('Network is unreachable');
       return http.Response(req.url.queryParameters['tid'] == '4' ? '{}' : ajaxBody(), 200);
     } finally {
@@ -83,10 +83,25 @@ void main() {
     expect(got.keys.toSet(), {(1, '2026-10-13'), (2, '2026-10-13')});
   });
 
+  test('a user\'s own fetch is not queued behind a prefetch of 40 place-days: it starts at once (the prefetch may hold two of the four slots), and four stay the most in flight', () async {
+    final forty = [for (var id = 10; id < 18; id++) for (final d in days.take(5)) (id, d)];
+    final prefetch = repo.prefetchMenus(forty);
+    while (calls.length < Repository.backgroundSlots) {
+      await Future<void>.delayed(const Duration(milliseconds: 1)); // the prefetch has what it may of the slots
+    }
+    final mine = repo.menu(1, '2026-10-30').drain<void>();
+    await Future.wait([prefetch, mine]);
+    final order = [for (final u in calls) u.queryParameters['tid']];
+    final at = order.indexOf('1');
+    expect(at, inInclusiveRange(0, Repository.backgroundSlots), reason: 'started as call #$at of ${order.length}: $order');
+    expect(peak, lessThanOrEqualTo(Repository.maxInFlight));
+    expect(order.length, forty.length + 1);
+  });
+
   test('a prefetch that is told to stop asks for nothing more', () async {
     var stop = false;
     final f = repo.prefetchMenus(pairs, stopped: () => stop);
-    await Future<void>.delayed(const Duration(milliseconds: 20));
+    await Future<void>.delayed(const Duration(milliseconds: 80));
     stop = true;
     await f;
     expect(calls.length, lessThan(pairs.length));
