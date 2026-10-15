@@ -39,7 +39,7 @@ SheetHandle openCustomFood(
 }
 
 /// M2's `submit` handler: the trimmed name and the macros, or null when the form is not valid (no name, or no calories). A macro left
-/// empty is 0, and a comma is a decimal point.
+/// empty is 0, a comma is a decimal point, and a negative number is not valid.
 (String, Macro)? parseCustomFood({
   required String name,
   required String cal,
@@ -50,7 +50,9 @@ SheetHandle openCustomFood(
   final n = name.trim();
   if (n.isEmpty || cal.trim().isEmpty) return null;
   num v(String s) => num.tryParse(s.trim().replaceAll(',', '.')) ?? 0;
-  return (n, Macro(v(cal), v(p), v(c), v(f)));
+  final m = Macro(v(cal), v(p), v(c), v(f));
+  // (a negative would take calories off the day's total)
+  return m.cal < 0 || m.p < 0 || m.c < 0 || m.f < 0 ? null : (n, m);
 }
 
 /// `#cform` in `#isheet`: the title, Name, a two-by-two of Calories, Protein, Carbs and Fat, and Add to plate.

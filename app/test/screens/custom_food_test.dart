@@ -3,7 +3,9 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/boot.dart';
-import 'package:udine/core/m2/board.dart' show clockMeal;
+import 'package:udine/core/m2/board.dart' show Macro, clockMeal;
+import 'package:udine/core/m2/log.dart';
+import 'package:udine/core/m2/plate.dart';
 import 'package:udine/core/types.dart';
 import 'package:udine/screens/plate/custom_food.dart';
 import '../fonts.dart';
@@ -36,6 +38,45 @@ void main() {
       expect(parseCustomFood(name: '  ', cal: '140', p: '', c: '', f: ''), isNull);
       expect(parseCustomFood(name: 'Chobani', cal: '', p: '12', c: '', f: ''), isNull);
       expect(parseCustomFood(name: 'Chobani', cal: '0', p: '', c: '', f: '')?.$2.cal, 0);
+    });
+
+    test('a negative calorie or macro is not valid', () {
+      expect(parseCustomFood(name: 'Chobani', cal: '-140', p: '', c: '', f: ''), isNull);
+      for (final i in [0, 1, 2]) {
+        final m = ['', '', ''];
+        m[i] = '-1';
+        expect(parseCustomFood(name: 'Chobani', cal: '140', p: m[0], c: m[1], f: m[2]), isNull, reason: 'macro $i');
+      }
+    });
+  });
+
+  group('the plate key', () {
+    PlateState add(PlateState s, String name, Macro m) => addDish(s, 'lunch', name, {}, m);
+    const chobani = Macro(140, 12, 15, 0);
+
+    test('the same name and the same macros are one item, however the numbers were typed', () {
+      final s = add(add(emptyPlates, 'Chobani', chobani), 'chobani', const Macro(140.0, 12.0, 15, 0.0));
+      expect(s.plates.single.items.single.qty, 2);
+    });
+
+    test('the same name with other macros is another item with its own macros and its own customFoodId', () {
+      final s = add(add(emptyPlates, 'Chobani', chobani), 'Chobani', const Macro(200, 10, 20, 5));
+      final items = s.plates.single.items;
+      expect(items, hasLength(2));
+      expect(totals(s.plates.single).cal, 340);
+      final ids = [for (final e in logEntries(s.plates.single, place: null, loggedAt: 'x')) (e.source as CustomSource).customFoodId];
+      expect(ids.toSet(), hasLength(2));
+      expect(ids.every((i) => i.startsWith('chobani:')), isTrue);
+      expect(logEntries(s.plates.single, place: null, loggedAt: 'x').map((e) => e.nutrition.calories), [140, 200]);
+    });
+
+    testWidgets('the four numeric fields ask for a decimal keyboard, Name does not', (t) async {
+      await openForm(t);
+      expect(t.widget<EditableText>(field('Name')).keyboardType, TextInputType.text);
+      for (final l in order.skip(1)) {
+        expect(t.widget<EditableText>(field(l)).keyboardType, const TextInputType.numberWithOptions(decimal: true), reason: l);
+      }
+      await drain(t);
     });
   });
 

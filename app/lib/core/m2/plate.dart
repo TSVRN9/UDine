@@ -41,8 +41,18 @@ bool _canJoin(Plate p, String meal, List<String>? hs) {
   return ph == null || hs == null || ph.any(hs.contains);
 }
 
+/// A custom food's plate key (and so its log row's `customFoodId`): its name plus a short digest of its macros (FNV-1a, base 36), so the
+/// same name with other macros is another food, and an identical one is the same.
+String customKey(String name, Macro m) {
+  var h = 0x811c9dc5;
+  for (final u in '${m.cal.toDouble()}|${m.p.toDouble()}|${m.c.toDouble()}|${m.f.toDouble()}'.codeUnits) {
+    h = ((h ^ u) * 0x01000193) & 0xffffffff;
+  }
+  return 'custom:${dishKey(name)}:${h.toRadixString(36)}';
+}
+
 PlateState addDish(PlateState s, String meal, String name, Map<String, MenuItem> refs, [Macro? custom]) {
-  final key = custom != null ? 'custom:${dishKey(name)}' : dishKey(name);
+  final key = custom != null ? customKey(name, custom) : dishKey(name);
   final hs = custom != null ? null : refs.keys.toList();
   final front = s.front < s.plates.length ? s.plates[s.front] : null;
   var plates = s.plates, nextId = s.nextId;
