@@ -1,10 +1,10 @@
 {
-  "sha": "b5bcab8fff11d9bd5de00d91a0d2fecc6871cf4c",
+  "sha": "3c49462edd12f7e1fad24ef10416305a61f33b78",
   "branch": "flutter/cafes",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/port-cafes",
   "route": "/cafe/0?data=recorded&at=2026-10-08T12:41&photos=off",
   "device": "sdk_gphone64_x86_64",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-15T05:03:25Z"
+  "ts": "2026-10-15T05:09:12Z"
 }
