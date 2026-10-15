@@ -86,11 +86,14 @@ class HallController extends ChangeNotifier {
   Roster? get roster => _hoursValue == null ? null : Roster.fromFeed(_hoursValue!.feed);
 
   /// get_infov2's location id for a café (the foodpro id its menu is fetched by); null for a café that posts no dishes.
-  int? get cafeLocationId {
+  int? get cafeLocationId => cafeLoc?.locationId;
+
+  /// The café's entry in the hours feed, once it is in.
+  RetailLocationHours? get cafeLoc {
     final feed = _hoursValue?.feed;
     if (feed == null || !cafe) return null;
     final title = straight(cafeTable[int.parse(place.substring(1))].title);
-    return feed.retail.where((r) => straight(r.name) == title).firstOrNull?.locationId;
+    return feed.retail.where((r) => straight(r.name) == title).firstOrNull;
   }
 
   String get name => cafe ? cafeTable[int.parse(place.substring(1))].name : diningHalls[halls.indexOf(place)].name;
@@ -166,8 +169,10 @@ class HallController extends ChangeNotifier {
 
   List<MenuItem>? items(int day) => switch (menus[day]) { Loaded(:final value) || LoadedOffline(:final value) => value, _ => null };
 
-  /// Whether the place has a dish menu at all: a hall always; a café once its location id is known.
-  bool get hasMenu => !cafe || _hoursValue == null || cafeLocationId != null;
+  /// Whether the place has a dish menu at all: a hall always; a café once its location id is known and today's foodpro menu has dishes
+  /// (cafeMenu.ts's waterfall: no dishes today, and it is its standing menu).
+  /// ponytail: today only (M2 decides across every day), and a café's page re-lays when today's empty menu arrives.
+  bool get hasMenu => !cafe || _hoursValue == null || (cafeLocationId != null && (items(0)?.isNotEmpty ?? true));
 
   /// What `core/m2` reads: the 15 days from today, with every loaded day's menu in place, the place and its hours.
   Board get board => _board ??= _makeBoard();

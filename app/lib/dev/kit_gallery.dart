@@ -66,6 +66,9 @@ class KitGallery extends StatelessWidget {
                   const Spinner(),
                   const Felt(width: M2Space.group, height: M2Space.group),
                   BackButton(onTap: _no),
+                  const FilterChipButton(label: 'Open now', selected: false),
+                  const FilterChipButton(label: 'Open now', selected: true),
+                  const ColoredBox(color: M2Color.vm, child: Row(mainAxisSize: MainAxisSize.min, children: [PinButton(pinned: false), PinButton(pinned: true)])),
                 ]),
               ]),
             ),
@@ -74,6 +77,7 @@ class KitGallery extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: M2Space.gutter),
               child: Column(children: [
                 const LRow(title: 'Dietary preferences', subtitle: 'None'),
+                const LRow(leading: Thumb(), title: 'Wasabi', subtitle: 'Blue Wall, Campus Center', trailing: Text('Open until 9 PM')),
                 CheckRow(label: 'Vegetarian', on: true, onChanged: (_) {}),
                 CheckRow(label: 'Halal', on: false, onChanged: (_) {}, last: true),
               ]),

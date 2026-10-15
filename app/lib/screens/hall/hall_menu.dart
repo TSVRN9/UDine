@@ -4,7 +4,11 @@ import 'package:flutter/widgets.dart';
 import '../../core/m2/board.dart';
 import '../../core/m2/menu_view.dart';
 import '../../core/m2/plate.dart';
+import '../../core/m2/places.dart' show Roster;
 import '../../core/m2/schedule.dart' show statusLine;
+import '../../data/repository.dart' show resolveCafeMenu;
+import '../cafes/cafe_body.dart';
+import '../cafes/cafes_model.dart' show NoMenuBody, cafeBody;
 import '../../motion/container_math.dart';
 import '../../motion/container_transform.dart';
 import '../../shell/app_scope.dart';
@@ -374,6 +378,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
                 controller: _sc, physics: const ClampingScrollPhysics(),
                 slivers: [
                   SliverToBoxAdapter(child: wrap(SizedBox(height: spacer))),
+                  if (_cafe && !_dishMenu) SliverToBoxAdapter(child: wrap(_standing())),
                   if (_items.isNotEmpty)
                     ListenableBuilder(
                       listenable: scope.plate,
@@ -430,8 +435,36 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
             child: Center(child: BackButton(onTap: widget.onBack)),
           ),
         ),
+        if (_cafe)
+          Positioned(
+            right: M2Layout.backLeft, top: top, height: M2Layout.barH,
+            child: AnimatedBuilder(
+              animation: p,
+              builder: (_, c) => Opacity(opacity: incomingOpacity(p.value).clamp(0.0, 1.0), child: c),
+              child: Center(
+                child: ListenableBuilder(
+                  listenable: scope.prefs,
+                  builder: (_, _) {
+                    final name = c.name, pins = scope.prefs.pins, on = pins.contains(name);
+                    return PinButton(pinned: on, onTap: () {
+                      on ? Haptics.selection() : Haptics.light();
+                      scope.prefs.setPins(on ? [for (final n in pins) if (n != name) n] : [...pins, name]);
+                    });
+                  },
+                ),
+              ),
+            ),
+          ),
       ]),
     );
+  }
+
+  /// A café that posts no dishes: its description, then what it lists (names, PDFs, or nothing).
+  Widget _standing() {
+    final loc = c.cafeLoc, table = Roster.table.cafes, from = c.roster?.cafes ?? table;
+    final place = from.where((p) => p.key == this.place).firstOrNull ?? table.firstWhere((p) => p.key == this.place);
+    final menu = loc == null ? null : resolveCafeMenu(const [], loc);
+    return CafeStandingBody(kind: menu == null ? const NoMenuBody() : cafeBody(menu), place: place);
   }
 
   String _stationName(String meal) {
