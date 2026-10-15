@@ -84,9 +84,9 @@ List<ListItem> mealItems(Board fx, Prefs prefs, String place, String name, int d
 Widget buildItem(BuildContext context, ListItem it, {required Board fx, required PlateState plate, required ({bool health, bool carbon}) scores, required String place, required int day, required String meal, required bool reveal, ListKeys? keys, required MealActions actions, Set<String> favorites = const {}, String? here}) {
   switch (it.kind) {
     case ItemKind.state:
-      return _State(text: it.text!);
+      return StateLine(text: it.text!);
     case ItemKind.retry:
-      return _State(text: it.text!, onRetry: actions.onRetry);
+      return StateLine(text: it.text!, onRetry: actions.onRetry);
     case ItemKind.spinner:
       return const SizedBox(height: M2Size.mstate, child: Center(child: Spinner()));
     case ItemKind.event:
@@ -182,11 +182,11 @@ class _DietNote extends StatelessWidget {
       );
 }
 
-/// What a list says when it has no dishes (`.mst`).
-class _State extends StatelessWidget {
+/// What a list or page says when it has nothing to show (`.mst`): a line, and Try again under it when there is a retry.
+class StateLine extends StatelessWidget {
   final String text;
   final VoidCallback? onRetry;
-  const _State({required this.text, this.onRetry});
+  const StateLine({super.key, required this.text, this.onRetry});
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Space.stateTop, M2Space.gutter, M2Layout.stateBottom),

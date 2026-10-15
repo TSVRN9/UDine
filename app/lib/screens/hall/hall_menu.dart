@@ -10,6 +10,7 @@ import '../../core/m2/places.dart' show Roster;
 import '../../core/m2/schedule.dart' show schedule, statusLine;
 import '../../data/repository.dart' show resolveCafeMenu;
 import '../cafes/cafe_body.dart';
+import '../cafes/pdf_rows.dart';
 import '../cafes/cafes_model.dart' show NoMenuBody, cafeBody;
 import '../../core/m2/where.dart' show WhereGroup;
 import '../../motion/container_math.dart';
@@ -623,7 +624,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     final loc = c.cafeLoc, table = Roster.table.cafes, from = c.roster?.cafes ?? table;
     final place = from.where((p) => p.key == this.place).firstOrNull ?? table.firstWhere((p) => p.key == this.place);
     final menu = loc == null ? null : resolveCafeMenu(const [], loc);
-    return CafeStandingBody(kind: menu == null ? const NoMenuBody() : cafeBody(menu), place: place);
+    return CafeStandingBody(kind: menu == null ? const NoMenuBody() : cafeBody(menu), place: place, pdfRows: (_, pdf) => PdfRows(pdf: pdf, offline: c.offline, top: widget.top));
   }
 
   String _stationName(String meal) {

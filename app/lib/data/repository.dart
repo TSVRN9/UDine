@@ -87,7 +87,9 @@ String addDays(String iso, int days) {
 /// entries and fields toJson omits (health, carbon) survive.
 class Repository {
   Repository(this.source, this.db, {this.supabase, this.pdfs, DateTime Function()? now, this.stillLoadingAfter = const Duration(milliseconds: 400)})
-    : now = now ?? DateTime.now;
+    : now = now ?? DateTime.now {
+    pdfs?.pool = _pooled; // PDFs take the same slots and honour the same offline window as the menus
+  }
   final UmassSource source;
   final SupabaseSource? supabase;
 
@@ -235,6 +237,23 @@ class Repository {
       if (s case Loaded(:final value) || LoadedOffline(:final value)) last = value;
     }
     if (last != null) await prefetchPdfs(last.feed, pins);
+  }
+
+  /// Saves the PDFs whose menu name is in [names], from today's hours (recorded mode's `saved=pdf:Lunch`: a menu opened before).
+  Future<void> savePdfs(Set<String> names) async {
+    final cache = pdfs;
+    if (cache == null || names.isEmpty) return;
+    HoursData? last;
+    await for (final s in hours(today)) {
+      if (s case Loaded(:final value) || LoadedOffline(:final value)) last = value;
+    }
+    for (final r in last?.feed.retail ?? const <RetailLocationHours>[]) {
+      if (resolveCafeMenu(const [], r) case StandingCafeMenu(menu: RetailMenuPdf(:final links))) {
+        for (final l in links) {
+          if (names.contains(menuName(l.label))) await cache.fetch(l.url).then<void>((_) {}, onError: (_) {});
+        }
+      }
+    }
   }
 
   /// Saves the PDFs of the [pins]' menus and drops saved ones no café lists any more. One failing PDF doesn't stop the rest.

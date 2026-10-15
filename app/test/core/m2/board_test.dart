@@ -39,7 +39,7 @@ void main() {
     for (final e in (vectors['places'] as Map).entries) {
       expect(names[e.key], e.value);
     }
-    expect(board.places.where((p) => p.key.startsWith('c')), hasLength(29));
+    expect(board.places.where((p) => p.key.startsWith('c')), hasLength(30));
     final c28 = board.places.firstWhere((p) => p.key == 'c28');
     expect([c28.name, c28.area], ['Charles River Campus', 4]);
   });
