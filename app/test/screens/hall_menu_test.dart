@@ -36,6 +36,13 @@ void main() {
     await drain(t);
   });
 
+  testWidgets('/cafe/3 launches a café\'s menu body: Green Fields, with prices', (t) async {
+    await openHall(t, await bootRecorded(t), '/cafe/3');
+    expect(t.widget<HallMenu>(find.byType(HallMenu)).place, 'c3');
+    expect(find.byType(DishRow), findsWidgets);
+    await drain(t);
+  });
+
   testWidgets('a meal tab changes the list; Grab \'N Go leads with its own status and window', (t) async {
     await openHall(t, await bootRecorded(t), '/hall/worcester?meal=lunch');
     await t.tap(find.text("Grab 'N Go"));
