@@ -51,7 +51,9 @@ class HoursEvent {
   final String? hoursTitle;
   /// the feed's banner (a UMass Dining URL), empty when it has none
   final String image;
-  const HoursEvent({required this.title, required this.scope, required this.expires, required this.links, this.hoursTitle, this.image = ''});
+  /// the feed's flyer (a UMass Dining image URL), empty when it has none
+  final String flyer;
+  const HoursEvent({required this.title, required this.scope, required this.expires, required this.links, this.hoursTitle, this.image = '', this.flyer = ''});
 }
 
 class Board {
