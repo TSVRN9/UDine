@@ -90,7 +90,7 @@ class Boot {
   /// `?history=today|full` (recorded screenshot routes): M2's seeded log in the throwaway store, so You has days to show.
   Future<void> seedLog(String route) async {
     final h = Uri.parse(route).queryParameters['history'];
-    if (store == null || (h != 'today' && h != 'full')) return;
+    if (store == null || recordedFlags(route) == null || (h != 'today' && h != 'full')) return;
     await store!.addEntries([...seedToday, if (h == 'full') ...seedEarlier]);
     await log!.reload();
   }

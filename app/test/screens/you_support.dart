@@ -29,6 +29,9 @@ Future<List<Map<String, Object?>>> logRows(WidgetTester t, Boot b) async => (awa
 /// Real time for a store write behind an edit, then the frames it causes.
 Future<void> wrote(WidgetTester t) async {
   await t.pumpAndSettle(); // (a row's close-up runs first, then the write it waited for)
-  await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 80)));
-  await t.pumpAndSettle();
+  // each write is real I/O whose next step (an Undo's re-read) starts on the frame after it lands
+  for (var i = 0; i < 3; i++) {
+    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 80)));
+    await t.pumpAndSettle();
+  }
 }

@@ -14,7 +14,10 @@ class LogBook extends ChangeNotifier {
   final UdineStore _store;
   final DateTime Function()? _now;
   List<LoggedMeal> _meals = const [];
-  Future<void> _tail = Future.value();
+  // (made on first use: a completed future keeps the zone it was made in, and a test's fake one cannot run what real I/O awaits)
+  Future<void>? _chain;
+  Future<void> get _tail => _chain ??= Future.value();
+  set _tail(Future<void> f) => _chain = f;
 
   List<LoggedMeal> get meals => _meals;
 
@@ -29,14 +32,24 @@ class LogBook extends ChangeNotifier {
   /// The effective day of the app's clock.
   String get today => effectiveTodayIso((_now ?? DateTime.now)(), defaultRolloverHour);
 
+  /// Edits shown and not yet written (queued or running).
+  int _pending = 0;
+
+  /// Reads the file, in turn behind every write already queued. If another edit has been shown since, what was read is stale and is
+  /// dropped: that edit's own write (or its own failure's reload) brings the screen to what the file holds.
   Future<void> reload() async {
-    _meals = loggedMeals(await _store.allEntries());
+    final read = _tail.then((_) => _store.allEntries());
+    _tail = read.then<void>((_) {}, onError: (_) {});
+    final entries = await read;
+    if (_pending > 0) return;
+    _meals = loggedMeals(entries);
     notifyListeners();
   }
 
   Future<T> _queue<T>(Future<T> Function() write) {
+    _pending++;
     final r = _tail.then((_) => write());
-    _tail = r.then<void>((_) {}, onError: (_) {});
+    _tail = r.then<void>((_) => _pending--, onError: (_) => _pending--);
     return r;
   }
 

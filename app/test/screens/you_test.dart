@@ -93,6 +93,8 @@ void main() {
       final b = await bootRecorded(t);
       await t.runAsync(() => b.seedLog('/you?data=recorded&history=bogus'));
       expect(b.log!.meals, isEmpty);
+      await t.runAsync(() => b.seedLog('/you?history=full')); // no data=recorded: a real launch never seeds
+      expect(b.log!.meals, isEmpty);
       await t.runAsync(() => b.seedLog('/you?data=recorded&history=full'));
       expect(loggedDays(b.log!.meals), ['2026-10-08', '2026-10-07', '2026-10-06']);
     });

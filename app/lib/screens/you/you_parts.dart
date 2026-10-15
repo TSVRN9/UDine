@@ -48,19 +48,18 @@ class GoneRow extends StatelessWidget {
 
 /// One day's totals and its meals (M2 `dayBlock`): `title` ("Today") over the totals box, then Meals, each a row that opens the meal.
 class DayBlock extends StatelessWidget {
-  const DayBlock({super.key, required this.meals, required this.day, required this.title, required this.onMeal, required this.titleOf, this.inset = M2Space.gutter});
+  const DayBlock({super.key, required this.meals, required this.day, required this.title, required this.onMeal, required this.titleOf});
   final List<LoggedMeal> meals;
   final String day;
   final String? title;
   final void Function(LoggedMeal) onMeal;
   final String Function(LoggedMeal) titleOf;
-  final double inset;
 
   @override
   Widget build(BuildContext context) {
     final t = dayTotal(meals, day), ms = [for (final m in meals) if (m.day == day) m];
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: inset),
+      padding: const EdgeInsets.symmetric(horizontal: M2Space.gutter),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Padding(
           padding: const EdgeInsets.only(top: M2Layout.todayTop),

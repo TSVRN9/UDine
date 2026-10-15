@@ -61,4 +61,26 @@ void main() {
     expect(await dump(db), before);
     expect(book.meals, hasLength(2));
   });
+
+  Future<Object?> servingsOf(String id) async => (await db.query('log_entries', where: 'id = ?', whereArgs: [id])).single['servings'];
+  Object? shown(String id) => book.meals.expand((m) => m.items).firstWhere((i) => i.id == id).qty;
+
+  test('a failed edit does not undo the edit queued behind it: the screen and the file agree afterwards', () async {
+    final items = book.meals.first.items, a = items[0], b = items[1]; // b is 2 servings
+    final failed = book.setServings(a, 0); // the store refuses servings <= 0
+    final fine = book.setServings(b, 3);
+    await expectLater(failed, throwsA(anything));
+    await fine;
+    expect(await servingsOf('b'), 3);
+    expect(shown('b'), 3);
+    expect(shown('a'), 1); // a was never changed in the file, and shows what the file holds
+  });
+
+  test('rapid taps land in order, in the file and on screen', () async {
+    final a = book.meals.first.items.first;
+    final taps = [for (final q in [2.0, 3.0, 1.0, 4.0]) book.setServings(a, q)]; // none awaited: the stepper's taps
+    await Future.wait(taps);
+    expect(await servingsOf('a'), 4);
+    expect(shown('a'), 4);
+  });
 }
