@@ -109,7 +109,8 @@ if [[ ${#RENDERED[@]} -gt 0 ]]; then
     # merging PR #475 from an unrelated branch: every sidecar FAILed as "missing" even though all
     # three existed, committed, in the PR itself. `git show`/`git cat-file` read the object store
     # directly and don't care what's checked out locally.
-    PIXEL_PATHS=(app/lib app/assets app/pubspec.yaml app/pubspec.lock mobile/src mobile/assets shared/src
+    PIXEL_PATHS=(app/lib app/assets app/pubspec.yaml app/pubspec.lock app/android/app/src/main/res app/ios/Runner
+      mobile/src mobile/assets mobile/app.json mobile/plugins shared/src
       ':(exclude)*_test.dart' ':(exclude)*.test.ts' ':(exclude)*.test.tsx')
     read_sidecar() {
       if [[ -n "$PR" ]]; then git show "$HEAD_REF:$1" 2>/dev/null; else cat "$1" 2>/dev/null; fi
