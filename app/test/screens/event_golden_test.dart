@@ -19,4 +19,15 @@ void main() {
       });
     }
   }
+  // the bake-off's height: the group is centred in what the bar leaves, and the page scrolls to the screen's edge
+  testWidgets('the event page at 360x640, at rest and scrolled to its foot', (t) async {
+    await openApp(t, await bootRecorded(t), route: '/event/0', w: 360, h: 640);
+    await until(t, () => find.text('Holiday hours').evaluate().isNotEmpty);
+    await settle(t);
+    await expectLater(find.byType(UdineApp), matchesGoldenFile('../goldens/event_hours_360x640.png'));
+    await t.drag(find.byType(SingleChildScrollView), const Offset(0, -400));
+    await settle(t);
+    await expectLater(find.byType(UdineApp), matchesGoldenFile('../goldens/event_hours_360x640_scrolled.png'));
+    await finish(t);
+  });
 }
