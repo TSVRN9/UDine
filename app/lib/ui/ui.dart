@@ -8,6 +8,7 @@ export 'check_row.dart';
 export 'chip.dart';
 export 'chevron.dart';
 export 'facts.dart';
+export 'favorite_star.dart';
 export 'felt.dart';
 export 'hall_letter.dart';
 export 'haptics.dart';

@@ -21,8 +21,10 @@ const _fda = {'fat': 78, 'sat': 20, 'chol': 300, 'sod': 2300, 'carb': 275, 'fibe
 
 /// M2 `labelHTML`: Nutrition Facts rows with %DV (the menu's own when published, else computed from FDA values).
 /// A figure the feed left empty reads "–" with no %DV (M2 `g`/`pc`), and an empty fat-calories figure drops the Fat cal. row.
-Label labelRows(MenuItem d) {
-  final n = d.nutrition;
+Label labelRows(MenuItem d) => labelRowsOf(d.nutrition);
+
+/// The same rows for any nutrition: a dish's own, or a plate's sums (no published %DV, no serving, nothing blank).
+Label labelRowsOf(NutritionFacts n) {
   String g(String f, num x, [String u = 'g']) => n.blank.contains(f) ? '–' : '${f1(x)}$u';
   String pc(String f, num x, Dv? dv, int? base) {
     final p = dv?.value?.round() ?? (base != null && !n.blank.contains(f) ? (x / base * 100).round() : null);
