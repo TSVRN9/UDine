@@ -108,11 +108,11 @@ void main() {
       testWidgets('$what at $w dp matches M2 within 1 dp', (t) async {
         final m = (_more['$w'] as Map<String, dynamic>)[key] as Map<String, dynamic>;
         final boot = await bootRecorded(t, health: true, carbon: true);
-        final items = await lunchDishes(t, boot, 1, '2026-10-08'); // (before the page: the sheet's prefetch holds the repository's slots)
         // (M2's first café dish with a price today: the Terrace's breakfast sandwich)
         final route = key == 'cafe' ? '/cafe/27?meal=breakfast&dish=${Uri.encodeQueryComponent('Bacon, Egg & Cheese on English Muffin')}'
             : key == 'whereTomorrow' ? dishRoute('Tofu Scramble', meal: 'breakfast', day: '2026-10-09') : '/hall/worcester?meal=lunch';
         await openHall(t, boot, route, w: w.toDouble(), h: key == 'rowFav' ? 3000 : 844);
+        final items = await lunchDishes(t, boot, 1, '2026-10-08');
         final hall = t.state<HallMenuState>(find.byType(HallMenu));
         final ctx = t.element(find.byType(HallMenu));
         MenuItem named(String n) => items.firstWhere((d) => d.dishName == n);
