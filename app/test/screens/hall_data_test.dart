@@ -98,6 +98,18 @@ void main() {
     c.dispose();
   });
 
+  test('Try again asks the network at once, not after the offline window (a fixed clock never ends it)', () async {
+    net.mode = NetMode.offline;
+    final c = HallController(repo, 'W')..load(5);
+    await settled(c, [5]);
+    expect(c.state(5), MenuState.offline);
+    net.mode = NetMode.ok;
+    c.retry(5);
+    await settled(c, [5]);
+    expect(c.state(5), MenuState.ok);
+    c.dispose();
+  });
+
   group('vectors.json `saved`: what the phone has saved decides what the page says', () {
     final cases = (jsonDecode(File('$_flows/M2/vectors.json').readAsStringSync()) as Map<String, dynamic>)['saved'] as List;
     for (final v in cases) {

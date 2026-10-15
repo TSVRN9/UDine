@@ -103,6 +103,25 @@ void main() {
       await drain(t);
     });
 
+    testWidgets('a pick starts the day change only once the sheet has passed half-way out (M2 isheet.away)', (t) async {
+      await openHall(t, await bootRecorded(t), '/hall/worcester?meal=lunch');
+      await openSchedule(t);
+      final y0 = t.getTopLeft(find.byType(SheetGrab)).dy, h = t.view.physicalSize.height / t.view.devicePixelRatio;
+      double o() => t.widget<Opacity>(find.byKey(const ValueKey('fade-list'))).opacity;
+      await t.tap(option('Saturday, October 17'));
+      double? yAtFade;
+      for (var i = 0; i < 80 && yAtFade == null; i++) {
+        await t.pump(const Duration(milliseconds: 8));
+        if (o() < 0.999) yAtFade = t.getTopLeft(find.byType(SheetGrab)).dy;
+        if (find.byType(SheetGrab).evaluate().isEmpty) break;
+      }
+      expect(yAtFade, isNotNull, reason: 'the list never began to fade');
+      expect(yAtFade!, greaterThanOrEqualTo(y0 + (h - y0) / 2 - 1), reason: 'the day began to change with the sheet still over it (y0 $y0)');
+      await until(t, () => menu(t).debugDay == 9 && menu(t).c.state(9) == MenuState.ok);
+      await t.pumpAndSettle();
+      await drain(t);
+    });
+
     testWidgets('the chosen day\'s row only closes the sheet', (t) async {
       await openHall(t, await bootRecorded(t), '/hall/worcester?meal=lunch');
       await openSchedule(t);

@@ -432,7 +432,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
         final a = resolveAnim(context, M2Motion.settle);
         _flash
           ..duration = a.duration
-          ..value = revealFlashFrom
+          ..value = M2Motion.revealFlash
           ..animateTo(1, curve: a.curve);
       },
     );

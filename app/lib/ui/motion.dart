@@ -10,9 +10,6 @@ bool reducedMotion(BuildContext c) => MediaQuery.maybeDisableAnimationsOf(c) ?? 
 /// drop when `reducedMotion` is true.
 Anim resolveAnim(BuildContext c, Anim a) => reducedMotion(c) ? M2Motion.rmFade : a;
 
-/// M2 `prefshow` / `prefhide`: "Show all" and "Hide them" flash the list from this opacity back to whole over `settle`.
-const double revealFlashFrom = .4;
-
 /// Fades its child in from nothing from the frame it is mounted: the animation starts at mount, never from an effect.
 class Arrive extends StatelessWidget {
   final Widget child;

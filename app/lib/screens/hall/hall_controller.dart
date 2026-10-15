@@ -164,6 +164,7 @@ class HallController extends ChangeNotifier {
 
   /// Try again: the same calls again.
   void retry(int day) {
+    repo.retryNetwork();
     _subs.remove(day)?.cancel();
     menus.remove(day);
     if (hours is Failed || hours is NotSaved) _loadHours();
