@@ -9,7 +9,7 @@ import 'fonts.dart';
 void main() {
   setUpAll(loadFonts);
   final shown = <Type>[
-    ScreenHeader, Band, BandGrade, Arrive, SheetGrab, RatingsPanel, BusyRow, Meter, ListRow, LRow, CheckRow, Button, TextAction, Stepper, AddButton, PlusMinus, RowControl,
+    ScreenHeader, Band, BandGrade, Arrive, SheetGrab, RatingsPanel, BusyRow, Meter, ListRow, LRow, CheckRow, Button, TextAction, CustomButton, Stepper, AddButton, PlusMinus, RowControl,
     ScoreBadge, Badge, MarkPatch, MarkGlyph, HallChip, HallLetter, Chevron, BackButton, Spinner, NutritionLabel, Facts, SheetOption, M2TabBar, Felt, FilterChipButton, PinButton, Thumb, FavoriteStar, StarMark,
   ];
 

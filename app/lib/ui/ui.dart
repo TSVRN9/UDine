@@ -6,6 +6,7 @@ export 'busy.dart';
 export 'button.dart';
 export 'check_row.dart';
 export 'chip.dart';
+export 'custom_button.dart';
 export 'chevron.dart';
 export 'facts.dart';
 export 'favorite_star.dart';

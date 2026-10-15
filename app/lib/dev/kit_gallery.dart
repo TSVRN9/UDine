@@ -43,7 +43,10 @@ class KitGallery extends StatelessWidget {
                   const Button(kind: ButtonKind.outlineDark, label: 'Directions'),
                   const Button(kind: ButtonKind.directions, label: 'Directions'),
                   const TextAction('Show all', onTap: _no),
+                  const Button(kind: ButtonKind.gold, compact: true, label: 'Berkshire'),
                 ]),
+                gap,
+                const CustomButton(label: 'Add something else', onTap: _no),
                 gap,
                 row([
                   const Stepper(qty: 1.5, onDec: _no, onInc: _no),

@@ -140,6 +140,12 @@ abstract final class M2Layout {
   static const midFrac = 0.36; // the plate sheet's resting line: 36% of the frame down
   static const factCalBottom = 7.0, factRowTop = 7.0, factRowBottom = 5.0; // `.facts .cal`, `.nr`
   static const peekRadius = 3.0; // `.peek` border-radius 3 3 0 0
+  static const customH = 52.0, customPadX = 16.0, customGap = 10.0; // `.custom`, its plus is `glyph`
+  static const customRing = Color.fromRGBO(136, 28, 28, 0.5); // `.custom` inset 1.5px rgba(136,28,28,.5)
+  static const barHide = 1.1; // `#bar{transform:translateY(110%)}` until a plate is on it
+  static const twobTop = 6.0; // `.twob`
+  static const receiptTodayGap = 6.0; // the receipt's `Today <n> cal`: `.l2` spacing as the plate's
+  static const tossPadX = 12.0, tossPadY = 4.0, tossArc = 72.0; // the calorie tag in flight: its pill and how high its path bows (unmeasured: no M2 source)
   // You and its pages (`.yhead`, `.pbody`, `.dh`)
   static const youHeadBottom = 18.0; // `.yhead` padding-bottom
   static const pbodyTop = 8.0, pbodyBottom = 20.0, dietTop = 22.0, dietGroupTop = 28.0; // `.pbody` padding 8 20 20, `.h3{margin:22px 0 4px}` wins over `.dh{margin-top:12px}` at equal specificity; `.dh~.dh` 28
