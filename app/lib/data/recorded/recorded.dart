@@ -49,12 +49,13 @@ Future<String> recordedLocations(Future<String> Function(String name) read) asyn
 /// [read] loads a recording by file name (the bundled asset by default). [slow] overrides the slow delay for tests. [pins] are the pinned cafés
 /// whose PDFs offline warms; [readPdf] loads a recorded PDF, which is kept (throwaway, like the store) in [pdfDir] or a temp folder.
 Future<Repository> recordedRepository(RecordedFlags f, Database db, {
-  Future<String> Function(String name) read = _fromBundle,
+  Future<String> Function(String name)? read,
   Duration? slow,
   List<String> pins = const [],
   Future<List<int>> Function(String file) readPdf = _pdfFromBundle,
   Directory? pdfDir,
 }) async {
+  read ??= _fromBundle;
   final client = RecordedClient(
     menus: jsonDecode(await read('menus-2026-10-08-to-22.json')) as Map<String, dynamic>,
     locations: await recordedLocations(read),
