@@ -23,11 +23,11 @@ const _spinner = Align(alignment: Alignment.topCenter, child: Padding(padding: E
 /// one under another, on chalk. Loading is the spinner (it shows itself after 400 ms), then the pages fade in where they end up; a menu
 /// kept on the phone opens at once. Not saved (offline) and failed say so, with Try again for a failure.
 class PdfMenuPage extends StatefulWidget {
-  const PdfMenuPage({super.key, required this.top, required this.url, required this.label, required this.cache, required this.pages});
+  const PdfMenuPage({super.key, required this.top, required this.url, required this.label, required this.cache, required this.open});
   final double top;
   final String url, label;
   final PdfCache? cache;
-  final PdfPages pages;
+  final PdfOpen open;
   @override
   State<PdfMenuPage> createState() => _PdfMenuPageState();
 }
@@ -37,7 +37,7 @@ class _PdfMenuPageState extends State<PdfMenuPage> with SingleTickerProviderStat
   StreamSubscription<DataState<File>>? _sub;
   Object? _error;
   bool _notSaved = false, _started = false;
-  List<PdfPage>? _pages;
+  PdfDoc? _doc;
   int _run = 0;
 
   @override
@@ -55,15 +55,18 @@ class _PdfMenuPageState extends State<PdfMenuPage> with SingleTickerProviderStat
     }
   }
 
-  double get _pageWidth => MediaQuery.sizeOf(context).width - 2 * M2Layout.pdfGutter;
+  void _closeDoc() {
+    _doc?.close();
+    _doc = null;
+  }
 
   void _load() {
-    final run = ++_run, cache = widget.cache, width = _pageWidth;
+    final run = ++_run, cache = widget.cache;
     _sub?.cancel();
     setState(() {
       _error = null;
       _notSaved = false;
-      _pages = null;
+      _closeDoc();
     });
     if (cache == null) {
       setState(() => _error = StateError('no place to keep PDFs'));
@@ -80,14 +83,17 @@ class _PdfMenuPageState extends State<PdfMenuPage> with SingleTickerProviderStat
           if (mounted && run == _run) setState(() => _error = error);
         case Loaded(:final value) || LoadedOffline(:final value):
           try {
-            final pages = await widget.pages(value, width);
-            if (!mounted || run != _run) return;
+            final doc = await widget.open(value);
+            if (!mounted || run != _run) {
+              await doc.close();
+              return;
+            }
             if (waited) {
               final a = resolveAnim(context, M2Motion.settle);
               _fade.value = 0;
               _fade.animateTo(1, duration: a.duration, curve: a.curve);
             }
-            setState(() => _pages = pages);
+            setState(() => _doc = doc);
           } catch (e) {
             if (mounted && run == _run) setState(() => _error = e);
           }
@@ -98,6 +104,7 @@ class _PdfMenuPageState extends State<PdfMenuPage> with SingleTickerProviderStat
   @override
   void dispose() {
     _sub?.cancel();
+    _closeDoc();
     _fade.dispose();
     super.dispose();
   }
@@ -110,10 +117,10 @@ class _PdfMenuPageState extends State<PdfMenuPage> with SingleTickerProviderStat
       body = _line("The ${name.toLowerCase()} menu didn't load.", _load);
     } else if (_notSaved) {
       body = _line("You're offline, and this menu isn't saved on this phone.", null);
-    } else if (_pages == null) {
+    } else if (_doc == null) {
       body = _spinner;
     } else {
-      body = FadeTransition(opacity: _fade, child: PdfZoomView(pages: _pages!, label: '$name menu'));
+      body = FadeTransition(opacity: _fade, child: PdfZoomView(key: ValueKey(_doc), doc: _doc!, label: '$name menu'));
     }
     return ColoredBox(
       color: M2Color.chalk,
@@ -131,50 +138,105 @@ class _PdfMenuPageState extends State<PdfMenuPage> with SingleTickerProviderStat
 }
 
 /// The pages, one under another at the screen's width less the gutters. Pinch zooms 1x to 4x; a double tap zooms to 2.5x at the point
-/// tapped and the next returns to 1x. The pages scroll both ways inside this box, so the bar above never moves.
+/// tapped and the next returns to 1x, over `settle` (under reduced motion it snaps). The pages scroll both ways inside this box, so the bar
+/// above never moves. A page is drawn when it comes within half a screen of the view, and kept: ponytail: no eviction, so a long scroll
+/// holds every page it has shown; a 3-page menu is 3 images, evict far pages if a longer document ever ships.
 class PdfZoomView extends StatefulWidget {
-  const PdfZoomView({super.key, required this.pages, required this.label});
-  final List<PdfPage> pages;
+  const PdfZoomView({super.key, required this.doc, required this.label});
+  final PdfDoc doc;
   final String label;
   @override
   State<PdfZoomView> createState() => _PdfZoomViewState();
 }
 
-class _PdfZoomViewState extends State<PdfZoomView> {
+class _PdfZoomViewState extends State<PdfZoomView> with SingleTickerProviderStateMixin {
   final _ctl = TransformationController();
-  Offset _tap = Offset.zero;
+  late final AnimationController _anim;
+  final _img = <int, ImageProvider>{};
+  final _asked = <int>{};
+  Offset _tap = Offset.zero, _scene = Offset.zero;
+  double _k0 = 1, _k1 = 1;
+  Curve _curve = M2Motion.settle.curve;
+  Size _view = Size.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _anim = AnimationController(vsync: this)..addListener(() => _apply(_k0 + (_k1 - _k0) * _curve.transform(_anim.value)));
+    _ctl.addListener(_want);
+  }
 
   @override
   void dispose() {
     _ctl.dispose();
+    _anim.dispose();
     super.dispose();
   }
 
+  List<double> get _aspects => widget.doc.aspects;
+
   double _height(double w) {
     final pw = w - 2 * M2Layout.pdfGutter;
-    return M2Layout.pdfBodyTop + [for (final p in widget.pages) pw * p.aspect + M2Layout.pdfPageGap].fold(0.0, (a, b) => a + b) + M2Layout.pdfBodyBottom;
+    return M2Layout.pdfBodyTop + [for (final a in _aspects) pw * a + M2Layout.pdfPageGap].fold(0.0, (a, b) => a + b) + M2Layout.pdfBodyBottom;
   }
 
-  /// 2.5x at the tap, or back to 1x when already zoomed: the scene point under the finger stays under it, inside the pages' edges.
-  void _toggle(Size view) {
-    final zoomed = _ctl.value.getMaxScaleOnAxis() > M2Layout.pdfMinZoom, k = zoomed ? M2Layout.pdfMinZoom : M2Layout.pdfTapZoom;
-    final scene = _ctl.toScene(_tap), h = _height(view.width);
-    final tx = (_tap.dx - scene.dx * k).clamp(math.min(0.0, view.width - view.width * k), 0.0).toDouble();
-    final ty = (_tap.dy - scene.dy * k).clamp(math.min(0.0, view.height - h * k), 0.0).toDouble();
+  /// Draws the pages near the view that aren't drawn yet, each once.
+  void _want() {
+    if (_view.isEmpty) return;
+    final pw = _view.width - 2 * M2Layout.pdfGutter, top = _ctl.toScene(Offset.zero).dy, bottom = _ctl.toScene(Offset(0, _view.height)).dy;
+    final slack = (bottom - top) * M2Layout.pdfRenderAhead;
+    var y = M2Layout.pdfBodyTop;
+    for (var i = 0; i < _aspects.length; i++) {
+      final h = pw * _aspects[i];
+      if (y + h >= top - slack && y <= bottom + slack && _asked.add(i)) {
+        widget.doc.render(i, pw).then((img) {
+          if (mounted && img != null) setState(() => _img[i] = img);
+        }, onError: (Object _) {});
+      }
+      y += h + M2Layout.pdfPageGap;
+    }
+  }
+
+  /// The scene point under the finger stays under it, inside the pages' edges.
+  void _apply(double k) {
+    final h = _height(_view.width);
+    final tx = (_tap.dx - _scene.dx * k).clamp(math.min(0.0, _view.width - _view.width * k), 0.0).toDouble();
+    final ty = (_tap.dy - _scene.dy * k).clamp(math.min(0.0, _view.height - h * k), 0.0).toDouble();
     _ctl.value = Matrix4.identity()
       ..setTranslationRaw(tx, ty, 0)
       ..scaleByDouble(k, k, 1, 1);
   }
 
+  /// 2.5x at the tap, or back to 1x when already zoomed.
+  void _toggle() {
+    _anim.stop();
+    _k0 = _ctl.value.getMaxScaleOnAxis();
+    _k1 = _k0 > M2Layout.pdfMinZoom ? M2Layout.pdfMinZoom : M2Layout.pdfTapZoom;
+    _scene = _ctl.toScene(_tap);
+    if (reducedMotion(context)) {
+      _apply(_k1);
+      return;
+    }
+    final a = M2Motion.settle;
+    _curve = a.curve;
+    _anim.duration = a.duration;
+    _anim.forward(from: 0);
+  }
+
   @override
   Widget build(BuildContext context) => LayoutBuilder(
         builder: (_, c) {
+          if (c.biggest != _view) {
+            _view = c.biggest;
+            WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? _want() : null);
+          }
           final pw = c.maxWidth - 2 * M2Layout.pdfGutter;
           return GestureDetector(
             onDoubleTapDown: (d) => _tap = d.localPosition,
-            onDoubleTap: () => _toggle(c.biggest),
+            onDoubleTap: _toggle,
             child: InteractiveViewer(
               transformationController: _ctl,
+              onInteractionStart: (_) => _anim.stop(),
               minScale: M2Layout.pdfMinZoom, maxScale: M2Layout.pdfMaxZoom,
               constrained: false,
               child: SizedBox(
@@ -182,15 +244,15 @@ class _PdfZoomViewState extends State<PdfZoomView> {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(M2Layout.pdfGutter, M2Layout.pdfBodyTop, M2Layout.pdfGutter, M2Layout.pdfBodyBottom),
                   child: Column(children: [
-                    for (var i = 0; i < widget.pages.length; i++)
+                    for (var i = 0; i < _aspects.length; i++)
                       Padding(
                         padding: const EdgeInsets.only(bottom: M2Layout.pdfPageGap),
                         child: Semantics(
-                          image: true, label: '${widget.label}, page ${i + 1} of ${widget.pages.length}',
+                          image: true, label: '${widget.label}, page ${i + 1} of ${_aspects.length}',
                           child: Container(
-                            width: pw, height: pw * widget.pages[i].aspect,
+                            width: pw, height: pw * _aspects[i],
                             decoration: const BoxDecoration(color: M2Color.white, boxShadow: [BoxShadow(color: M2Layout.pdfShadow, offset: Offset(0, M2Layout.pdfShadowDy), blurRadius: M2Layout.pdfShadowBlur)]),
-                            child: Image(image: widget.pages[i].image, fit: BoxFit.fill, filterQuality: FilterQuality.medium),
+                            child: _img[i] == null ? null : Image(image: _img[i]!, fit: BoxFit.fill, filterQuality: FilterQuality.medium),
                           ),
                         ),
                       ),
@@ -241,7 +303,7 @@ class _PdfMenuByIndexState extends State<PdfMenuByIndex> {
         final links = menu is RetailMenuPdf ? menu.links : const <PdfLink>[];
         if (widget.index < links.length) {
           final l = links[widget.index];
-          return PdfMenuPage(key: ValueKey(l.url), top: widget.top, url: l.url, label: l.label, cache: scope.repo.pdfs, pages: scope.pdfPages);
+          return PdfMenuPage(key: ValueKey(l.url), top: widget.top, url: l.url, label: l.label, cache: scope.repo.pdfs, open: scope.pdfOpen);
         }
         return ColoredBox(
           color: M2Color.chalk,

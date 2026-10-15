@@ -16,7 +16,7 @@ void main() {
   Photos.enabled = false;
 
   Future<void> cafe(WidgetTester t, {NetMode net = NetMode.ok, List<String> pins = const []}) async {
-    await openApp(t, await bootRecorded(t, net: net, pins: pins, pages: await syntheticPages(t)), route: '/cafe/29');
+    await openApp(t, await bootRecorded(t, net: net, pins: pins, pages: (await syntheticPages(t)).call), route: '/cafe/29');
     await until(t, () => find.text('Menus').evaluate().isNotEmpty);
     await drain(t); // the café's own dishes lookup is still in flight
     await t.pumpAndSettle();
@@ -67,13 +67,13 @@ void main() {
   });
 
   testWidgets('the launch route /cafe/29/menu/1 opens the second menu', (t) async {
-    await openApp(t, await bootRecorded(t, pages: await syntheticPages(t)), route: '/cafe/29/menu/1');
+    await openApp(t, await bootRecorded(t, pages: (await syntheticPages(t)).call), route: '/cafe/29/menu/1');
     await until(t, () => find.byType(PdfZoomView).evaluate().isNotEmpty);
     expect(find.text('Lite fare menu'), findsOneWidget);
   });
 
   testWidgets('a café with no PDFs has no Menus rows', (t) async {
-    await openApp(t, await bootRecorded(t, pages: await syntheticPages(t)), route: '/cafe/2');
+    await openApp(t, await bootRecorded(t, pages: (await syntheticPages(t)).call), route: '/cafe/2');
     await until(t, () => find.text('Add a custom food').evaluate().isNotEmpty);
     expect(find.text('Menus'), findsNothing);
   });
