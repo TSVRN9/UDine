@@ -1,3 +1,4 @@
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/core/m2/board.dart' show mealLabel;
@@ -54,6 +55,27 @@ void main() {
     await t.tap(find.text('Dinner'));
     await t.pumpAndSettle();
     expect(selectedTab(t), 'dinner');
+    await drain(t);
+  });
+
+  testWidgets('a name never breaks after a slash, as in the browser: "w/Bacon" wraps whole', (t) async {
+    await openHall(t, await bootRecorded(t), '/cafe/12', w: 360);
+    final name = find.byWidgetPredicate((w) => w is RichText && w.text.toPlainText().contains('Croissant w'));
+    final r = t.renderObject<RenderParagraph>(name.first);
+    final text = r.text.toPlainText();
+    double top(String s) {
+      final i = text.indexOf(s);
+      return r.getBoxesForSelection(TextSelection(baseOffset: i, extentOffset: i + 1)).first.top;
+    }
+    expect(top('w/'), top('Bacon'), reason: text);
+    expect(top('w/'), greaterThan(top('Croissant')), reason: text);
+    await drain(t);
+  });
+
+  testWidgets('Grab \'N Go stations drop the feed\'s "Grab n\'Go " prefix, as M2\'s build does', (t) async {
+    await openHall(t, await bootRecorded(t), '/hall/worcester?meal=grab');
+    expect(find.textContaining("Grab n'Go"), findsNothing);
+    expect(find.text('Breakfast'), findsWidgets);
     await drain(t);
   });
 

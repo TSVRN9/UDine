@@ -60,7 +60,7 @@ void main() {
         final got = board.days[iso]![place] ?? {};
         expect(got.keys.toSet(), {for (final m in meals.keys) wire[m]}, reason: '$place $iso meals');
         for (final MapEntry(key: m, value: stations) in meals.entries) {
-          final want = [for (final s in stations as List) (normalizeStationName(s[0] as String), [for (final i in s[1] as List) (dishes[i]['dish-name'] as String).trim()])];
+          final want = [for (final s in stations as List) (normalizeStationName(s[0] as String).replaceFirst(RegExp(r"^Grab n'Go\s+"), ''), [for (final i in s[1] as List) (dishes[i]['dish-name'] as String).trim()])];
           final have = [for (final s in got[wire[m]]!) (s.name, [for (final x in s.dishes) x.dishName])];
           expect(have.length, want.length, reason: '$place $iso $m stations');
           for (var i = 0; i < want.length; i++) {

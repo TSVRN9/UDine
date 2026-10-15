@@ -16,12 +16,15 @@ const _mealKey = {
   MealPeriod.latenight: 'late', MealPeriod.allday: 'all', MealPeriod.grabngo: 'grab',
 };
 
+/// M2 `build.py` `station()`: the hall-code suffix dropped, and the Grab 'N Go feed's "Grab n'Go " prefix.
+String _station(String category) => normalizeStationName(category).replaceFirst(RegExp(r"^Grab n'Go\s+"), '');
+
 /// A day's dishes as M2 keeps them: meal -> stations, a station being a category (its hall-code suffix dropped, `Latino 1 WOR`), in the feed's own order (the recording's order is
 /// the feed's; keyword order would put Grill before Soups).
 Map<String, List<Station>> mealsOfItems(List<MenuItem> items) {
   final by = <String, Map<String, List<MenuItem>>>{};
   for (final it in items) {
-    ((by[_mealKey[it.mealPeriod]!] ??= {})[normalizeStationName(it.category)] ??= []).add(it);
+    ((by[_mealKey[it.mealPeriod]!] ??= {})[_station(it.category)] ??= []).add(it);
   }
   return {for (final m in by.entries) m.key: [for (final s in m.value.entries) Station(s.key, s.value)]};
 }
