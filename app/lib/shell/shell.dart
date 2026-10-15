@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import '../core/m2/history.dart' show cafeIdsOf;
+import '../core/store/log_book.dart';
 import '../data/repository.dart' show DataState, HoursData, Loaded, LoadedOffline;
 import '../motion/fade_through.dart';
 import 'app_scope.dart';
@@ -66,26 +67,35 @@ class ShellState extends State<Shell> implements ShellApi {
   }
 
   StreamSubscription<DataState<HoursData>>? _hours;
+  LogBook? _book;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // the café ids the saved hours carry name a café's past meals (You); a failure or no hours leaves them as "Lunch"
-    final scope = AppScope.of(context), book = scope.log;
-    if (_hours == null && book != null) {
-      _hours = scope.repo.hours(scope.repo.today).listen((s) {
-        if (s is Loaded<HoursData>) {
-          book.cafeIds = cafeIdsOf(s.value.feed);
-        } else if (s is LoadedOffline<HoursData>) {
-          book.cafeIds = cafeIdsOf(s.value.feed);
-        }
-      }, onError: (Object _) {});
+    if (_book == null && AppScope.of(context).log != null) {
+      _book = AppScope.of(context).log!..addListener(_wantCafeIds);
+      _wantCafeIds();
     }
+  }
+
+  /// The café ids the saved hours carry name a café's past meals (You). Asked for only once the log holds one, so a log of halls costs
+  /// nothing; a failure or no hours leaves the meal as "Lunch".
+  void _wantCafeIds() {
+    final book = _book!, scope = AppScope.of(context);
+    if (_hours != null || !book.meals.any((m) => m.needsCafeIds)) return;
+    _hours = scope.repo.hours(scope.repo.today).listen((s) {
+      if (s is Loaded<HoursData>) {
+        book.cafeIds = cafeIdsOf(s.value.feed);
+      } else if (s is LoadedOffline<HoursData>) {
+        book.cafeIds = cafeIdsOf(s.value.feed);
+      }
+    }, onError: (Object _) {});
   }
 
   @override
   void dispose() {
     _hours?.cancel();
+    _book?.removeListener(_wantCafeIds);
     _tab.dispose();
     super.dispose();
   }

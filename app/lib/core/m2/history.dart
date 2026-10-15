@@ -52,6 +52,12 @@ class LoggedMeal {
     return null;
   }
 
+  /// Whether a hall's tid does not explain this meal's place: a café's (or an id RN hashed), which only the hours can name.
+  bool get needsCafeIds {
+    final tid = items.map((i) => i.entry.source).whereType<UmassMenuSource>().firstOrNull?.hallTid;
+    return tid != null && (tid < 1 || tid > halls.length);
+  }
+
   Totals get total => _sum(items);
 }
 
