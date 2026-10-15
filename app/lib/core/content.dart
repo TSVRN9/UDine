@@ -61,6 +61,15 @@ class RetailMenuPdf extends ParsedRetailMenu {
   List<PdfLink> get links => [PdfLink(url, label), ...more];
 }
 
+/// A café's own words for one PDF link, cut to the menu's name: "Click here for the Lite Fare Menu" is "Lite fare". Words that don't
+/// follow that sentence keep their capitals ("Baby Berk Menu" is "Baby Berk").
+String menuName(String label) {
+  final lead = RegExp(r'^click here (?:for|to (?:see|view|open))\s+(?:the\s+)?', caseSensitive: false);
+  final s = label.replaceFirst(lead, '').replaceFirst(RegExp(r'\s+menus?\s*$', caseSensitive: false), '').trim();
+  if (s.isEmpty) return label;
+  return lead.hasMatch(label) ? s[0].toUpperCase() + s.substring(1).toLowerCase() : s;
+}
+
 class RetailMenuItem {
   const RetailMenuItem(this.name, this.price);
   final String name;

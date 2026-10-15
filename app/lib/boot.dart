@@ -11,6 +11,7 @@ import 'core/store/db.dart';
 import 'core/store/store.dart';
 import 'data/recorded/recorded.dart';
 import 'data/pdf_cache.dart';
+import 'data/pdf_pages.dart';
 import 'data/repository.dart';
 import 'data/source.dart';
 import 'data/supabase_source.dart';
@@ -27,7 +28,8 @@ const _fivePins = ['Wasabi', 'Tamales', "Peet's Coffee & Tea", 'Harvest Market',
 /// network from the route's `?data=recorded&at=&net=`), and the preferences. Recorded mode keeps everything in a throwaway
 /// in-memory store so a capture never reads or leaves anything on the device.
 class Boot {
-  Boot(this.repo, this.store, this.prefs);
+  Boot(this.repo, this.store, this.prefs, {this.pdfPages = pdfxPages});
+  final PdfPages pdfPages;
   final Repository repo;
 
   /// The device store; null when the file was written by a newer build (menus only, below).
@@ -70,5 +72,5 @@ class Boot {
     return ((await openStore(inMemoryDatabasePath) as StoreReady).db, null);
   }
 
-  Widget wrap(Widget child) => AppScope(repo: repo, store: store, prefs: prefs, hider: hider, plate: plate, child: child);
+  Widget wrap(Widget child) => AppScope(repo: repo, store: store, prefs: prefs, hider: hider, plate: plate, pdfPages: pdfPages, child: child);
 }

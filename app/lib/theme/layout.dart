@@ -155,6 +155,11 @@ abstract final class M2Layout {
   static const placeStatusGap = 12.0; // `.lrow` gap
   static const h3Gap = 24.0; // `.cbody .h3` margin-top
   static const h3Bottom = 4.0; // `.h3` margin-bottom
+  static const pdfBodyTop = 12.0, pdfBodyBottom = 20.0, pdfPageGap = 12.0; // `.page[data-p=pdf] .pbody` padding 12 16 20, `.pdfp` margin-bottom 12
+  static const pdfMinZoom = 1.0, pdfMaxZoom = 4.0, pdfTapZoom = 2.5; // pinch 1x to 4x; double-tap 2.5x at the point, and back to 1x
+  static const pdfRenderScale = 3.0; // pages are drawn at 3x the screen width: sharp at 1x, soft past 3x (M2 draws 1074 px for 390)
+  static const pdfShadow = Color.fromRGBO(36, 10, 14, 0.2), pdfShadowDy = 1.0, pdfShadowBlur = 3.0; // `.pdfp` box-shadow 0 1px 3px
+  static const mcGap = 6.0; // `.lrow .mc` gap: "Not saved" and the chevron
   static const namesRowMin = 48.0; // `.cbody .lrow` min-height
   static const pinGlyphStroke = 2.2; // `.icon svg` stroke-width
   static const statusAboveBottom = 7.0; // `#mts` padding-bottom 12 less its margin-bottom -5: the status text ends 7 dp above `.mt{bottom}`

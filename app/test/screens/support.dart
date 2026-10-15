@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/widgets.dart';
@@ -8,6 +9,7 @@ import 'package:udine/app.dart';
 import 'package:udine/core/hours.dart';
 import 'package:udine/core/store/db.dart';
 import 'package:udine/core/store/store.dart';
+import 'package:udine/data/pdf_pages.dart';
 import 'package:udine/data/recorded/recorded.dart';
 import 'package:udine/shell/prefs.dart';
 import 'package:udine/motion/routes.dart';
@@ -23,7 +25,7 @@ Future<String> readRecorded(String name) => File('assets/recorded/$name').readAs
 
 /// The app's `Boot` over M2's recordings and a throwaway store, as `Boot.open` builds it for a recorded route. Real I/O (sqlite on an
 /// isolate) runs under `runAsync`.
-Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? at, List<String> pins = const [], bool charlesRiver = false, Duration? slow, bool health = false, bool carbon = false, bool persistPins = false}) async {
+Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? at, List<String> pins = const [], bool charlesRiver = false, Duration? slow, bool health = false, bool carbon = false, bool persistPins = false, PdfPages? pages, bool pdfsLinked = true}) async {
   return (await t.runAsync(() async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
@@ -32,8 +34,9 @@ Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? a
     final store = UdineStore(db.db);
     await store.setCharlesRiver(charlesRiver);
     await store.setScores(healthfulness: health, carbon: carbon);
-    final repo = await recordedRepository(RecordedFlags(at: at ?? lunch, net: net), db.db, read: readRecorded, slow: slow);
-    return Boot(repo, store, await AppPrefs.load(store, pins: persistPins ? null : pins));
+    // the recorded PDFs are UMass's and never in the repo: a test's are synthetic, and its pages are drawn by [pages]
+    final repo = await recordedRepository(RecordedFlags(at: at ?? lunch, net: net), db.db, read: readRecorded, slow: slow, pins: pins, readPdf: (_) async => pdfsLinked ? utf8.encode('%PDF-1.4\n%synthetic\n') : throw 'not linked', pdfDir: Directory.systemTemp.createTempSync('udine-test-pdf'));
+    return Boot(repo, store, await AppPrefs.load(store, pins: persistPins ? null : pins), pdfPages: pages ?? pdfxPages);
   }))!;
 }
 

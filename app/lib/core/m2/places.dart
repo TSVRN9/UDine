@@ -46,6 +46,7 @@ const cafeTable = [
   CafeEntry('Courtside Café', 'Courtside Café', 3, 'Recreation Center'),
   CafeEntry('Terrace', 'Terrace', 3, 'Fieldstone Apartments'),
   CafeEntry('Charles River Campus of UMass Amherst', 'Charles River Campus', 4, 'Newton'),
+  CafeEntry('The Commonwealth Restaurant', 'The Commonwealth Restaurant', 1, 'Worcester Commons'), // c29: appended last so no key moves (R11 §3)
 ];
 
 /// `c<i>` of the café M2 calls `name`, or null.

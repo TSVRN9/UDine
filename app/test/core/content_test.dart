@@ -126,6 +126,13 @@ void main() {
       expect((parseRetailMenuHtml(babyBerkBreakfastMenu) as RetailMenuPdf).links, hasLength(1));
     });
 
+    test('menuName cuts the link text to the menu\'s name (R11 §3: Lunch, Lite fare, Dinner, Dessert)', () {
+      expect([for (final l in (parseRetailMenuHtml(commonwealthBreakfastMenu) as RetailMenuPdf).links) menuName(l.label)], ['Lunch', 'Lite fare', 'Dinner', 'Dessert']);
+      expect(menuName('Baby Berk Menu'), 'Baby Berk');
+      expect(menuName('Menu'), 'Menu');
+      expect(menuName('Click here for the Menu'), 'Menu');
+    });
+
     test('a PDF link with no text is labelled Menu', () {
       expect((parseRetailMenuHtml('<a href="https://umassdining.com/m.pdf"></a>') as RetailMenuPdf).label, 'Menu');
     });
