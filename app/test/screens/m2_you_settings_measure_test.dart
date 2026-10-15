@@ -49,6 +49,9 @@ void main() {
       for (var i = 0; i < 4; i++) {
         _near('row $i', ours[i], [theirs[i][0], ours[i].top, theirs[i][2], theirs[i][3]], w);
       }
+      // M2's Track/Health section (secs[3]) sits between Earlier and the choices; with it absent, its end is where Earlier's list ends
+      final earlierEnd = t.getRect(find.widgetWithText(LRow, 'Tuesday, October 6')).bottom, secs = y['secs'] as List;
+      expect(ours[0].top - earlierEnd, closeTo(_n(lr, nl - 5, 1) - (_n(secs, 3, 1) + _n(secs, 3, 3)), 1.0), reason: 'the choices under Earlier');
       expect(ours[3].top - ours[2].top, closeTo(_n(lr, nl - 1, 1) - _n(lr, nl - 2, 1), 1.0));
       final h2 = y['h2'] as List, ck = y['checks'] as List;
       final campus = t.getRect(find.text('Campus')), show = t.getRect(find.text('Show on dishes'));

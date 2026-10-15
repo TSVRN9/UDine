@@ -100,7 +100,7 @@ void main() {
 
   test('the export is every device-local table, in the exporters\' own files', () async {
     expect((await book.exportFiles(json: true)).keys, ['udine-export.json', 'udine-ranked-dishes.json', 'udine-ranked-foods.json', 'udine-favorites.json', 'udine-custom-foods.json']);
-    expect((await book.exportFiles(json: false)).keys.first, 'udine-export.csv');
+    expect((await book.exportFiles(json: false)).keys, ['udine-export.csv', 'udine-ranked-dishes.csv', 'udine-ranked-foods.csv', 'udine-favorites.csv', 'udine-custom-foods.csv']);
     expect((await book.exportFiles(json: false))['udine-export.csv'], await UdineStore(db).exportCsv().then((m) => m['udine-export.csv']));
   });
 

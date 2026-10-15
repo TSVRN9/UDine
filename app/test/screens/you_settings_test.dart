@@ -116,6 +116,17 @@ void main() {
       await drain(t);
     });
 
+    testWidgets('a pick that cannot be saved leaves the pair on screen and throws nothing', (t) async {
+      final b = await bootYou(t, History.today);
+      await openYou(t, b, route: '/you/rank');
+      await until(t, () => find.text('or').evaluate().isNotEmpty);
+      await t.runAsync(() => b.store!.db.close());
+      await t.tap(find.text('Hard Boiled Egg'));
+      await wrote(t);
+      expect(find.text('or'), findsOneWidget);
+      await drain(t);
+    });
+
     testWidgets('RN\'s ranked_dishes order is Your ranking before any pick', (t) async {
       final b = await bootYou(t, History.today);
       final order = ['Red Potato Home Fries', 'Hard Boiled Egg', 'Make Your Own Waffles'];
@@ -149,7 +160,7 @@ void main() {
       await t.tap(find.text('Export CSV'));
       await wrote(t);
       expect(sent[0].keys, ['udine-export.json', 'udine-ranked-dishes.json', 'udine-ranked-foods.json', 'udine-favorites.json', 'udine-custom-foods.json']);
-      expect(sent[1].keys.first, 'udine-export.csv');
+      expect(sent[1].keys, ['udine-export.csv', 'udine-ranked-dishes.csv', 'udine-ranked-foods.csv', 'udine-favorites.csv', 'udine-custom-foods.csv']);
       expect(sent[0]['udine-export.json'], await real(t, () => b.store!.exportJson().then((m) => m['udine-export.json']!)));
       await drain(t);
     });

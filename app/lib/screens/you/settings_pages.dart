@@ -179,6 +179,8 @@ class _RankPageState extends State<RankPage> {
     try {
       final r = await AppScope.of(context).log!.pick(win, lose);
       if (mounted) setState(() => _ranked = r);
+    } catch (e, st) {
+      debugPrint('udine: a pick did not save: $e\n$st'); // the pair stays on screen: the next tap tries again
     } finally {
       _busy = false;
     }

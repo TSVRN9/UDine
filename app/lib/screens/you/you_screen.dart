@@ -1,18 +1,17 @@
 import 'package:flutter/widgets.dart';
 
 import '../../core/m2/history.dart';
+import '../../core/m2/menu_view.dart' show isoFull, prefSummary;
+import '../../core/m2/rank.dart' show rankPool;
 import '../../core/store/log_book.dart';
-import '../../core/m2/menu_view.dart' show isoFull;
 import '../../motion/routes.dart';
 import '../../shell/app_scope.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import '../plate/plate_sheet.dart' show plateBoard;
-import '../../core/m2/menu_view.dart' show prefSummary;
-import '../../core/m2/rank.dart' show rankPool;
 import 'day_page.dart';
-import 'settings_pages.dart';
 import 'meal_sheet.dart';
+import 'settings_pages.dart';
 import 'you_parts.dart';
 
 /// You: the date and the title, then Today (its totals and meals) and Earlier (one row per logged day, newest first; a row pushes the day).

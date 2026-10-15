@@ -54,7 +54,8 @@ class Boot {
   bool get menusOnly => store == null;
 
   /// [dbPath] is a test seam (the device path by default).
-  static Future<Boot> open(String route, {String? dbPath}) async {
+  static Future<Boot> open(String route, {String? dbPath, TempDir tmp = getTemporaryDirectory}) async {
+    await clearExports(tmp: tmp); // last session's exports: plaintext copies of the log, not kept past the next start
     if (photosOff(route)) Photos.enabled = false;
     final flags = recordedFlags(route);
     final pinsQuery = Uri.parse(route).queryParameters['pins'], pinsFlag = int.tryParse(pinsQuery ?? '');
