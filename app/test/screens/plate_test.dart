@@ -2,6 +2,9 @@
 // test/shell/plate_log_test.dart.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/boot.dart';
+import 'package:udine/data/recorded/flags.dart' show NetMode;
+import 'package:udine/screens/halls/halls_screen.dart';
+import 'package:udine/core/m2/board.dart' show dishKey, servingOn;
 import 'package:udine/core/types.dart';
 import 'package:udine/screens/dish/dish_sheet.dart';
 import 'package:udine/screens/dish/full_label.dart';
@@ -10,7 +13,9 @@ import 'package:udine/screens/plate/calorie_toss.dart';
 import 'package:udine/screens/plate/plate_row.dart';
 import 'package:udine/theme/tokens.dart';
 import 'package:udine/ui/ui.dart';
+import '../core/m2/support.dart' as fx;
 import '../fonts.dart';
+import 'dish_support.dart';
 import 'plate_support.dart';
 import 'support.dart';
 
@@ -131,6 +136,43 @@ void main() {
       await until(t, () => find.byType(DishSheet).evaluate().isNotEmpty);
       await t.pumpAndSettle();
       expect(find.text('Add another'), findsOneWidget);
+      t.widget<DishSheet>(find.byType(DishSheet)).handle.close();
+      await t.pumpAndSettle();
+      await drain(t);
+    });
+
+    testWidgets('Android back puts an open sheet into the bar and moves nothing else', (t) async {
+      await openPlate(t);
+      await t.tap(inBar(find.textContaining(RegExp(r'items?$'))));
+      await t.pumpAndSettle();
+      expect(plateHandle(t).px, greaterThan(M2Layout.barMin));
+      await t.binding.handlePopRoute();
+      await t.pumpAndSettle();
+      expect(plateHandle(t).px, M2Layout.barMin);
+      expect(find.byType(HallsScreen), findsOneWidget);
+      await drain(t);
+    });
+
+    testWidgets('a dish opened from the plate says where it is served as it does from its hall, and a tap there leaves both sheets for that hall', (t) async {
+      final b = await bootRecorded(t);
+      await openHall(t, b, dishRoute('Beef Brisket Noodle Bowl'));
+      await sheetUp(t);
+      List<String> chips() => [for (final c in t.widgetList<HallChip>(find.descendant(of: find.byType(DishSheet), matching: find.byType(HallChip)))) c.name];
+      final fromHall = chips();
+      expect(fromHall, contains('Berkshire'));
+      t.widget<DishSheet>(find.byType(DishSheet)).handle.close();
+      await t.pumpAndSettle();
+      b.plate.add('lunch', 'Beef Brisket Noodle Bowl', await servings(t, b, 'Beef Brisket Noodle Bowl', ['W', 'B']));
+      await t.pumpAndSettle();
+      await t.tap(inBar(find.textContaining(RegExp(r'items?$'))));
+      await t.pumpAndSettle();
+      await t.tap(find.descendant(of: find.byType(PlateRow), matching: find.text('Beef Brisket Noodle Bowl')));
+      await sheetUp(t);
+      expect(chips(), fromHall);
+      await tapChip(t, 'Berkshire');
+      expect(find.byType(DishSheet), findsNothing);
+      expect(plateHandle(t).px, M2Layout.barMin);
+      expect(top(t).place, 'B');
       await drain(t);
     });
 
@@ -287,6 +329,21 @@ void main() {
       await t.tap(inBar(find.text('Log')));
       await logged(t, b);
       expect(b.plate.receipt, isNotNull);
+      expect(await rows(t, b), hasLength(2));
+      await finish(t);
+    });
+
+    testWidgets('logs with no network: the plate never needed it', (t) async {
+      final b = await bootRecorded(t, net: NetMode.offline);
+      for (final n in ['Beef Brisket Noodle Bowl', 'Golden BBQ Chicken Thigh']) {
+        b.plate.add('lunch', n, {'W': servingOn(fx.board, fx.today, 'W', 'lunch', dishKey(n))!});
+      }
+      await openApp(t, b, route: '/halls');
+      await until(t, () => bar.evaluate().isNotEmpty);
+      await t.pumpAndSettle();
+      await t.tap(inBar(find.text('Log')));
+      await logged(t, b);
+      expect(inBar(find.text('Undo')), findsOneWidget);
       expect(await rows(t, b), hasLength(2));
       await finish(t);
     });

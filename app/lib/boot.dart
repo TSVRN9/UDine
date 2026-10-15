@@ -67,7 +67,7 @@ class Boot {
     }
     if (flags == null) repo.launch(pins: prefs.pins); // warm today and tomorrow; never throws
     final boot = Boot(repo, store, prefs);
-    await boot.seedPlate(route);
+    if (flags != null) await boot.seedPlate(route); // (recorded data only: a live menu might never arrive)
     return boot;
   }
 

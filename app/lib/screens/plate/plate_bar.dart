@@ -259,8 +259,7 @@ class _PlateBarState extends State<PlateBar>
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
-              Text('Today', style: M2Text.meta.style(M2Color.onDm)),
-              const SizedBox(width: M2Layout.receiptTodayGap),
+              Text('Today ', style: M2Text.meta.style(M2Color.onDm)),
               Text(fc(r.dayCal), style: M2Text.barNum.style(M2Color.white)),
               const SizedBox(width: M2Layout.barNumGap),
               Text('cal', style: M2Text.meta.style(M2Color.onDm)),

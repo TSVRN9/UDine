@@ -14,6 +14,9 @@ abstract class ShellApi {
   /// Goes to the Search tab (the plate's Add something else) for a plate of `meal`.
   void openSearch({required String meal});
 
+  /// Android back is offered to this first (after any pushed sheet, before the pages): true when it was used. Null to stop offering.
+  void handleBack(bool Function()? handler);
+
   /// Flies `text` from `from` (global) to the You tab, where a logged plate lands.
   void toss({required Offset from, required String text});
 }
