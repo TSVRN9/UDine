@@ -18,31 +18,41 @@ class SharedAxisLayer extends StatefulWidget {
   State<SharedAxisLayer> createState() => SharedAxisLayerState();
 }
 
-class SharedAxisLayerState extends State<SharedAxisLayer> with SingleTickerProviderStateMixin {
-  late final AnimationController c = AnimationController(vsync: this, value: 1);
-  Widget? _ghost;
-  int _dir = 1, _gen = 0;
+class SharedAxisLayerState extends State<SharedAxisLayer> with TickerProviderStateMixin {
+  late final AnimationController c = AnimationController(vsync: this, value: 1, animationBehavior: AnimationBehavior.preserve);
+  /// The outgoing copies still leaving, each on its own clock: a tap mid-run restarts the incoming leg but lets every copy finish, as
+  /// M2's `sharedAxisX` does (its ghosts remove themselves when their own animation ends).
+  final _ghosts = <_Ghost>[];
+  int _dir = 1;
 
   bool get running => c.isAnimating;
 
   /// Starts a change: `ghost` is a copy of the rows that were on screen, drawn where they were; `dir` is +1 when the new content is to
   /// the right of the old (the tab order decides).
   void run(int dir, Widget? ghost) {
-    // M2 `sharedAxisX`: always the incoming leg, from the start, whatever was running; an outgoing copy only when there were rows to copy,
-    // and a tap mid-run retargets (the new change replaces the old one's legs)
+    // M2 `sharedAxisX`: always the incoming leg, from the start, whatever was running; an outgoing copy only when there were rows to copy
     _dir = dir;
-    _ghost = reducedMotion(context) ? null : ghost;
-    final mine = ++_gen;
-    c.duration = resolveAnim(context, M2Motion.sharedX).duration;
-    c.forward(from: 0).whenComplete(() {
-      if (mounted && mine == _gen) setState(() => _ghost = null);
-    });
+    final d = resolveAnim(context, M2Motion.sharedX).duration;
+    c.duration = d;
+    c.forward(from: 0);
+    if (ghost != null && !reducedMotion(context)) {
+      final g = _Ghost(ghost, dir, AnimationController(vsync: this, duration: d, animationBehavior: AnimationBehavior.preserve));
+      _ghosts.add(g);
+      g.c.forward().whenComplete(() {
+        if (!mounted) return;
+        setState(() => _ghosts.remove(g));
+        g.c.dispose();
+      });
+    }
     setState(() {});
   }
 
   @override
   void dispose() {
     c.dispose();
+    for (final g in _ghosts) {
+      g.c.dispose();
+    }
     super.dispose();
   }
 
@@ -52,7 +62,7 @@ class SharedAxisLayerState extends State<SharedAxisLayer> with SingleTickerProvi
     return Stack(children: [
       Positioned.fill(
         child: AnimatedBuilder(
-          animation: c, child: widget.child,
+          animation: c, child: RepaintBoundary(child: widget.child),
           builder: (_, child) {
             final t = c.value, slide = M2Motion.sharedX.curve.transform(t), fade = M2Motion.sharedXFade.curve.transform(t);
             final enter = rm ? M2Motion.rmFade.curve.transform(t) : _clamp(fade / M2Motion.sharedXInAt);
@@ -63,17 +73,17 @@ class SharedAxisLayerState extends State<SharedAxisLayer> with SingleTickerProvi
           },
         ),
       ),
-      if (_ghost != null)
+      for (final g in _ghosts)
         Positioned.fill(
           child: AnimatedBuilder(
-            animation: c, child: _ghost,
+            animation: g.c, child: RepaintBoundary(child: g.child),
             builder: (_, child) {
-              final t = c.value, slide = M2Motion.sharedX.curve.transform(t), fade = M2Motion.sharedXFade.curve.transform(t);
+              final t = g.c.value, slide = M2Motion.sharedX.curve.transform(t), fade = M2Motion.sharedXFade.curve.transform(t);
               return IgnorePointer(
                 child: ExcludeSemantics(
                   child: Opacity(
                     key: const ValueKey('axis-out'), opacity: 1 - _clamp(fade / M2Motion.sharedXAt),
-                    child: Transform.translate(key: const ValueKey('axis-out-slide'), offset: Offset(-_dir * M2Motion.sharedXDist * slide, 0), child: child),
+                    child: Transform.translate(key: const ValueKey('axis-out-slide'), offset: Offset(-g.dir * M2Motion.sharedXDist * slide, 0), child: child),
                   ),
                 ),
               );
@@ -82,4 +92,11 @@ class SharedAxisLayerState extends State<SharedAxisLayer> with SingleTickerProvi
         ),
     ]);
   }
+}
+
+class _Ghost {
+  final Widget child;
+  final int dir;
+  final AnimationController c;
+  _Ghost(this.child, this.dir, this.c);
 }

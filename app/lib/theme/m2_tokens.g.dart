@@ -662,6 +662,16 @@ abstract final class M2Motion {
   static const springSheetK = 300.0;
   /// SPRING.sheet
   static const springSheetZ = 0.84;
+  /// Sheet() release (project, vMax, midTop, closeBelowTop) and drag (rubber)
+  static const sheetReleaseProject = 0.18;
+  /// Sheet() release (project, vMax, midTop, closeBelowTop) and drag (rubber)
+  static const sheetReleaseVMax = 4000.0;
+  /// Sheet() release (project, vMax, midTop, closeBelowTop) and drag (rubber)
+  static const sheetReleaseRubber = 0.55;
+  /// Sheet() release (project, vMax, midTop, closeBelowTop) and drag (rubber)
+  static const sheetReleaseMidTop = 4.0;
+  /// Sheet() release (project, vMax, midTop, closeBelowTop) and drag (rubber)
+  static const sheetReleaseCloseBelowTop = 80.0;
   /// setCtl
   static const laneFrom = 0.42;
   /// setCtl
