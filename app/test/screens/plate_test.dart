@@ -1,5 +1,6 @@
 // The plate bar, its sheet, Log and Undo as a user meets them (flutter-port-dish-and-plate Task 2). The store-level guarantees are in
 // test/shell/plate_log_test.dart.
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/boot.dart';
 import 'package:udine/data/recorded/flags.dart' show NetMode;
@@ -9,7 +10,6 @@ import 'package:udine/core/types.dart';
 import 'package:udine/screens/dish/dish_sheet.dart';
 import 'package:udine/screens/dish/full_label.dart';
 import 'package:udine/screens/hall/dish_row.dart';
-import 'package:udine/screens/plate/calorie_toss.dart';
 import 'package:udine/screens/plate/plate_row.dart';
 import 'package:udine/theme/tokens.dart';
 import 'package:udine/ui/ui.dart';
@@ -316,23 +316,6 @@ void main() {
       await finish(t);
     });
 
-    testWidgets('a failed write leaves the plate and the Log button, and a second try works', (t) async {
-      final b = await openPlate(t);
-      await t.runAsync(() => b.store!.db.execute("CREATE TRIGGER boom BEFORE INSERT ON log_entries BEGIN SELECT RAISE(ABORT, 'no'); END"));
-      await t.tap(inBar(find.text('Log')));
-      await logged(t, b);
-      expect(b.plate.failed, isTrue);
-      expect(b.plate.receipt, isNull);
-      expect(b.plate.state.plates, hasLength(1));
-      expect(inBar(find.text('Log')), findsOneWidget);
-      await t.runAsync(() => b.store!.db.execute('DROP TRIGGER boom'));
-      await t.tap(inBar(find.text('Log')));
-      await logged(t, b);
-      expect(b.plate.receipt, isNotNull);
-      expect(await rows(t, b), hasLength(2));
-      await finish(t);
-    });
-
     testWidgets('logs with no network: the plate never needed it', (t) async {
       final b = await bootRecorded(t, net: NetMode.offline);
       for (final n in ['Beef Brisket Noodle Bowl', 'Golden BBQ Chicken Thigh']) {
@@ -348,24 +331,65 @@ void main() {
       await finish(t);
     });
 
-    testWidgets('the calorie toss leaves the bar for You on Log, and is not drawn under reduced motion', (t) async {
+    testWidgets('Log buzzes as M2 does: a light pulse, then a firmer one 72 ms later', (t) async {
+      final calls = <String>[];
+      t.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (c) async {
+        if (c.method == 'HapticFeedback.vibrate') calls.add(c.arguments as String);
+        return null;
+      });
+      addTearDown(() => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
+      final b = await openPlate(t);
+      calls.clear();
+      await t.tap(inBar(find.text('Log')));
+      await logged(t, b);
+      await t.pump(const Duration(milliseconds: 200));
+      expect(calls.where((c) => c.contains('Impact')).toList(), ['HapticFeedbackType.lightImpact', 'HapticFeedbackType.mediumImpact']);
+      await finish(t);
+    });
+
+    testWidgets('nothing flies to the You tab on Log (M2 round 2 cut the toss)', (t) async {
       final b = await openPlate(t);
       await t.tap(inBar(find.text('Log')));
       await until(t, () => b.plate.receipt != null);
       await t.pump(const Duration(milliseconds: 50));
-      expect(find.byType(CalorieToss), findsOneWidget);
-      expect(find.text('+404'), findsOneWidget);
-      await t.pump(M2Motion.cont.duration + const Duration(milliseconds: 50));
-      expect(find.byType(CalorieToss), findsNothing);
+      expect(find.text('+404'), findsNothing);
       await finish(t);
     });
 
-    testWidgets('no toss under reduced motion', (t) async {
-      final b = await openPlate(t, reduced: true);
+    testWidgets('a failed Log says so in the bar, keeps the plate, and Try again logs it', (t) async {
+      final b = await openPlate(t);
+      await t.runAsync(() => b.store!.db.execute("CREATE TRIGGER boom BEFORE INSERT ON log_entries BEGIN SELECT RAISE(ABORT, 'no'); END"));
       await t.tap(inBar(find.text('Log')));
-      await until(t, () => b.plate.receipt != null);
-      await t.pump(const Duration(milliseconds: 50));
-      expect(find.byType(CalorieToss), findsNothing);
+      await until(t, () => b.plate.failure != null);
+      await t.pumpAndSettle();
+      expect(inBar(find.text("Couldn't save this meal.")), findsOneWidget);
+      expect(b.plate.state.plates, hasLength(1));
+      expect(await rows(t, b), isEmpty);
+      await t.runAsync(() => b.store!.db.execute('DROP TRIGGER boom'));
+      await t.tap(inBar(find.text('Try again')));
+      await logged(t, b);
+      expect(b.plate.failure, isNull);
+      expect(inBar(find.text('Logged Worcester lunch')), findsOneWidget);
+      expect(await rows(t, b), hasLength(2));
+      await finish(t);
+    });
+
+    testWidgets('a failed Undo says so, keeps the rows, and Try again undoes', (t) async {
+      final b = await openPlate(t);
+      await t.tap(inBar(find.text('Log')));
+      await logged(t, b);
+      await t.runAsync(() => b.store!.db.execute("CREATE TRIGGER boom BEFORE DELETE ON log_entries BEGIN SELECT RAISE(ABORT, 'no'); END"));
+      await t.tap(inBar(find.text('Undo')));
+      await until(t, () => b.plate.failure != null);
+      await t.pumpAndSettle();
+      expect(inBar(find.text("Couldn't undo.")), findsOneWidget);
+      expect(await rows(t, b), hasLength(2));
+      await t.runAsync(() => b.store!.db.execute('DROP TRIGGER boom'));
+      await t.tap(inBar(find.text('Try again')));
+      await until(t, () => b.plate.receipt == null);
+      await t.pumpAndSettle();
+      expect(await rows(t, b), isEmpty);
+      expect(b.plate.state.plates, hasLength(1));
       await finish(t);
     });
   });

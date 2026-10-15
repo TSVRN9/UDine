@@ -12,6 +12,9 @@ import '../core/types.dart' show LogEntry;
 import '../theme/tokens.dart';
 
 /// What Log wrote and where the plate was: the receipt, and the way back.
+/// What went wrong the last time the user asked for a write: Log (the plate is kept) or Undo (the rows and the receipt are kept).
+enum PlateFailure { log, undo }
+
 class Receipt {
   const Receipt._(
     this.plate,
@@ -49,12 +52,24 @@ class PlateModel extends ChangeNotifier {
   Receipt? _receipt;
   Timer? _timer;
   bool _busy = false, _failed = false;
+  PlateFailure? _failure;
+  String? _failedPlace;
 
   /// The receipt the bar shows after Log, until it times out, Undo runs or a dish is added.
   Receipt? get receipt => _receipt;
 
   /// The last Log or Undo could not write; cleared by the next add, Log or Undo.
   bool get failed => _failed;
+
+  /// What failed, shown in the bar until it times out, is retried, or a dish is added.
+  PlateFailure? get failure => _failure;
+
+  /// Try again: the same Log (at the place it was asked at) or the same Undo.
+  Future<bool> retry() => switch (_failure) {
+        PlateFailure.log => log(place: _failedPlace),
+        PlateFailure.undo => undo(),
+        null => Future.value(false),
+      };
 
   /// Whether Log can run: a store to write to and something on the front plate.
   bool get canLog => write != null && _s.front < _s.plates.length;
@@ -71,6 +86,7 @@ class PlateModel extends ChangeNotifier {
     _timer?.cancel();
     _timer = Timer(Duration(milliseconds: M2Motion.receiptD), () {
       _receipt = null;
+      _failure = null;
       notifyListeners();
     });
   }
@@ -81,6 +97,8 @@ class PlateModel extends ChangeNotifier {
     if (w == null || rd == null || _busy || !canLog) return false;
     _busy = true; // (before the first await: a second tap sees it)
     _failed = false;
+    _failure = null;
+    _timer?.cancel();
     final plate = _s.plates[_s.front],
         at = place ?? plateHalls(plate)?.firstOrNull;
     try {
@@ -111,6 +129,9 @@ class PlateModel extends ChangeNotifier {
     } catch (e, st) {
       debugPrint('udine: Log failed, the plate is kept: $e\n$st');
       _failed = true;
+      _failure = PlateFailure.log;
+      _failedPlace = place;
+      _arm();
       return false;
     } finally {
       _busy = false;
@@ -125,6 +146,7 @@ class PlateModel extends ChangeNotifier {
     _busy = true;
     _timer?.cancel();
     _failed = false;
+    _failure = null;
     try {
       await r._undo();
       // (a dish added while this ran ended the receipt, but the rows are out: the plate goes back either way)
@@ -135,6 +157,7 @@ class PlateModel extends ChangeNotifier {
     } catch (e, st) {
       debugPrint('udine: Undo failed, the rows stay: $e\n$st');
       _failed = true;
+      _failure = PlateFailure.undo;
       if (identical(_receipt, r)) _arm();
       return false;
     } finally {
@@ -152,6 +175,7 @@ class PlateModel extends ChangeNotifier {
   }
 
   void add(String meal, String name, Map<String, MenuItem> refs) {
+    _failure = null;
     _drop(); // (M2 addDish: S.lastLog = null. Undo could otherwise put back a plate beside one it could now have joined)
     _failed = false;
     _s = addDish(_s, meal, name, refs);
