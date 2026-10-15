@@ -3,21 +3,20 @@ import 'package:flutter/widgets.dart';
 
 import '../motion/fade_through.dart';
 import '../motion/routes.dart';
-import '../screens/cafes/cafe_page.dart';
-import '../screens/cafes/cafes_page.dart';
+import '../screens/hall/hall_route.dart';
 import '../screens/halls/halls_screen.dart';
-import 'app_scope.dart';
 import '../theme/tokens.dart';
 import '../ui/ui.dart';
+import 'shell_scope.dart';
 
 /// The app around the screens (M2 `#frame`): the tabs fading through, a stack of pages over them (a card from a band, a push from
 /// a row, to any depth), the plate bar's slot above the tab bar, and the tab bar under it all. The tab bar and the plate bar never
 /// move with a page. Android back closes the top page first. Search and You are empty until their briefs.
 class Shell extends StatefulWidget {
-  const Shell({super.key, this.plateBar, this.route = '/'});
+  const Shell({super.key, this.plateBar, this.initialRoute = '/'});
 
-  /// A screenshot route (`/cafes`, `/cafes?area=3`, `/cafe/c27`) opens that page over Halls on the first frame.
-  final String route;
+  /// `/hall/<slug>?meal=&day=` opens that hall's menu over Halls at launch (a screenshot route); anything else opens Halls.
+  final String initialRoute;
 
   /// The plate bar (`flutter-port-dish-and-plate`): drawn above the tab bar on every tab, over the stack.
   final Widget? plateBar;
@@ -25,27 +24,26 @@ class Shell extends StatefulWidget {
   State<Shell> createState() => ShellState();
 }
 
-class ShellState extends State<Shell> {
+class _Sheet {
+  _Sheet(this.build);
+  final SheetHandle handle = SheetHandle();
+  final Widget Function(SheetHandle, VoidCallback) build;
+}
+
+class ShellState extends State<Shell> implements ShellApi {
   final _tab = ValueNotifier<int>(0);
   final navigator = GlobalKey<NavigatorState>();
+  final _sheets = <_Sheet>[];
 
   @override
-  void initState() {
-    super.initState();
-    final u = Uri.parse(widget.route), seg = u.pathSegments;
-    if (seg.isEmpty || (seg.first != 'cafes' && seg.first != 'cafe')) return;
-    WidgetBuilder? page;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final ctx = navigator.currentContext!, t = safeTop(context);
-      if (seg.first == 'cafes') {
-        AppScope.of(ctx).prefs.lastHall = 'W'; // M2's own `?state=cafes` opens with Worcester the last hall
-        page = (_) => CafesPage(top: t, area: int.tryParse(u.queryParameters['area'] ?? ''));
-      } else if (seg.length > 1) {
-        page = (_) => CafePage(cafeKey: seg[1].startsWith('c') ? seg[1] : 'c${seg[1]}', top: t);
-      }
-      if (page != null) Nav.push<void>(ctx, page!);
-    });
+  SheetHandle pushSheet(Widget Function(SheetHandle handle, VoidCallback done) build) {
+    final s = _Sheet(build);
+    setState(() => _sheets.add(s));
+    return s.handle;
+  }
+
+  void _remove(_Sheet s) {
+    if (mounted) setState(() => _sheets.remove(s));
   }
 
   @override
@@ -53,6 +51,18 @@ class ShellState extends State<Shell> {
     _tab.dispose();
     super.dispose();
   }
+
+  Route<void> _tabs(RouteSettings s, double top) => BaseRoute<void>(
+        settings: s,
+        builder: (_) => ValueListenableBuilder<int>(
+          valueListenable: _tab,
+          builder: (_, i, _) => FadeThroughTabs(index: i, children: [
+            HallsScreen(top: top),
+            const ColoredBox(color: M2Color.chalk, child: SizedBox.expand()),
+            const ColoredBox(color: M2Color.chalk, child: SizedBox.expand()),
+          ]),
+        ),
+      );
 
   void _select(int i) {
     Haptics.selection();
@@ -62,7 +72,9 @@ class ShellState extends State<Shell> {
 
   void _back() {
     final n = navigator.currentState;
-    if (n != null && n.canPop()) {
+    if (_sheets.isNotEmpty) {
+      _sheets.last.handle.close();
+    } else if (n != null && n.canPop()) {
       n.pop();
     } else {
       SystemNavigator.pop();
@@ -77,23 +89,15 @@ class ShellState extends State<Shell> {
       onPopInvokedWithResult: (didPop, _) => didPop ? null : _back(),
       child: ColoredBox(
         color: M2Color.chalk,
-        child: Column(children: [
+        child: ShellScope(api: this, child: Stack(children: [
+          Column(children: [
           Expanded(
             child: Stack(children: [
               Positioned.fill(
                 child: Navigator(
                   key: navigator,
-                  onGenerateRoute: (s) => BaseRoute<void>(
-                    settings: s,
-                    builder: (_) => ValueListenableBuilder<int>(
-                      valueListenable: _tab,
-                      builder: (_, i, _) => FadeThroughTabs(index: i, children: [
-                        HallsScreen(top: top),
-                        const ColoredBox(color: M2Color.chalk, child: SizedBox.expand()),
-                        const ColoredBox(color: M2Color.chalk, child: SizedBox.expand()),
-                      ]),
-                    ),
-                  ),
+                  onGenerateInitialRoutes: (_, name) => [_tabs(const RouteSettings(name: '/'), top), ?hallLaunchRoute(widget.initialRoute, top)],
+                  onGenerateRoute: (s) => _tabs(s, top),
                 ),
               ),
               if (widget.plateBar != null) Positioned(left: 0, right: 0, bottom: 0, child: widget.plateBar!),
@@ -103,7 +107,9 @@ class ShellState extends State<Shell> {
             valueListenable: _tab,
             builder: (_, i, _) => M2TabBar(selected: i, onSelect: _select, disabled: const {}, bottomInset: safeBottom(context)),
           ),
-        ]),
+          ]),
+          for (final s in _sheets) Positioned.fill(key: ObjectKey(s), child: s.build(s.handle, () => _remove(s))),
+        ])),
       ),
     );
   }

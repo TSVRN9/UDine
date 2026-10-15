@@ -6,7 +6,7 @@ import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:udine/screens/cafes/cafe_page.dart';
+import 'package:udine/screens/hall/hall_menu.dart';
 import 'package:udine/screens/cafes/cafes_page.dart';
 import 'package:udine/ui/ui.dart';
 import '../fonts.dart';
@@ -35,7 +35,7 @@ void main() {
     testWidgets('Cafés & markets at $w dp: bar, chip, first header and rows match M2 within 1 dp', (t) async {
       final on = m!['on'] as Map<String, dynamic>;
       await openApp(t, await bootRecorded(t), route: '/cafes', w: w.toDouble());
-      await until(t, () => find.byType(Meter).evaluate().isNotEmpty);
+      await until(t, () => find.textContaining(RegExp(r'^Open until')).evaluate().isNotEmpty);
       await t.pump(const Duration(milliseconds: 700));
       Finder inPage(Finder f) => find.descendant(of: find.byType(CafesPage), matching: f);
       near('pbar', r(t, inPage(find.byType(ScreenHeader))), on['pbar']);
@@ -54,12 +54,12 @@ void main() {
     for (final (name, id) in [('Tamales', 'c4'), ('Newman Café', 'c17'), ('Paciugo', 'c0'), ("People's Organic Coffee", 'c9')]) {
       testWidgets('café page $name at $w dp: header, name, controls and tabs match M2 within 1 dp', (t) async {
         final p = (m!['pages'] as Map<String, dynamic>)[name] as Map<String, dynamic>;
-        await openApp(t, await bootRecorded(t), route: '/cafe/$id', w: w.toDouble());
-        await until(t, () => find.byType(Meter).evaluate().isNotEmpty);
+        await openApp(t, await bootRecorded(t), route: '/cafe/${id.substring(1)}', w: w.toDouble());
+        await until(t, () => find.byType(HallMenu).evaluate().isNotEmpty);
         await t.pump(const Duration(milliseconds: 700));
         await until(t, () => find.byType(Spinner).evaluate().isEmpty);
         await t.pump(const Duration(milliseconds: 700));
-        Finder inPage(Finder f) => find.descendant(of: find.byType(CafePage), matching: f);
+        Finder inPage(Finder f) => find.descendant(of: find.byType(HallMenu), matching: f);
         near('mhead', [0, 0, w.toDouble(), 24 + 282], p['mhead']);
         near('mtn', r(t, inPage(find.byWidgetPredicate((x) => x is Text && x.data == name && (x.style?.fontSize ?? 0) > 30))), p['mtn'], block: true);
         near('back', r(t, inPage(find.byType(BackButton))), p['back']);

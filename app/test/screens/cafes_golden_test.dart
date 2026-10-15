@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/app.dart';
 import 'package:udine/core/hours.dart';
+import 'package:udine/screens/hall/hall_menu.dart';
 import 'package:udine/ui/ui.dart';
 import '../fonts.dart';
 import 'support.dart';
@@ -20,7 +21,7 @@ void main() {
     final n = w.toInt();
     Future<void> shot(WidgetTester t, String name, String route, {DateTime? at, List<String> pins = const [], bool charlesRiver = false, Future<void> Function(WidgetTester)? then, bool page = false}) async {
       await openApp(t, await bootRecorded(t, at: at, pins: pins, charlesRiver: charlesRiver), route: route, w: w);
-      await until(t, () => find.byType(Meter).evaluate().isNotEmpty); // Halls loads under the page; let it finish
+      await until(t, () => (route.startsWith('/cafes') ? find.textContaining(RegExp(r'^Open until|^Nothing open')) : find.byType(HallMenu)).evaluate().isNotEmpty);
       await t.pump(const Duration(milliseconds: 600));
       await until(t, () => find.byType(Spinner).evaluate().isEmpty);
       await t.pump(const Duration(milliseconds: 600));
@@ -40,10 +41,10 @@ void main() {
           await t.drag(find.byType(CustomScrollView), const Offset(0, -6000));
         }));
     testWidgets('Cafés & markets from a Halls row (Campus Center, second in the list), $n dp', (t) => shot(t, 'cafes_area_', '/cafes?area=0'));
-    testWidgets('a café page with dishes and several meals, pinned, $n dp', (t) => shot(t, 'cafe_dishes_', '/cafe/c4', pins: const ['Tamales']));
-    testWidgets('a café page with one meal (no tab row), $n dp', (t) => shot(t, 'cafe_one_', '/cafe/c17'));
-    testWidgets('a café page with a names list, $n dp', (t) => shot(t, 'cafe_names_', '/cafe/c2'));
-    testWidgets('a café page with no menu, $n dp', (t) => shot(t, 'cafe_nomenu_', '/cafe/c0'));
-    testWidgets("a café page with a long name (People's Organic Coffee), $n dp", (t) => shot(t, 'cafe_long_', '/cafe/c9'));
+    testWidgets('a café page with dishes and several meals, pinned, $n dp', (t) => shot(t, 'cafe_dishes_', '/cafe/4', pins: const ['Tamales']));
+    testWidgets('a café page with one meal (no tab row), $n dp', (t) => shot(t, 'cafe_one_', '/cafe/17'));
+    testWidgets('a café page with a names list, $n dp', (t) => shot(t, 'cafe_names_', '/cafe/2'));
+    testWidgets('a café page with no menu, $n dp', (t) => shot(t, 'cafe_nomenu_', '/cafe/0'));
+    testWidgets("a café page with a long name (People's Organic Coffee), $n dp", (t) => shot(t, 'cafe_long_', '/cafe/9'));
   }
 }

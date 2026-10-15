@@ -2,7 +2,9 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/boot.dart';
 import 'package:udine/core/hours.dart';
-import 'package:udine/screens/cafes/cafe_page.dart';
+import 'package:udine/screens/hall/hall_menu.dart';
+import 'package:udine/screens/hall/meal_list.dart';
+import 'package:udine/screens/hall/meal_tabs.dart';
 import 'package:udine/screens/cafes/cafes_page.dart';
 import 'package:udine/shell/prefs.dart';
 import 'package:udine/ui/ui.dart';
@@ -17,7 +19,7 @@ void main() {
 
   Finder inPage(Type page, String s) => find.descendant(of: find.byType(page), matching: find.text(s));
   Finder inList(String s) => inPage(CafesPage, s);
-  Finder inCafe(String s) => inPage(CafePage, s);
+  Finder inCafe(String s) => inPage(HallMenu, s);
   Future<void> ready(WidgetTester t, String text) => until(t, () => inList(text).evaluate().isNotEmpty);
   double topOf(WidgetTester t, String s) => t.getTopLeft(inList(s).first).dy;
   // each test ends with the app gone and the clock run out, so no repository or spinner timer is left pending
@@ -35,7 +37,7 @@ void main() {
 
   Future<void> openPage(WidgetTester t, Boot boot, String route) async {
     await openApp(t, boot, route: route);
-    await until(t, () => find.byType(Meter).evaluate().isNotEmpty); // Halls loads under the page; let it finish
+    await until(t, () => (route.startsWith('/cafes') ? find.textContaining(RegExp(r'^Open until|^Nothing open')) : find.byType(HallMenu)).evaluate().isNotEmpty);
     await t.pump(const Duration(milliseconds: 600));
   }
 
@@ -102,17 +104,17 @@ void main() {
       await ready(t, 'ISB Café');
       await t.tap(inList('ISB Café'));
       await pushed(t);
-      expect(find.byType(CafePage), findsOneWidget);
+      expect(find.byType(HallMenu), findsOneWidget);
       await t.binding.handlePopRoute();
       await t.pumpAndSettle();
-      expect(find.byType(CafePage), findsNothing);
+      expect(find.byType(HallMenu), findsNothing);
       expect(find.byType(CafesPage), findsOneWidget);
     });
   });
 
   group('a café page', () {
     Future<void> cafe(WidgetTester t, String id, {Boot? boot}) async {
-      await openPage(t, boot ?? await bootRecorded(t), '/cafe/$id');
+      await openPage(t, boot ?? await bootRecorded(t), '/cafe/${id.substring(1)}');
       await pushed(t);
     }
 
@@ -133,28 +135,30 @@ void main() {
 
     tw('dishes: a café with several meals has the tab row', (t) async {
       await cafe(t, 'c4'); // Tamales: lunch, dinner
-      expect(find.byKey(const Key('hall-menu-body')), findsOneWidget);
+      await until(t, () => find.byType(MealTabs).evaluate().isNotEmpty);
       expect(inCafe('Lunch'), findsOneWidget);
       expect(inCafe('Dinner'), findsOneWidget);
     });
 
     tw('dishes: a café with one meal has no tab row', (t) async {
       await cafe(t, 'c17'); // Newman Café: lunch only
-      expect(find.byKey(const Key('hall-menu-body')), findsOneWidget);
+      await until(t, () => find.byType(MealSliver).evaluate().isNotEmpty);
+      expect(find.byType(MealTabs), findsNothing);
       expect(inCafe('Dinner'), findsNothing);
       expect(inCafe('Lunch'), findsNothing);
     });
 
     tw('a names list, with the description first and Add a custom food after', (t) async {
       await cafe(t, 'c2'); // Yum! Bakery
-      expect(find.byKey(const Key('hall-menu-body')), findsNothing);
-      expect(inCafe('Menu'), findsOneWidget);
+      await until(t, () => inCafe('Menu').evaluate().isNotEmpty);
+      expect(find.byType(MealSliver), findsNothing);
       expect(inCafe('Add a custom food'), findsOneWidget);
       expect(find.textContaining("doesn't list its menu"), findsNothing);
     });
 
     tw('no menu: says the café does not list it', (t) async {
       await cafe(t, 'c0'); // Paciugo
+      await until(t, () => inCafe("Paciugo doesn't list its menu in the app.").evaluate().isNotEmpty);
       expect(inCafe("Paciugo doesn't list its menu in the app."), findsOneWidget);
       expect(inCafe('Add a custom food'), findsOneWidget);
     });
@@ -170,7 +174,7 @@ void main() {
       expect(boot.prefs.pins, isEmpty);
       await t.binding.handlePopRoute();
       await t.pumpAndSettle();
-      expect(find.byType(CafePage), findsNothing);
+      expect(find.byType(HallMenu), findsNothing);
       expect(t.takeException(), isNull);
     });
   });

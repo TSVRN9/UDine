@@ -22,6 +22,7 @@ class Badge extends StatelessWidget {
   /// A name with its patch: the last word and the patch never parted (M2 `nameHTML` puts them in a nowrap span), the patch's
   /// baseline [M2Layout.patchBaseline] from its top, so it hangs 7 dp below the text's baseline.
   static InlineSpan name(String text, TextStyle style, {Widget? badge, InlineSpan? star}) {
+    text = text.replaceAll('/', '/\u2060'); // the browser never breaks after a slash (`w/Bacon`); ICU does, so a word joiner holds it
     if (badge == null && star == null) return TextSpan(text: text, style: style);
     final i = text.lastIndexOf(' ');
     return TextSpan(style: style, children: [

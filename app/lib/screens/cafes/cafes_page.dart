@@ -4,7 +4,7 @@ import '../../motion/routes.dart';
 import '../../shell/app_scope.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
-import 'cafe_page.dart';
+import '../halls/hall_page.dart';
 import 'cafes_model.dart';
 import 'hours_feed.dart';
 
@@ -101,7 +101,7 @@ class _CafesPageState extends State<CafesPage> {
       leading: Thumb(path: photoOf(p.key, p.name)),
       title: p.name, subtitle: p.building, last: last,
       trailing: r.status == null ? const SizedBox.shrink() : Text(r.status!, style: (r.open ? _status : _statusOff).style(r.open ? M2Color.vm : M2Color.slate)),
-      onTap: () => Nav.push<void>(context, (_) => CafePage(cafeKey: p.key, top: widget.top)),
+      onTap: () => Nav.push<void>(context, (_) => HallMenuPage(place: p.key, top: widget.top)),
     );
   }
 }
