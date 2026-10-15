@@ -40,7 +40,9 @@ void main() {
       Finder inPage(Finder f) => find.descendant(of: find.byType(CafesPage), matching: f);
       near('pbar', r(t, inPage(find.byType(ScreenHeader))), on['pbar']);
       near('chip', r(t, inPage(find.byType(FilterChipButton))), on['chip'], block: true);
-      near('ahd 0', r(t, inPage(find.text((on['ahdText'] as List).first as String)).first), (on['ahd'] as List).first, block: true);
+      // Ours is a full-bleed pinned header with the 20 dp gutter inside; M2's box is the padded one, so left/width are the gutter's.
+      final ahd = r(t, find.ancestor(of: inPage(find.text((on['ahdText'] as List).first as String)).first, matching: find.byType(Container)).first);
+      near('ahd 0', [ahd[0] + 20, ahd[1], ahd[2] - 40, ahd[3]], (on['ahd'] as List).first);
       for (var i = 0; i < 3; i++) {
         near('row $i', r(t, inPage(find.byType(LRow)).at(i)), (on['rows'] as List)[i]);
         near('thumb $i', r(t, inPage(find.byType(Thumb)).at(i)), (on['thumb'] as List)[i]);
@@ -59,7 +61,7 @@ void main() {
         await t.pump(const Duration(milliseconds: 700));
         Finder inPage(Finder f) => find.descendant(of: find.byType(CafePage), matching: f);
         near('mhead', [0, 0, w.toDouble(), 24 + 282], p['mhead']);
-        near('mtn', r(t, inPage(find.text(name))), p['mtn'], block: true);
+        near('mtn', r(t, inPage(find.byWidgetPredicate((x) => x is Text && x.data == name && (x.style?.fontSize ?? 0) > 30))), p['mtn'], block: true);
         near('back', r(t, inPage(find.byType(BackButton))), p['back']);
         near('pin', r(t, inPage(find.byType(PinButton))), p['pin']);
         await t.pumpWidget(const SizedBox());

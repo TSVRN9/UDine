@@ -114,7 +114,7 @@ class _CafePageState extends State<CafePage> {
                     left: M2Space.gutter, right: M2Space.gutter, bottom: M2Layout.titleBottomCafe,
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
                       _FitName(place.name),
-                      if (status != null) Padding(padding: const EdgeInsets.only(top: M2Layout.statusUnderName), child: Text(status, style: M2Text.status.style(M2Color.onDmSoft))),
+                      if (status != null) Padding(padding: const EdgeInsets.only(top: M2Layout.statusUnderName, bottom: M2Layout.statusAboveBottom), child: Text(status, style: M2Text.status.style(M2Color.onDmSoft))),
                     ]),
                   ),
                 ]),
