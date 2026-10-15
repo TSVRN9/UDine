@@ -43,6 +43,11 @@ void main() {
       final f = recordedFlags('/?data=recorded')!;
       expect((f.at, f.net), (null, NetMode.ok));
     });
+    test('scores=health,carbon turns the You score switches on for a capture', () {
+      expect(recordedFlags('/?data=recorded&scores=health,carbon')!.scores, (health: true, carbon: true));
+      expect(recordedFlags('/?data=recorded&scores=carbon')!.scores, (health: false, carbon: true));
+      expect(recordedFlags('/?data=recorded')!.scores, (health: false, carbon: false));
+    });
     test('no data flag, no switch', () => expect(recordedFlags('/hall/worcester?net=fail'), isNull));
   });
 

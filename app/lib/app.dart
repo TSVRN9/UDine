@@ -22,7 +22,7 @@ class UdineApp extends StatelessWidget {
       pageRouteBuilder: <T>(settings, builder) => PageRouteBuilder<T>(settings: settings, pageBuilder: (c, _, _) => builder(c)),
       onGenerateRoute: (s) => PageRouteBuilder<void>(
         settings: s,
-        pageBuilder: (_, _, _) => !kReleaseMode && Uri.parse(s.name ?? '/').path == '/kit' ? const KitGallery() : b == null ? const ColoredBox(color: M2Color.dm) : b.wrap(const Shell()),
+        pageBuilder: (_, _, _) => !kReleaseMode && Uri.parse(s.name ?? '/').path == '/kit' ? const KitGallery() : b == null ? const ColoredBox(color: M2Color.dm) : b.wrap(Shell(initialRoute: s.name ?? '/')),
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/app.dart';
 import 'package:udine/core/hours.dart';
 import 'package:udine/data/recorded/recorded.dart';
+import 'package:udine/screens/hall/dish_row.dart';
 import 'package:udine/ui/ui.dart';
 import '../fonts.dart';
 import 'support.dart';
@@ -58,6 +59,8 @@ void main() {
     await t.pump(const Duration(milliseconds: 16));
     await t.pump(const Duration(milliseconds: 200));
     await expectLater(find.byType(UdineApp), matchesGoldenFile('../goldens/halls_xf_mid_390.png'));
+    await until(t, () => find.byType(DishRow).evaluate().isNotEmpty);
     await t.pumpAndSettle();
+    await drain(t);
   });
 }
