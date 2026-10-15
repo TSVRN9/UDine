@@ -330,7 +330,7 @@ class _Field extends StatelessWidget {
       Semantics(
         label: label,
         child: Container(
-          height: M2Layout.fieldH,
+          height: M2Layout.formFieldH,
           padding: const EdgeInsets.symmetric(horizontal: M2Layout.fieldPadX),
           alignment: Alignment.centerLeft,
           decoration: const BoxDecoration(

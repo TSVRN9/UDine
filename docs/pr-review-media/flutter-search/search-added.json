@@ -1,0 +1,10 @@
+{
+  "sha": "bd544814ea4504b4daa979beb105de01603d1cc6",
+  "branch": "flutter/search",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/port-search",
+  "route": "/search?q=brisket&data=recorded&at=2026-10-08T12:41&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-10-15T15:21:22Z"
+}
