@@ -88,8 +88,8 @@ class _Choices extends StatelessWidget {
       ]),
       sec([
         const SecHead('Show on dishes'),
-        CheckRow(label: 'Healthfulness', lead: const ScoreBadge(kind: ScoreKind.health, value: 5), on: prefs.scores.health, onChanged: (v) { Haptics.selection(); prefs.setScore(health: v); }),
-        CheckRow(label: 'Carbon rating', lead: const ScoreBadge(kind: ScoreKind.carbon, value: 'B'), on: prefs.scores.carbon, last: true, onChanged: (v) { Haptics.selection(); prefs.setScore(carbon: v); }),
+        CheckRow(label: 'Healthfulness', lead: const ScoreBadge(kind: ScoreKind.health, value: 5, size: ScoreSize.sheet), on: prefs.scores.health, onChanged: (v) { Haptics.selection(); prefs.setScore(health: v); }),
+        CheckRow(label: 'Carbon rating', lead: const ScoreBadge(kind: ScoreKind.carbon, value: 'B', size: ScoreSize.sheet), on: prefs.scores.carbon, last: true, onChanged: (v) { Haptics.selection(); prefs.setScore(carbon: v); }),
       ]),
     ]);
   }
