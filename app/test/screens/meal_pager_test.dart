@@ -41,4 +41,18 @@ void main() {
     expect(outs, findsNothing);
     await t.pumpAndSettle();
   });
+
+  testWidgets('leaving the screen mid-run disposes the outgoing copies still running', (t) async {
+    final k = GlobalKey<SharedAxisLayerState>();
+    await t.pumpWidget(host(k));
+    k.currentState!.run(1, const Text('A'));
+    await t.pump();
+    await t.pump(ms(100));
+    k.currentState!.run(1, const Text('B'));
+    await t.pump(ms(50));
+    expect(outs, findsNWidgets(2));
+    await t.pumpWidget(const SizedBox()); // a live ghost's ticker must not outlive the state
+    expect(t.takeException(), isNull);
+    await t.pump(ms(500));
+  });
 }
