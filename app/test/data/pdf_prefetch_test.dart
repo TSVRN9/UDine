@@ -83,4 +83,14 @@ void main() {
     await repo.launch(pins: [commonwealth]);
     expect(repo.pdfs!.file(gone).existsSync(), isFalse);
   });
+
+  test('PDFs share the repository\'s fetch pool: inside its offline window a PDF is not asked for at all', () async {
+    await repo.launch(); // saves hours; no pins
+    final before = pdfCalls.length;
+    online = false;
+    await repo.menu(2, '2026-10-14').drain<void>(); // a menu fetch finds no route: the window opens
+    online = true;
+    expect(await repo.pdfs!.open('https://www.umassdining.com/sites/default/files/x.pdf').toList(), [isA<Loading<File>>(), isA<NotSaved<File>>()]);
+    expect(pdfCalls.length, before);
+  });
 }

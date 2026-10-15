@@ -102,6 +102,25 @@ void main() {
     expect(kinds(await f), 'Loading,StillLoading,Loaded');
   });
 
+  test('a half-written file from a crash is never a hit, and the next fetch leaves no .part behind', () async {
+    dir.createSync(recursive: true);
+    final part = File('${cache.file(lunch).path}.part')..writeAsBytesSync(utf8.encode('%PDF-1.4 cut off'));
+    expect(kinds(await cache.open(lunch).toList()), 'Loading,Loaded');
+    expect(part.existsSync(), isFalse);
+    expect(cache.file(lunch).readAsBytesSync(), pdf());
+    expect(dir.listSync().map((e) => e.path.split('/').last), [cache.file(lunch).path.split('/').last]);
+  });
+
+  test('fetches run through the pool when there is one', () async {
+    var ran = 0;
+    cache.pool = <T>(job) {
+      ran++;
+      return job();
+    };
+    await cache.open(lunch).drain<void>();
+    expect(ran, 1);
+  });
+
   test('prune keeps the listed URLs and drops the rest (a changed URL leaves nothing behind)', () async {
     await cache.open(lunch).drain<void>();
     await cache.open(dinner).drain<void>();

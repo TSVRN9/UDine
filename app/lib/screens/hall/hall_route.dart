@@ -6,6 +6,7 @@ import '../../core/m2/places.dart' show cafeTable;
 import '../../motion/routes.dart';
 import '../../shell/app_scope.dart';
 import '../cafes/cafes_page.dart';
+import '../cafes/pdf_page.dart';
 import '../halls/hall_page.dart';
 
 /// `/hall/worcester?meal=lunch&day=2026-10-10` or `/cafe/3` (a café's index) as a launch route (screenshots, deep links): the hall's menu already open, with no band
@@ -20,6 +21,11 @@ Route<void>? hallLaunchRoute(String route, double top) {
         return CafesPage(top: top, area: int.tryParse(u.queryParameters['area'] ?? ''));
       },
     );
+  }
+  if (u.pathSegments.length == 4 && u.pathSegments[0] == 'cafe' && u.pathSegments[2] == 'menu') {
+    final n = int.tryParse(u.pathSegments[1]), m = int.tryParse(u.pathSegments[3]);
+    if (n == null || m == null || n < 0 || n >= cafeTable.length || m < 0) return null;
+    return BaseRoute<void>(settings: RouteSettings(name: route), builder: (_) => PdfMenuByIndex(place: 'c$n', index: m, top: top));
   }
   if (u.pathSegments.length != 2) return null;
   final seg = u.pathSegments[1];

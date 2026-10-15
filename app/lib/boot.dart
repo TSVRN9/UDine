@@ -11,6 +11,7 @@ import 'core/store/db.dart';
 import 'core/store/store.dart';
 import 'data/recorded/recorded.dart';
 import 'data/pdf_cache.dart';
+import 'data/pdf_pages.dart';
 import 'data/repository.dart';
 import 'data/source.dart';
 import 'data/supabase_source.dart';
@@ -20,14 +21,15 @@ import 'shell/plate_model.dart';
 import 'shell/prefs.dart';
 import 'ui/photo.dart' show Photos;
 
-/// `?pins=N` (screenshots; M2's own flag): the first N of M2's five, held in memory and never saved.
+/// `?pins=N` (screenshots; M2's own flag): the first N of M2's five, held in memory and never saved. In recorded mode `?pins=A,B` names them.
 const _fivePins = ['Wasabi', 'Tamales', "Peet's Coffee & Tea", 'Harvest Market', 'Procrastination Station'];
 
 /// What the app runs on: the device store, the repository (UMass and Supabase live, or M2's recordings with a fixed clock and
 /// network from the route's `?data=recorded&at=&net=`), and the preferences. Recorded mode keeps everything in a throwaway
 /// in-memory store so a capture never reads or leaves anything on the device.
 class Boot {
-  Boot(this.repo, this.store, this.prefs);
+  Boot(this.repo, this.store, this.prefs, {this.pdfPages = pdfxPages});
+  final PdfPages pdfPages;
   final Repository repo;
 
   /// The device store; null when the file was written by a newer build (menus only, below).
@@ -44,19 +46,19 @@ class Boot {
   static Future<Boot> open(String route, {String? dbPath}) async {
     if (photosOff(route)) Photos.enabled = false;
     final flags = recordedFlags(route);
-    final pinsFlag = int.tryParse(Uri.parse(route).queryParameters['pins'] ?? '');
+    final pinsQuery = Uri.parse(route).queryParameters['pins'], pinsFlag = int.tryParse(pinsQuery ?? '');
     final (cache, store) = await openDb(dbPath: flags != null ? inMemoryDatabasePath : (dbPath ?? await udineDbPath()));
     if (flags != null) {
       await store?.setScores(healthfulness: flags.scores.health, carbon: flags.scores.carbon);
       if (flags.avoid.isNotEmpty) await store?.setAvoid(flags.avoid);
       if (flags.onlyShow.isNotEmpty) await store?.setOnlyShow(flags.onlyShow);
     }
-    final prefs = await AppPrefs.load(store, pins: pinsFlag == null ? null : _fivePins.take(pinsFlag).toList());
+    final prefs = await AppPrefs.load(store, pins: pinsFlag != null ? _fivePins.take(pinsFlag).toList() : flags != null && pinsQuery != null ? pinsQuery.split(',') : null);
     final Repository repo;
     if (flags != null) {
       // `at` is Eastern wall-clock time, as M2 reads it, wherever the device is
       final a = flags.at;
-      repo = await recordedRepository(RecordedFlags(at: a == null ? null : easternInstant(DateTime.utc(a.year, a.month, a.day, a.hour, a.minute)), net: flags.net), cache, pins: prefs.pins);
+      repo = await recordedRepository(RecordedFlags(at: a == null ? null : easternInstant(DateTime.utc(a.year, a.month, a.day, a.hour, a.minute)), net: flags.net, savedPdfs: flags.savedPdfs), cache, pins: prefs.pins);
     } else {
       final client = http.Client();
       repo = Repository(UmassSource(client), cache, supabase: SupabaseSource(client), pdfs: PdfCache(Directory('${(await getApplicationSupportDirectory()).path}/pdf'), client));
@@ -74,5 +76,5 @@ class Boot {
     return ((await openStore(inMemoryDatabasePath) as StoreReady).db, null);
   }
 
-  Widget wrap(Widget child) => AppScope(repo: repo, store: store, prefs: prefs, hider: hider, plate: plate, child: child);
+  Widget wrap(Widget child) => AppScope(repo: repo, store: store, prefs: prefs, hider: hider, plate: plate, pdfPages: pdfPages, child: child);
 }

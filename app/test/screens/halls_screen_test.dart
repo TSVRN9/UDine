@@ -39,7 +39,7 @@ void main() {
     expect(find.text('Cafés & markets'), findsOneWidget);
     await t.drag(find.byType(SingleChildScrollView), const Offset(0, -3000));
     await t.pump();
-    for (final c in ['12 of 12 open now', '7 of 7 open now', '4 of 4 open now', '5 of 5 open now']) {
+    for (final c in ['12 of 12 open now', '8 of 8 open now', '4 of 4 open now', '5 of 5 open now']) {
       expect(find.text(c), findsOneWidget);
     }
     expect(find.text('Charles River Campus, Newton'), findsNothing);
