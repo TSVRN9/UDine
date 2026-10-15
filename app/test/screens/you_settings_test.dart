@@ -1,8 +1,6 @@
 // You's settings (flutter-port-you Task 2): the rows, Dietary preferences, the Charles River and score toggles, Favorites, "Which was better?"
 // and Export, as a user meets them. What each writes to RN's rows is checked against the store.
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:udine/boot.dart';
 import 'package:udine/core/types.dart' show RankedDish;
 import 'package:udine/ui/ui.dart';
 import '../fonts.dart';
@@ -16,7 +14,7 @@ Future<void> tapText(WidgetTester t, String text) async {
 }
 
 bool checked(WidgetTester t, String label) => t.widget<CheckRow>(find.widgetWithText(CheckRow, label)).on;
-Future<T> real<T>(WidgetTester t, Future<T> Function() f) async => (await t.runAsync(f))!;
+Future<T> real<T>(WidgetTester t, Future<T> Function() f) async => (await t.runAsync(f)) as T;
 
 void main() {
   setUpAll(loadFonts);
