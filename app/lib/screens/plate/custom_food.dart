@@ -1,0 +1,286 @@
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
+
+import '../../core/m2/board.dart' show Macro;
+import '../../shell/app_scope.dart';
+import '../../shell/shell_scope.dart';
+import '../../theme/tokens.dart';
+import '../../ui/ui.dart';
+
+/// M2 `openCustom`: the custom food form, raised above everything at its top detent. This is the one call Search's no-match row and a
+/// menu-less café make; `name` is what Search had typed (the cursor then starts at Calories, else at Name), `meal` is the plate the food
+/// joins (Search's meal; a café's is the meal the clock is in). The food is one-off: it goes on the plate and is not kept.
+SheetHandle openCustomFood(
+  BuildContext context, {
+  String name = '',
+  required String meal,
+  String cal = '',
+  String p = '',
+  String c = '',
+  String f = '',
+}) {
+  final plate = AppScope.of(context).plate;
+  return ShellScope.of(context).pushSheet(
+    (handle, done) => CustomFoodSheet(
+      handle: handle,
+      name: name,
+      cal: cal,
+      p: p,
+      c: c,
+      f: f,
+      onAdd: (n, m) {
+        plate.add(meal, n, const {}, m);
+        Haptics.add();
+        handle.close();
+      },
+      onClosed: done,
+    ),
+  );
+}
+
+/// M2's `submit` handler: the trimmed name and the macros, or null when the form is not valid (no name, or no calories). A macro left
+/// empty is 0, and a comma is a decimal point.
+(String, Macro)? parseCustomFood({
+  required String name,
+  required String cal,
+  required String p,
+  required String c,
+  required String f,
+}) {
+  final n = name.trim();
+  if (n.isEmpty || cal.trim().isEmpty) return null;
+  num v(String s) => num.tryParse(s.trim().replaceAll(',', '.')) ?? 0;
+  return (n, Macro(v(cal), v(p), v(c), v(f)));
+}
+
+/// `#cform` in `#isheet`: the title, Name, a two-by-two of Calories, Protein, Carbs and Fat, and Add to plate.
+class CustomFoodSheet extends StatefulWidget {
+  final SheetHandle handle;
+  final String name, cal, p, c, f;
+  final void Function(String name, Macro macro) onAdd;
+  final VoidCallback onClosed;
+  const CustomFoodSheet({
+    super.key,
+    required this.handle,
+    this.name = '',
+    this.cal = '',
+    this.p = '',
+    this.c = '',
+    this.f = '',
+    required this.onAdd,
+    required this.onClosed,
+  });
+  @override
+  State<CustomFoodSheet> createState() => _CustomFoodSheetState();
+}
+
+class _CustomFoodSheetState extends State<CustomFoodSheet> {
+  late final _name = TextEditingController(text: widget.name),
+      _cal = TextEditingController(text: widget.cal);
+  late final _p = TextEditingController(text: widget.p),
+      _c = TextEditingController(text: widget.c),
+      _f = TextEditingController(text: widget.f);
+  final _nameFocus = FocusNode(),
+      _calFocus = FocusNode(),
+      _pFocus = FocusNode(),
+      _cFocus = FocusNode(),
+      _fFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    // M2 focuses at once, or iOS will not raise the keyboard: with a name the cursor starts at Calories, else at Name
+    WidgetsBinding.instance.addPostFrameCallback((_) => (widget.name.isEmpty ? _nameFocus : _calFocus).requestFocus());
+  }
+
+  @override
+  void dispose() {
+    for (final x in [_name, _cal, _p, _c, _f]) {
+      x.dispose();
+    }
+    for (final x in [_nameFocus, _calFocus, _pFocus, _cFocus, _fFocus]) {
+      x.dispose();
+    }
+    super.dispose();
+  }
+
+  void _submit() {
+    final r = parseCustomFood(
+      name: _name.text,
+      cal: _cal.text,
+      p: _p.text,
+      c: _c.text,
+      f: _f.text,
+    );
+    if (r == null) {
+      (_name.text.trim().isEmpty ? _nameFocus : _calFocus)
+          .requestFocus(); // (a browser focuses the first field it refuses)
+      return;
+    }
+    FocusManager.instance.primaryFocus?.unfocus();
+    widget.onAdd(r.$1, r.$2);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const decimal = TextInputType.numberWithOptions(decimal: true);
+    return M2Sheet(
+      handle: widget.handle,
+      top: safeTop(context) + M2Layout.sheetTop,
+      onClosed: widget.onClosed,
+      mid: (m) => m.height,
+      header: const SheetGrab(),
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              M2Space.gutter,
+              0,
+              M2Space.gutter,
+              MediaQuery.viewInsetsOf(context).bottom,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(
+                    top: M2Layout.sheetTitleTop,
+                    bottom: M2Layout.sheetTitleBottom,
+                  ),
+                  child: Semantics(
+                    header: true,
+                    child: Text(
+                      'Custom food',
+                      style: M2Layout.plateLabelHead.style(M2Color.dm),
+                    ),
+                  ),
+                ),
+                _Field(
+                  'Name',
+                  _name,
+                  focus: _nameFocus,
+                  action: TextInputAction.next,
+                ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _Field(
+                        'Calories',
+                        _cal,
+                        focus: _calFocus,
+                        type: decimal,
+                        action: TextInputAction.next,
+                      ),
+                    ),
+                    const SizedBox(width: M2Layout.formGap),
+                    Expanded(
+                      child: _Field(
+                        'Protein (g)',
+                        _p,
+                        focus: _pFocus,
+                        type: decimal,
+                        action: TextInputAction.next,
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _Field(
+                        'Carbs (g)',
+                        _c,
+                        focus: _cFocus,
+                        type: decimal,
+                        action: TextInputAction.next,
+                      ),
+                    ),
+                    const SizedBox(width: M2Layout.formGap),
+                    Expanded(
+                      child: _Field(
+                        'Fat (g)',
+                        _f,
+                        focus: _fFocus,
+                        type: decimal,
+                        action: TextInputAction.done,
+                        onSubmit: _submit,
+                      ),
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: M2Layout.formBtnTop),
+                  child: Button(
+                    kind: ButtonKind.primary,
+                    label: 'Add to plate',
+                    expand: true,
+                    onTap: _submit,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// `.form label` over `.form input`.
+class _Field extends StatelessWidget {
+  final String label;
+  final TextEditingController controller;
+  final FocusNode focus;
+  final TextInputType? type;
+  final TextInputAction action;
+  final VoidCallback? onSubmit;
+  const _Field(
+    this.label,
+    this.controller, {
+    required this.focus,
+    this.type,
+    required this.action,
+    this.onSubmit,
+  });
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Padding(
+        padding: const EdgeInsets.only(
+          top: M2Layout.formLabelTop,
+          bottom: M2Layout.formLabelBottom,
+        ),
+        child: ExcludeSemantics(
+          child: Text(label, style: M2Layout.formLabel.style(M2Color.slate)),
+        ),
+      ),
+      Semantics(
+        label: label,
+        child: Container(
+          height: M2Layout.fieldH,
+          padding: const EdgeInsets.symmetric(horizontal: M2Layout.fieldPadX),
+          alignment: Alignment.centerLeft,
+          decoration: const BoxDecoration(
+            color: M2Layout.fieldFill,
+            borderRadius: BorderRadius.all(Radius.circular(M2Radius.button)),
+          ),
+          child: EditableText(
+            controller: controller,
+            focusNode: focus,
+           
+            keyboardType: type,
+            textInputAction: action,
+            style: M2Layout.formInput.style(M2Color.ink),
+            cursorColor: M2Color.ink,
+            backgroundCursorColor: M2Color.slate,
+            onSubmitted: (_) => onSubmit?.call(),
+          ),
+        ),
+      ),
+    ],
+  );
+}

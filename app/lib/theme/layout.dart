@@ -141,6 +141,10 @@ abstract final class M2Layout {
   static const factCalBottom = 7.0, factRowTop = 7.0, factRowBottom = 5.0; // `.facts .cal`, `.nr`
   static const peekRadius = 3.0; // `.peek` border-radius 3 3 0 0
   static const customH = 52.0, customPadX = 16.0, customGap = 10.0; // `.custom`, its plus is `glyph`
+  // the custom food form (`.form`): labels 14/600 over 50 dp fields, two to a row 12 apart, the button 18 under them
+  static const formLabelTop = 12.0, formLabelBottom = 6.0, fieldH = 50.0, fieldPadX = 14.0, formGap = 12.0, formBtnTop = 18.0;
+  static const formLabel = M2Type(14.0, null, 'LibreFranklin', FontWeight.w600), formInput = M2Type(17.0, null, 'LibreFranklin', FontWeight.w500);
+  static const fieldFill = Color(0xFFECEEF2); // `--field`
   static const customRing = Color.fromRGBO(136, 28, 28, 0.5); // `.custom` inset 1.5px rgba(136,28,28,.5)
   static const buzzLogGap = 72.0; // M2 `buzz([12,60,24])`: a 12 ms pulse, 60 ms off, then a 24 ms one: the second starts 72 ms after the first
   static const barHide = 1.1; // `#bar{transform:translateY(110%)}` until a plate is on it
