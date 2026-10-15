@@ -73,7 +73,8 @@ class _PlateRowState extends State<PlateRow>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(it.name, style: M2Text.rowName.style(M2Color.ink)),
+                      // (`.prow .n` has no line-height of its own: the font's normal line, 19, where a menu row's is 20)
+                  Text(it.name, style: M2Text.rowName.normal().style(M2Color.ink)),
                       Padding(
                         padding: const EdgeInsets.only(
                           top: M2Layout.prowMetaTop,
