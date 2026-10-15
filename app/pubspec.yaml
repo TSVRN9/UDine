@@ -89,6 +89,10 @@ flutter:
     - path: assets/recorded/
       flavors:
         - internal
+    # UMass's café menu PDFs for recorded mode: gitignored, filled by tool/link_pdfs.sh, internal flavor only
+    - path: assets/recorded/pdf/
+      flavors:
+        - internal
 
   # To add assets to your application, add an assets section, like this:
   # assets:
