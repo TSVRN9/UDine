@@ -8,7 +8,6 @@ import '../screens/halls/hall_page.dart';
 import '../screens/halls/halls_screen.dart';
 import '../theme/tokens.dart';
 import '../ui/ui.dart';
-import '../screens/plate/calorie_toss.dart';
 import 'shell_scope.dart';
 
 /// The app around the screens (M2 `#frame`): the tabs fading through, a stack of pages over them (a card from a band, a push from
@@ -32,16 +31,8 @@ class _Sheet {
   final Widget Function(SheetHandle, VoidCallback) build;
 }
 
-class _Flight {
-  _Flight(this.from, this.text);
-  final Offset from;
-  final String text;
-}
-
 class ShellState extends State<Shell> implements ShellApi {
   final _tab = ValueNotifier<int>(0);
-  final _tabBar = GlobalKey();
-  final _flights = <_Flight>[];
   bool Function()? _plateBack;
   final navigator = GlobalKey<NavigatorState>();
   final _sheets = <_Sheet>[];
@@ -62,19 +53,6 @@ class ShellState extends State<Shell> implements ShellApi {
 
   @override
   void openSearch({required String meal}) => _select(1);
-
-  @override
-  void toss({required Offset from, required String text}) {
-    if (mounted) setState(() => _flights.add(_Flight(from, text)));
-  }
-
-  /// The You tab's slot in the tab bar (a third of it, at the right), in global coordinates.
-  Offset get _you {
-    final box = _tabBar.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null || !box.attached) return Offset.zero;
-    final r = box.localToGlobal(Offset.zero) & box.size;
-    return Offset(r.left + r.width * 5 / 6, r.top + r.height / 2);
-  }
 
   void _remove(_Sheet s) {
     if (mounted) setState(() => _sheets.remove(s));
@@ -141,12 +119,10 @@ class ShellState extends State<Shell> implements ShellApi {
           ),
           ValueListenableBuilder<int>(
             valueListenable: _tab,
-            builder: (_, i, _) => M2TabBar(key: _tabBar, selected: i, onSelect: _select, disabled: const {}, bottomInset: safeBottom(context)),
+            builder: (_, i, _) => M2TabBar(selected: i, onSelect: _select, disabled: const {}, bottomInset: safeBottom(context)),
           ),
           ]),
           for (final s in _sheets) Positioned.fill(key: ObjectKey(s), child: s.build(s.handle, () => _remove(s))),
-          for (final f in _flights)
-            Positioned.fill(key: ObjectKey(f), child: CalorieToss(from: f.from, to: _you, text: f.text, onDone: () => mounted ? setState(() => _flights.remove(f)) : null)),
         ])),
       ),
     );

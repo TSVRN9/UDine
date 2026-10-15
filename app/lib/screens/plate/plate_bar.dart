@@ -15,11 +15,9 @@ class PlateBar extends StatefulWidget {
 
   /// "Log at" is showing (the plate serves several places and Log was tapped)
   final bool choose;
-  final VoidCallback onLog, onUnchoose, onUndo, onOpen;
+  final VoidCallback onLog, onUnchoose, onUndo, onOpen, onRetry;
   final ValueChanged<String> onLogAt;
 
-  /// the calories figure, for the toss to leave from
-  final Key? calKey;
   const PlateBar({
     super.key,
     required this.model,
@@ -28,9 +26,8 @@ class PlateBar extends StatefulWidget {
     required this.onLog,
     required this.onLogAt,
     required this.onUnchoose,
-    required this.onUndo,
+    required this.onUndo, required this.onRetry,
     required this.onOpen,
-    this.calKey,
   });
   @override
   State<PlateBar> createState() => _PlateBarState();
@@ -84,10 +81,13 @@ class _PlateBarState extends State<PlateBar>
   @override
   Widget build(BuildContext context) {
     final r = m.receipt,
+        f = m.failure,
         s = m.state,
         plate = s.front < s.plates.length ? s.plates[s.front] : null;
-    final many = s.plates.length > 1 && r == null;
-    final Widget body = r != null
+    final many = s.plates.length > 1 && r == null && f == null;
+    final Widget body = f != null
+        ? _failed(f)
+        : r != null
         ? _receipt(r)
         : plate == null
         ? const SizedBox(height: M2Layout.barMin)
@@ -97,9 +97,9 @@ class _PlateBarState extends State<PlateBar>
     final curve = M2Motion.settle.curve;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: r == null && !widget.choose ? widget.onOpen : null,
-      onHorizontalDragUpdate: r == null && !widget.choose ? _drag : null,
-      onHorizontalDragEnd: r == null && !widget.choose ? _end : null,
+      onTap: r == null && f == null && !widget.choose ? widget.onOpen : null,
+      onHorizontalDragUpdate: r == null && f == null && !widget.choose ? _drag : null,
+      onHorizontalDragEnd: r == null && f == null && !widget.choose ? _end : null,
       child: ColoredBox(
         color: M2Color.dm,
         child: Stack(
@@ -118,7 +118,7 @@ class _PlateBarState extends State<PlateBar>
                   ),
                 );
               },
-              child: Arrive(key: ValueKey(r != null), child: body),
+              child: Arrive(key: ValueKey((r != null, f)), child: body),
             ),
             if (many)
               Positioned(
@@ -169,7 +169,7 @@ class _PlateBarState extends State<PlateBar>
     ),
   );
 
-  Widget _l2(List<(String, String)> parts, {Key? calKey}) {
+  Widget _l2(List<(String, String)> parts, ) {
     final num = M2Text.barNum.style(M2Color.white),
         unit = M2Text.meta.style(M2Color.onDm);
     return Padding(
@@ -181,7 +181,7 @@ class _PlateBarState extends State<PlateBar>
         children: [
           for (var i = 0; i < parts.length; i++) ...[
             if (i > 0) const SizedBox(width: M2Layout.barUnitGap),
-            Text(parts[i].$1, key: i == 0 ? calKey : null, style: num),
+            Text(parts[i].$1, style: num),
             const SizedBox(width: M2Layout.barNumGap),
             Text(parts[i].$2, style: unit),
           ],
@@ -206,7 +206,7 @@ class _PlateBarState extends State<PlateBar>
           _l2([
             (fc(t.cal), 'cal'),
             ('${f1(t.p)}g', 'protein'),
-          ], calKey: widget.calKey),
+          ]),
         ],
       ),
       Button(kind: ButtonKind.gold, label: 'Log', onTap: widget.onLog),
@@ -270,4 +270,9 @@ class _PlateBarState extends State<PlateBar>
     ),
     Button(kind: ButtonKind.outline, label: 'Undo', onTap: widget.onUndo),
   );
+
+  Widget _failed(PlateFailure f) => _frame(
+        Text(f == PlateFailure.log ? "Couldn't save this meal." : "Couldn't undo.", style: M2Text.meta.style(M2Color.onDm)),
+        Button(kind: ButtonKind.outline, label: 'Try again', onTap: widget.onRetry),
+      );
 }

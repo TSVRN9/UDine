@@ -17,8 +17,6 @@ abstract class ShellApi {
   /// Android back is offered to this first (after any pushed sheet, before the pages): true when it was used. Null to stop offering.
   void handleBack(bool Function()? handler);
 
-  /// Flies `text` from `from` (global) to the You tab, where a logged plate lands.
-  void toss({required Offset from, required String text});
 }
 
 class ShellScope extends InheritedWidget {
