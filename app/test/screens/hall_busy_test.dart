@@ -116,15 +116,24 @@ void main() {
       });
     }
 
-    // M2's `histSVG` draws TYPICAL[h]: a column per hour from opening to close (Worcester 7 AM to midnight, 17; Hampshire to 9 PM, 14), the live
-    // column at the clock's hour. An hour with no usable bucket (the recording stops at 10 PM) is unlit.
-    for (final (slug, cols) in [('worcester', 17), ('hampshire', 14)]) {
-      testWidgets('$slug board spans its opening hours at $n dp', (t) async {
+    // M2's `histSVG` (src.html) draws one column per hour of `TYPICAL[h]` = [start, [pct...]], lit = max(1, ceil(pct / 20)), pct being a share of capacity.
+    // The recording derives its curve from those arrays (RecordedClient), so the columns are M2's hours one for one: Worcester 7 AM to midnight (17),
+    // Hampshire to 9 PM (14), the live column at 12 (index 5). Ours is a share of today's peak (owner, 2026-10-15), M2's a share of capacity: the same
+    // shape, re-quantized, so `peak` below is M2's pct against the array's own maximum. Franklin and Berkshire have thin curves, so no board.
+    const m2 = {
+      'worcester': (7, [15, 25, 30, 22, 30, 62, 86, 70, 40, 30, 45, 70, 82, 60, 40, 30, 22], [1, 2, 2, 2, 2, 4, 5, 4, 2, 2, 3, 4, 5, 3, 2, 2, 2], [1, 2, 2, 2, 2, 4, 5, 5, 3, 2, 3, 5, 5, 4, 3, 2, 2]),
+      'hampshire': (7, [10, 18, 20, 16, 28, 44, 40, 25, 18, 22, 40, 48, 30, 18], [1, 1, 1, 1, 2, 3, 2, 2, 1, 2, 2, 3, 2, 1], [2, 2, 3, 2, 3, 5, 5, 3, 2, 3, 5, 5, 4, 2]),
+    };
+    for (final MapEntry(key: slug, value: (start, pct, histLit, peakLit)) in m2.entries) {
+      testWidgets('$slug board: a column per hour of M2\'s TYPICAL, as a share of the peak, at $n dp', (t) async {
         await openHall(t, await bootRecorded(t), '/hall/$slug?meal=lunch', w: w);
         await until(t, () => find.byType(BusyBoard).evaluate().isNotEmpty);
         final v = t.widget<BusyBoard>(find.byType(BusyBoard)).view;
-        expect((v.board!.length, v.board!.first.hour, v.board!.indexWhere((c) => c.hour == v.nowHour)), (cols, 7, 5));
-        if (slug == 'worcester') expect([for (final c in v.board!.skip(15)) c.lamps], [0, 0]);
+        expect([for (final c in v.board!) c.hour], [for (var i = 0; i < pct.length; i++) start + i]);
+        expect(v.nowHour - start, 5);
+        expect([for (final c in v.board!) c.lamps], peakLit);
+        expect([for (final x in pct) (x * 100 / pct.reduce((a, b) => a > b ? a : b) / 20).ceil().clamp(1, 5)], peakLit, reason: 'peakLit is M2\'s pct against its own maximum');
+        expect(histLit, hasLength(pct.length)); // M2's own lit counts, for the record
         await drain(t);
       });
     }
