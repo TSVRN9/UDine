@@ -1,7 +1,16 @@
 // Search's idle events and the event page, on the recorded Oct 8 12:41 feed (Indigenous Peoples Day merged with its Hours twin).
+import 'dart:convert';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:udine/boot.dart';
+import 'package:udine/data/states.dart';
+import 'package:url_launcher_platform_interface/link.dart';
+import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 import 'package:udine/screens/event/event_banner.dart';
+import 'package:udine/screens/event/event_page.dart' show launchWeb;
 import 'package:udine/screens/hall/hall_menu.dart';
 import 'package:udine/screens/search/events.dart';
 import 'package:udine/theme/tokens.dart';
@@ -15,8 +24,56 @@ Future<void> openEventsApp(WidgetTester t, String route) async {
   await settle(t);
 }
 
+class _Launcher extends UrlLauncherPlatform with MockPlatformInterfaceMixin {
+  final calls = <String>[];
+  @override
+  LinkDelegate? get linkDelegate => null;
+  @override
+  Future<bool> canLaunch(String url) async => true;
+  @override
+  Future<bool> launchUrl(String url, LaunchOptions options) async {
+    calls.add(url);
+    return true;
+  }
+}
+
+String feed(List<Map<String, Object>> events) => jsonEncode({'events': events});
+
 void main() {
   setUpAll(loadFonts);
+
+  test('a feed link opens only as an http(s) address with a host; an intent:, a tel: or a malformed href does nothing and throws nothing', () async {
+    final l = _Launcher();
+    UrlLauncherPlatform.instance = l;
+    for (final bad in ['intent://scan/#Intent;scheme=zxing;end', 'tel:+14135450000', 'javascript:alert(1)', 'https://', 'http://[::1', '', 'not a url']) {
+      await launchWeb(bad);
+    }
+    expect(l.calls, isEmpty);
+    await launchWeb('https://www.umassdining.com/hours');
+    expect(l.calls, ['https://www.umassdining.com/hours']);
+  });
+
+  testWidgets('events=0 on a recorded route reaches the repository: no events; without it the recorded feed', (t) async {
+    final boots = await t.runAsync(() async {
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+      Future<int> n(String route) async => switch (await (await Boot.open(route, read: readRecorded)).repo.events().firstWhere((s) => s is Loaded)) { Loaded(:final value) => value.length, _ => -1 };
+      return (await n('/search?data=recorded&events=0'), await n('/search?data=recorded'));
+    });
+    expect(boots!.$1, 0);
+    expect(boots.$2, 5);
+  });
+
+  testWidgets('an event that has already expired is not offered', (t) async {
+    // the recording's clock is Oct 8 12:41 Eastern (1791477660)
+    final gone = {'title': 'Gone Day', 'featured_image': '', 'pdf_link': 'https://umassdining.com/a.png', 'external_link': '', 'expiration_date': 1791400000, 'is_featured': '0'};
+    final live = {'title': 'Live Day', 'featured_image': '', 'pdf_link': 'https://umassdining.com/b.png', 'external_link': '', 'expiration_date': 1791777600, 'is_featured': '0'};
+    await openApp(t, await bootRecorded(t, read: (n) async => n == 'events-raw.json' ? feed([gone, live]) : readRecorded(n)), route: '/search');
+    await until(t, () => find.byType(EventCard).evaluate().isNotEmpty);
+    expect(find.text('Live Day'), findsOneWidget);
+    expect(find.text('Gone Day'), findsNothing);
+    await finish(t);
+  });
 
   testWidgets('idle Search: Events, one card each, soonest first, the date as M2 words it', (t) async {
     await openSearch(t);
@@ -103,8 +160,7 @@ void main() {
     expect(focused(t), isFalse);
     expect(t.view.viewInsets.bottom, 0);
     await type(t, 'worcester');
-    FocusManager.instance.primaryFocus?.unfocus();
-    await settle(t);
+    expect(focused(t), isTrue); // the user is still in the field when they tap the hall card
     await t.tap(find.byType(Band).first);
     await t.pump();
     await until(t, () => find.byType(HallMenu).evaluate().isNotEmpty);

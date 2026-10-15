@@ -11,5 +11,4 @@ String eventWhen(String todayIso, int expires) {
 }
 
 /// How many days after [todayIso] the event's expiry falls (its own day's menu, M2 `evDay`); negative once it has gone by.
-int eventDay(String todayIso, int expires) =>
-    DateTime.fromMillisecondsSinceEpoch(expires * 1000, isUtc: true).difference(_utcDay(todayIso)).inDays;
+int eventDay(String todayIso, int expires) => ((expires * 1000 - _utcDay(todayIso).millisecondsSinceEpoch) / 864e5).floor();

@@ -103,7 +103,7 @@ class _EventScreenState extends State<EventScreen> {
       final day = eventDay(today, e.expires).clamp(0, 14);
       Nav.push<void>(context, (_) => HallMenuPage(place: e.scope[0], top: widget.top, day: day));
     } else {
-      launchUrl(Uri.parse(href), mode: LaunchMode.externalApplication).catchError((_) => false);
+      launchWeb(href);
     }
   }
 
@@ -117,3 +117,13 @@ class _EventScreenState extends State<EventScreen> {
 
 /// Pushes the event page of the feed's [index]th event.
 Future<void> openEvent(BuildContext context, int index, double top) => Nav.push<void>(context, (_) => EventScreen(index: index, top: top));
+
+/// Opens a feed link in the browser: only an http(s) address with a host, whatever the feed says (an `intent:` or `tel:` href, or one
+/// that does not parse, does nothing).
+Future<void> launchWeb(String href) async {
+  final u = Uri.tryParse(href);
+  if (u == null || u.host.isEmpty || (u.scheme != 'http' && u.scheme != 'https')) return;
+  try {
+    await launchUrl(u, mode: LaunchMode.externalApplication);
+  } catch (_) {}
+}
