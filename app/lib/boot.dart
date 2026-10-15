@@ -13,6 +13,7 @@ import 'core/store/db.dart';
 import 'core/store/log_book.dart';
 import 'core/store/store.dart';
 import 'data/recorded/recorded.dart';
+import 'dev/log_seed.dart';
 import 'data/pdf_cache.dart';
 import 'data/pdf_pages.dart';
 import 'data/repository.dart';
@@ -72,6 +73,7 @@ class Boot {
     if (flags == null) repo.launch(pins: prefs.pins); // warm today and tomorrow; never throws
     final boot = Boot(repo, store, prefs);
     await boot.log?.reload();
+    if (flags != null) await boot.seedLog(route);
     if (flags != null) await boot.seedPlate(route); // (recorded data only: a live menu might never arrive)
     return boot;
   }
@@ -83,6 +85,14 @@ class Boot {
     if (r is StoreReady) return (r.db, UdineStore(r.db));
     debugPrint('udine.db was written by a newer build: menus only, nothing is written to it');
     return ((await openStore(inMemoryDatabasePath) as StoreReady).db, null);
+  }
+
+  /// `?history=today|full` (recorded screenshot routes): M2's seeded log in the throwaway store, so You has days to show.
+  Future<void> seedLog(String route) async {
+    final h = Uri.parse(route).queryParameters['history'];
+    if (store == null || (h != 'today' && h != 'full')) return;
+    await store!.addEntries([...seedToday, if (h == 'full') ...seedEarlier]);
+    await log!.reload();
   }
 
   /// `/plate?seed=` (screenshot routes), added the way Search adds them. `benchmark`: M2's plate, Beef Brisket Noodle Bowl x1 and Golden BBQ

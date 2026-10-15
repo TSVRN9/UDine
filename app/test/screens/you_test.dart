@@ -2,7 +2,7 @@
 // inline Removed row, the Deleted receipt, and the newer-database message. The store-level guarantees are in test/core/store/log_book_test.dart.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/boot.dart';
-import 'package:udine/core/m2/history.dart' show cafeIdsOf;
+import 'package:udine/core/m2/history.dart' show cafeIdsOf, loggedDays;
 import 'package:udine/core/types.dart';
 import 'package:udine/data/repository.dart' show HoursData, Loaded;
 import 'package:udine/screens/plate/plate_bar.dart';
@@ -87,6 +87,14 @@ void main() {
       await until(t, () => find.text('Lunch at Wasabi').evaluate().isNotEmpty);
       expect(find.text('Dinner'), findsOneWidget);
       await drain(t);
+    });
+
+    testWidgets('?history=full seeds M2\'s log on a recorded route, and nothing on any other', (t) async {
+      final b = await bootRecorded(t);
+      await t.runAsync(() => b.seedLog('/you?data=recorded&history=bogus'));
+      expect(b.log!.meals, isEmpty);
+      await t.runAsync(() => b.seedLog('/you?data=recorded&history=full'));
+      expect(loggedDays(b.log!.meals), ['2026-10-08', '2026-10-07', '2026-10-06']);
     });
 
     testWidgets('a newer database: the one line, no log, no Today', (t) async {
