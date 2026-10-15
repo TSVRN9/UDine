@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -42,7 +43,11 @@ class UmassSource {
 }
 
 /// One JSON request, with the network failures mapped to [Unreachable] and a non-200 to [BadStatus].
-Future<Object?> sendJson(http.Client client, Duration timeout, String method, Uri uri, {Map<String, String>? headers, String? body}) async {
+Future<Object?> sendJson(http.Client client, Duration timeout, String method, Uri uri, {Map<String, String>? headers, String? body}) async =>
+    jsonDecode(utf8.decode(await sendBytes(client, timeout, method, uri, headers: headers, body: body)));
+
+/// [sendJson]'s request, answered as the raw body.
+Future<Uint8List> sendBytes(http.Client client, Duration timeout, String method, Uri uri, {Map<String, String>? headers, String? body}) async {
   final http.Response res;
   try {
     final req = http.Request(method, uri)..headers.addAll(headers ?? const {});
@@ -56,5 +61,5 @@ Future<Object?> sendJson(http.Client client, Duration timeout, String method, Ur
     throw Unreachable(e);
   }
   if (res.statusCode != 200) throw BadStatus(uri, res.statusCode);
-  return jsonDecode(utf8.decode(res.bodyBytes));
+  return res.bodyBytes;
 }

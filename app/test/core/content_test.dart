@@ -110,6 +110,22 @@ void main() {
       expect(parseRetailMenuHtml('<p><a href="https://cdn.umassdining.com/menus/fall.pdf">Fall Menu</a></p>'), isA<RetailMenuPdf>());
     });
 
+    test('every PDF link is kept, in the feed order (The Commonwealth lists four)', () {
+      final p = parseRetailMenuHtml(commonwealthBreakfastMenu) as RetailMenuPdf;
+      expect([for (final l in p.links) l.label], ['Click here for the Lunch Menu', 'Click here for the Lite Fare Menu', 'Click here for the Dinner Menu', 'Click here for the Dessert Menu']);
+      expect(p.url, p.links.first.url);
+      expect(p.links[1].url, 'https://www.umassdining.com/sites/default/files/2026-10/Commonwealth%20Fall%2026%20LITE%20FARE%20Menus.pdf');
+    });
+
+    test('a link that fails the gate is dropped without hiding the ones after it', () {
+      final p = parseRetailMenuHtml('<p><a href="https://evil.example/a.pdf">A</a></p><p><a href="https://umassdining.com/b.pdf">B</a></p><p><a href="mailto:x@y.z">C</a></p><p><a href="https://umassdining.com/d.pdf">D</a></p>') as RetailMenuPdf;
+      expect([for (final l in p.links) l.label], ['B', 'D']);
+    });
+
+    test('a single PDF link has one link', () {
+      expect((parseRetailMenuHtml(babyBerkBreakfastMenu) as RetailMenuPdf).links, hasLength(1));
+    });
+
     test('a PDF link with no text is labelled Menu', () {
       expect((parseRetailMenuHtml('<a href="https://umassdining.com/m.pdf"></a>') as RetailMenuPdf).label, 'Menu');
     });
