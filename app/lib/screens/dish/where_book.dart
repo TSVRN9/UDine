@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../core/m2/board.dart';
@@ -21,6 +23,7 @@ class WhereBook extends ChangeNotifier {
   Board? board;
   bool complete = false;
   bool _disposed = false;
+  final _subs = <StreamSubscription<void>>[];
 
   Future<void> _load() async {
     final isos = base.days.keys.take(2).toList();
@@ -28,7 +31,11 @@ class WhereBook extends ChangeNotifier {
     final days = {for (final iso in isos) iso: {...?base.days[iso]}};
     Future<void> one(String key, int tid, String iso) async {
       if (days[iso]!.containsKey(key)) return;
-      final s = await repo.menu(tid, iso).firstWhere((s) => s is! Loading && s is! StillLoading);
+      final done = Completer<DataState<List<MenuItem>>>();
+      final sub = repo.menu(tid, iso).listen((s) => s is Loading || s is StillLoading || done.isCompleted ? null : done.complete(s));
+      _subs.add(sub);
+      final s = await done.future;
+      await sub.cancel();
       final items = switch (s) { Loaded(:final value) || LoadedOffline(:final value) => value, _ => null };
       if (items != null && items.isNotEmpty) days[iso]![key] = mealsOfItems(items);
     }
@@ -49,6 +56,9 @@ class WhereBook extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    for (final s in _subs) {
+      s.cancel(); // a load still running stops with the sheet
+    }
     super.dispose();
   }
 }
