@@ -17,6 +17,10 @@ class YouScreen extends StatelessWidget {
   const YouScreen({super.key, required this.top});
   final double top;
 
+  /// The deep-maroon strip pinned under the status bar: You's header scrolls away (M2's `.yhead` isn't pinned), and the content must
+  /// not pass under the clock. At rest it sits over the header's own maroon, so it doesn't show.
+  static const statusStrip = Key('you-status-strip');
+
   static const newerDatabase = 'Your history was saved by a newer version of UDine. Update UDine to see it and keep logging.';
 
   @override
@@ -28,30 +32,33 @@ class YouScreen extends StatelessWidget {
         listenable: book ?? scope.prefs,
         builder: (context, _) {
           final today = book?.today ?? '', meals = book?.meals ?? const <LoggedMeal>[], earlier = [for (final d in loggedDays(meals)) if (d != today) d];
-          return SingleChildScrollView(
-            physics: const ClampingScrollPhysics(),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              ScreenHeader.title(top: top, title: 'You', date: isoFull(book?.today ?? scope.repo.today), dateLeft: true, bottomPad: M2Layout.youHeadBottom),
-              if (book == null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.emptyTop, M2Space.gutter, M2Layout.emptyBottom),
-                  child: Text(newerDatabase, style: M2Text.empty.style(M2Color.slate)),
-                )
-              else ...[
-                DayBlock(meals: meals, day: today, title: 'Today', titleOf: (m) => mealTitle(m, fx, book.cafeIds), onMeal: (m) => openMealSheet(context, at: m.loggedAt)),
-                if (earlier.isNotEmpty)
+          return Stack(children: [
+            SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                ScreenHeader.title(top: top, title: 'You', date: isoFull(book?.today ?? scope.repo.today), dateLeft: true, bottomPad: M2Layout.youHeadBottom),
+                if (book == null)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.secTop, M2Space.gutter, 0),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                      const SecHead('Earlier'),
-                      for (final (i, d) in earlier.indexed)
-                        LRow(title: isoFull(d), trailing: CalTrailing(dayTotal(meals, d).cal), last: i == earlier.length - 1, onTap: () => Nav.push<void>(context, (_) => DayPage(top: top, day: d))),
-                    ]),
-                  ),
-              ],
-              SizedBox(height: M2Layout.listFoot + safeBottom(context)),
-            ]),
-          );
+                    padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.emptyTop, M2Space.gutter, M2Layout.emptyBottom),
+                    child: Text(newerDatabase, style: M2Text.empty.style(M2Color.slate)),
+                  )
+                else ...[
+                  DayBlock(meals: meals, day: today, title: 'Today', titleOf: (m) => mealTitle(m, fx, book.cafeIds), onMeal: (m) => openMealSheet(context, at: m.loggedAt)),
+                  if (earlier.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.secTop, M2Space.gutter, 0),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                        const SecHead('Earlier'),
+                        for (final (i, d) in earlier.indexed)
+                          LRow(title: isoFull(d), trailing: CalTrailing(dayTotal(meals, d).cal), last: i == earlier.length - 1, onTap: () => Nav.push<void>(context, (_) => DayPage(top: top, day: d))),
+                      ]),
+                    ),
+                ],
+                SizedBox(height: M2Layout.listFoot + safeBottom(context)),
+              ]),
+            ),
+            Positioned(key: statusStrip, left: 0, top: 0, right: 0, height: top, child: const ColoredBox(color: M2Color.dm)),
+          ]);
         },
       ),
     );

@@ -1,6 +1,9 @@
 // You and the past logs as a user meets them (flutter-port-you Task 1): Today and Earlier, a day, a meal's sheet with its steppers, the
 // inline Removed row, the Deleted receipt, and the newer-database message. The store-level guarantees are in test/core/store/log_book_test.dart.
+import 'package:flutter/rendering.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:udine/theme/tokens.dart';
 import 'package:udine/boot.dart';
 import 'package:udine/core/m2/history.dart' show cafeIdsOf, loggedDays;
 import 'package:udine/core/types.dart';
@@ -29,6 +32,22 @@ void main() {
       expect(find.text('Nothing logged yet today.'), findsOneWidget);
       expect(find.text('Earlier'), findsNothing);
       expect(t.widget<Facts>(find.byType(Facts)).cal, 0);
+      await drain(t);
+    });
+
+    testWidgets('scrolled, the content passes under a pinned deep-maroon strip the status bar\'s height', (t) async {
+      final b = await bootYou(t, History.full);
+      await openYou(t, b);
+      final strip = find.byKey(YouScreen.statusStrip);
+      expect(strip, findsOneWidget);
+      final top = t.getRect(find.byType(ScreenHeader)).top + t.widget<ScreenHeader>(find.byType(ScreenHeader)).top;
+      expect(t.getRect(strip), Rect.fromLTWH(0, 0, 390, top));
+      expect(t.widget<ColoredBox>(find.descendant(of: strip, matching: find.byType(ColoredBox))).color, M2Color.dm);
+      await t.drag(find.text('Today'), const Offset(0, -300));
+      await t.pumpAndSettle();
+      expect(t.getRect(strip), Rect.fromLTWH(0, 0, 390, top)); // pinned while the header scrolls away under it
+      final hit = t.hitTestOnBinding(Offset(195, top / 2)).path.map((e) => e.target).whereType<RenderObject>();
+      expect(hit.first, t.renderObject(find.descendant(of: strip, matching: find.byType(ColoredBox))), reason: 'the strip is on top of the scrolled content');
       await drain(t);
     });
 
