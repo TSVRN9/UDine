@@ -1,0 +1,10 @@
+{
+  "sha": "15656af97ae3294df1d1633f9f9cc92ce4367190",
+  "branch": "flutter/custom-food",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/port-custom",
+  "route": "/custom?name=Chobani&cal=140&p=12&c=15&f=0&data=recorded&at=2026-10-08T12:41&net=ok&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-10-15T14:39:32Z"
+}
