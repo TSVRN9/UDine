@@ -29,11 +29,10 @@ UI (M2, `docs/design/explorations/2026-10-ui-overhaul/flows/M2/`):
   NOTES "Round 4".
 - **Plate:**
   - the bar grows into the plate sheet, with mid and large detents and a rubber band. The mid detent is
-    M2's 36% line;
+    M2's formula, `min(36% of the frame, tab bar - content)`;
   - multiple plates split by place set, with swipe and dots;
   - an inline "Log at X / Y" choice;
   - Log, with a receipt snackbar and Undo;
-  - the calorie toss on Log;
   - the stepper's collapsing ghost;
   - "Add something else".
 
@@ -70,10 +69,11 @@ Residency: "Consumption log… Device only". Log writes go through `flutter-port
 Rationale:
 - **One log path.** Log and Undo use the store API (Undo deletes exactly the rows that Log wrote), so
   past logs, export and Health (`flutter-port-health`) all see one source.
+- **Toss removed:** M2 round 2 cut it (orchestrator correction, 2026-10-15). Log crossfades to the receipt in the bar's place and buzzes `[12,60,24]`.
 - **Bake-off departures closed here:**
   - where-served scrolls in place when it's the same place and day;
-  - the plate mid detent is M2's 36%, not content-sized;
-  - the calorie toss and the stepper's collapsing ghost are built;
+  - the plate mid detent follows M2's formula, `min(36% of the frame, tab bar - content)`, not a fixed 36%;
+  - the stepper's collapsing ghost is built;
   - the favourite star, Full label and "Add something else" are built.
 - **Plates split by place set** use `core/m2/plate.dart` (`M2/vectors.json`). The plate-hall macro rule
   was a missed test in the RN bake-off (Task 2 REWORK); keep its test.
@@ -98,7 +98,7 @@ Rationale:
    star, the dish and plate labels — files: `app/lib/screens/dish/`, `app/lib/ui/nutrition_label.dart` —
    lanes: flutter — blocked by: hall-menu 1, device-data 2 — PR:
 2. **Plate, Log and Undo** — the bar, the sheet and detents, multiple plates, the "Log at" choice, Log
-   with the toss, the receipt and Undo — files: `app/lib/screens/plate/` — lanes: flutter — blocked by:
+   with the receipt and Undo — files: `app/lib/screens/plate/` — lanes: flutter — blocked by:
    1 — PR:
 3. **One-off custom food** — the form sheet and its two entry points — files:
    `app/lib/screens/plate/custom_food.dart` — lanes: flutter — blocked by: 2 — PR:

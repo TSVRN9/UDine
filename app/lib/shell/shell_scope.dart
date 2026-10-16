@@ -10,6 +10,13 @@ abstract class ShellApi {
   /// Pushes a place's menu (a hall or a café, `W` or `c3`) onto the stack at a day and meal, already scrolled to the dish named by
   /// `dish` (its `key`): where a where-served tap goes.
   void openPlace(String place, {required String meal, required int day, required String dish});
+
+  /// Goes to the Search tab (the plate's Add something else) for a plate of `meal`.
+  void openSearch({required String meal});
+
+  /// Android back is offered to this first (after any pushed sheet, before the pages): true when it was used. Null to stop offering.
+  void handleBack(bool Function()? handler);
+
 }
 
 class ShellScope extends InheritedWidget {

@@ -36,6 +36,7 @@ class _Sheet {
 
 class ShellState extends State<Shell> implements ShellApi {
   late final _tab = ValueNotifier<int>(searchLaunch(widget.initialRoute) == null ? 0 : 1);
+  bool Function()? _plateBack;
   final navigator = GlobalKey<NavigatorState>();
   final _sheets = <_Sheet>[];
 
@@ -49,6 +50,12 @@ class ShellState extends State<Shell> implements ShellApi {
   @override
   void openPlace(String place, {required String meal, required int day, required String dish}) =>
       Nav.push<void>(navigator.currentContext!, (_) => HallMenuPage(place: place, top: safeTop(context), day: day, meal: meal, landOn: dish));
+
+  @override
+  void handleBack(bool Function()? handler) => _plateBack = handler;
+
+  @override
+  void openSearch({required String meal}) => _select(1);
 
   void _remove(_Sheet s) {
     if (mounted) setState(() => _sheets.remove(s));
@@ -82,6 +89,8 @@ class ShellState extends State<Shell> implements ShellApi {
     final n = navigator.currentState;
     if (_sheets.isNotEmpty) {
       _sheets.last.handle.close();
+    } else if (_plateBack?.call() ?? false) {
+      return;
     } else if (n != null && n.canPop()) {
       n.pop();
     } else {
@@ -108,7 +117,7 @@ class ShellState extends State<Shell> implements ShellApi {
                   onGenerateRoute: (s) => _tabs(s, top),
                 ),
               ),
-              if (widget.plateBar != null) Positioned(left: 0, right: 0, bottom: 0, child: widget.plateBar!),
+              if (widget.plateBar != null) Positioned.fill(child: widget.plateBar!),
             ]),
           ),
           ValueListenableBuilder<int>(

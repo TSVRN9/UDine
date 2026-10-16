@@ -7,6 +7,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
 import 'core/hours.dart';
+import 'core/m2/board.dart' show dishKey, halls, MenuItem, M2MenuItem;
+import 'core/types.dart' show MealPeriod;
 import 'core/store/db.dart';
 import 'core/store/store.dart';
 import 'data/flyer.dart';
@@ -17,6 +19,7 @@ import 'data/repository.dart';
 import 'data/source.dart';
 import 'data/supabase_source.dart';
 import 'motion/routes.dart';
+import 'screens/hall/hall_controller.dart' show mealsOfItems;
 import 'shell/app_scope.dart';
 import 'shell/plate_model.dart';
 import 'shell/prefs.dart';
@@ -38,7 +41,7 @@ class Boot {
   final UdineStore? store;
   final AppPrefs prefs;
   final hider = BandHider();
-  final plate = PlateModel();
+  late final plate = PlateModel(write: store?.addEntries, readDay: store?.entriesForDay, now: repo.now);
 
   /// The user's database was saved by a newer build (they installed an older one): the file is never opened for writing, tracking
   /// stays off, and nothing the user does is saved. Menus, hours and busy work as ever, cached in a throwaway in-memory database.
@@ -66,7 +69,9 @@ class Boot {
       repo = Repository(UmassSource(client), cache, supabase: SupabaseSource(client), pdfs: PdfCache(Directory('${(await getApplicationSupportDirectory()).path}/pdf'), client));
     }
     if (flags == null) repo.launch(pins: prefs.pins); // warm today and tomorrow; never throws
-    return Boot(repo, store, prefs);
+    final boot = Boot(repo, store, prefs);
+    if (flags != null) await boot.seedPlate(route); // (recorded data only: a live menu might never arrive)
+    return boot;
   }
 
   /// The database the repository caches in, and the user store over it (null when a newer build owns the file).
@@ -76,6 +81,34 @@ class Boot {
     if (r is StoreReady) return (r.db, UdineStore(r.db));
     debugPrint('udine.db was written by a newer build: menus only, nothing is written to it');
     return ((await openStore(inMemoryDatabasePath) as StoreReady).db, null);
+  }
+
+  /// `/plate?seed=` (screenshot routes), added the way Search adds them. `benchmark`: M2's plate, Beef Brisket Noodle Bowl x1 and Golden BBQ
+  /// Chicken Thigh x2 (the brisket serves Worcester and Berkshire, the thigh only Worcester, which narrows the plate). `one`: the thigh
+  /// alone. `choose`: the brisket alone, so Log asks Worcester or Berkshire. `split`: the benchmark plate and, as M2's `?state=split`,
+  /// the first dish of Franklin's fourth lunch station, which starts a second plate.
+  Future<void> seedPlate(String route) async {
+    final u = Uri.parse(route), seed = u.queryParameters['seed'];
+    if (u.path != '/plate' || !const {'benchmark', 'one', 'choose', 'split'}.contains(seed)) return;
+    Future<List<MenuItem>> lunch(String place) async {
+      final s = await repo.menu(halls.indexOf(place) + 1, repo.today).firstWhere((s) => s is Loaded<List<MenuItem>>);
+      return [for (final d in (s as Loaded<List<MenuItem>>).value) if (d.mealPeriod == MealPeriod.lunch) d];
+    }
+    Future<MenuItem?> dish(String place, String name) async => (await lunch(place)).where((d) => d.key == dishKey(name)).firstOrNull;
+    const brisket = 'Beef Brisket Noodle Bowl', thigh = 'Golden BBQ Chicken Thigh';
+    final b = {for (final h in ['W', 'B']) h: ?await dish(h, brisket)}, t = {'W': ?await dish('W', thigh)};
+    if (seed == 'one') {
+      plate.add('lunch', thigh, t);
+      return;
+    }
+    plate.add('lunch', brisket, b);
+    if (seed == 'choose') return;
+    plate.add('lunch', thigh, t);
+    plate.add('lunch', thigh, t);
+    if (seed == 'split') {
+      final f = mealsOfItems(await lunch('F'))['lunch']![3].dishes.first;
+      plate.add('lunch', f.dishName, {'F': f});
+    }
   }
 
   Widget wrap(Widget child) => AppScope(repo: repo, store: store, prefs: prefs, hider: hider, plate: plate, pdfOpen: pdfOpen, shareFlyer: shareFlyer, child: child);
