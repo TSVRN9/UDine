@@ -66,6 +66,23 @@ void main() {
     expect(sent.single.body.split('\n').first, contains(' at ${[for (final h in first.halls) placeName(board, h)].sublist(0, first.halls.length - 1).join(', ')} and '));
   });
 
+  test('tomorrow\'s servings are not in the body (the board carries tomorrow\'s menu)', () async {
+    final now = at('12:41');
+    // a dish still to be served today in a hall that is served tomorrow too
+    final dish = {
+      for (final h in halls) for (final st in board.days['2026-10-08']![h]!.values.expand((s) => s)) for (final d in st.dishes) d.dishName,
+    }.firstWhere((n) {
+      final plan = wherePlan(board, n, now);
+      return plan.any((g) => g.day == 0) && plan.any((g) => g.day == 1);
+    });
+    await store.removeFavorite(DishFavorite(thigh));
+    await store.addFavorite(DishFavorite(dish));
+    await run(now);
+    final today = wherePlan(board, dish, now).where((g) => g.day == 0).length;
+    expect(sent.single.body, isNot(contains('Tomorrow')));
+    expect(sent.single.body.split('\n'), hasLength(today));
+  });
+
   test('nothing while Notify me is off, or with no dish favourited', () async {
     await store.setAlertsOn(false);
     expect(await run(at('12:41')), 0);

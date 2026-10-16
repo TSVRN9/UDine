@@ -80,24 +80,26 @@ Future<int> _version(DatabaseExecutor db) async =>
 /// Opens [path] in place (SQLite replays any -wal itself; nothing is copied).
 /// The newer-version probe is a normal read-only open: it reads user_version
 /// through the WAL and changes no data, though SQLite may create -shm.
-/// [migrations]/[onOpen] are test seams.
+/// [singleInstance] false gives this call its own connection: sqflite's default shares one native handle per path across the process (not
+/// reference-counted), so a second engine (the background check) closing "its" db would close the app's. [migrations]/[onOpen] are test seams.
 Future<StoreOpen> openStore(
   String path, {
   DatabaseFactory? factory,
+  bool singleInstance = true,
   @visibleForTesting List<List<String>> migrations = _migrations,
   @visibleForTesting void Function(Database)? onOpen,
 }) async {
   final f = factory ?? databaseFactory;
   final target = migrations.length;
   if (File(path).existsSync()) {
-    final probe = await f.openDatabase(path, options: OpenDatabaseOptions(readOnly: true));
+    final probe = await f.openDatabase(path, options: OpenDatabaseOptions(readOnly: true, singleInstance: singleInstance));
     final found = await _version(probe);
     await probe.close();
     if (found > target) return StoreNewerVersion(found, target);
   } else {
     Directory(p.dirname(path)).createSync(recursive: true);
   }
-  final db = await f.openDatabase(path);
+  final db = await f.openDatabase(path, options: OpenDatabaseOptions(singleInstance: singleInstance));
   onOpen?.call(db);
   try {
     await db.transaction((tx) async {

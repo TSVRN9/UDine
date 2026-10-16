@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
+import 'package:sqflite/sqflite.dart' show DatabaseFactory;
 import 'package:workmanager/workmanager.dart';
 
 import '../core/store/db.dart';
@@ -39,10 +40,14 @@ Future<void> _post(AlertNotice n) => _notifications.show(
       payload: n.route,
     );
 
+/// The background check's own connection to udine.db, apart from the app's (see openStore's singleInstance).
+Future<StoreOpen> openAlertStore({String? path, DatabaseFactory? factory}) async =>
+    openStore(path ?? await udineDbPath(), factory: factory, singleInstance: false);
+
 /// The background isolate's entry: the same store and cache as the app, the repository's own offline-first reads.
 @pragma('vm:entry-point')
 void alertsDispatcher() => Workmanager().executeTask((task, _) async {
-      final opened = await openStore(await udineDbPath());
+      final opened = await openAlertStore();
       if (opened is! StoreReady) return true; // written by a newer build: leave it alone
       final client = http.Client();
       try {
