@@ -136,7 +136,7 @@ itself is a different vendor's product.
 
 - **Base:** `https://af-foodpro1.campus.ads.umass.edu/foodpro.net/` (128.119.167.180) — a plain
   public IIS/.NET site, no auth, no API key.
-- `location.aspx` — lists **28** FoodPro `locationNum`s (corrected from an earlier "~50+" estimate):
+- `location.aspx` — lists **28** FoodPro `locationNum`s (corrected from an earlier "~50+" estimate; **correction 2026-10-14: 29 now, Snack Overflow=70 is new**):
   the same 4 residential halls as `foodpro-menu-ajax`'s `tid`s (01–04, same order) **plus 24**
   retail/café spots the `tid` system doesn't reach at all (Whitmore Cafe=08, Worcester Cafe=13,
   Bluewall Grill=14, Bluewall Deli Delish=20, Courtside Cafe=21, Bluewall Tavola=22, Harvest=23, and
@@ -218,6 +218,12 @@ See `docs/decisions-log.md` → "Web INA: mirror vs. on-demand, and the `populat
   unpredictably by location), so it must always be passed explicitly; one `longmenu.aspx` request
   per (location, meal period) is the real unit of work, i.e. 4 requests per location per day, not 1.
   `mealName=All` is invalid (0 results). `WeeksMenus=` was tested and has no effect on scope.
+  **Correction 2026-10-14:** the four-name list is not universal. Café locations publish under
+  `Daily Offerings` (Post & Bean 92: `Daily Offering`, singular), Newman (72) under `Lunch`, and the
+  four standard names return 0 rows for them (locations 08, 13, 21, 30, 40, 42, 44, 51, 70, 92, 97
+  checked). The meal names a location publishes are the `mealName=` values of the longmenu links on its
+  `shortmenu.aspx`; `populate-retail-dishes` now reads them per location and falls back to the four
+  only when a page lists none.
 - No bulk `RecNum` enumeration shortcut exists: no sitemap/export endpoint, and `search.aspx`
   can't be repurposed as a wildcard scan either (an empty query returns "No Result", a single-
   character query 500s). `longmenu.aspx` walked per (location, meal period) remains the only known
@@ -392,7 +398,7 @@ nutrition source (neither `foodpro-menu-ajax` nor Web INA), and what's actually 
   at all: `locationNum=52` "Marcus Cafe" and `locationNum=54` "OIT Cafe".** Neither name appears
   anywhere in a live `get_infov2` fetch (checked by substring search over the raw JSON), and both
   return **zero dish rows on `longmenu.aspx` for all four `mealName` values** (Breakfast/Lunch/Dinner/
-  Late Night), unlike every real retail `locationNum` sampled elsewhere in this doc. Read together,
+  Late Night), unlike every real retail `locationNum` sampled elsewhere in this doc. (**Correction 2026-10-14:** those four were the wrong names for café-type locations, which publish under `Daily Offerings`; "zero rows for all four" proves nothing about these two, and they were not re-checked under their own meal names.) Read together,
   this looks like a stale/decommissioned pair of directory entries Web INA never pruned, not a live
   gap location -- there's no current standing-menu content anywhere to even attempt to source
   nutrition for. Not counted in the 8-location gap table above; flagged here so a future pass doesn't

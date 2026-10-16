@@ -6,6 +6,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../core/packaged_food.dart';
 import '../core/types.dart';
 import 'source.dart';
 import 'supabase_source.dart';
@@ -14,34 +15,6 @@ import 'supabase_source.dart';
 const usdaApiKey = String.fromEnvironment('USDA_FDC_API_KEY');
 
 const _pageSize = 20;
-
-/// One OFF or USDA hit. [productName] is the source's own name; [displayName] leads with the brand when the name lacks it.
-class PackagedFood {
-  const PackagedFood({
-    required this.source,
-    required this.productName,
-    required this.nutrition,
-    this.ingredients,
-    this.allergens,
-    this.brand,
-  });
-  final LogSource source; // OffSource or UsdaSource
-  final String productName;
-  final NutritionFacts nutrition;
-  final String? ingredients;
-  final List<String>? allergens;
-  final String? brand;
-
-  String get displayName {
-    final b = brand;
-    if (b == null ||
-        b.isEmpty ||
-        productName.toLowerCase().contains(b.toLowerCase())) {
-      return productName;
-    }
-    return '$b $productName';
-  }
-}
 
 class PackagedPage {
   const PackagedPage(this.results, this.hasMore);
