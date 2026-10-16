@@ -1,12 +1,17 @@
 import 'board.dart';
+import 'bowl.dart';
+import 'bowl_builder.dart';
 
 class PlateItem {
   final String key, name;
   final double qty;
   final Map<String, MenuItem> refs;
   final Macro? custom;
-  const PlateItem(this.key, this.name, this.qty, this.refs, this.custom);
-  PlateItem withQty(double q) => PlateItem(key, name, q, refs, custom);
+
+  /// a bowl: `refs` hold its summed dish, this the parts and what it was built from
+  final PlateBowl? bowl;
+  const PlateItem(this.key, this.name, this.qty, this.refs, this.custom, [this.bowl]);
+  PlateItem withQty(double q) => PlateItem(key, name, q, refs, custom, bowl);
 }
 
 class Plate {
@@ -54,8 +59,9 @@ String customKey(String name, Macro m) {
 /// M2 `wouldSplit`: a plate exists and none of them can take the dish (its + would start another).
 bool wouldSplit(PlateState s, String meal, List<String> places) => s.plates.isNotEmpty && !s.plates.any((p) => _canJoin(p, meal, places));
 
-PlateState addDish(PlateState s, String meal, String name, Map<String, MenuItem> refs, [Macro? custom]) {
-  final key = custom != null ? customKey(name, custom) : dishKey(name);
+/// [key0] is a bowl's own (`Bowl.key`); otherwise a custom food's is [customKey], a dish's its name's.
+PlateState addDish(PlateState s, String meal, String name, Map<String, MenuItem> refs, [Macro? custom, String? key0, PlateBowl? bowl]) {
+  final key = key0 ?? (custom != null ? customKey(name, custom) : dishKey(name));
   final hs = custom != null ? null : refs.keys.toList();
   final front = s.front < s.plates.length ? s.plates[s.front] : null;
   var plates = s.plates, nextId = s.nextId;
@@ -66,13 +72,36 @@ PlateState addDish(PlateState s, String meal, String name, Map<String, MenuItem>
   }
   final pl = plates[idx], at = pl.items.indexWhere((x) => x.key == key);
   final items = at < 0
-      ? [...pl.items, PlateItem(key, name, 1, {...refs}, custom)]
+      ? [...pl.items, PlateItem(key, name, 1, {...refs}, custom, bowl)]
       : [
           for (var i = 0; i < pl.items.length; i++)
             if (i != at) pl.items[i] else PlateItem(key, pl.items[i].name, pl.items[i].qty == 0.5 ? 1 : pl.items[i].qty + 1,
-                custom != null ? pl.items[i].refs : {for (final e in pl.items[i].refs.entries) if (refs.containsKey(e.key)) e.key: e.value}, pl.items[i].custom),
+                custom != null ? pl.items[i].refs : {for (final e in pl.items[i].refs.entries) if (refs.containsKey(e.key)) e.key: e.value}, pl.items[i].custom, pl.items[i].bowl),
         ];
   return PlateState([for (var i = 0; i < plates.length; i++) i == idx ? Plate(pl.id, pl.meal, items) : plates[i]], idx, nextId);
+}
+
+/// M2 `badd`: a builder's Add. A base with nothing chosen is the plain dish (its row's +); otherwise the bowl is its own item.
+PlateState addBowl(PlateState s, String meal, BowlSpec spec, Bowl bowl, String place) => spec.base != null && bowl.parts.isEmpty
+    ? addDish(s, meal, spec.base!.dishName, {place: spec.base!})
+    : addDish(s, meal, bowl.name, {place: bowl.item}, null, bowl.key, PlateBowl(bowl, spec));
+
+/// M2 `badd` with an item being edited (Update): the item becomes the new bowl where it is, with its servings; a twin already on the plate
+/// takes those servings instead.
+PlateState updateBowl(PlateState s, int plateId, String oldKey, Bowl bowl, BowlSpec spec, String place) {
+  final pi = s.plates.indexWhere((p) => p.id == plateId);
+  if (pi < 0) return s;
+  final pl = s.plates[pi], at = pl.items.indexWhere((x) => x.key == oldKey);
+  if (at < 0) return s;
+  final it = pl.items[at], twin = pl.items.indexWhere((x) => x.key == bowl.key && x != it);
+  final items = <PlateItem>[
+    for (var i = 0; i < pl.items.length; i++)
+      if (i == at && twin >= 0) ...const <PlateItem>[]
+      else if (i == at) PlateItem(bowl.key, bowl.name, it.qty, {place: bowl.item}, null, PlateBowl(bowl, spec))
+      else if (i == twin) pl.items[i].withQty(pl.items[i].qty + it.qty)
+      else pl.items[i],
+  ];
+  return PlateState([for (var i = 0; i < s.plates.length; i++) i == pi ? Plate(pl.id, pl.meal, items) : s.plates[i]], s.front, s.nextId);
 }
 
 /// +1: 1/2 -> 1, n -> n+1. -1: n -> n-1 down to 1, 1 -> 1/2, 1/2 -> removed; an emptied plate goes with it.

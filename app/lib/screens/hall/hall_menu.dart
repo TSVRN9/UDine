@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import '../../core/m2/board.dart';
+import '../../core/m2/bowl.dart' show Syn, synOf;
+import '../../core/m2/bowl_builder.dart' show BowlSpec;
 import '../../core/m2/menu_view.dart';
 import '../../core/m2/plate.dart';
 import '../../core/hours.dart' show openSpan;
@@ -216,6 +218,14 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
         context, dish: d, place: place, meal: _effectiveMeal, day: _day, fx: fx, avoid: _prefs.avoid, cafeIds: c.cafeIds, onServe: (p, g) => _serve(d, p, g),
       );
 
+  void _openSyn(Syn y) {
+    final spec = BowlSpec.syn(y);
+    openDishSheet(
+      context, dish: spec.parts.first, place: place, meal: _effectiveMeal, day: _day, fx: fx, avoid: _prefs.avoid, cafeIds: c.cafeIds, build: spec,
+      onServe: (p, g) {},
+    );
+  }
+
   /// A where-served tap, with the sheet half-way out: the place and day already showing bring the dish up where it is (revealed first
   /// if your preferences hide it); any other pushes that place at that day and meal, already at the dish.
   void _serve(MenuItem d, String p, WhereGroup g) {
@@ -276,7 +286,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     var y = _hh + _th + _sw;
     for (var i = 0; i < index && i < _items.length; i++) {
       final it = _items[i];
-      y += switch (it.kind) { ItemKind.head => M2Size.stationRow, ItemKind.dish => it.dish!.dishName.length > 26 ? M2Layout.rowTall : M2Size.row, _ => M2Layout.noteRow };
+      y += switch (it.kind) { ItemKind.head => M2Size.stationRow, ItemKind.syn => M2Size.row, ItemKind.dish => it.dish!.dishName.length > 26 ? M2Layout.rowTall : M2Size.row, _ => M2Layout.noteRow };
     }
     return y;
   }
@@ -472,6 +482,10 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     final plate = AppScope.of(context).plate;
     String pm() => plateMeal(fx, place, _effectiveMeal, fx.clock);
     return MealActions(
+      onSyn: (si) {
+        final y = synOf(fx, _iso, place, _effectiveMeal, si);
+        if (y != null) _openSyn(y);
+      },
       onOpen: (d) => widget.onOpenDish != null ? widget.onOpenDish!(d, place: place, meal: _effectiveMeal, day: _day) : _openDish(d),
       onAdd: (d) {
         plate.add(pm(), d.dishName, {place: d});

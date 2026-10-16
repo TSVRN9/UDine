@@ -526,8 +526,12 @@ abstract final class M2Size {
 }
 
 abstract final class M2Opacity {
-  /// #bfoot .gbtn[disabled]{opacity:.45}; disabled tab .4 (tbar)
+  /// disabled tab .4 (tbar)
   static const disabled = 0.4;
+  /// #bfoot .gbtn[disabled]{opacity:.45}
+  static const footDisabled = 0.45;
+  /// stepPart: A($('#bfoot .l2'),[{opacity:.4},{opacity:1}],'settle')
+  static const settleFrom = 0.4;
   /// .dish.stuck .dhd shadow rgba(36,10,14,.32), drawn .3
   static const edgeShadow = 0.3;
 }

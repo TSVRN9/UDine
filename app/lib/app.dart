@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'alerts/alerts.dart' show alertTaps;
+import 'alerts/alerts.dart' show alertTaps, takeHeldTap;
 import 'boot.dart';
 import 'dev/kit_gallery.dart';
 import 'screens/plate/plate_sheet.dart';
@@ -29,7 +29,9 @@ class _UdineAppState extends State<UdineApp> {
     super.initState();
     // A tap on a favourite-alert notification while the app is open: Shell is rebuilt on the route (its tab, hall and dish sheet).
     // ponytail: rebuilds the whole shell, so the open tab/sheet is replaced; push onto the Hall tab's navigator if that is ever noticed.
-    _taps = alertTaps.stream.listen((route) => _nav.currentState?.pushNamedAndRemoveUntil(route, (_) => false));
+    void open(String route) => _nav.currentState?.pushNamedAndRemoveUntil(route, (_) => false);
+    _taps = alertTaps.stream.listen(open);
+    if (takeHeldTap() case final route?) WidgetsBinding.instance.addPostFrameCallback((_) => open(route));
   }
 
   @override

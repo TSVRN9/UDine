@@ -21,3 +21,15 @@ final seedEarlier = [
   _e('e4', '2026-10-07T18:10:00.000', 'Green Chile Posole', 3, 300),
   _e('e5', '2026-10-07T18:10:00.000', 'Black Bean Burger', 3, 380),
 ];
+
+/// `?history=bowl`: the above and M2's Monday lunch at Worcester, a Beef Brisket Noodle Bowl with a Hard Boiled Egg and Steamed Bok Choy
+/// (`SEED`'s 2026-10-05T12:30), logged as one row with its parts.
+final seedBowl = [
+  LogEntry(
+    id: 'b0', loggedAt: '2026-10-05T12:30:00.000', servings: 1, nutrition: _n(340, 21, 30, 12),
+    source: UmassMenuSource(dishName: 'Beef Brisket Noodle Bowl', hallTid: 1, parts: [
+      LogPart(name: 'Hard Boiled Egg', servings: 1, nutrition: _n(111, 6, 1, 8)),
+      LogPart(name: 'Steamed Bok Choy', servings: 1, nutrition: _n(11, 1, 2, 0)),
+    ]),
+  ),
+];

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'package:sqflite/sqflite.dart' show DatabaseFactory;
@@ -20,25 +22,47 @@ final _notifications = FlutterLocalNotificationsPlugin();
 
 /// A tap on a notification while the app is running; the app (see app.dart) opens the route.
 final alertTaps = StreamController<String>.broadcast();
+String? _heldTap;
+
+/// A tap that arrived before the app listened (the OS restarting a killed process on the notification's intent), once.
+String? takeHeldTap() {
+  final t = _heldTap;
+  _heldTap = null;
+  return t;
+}
+
+@visibleForTesting
+void debugTapForTest(String route) => _tapped(route);
+
+void _tapped(String route) => alertTaps.hasListener ? alertTaps.add(route) : _heldTap = route;
 
 Future<void> _initNotifications() => _notifications.initialize(
       settings: const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        android: AndroidInitializationSettings('ic_stat_alert'),
         // The OS permission sheet is asked for by the Favorites row (Task 2), never at start-up.
         iOS: DarwinInitializationSettings(requestAlertPermission: false, requestBadgePermission: false, requestSoundPermission: false),
       ),
       onDidReceiveNotificationResponse: (r) {
-        if (r.payload case final route?) alertTaps.add(route);
+        if (r.payload case final route?) _tapped(route);
       },
     );
 
-Future<void> _post(AlertNotice n) => _notifications.show(
+/// Whether the OS will show a notification now (permission granted, not blocked).
+Future<bool> _allowed() async =>
+    await _notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.areNotificationsEnabled() ??
+    (await _notifications.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()?.checkPermissions())?.isEnabled ??
+    true;
+
+Future<void> _post(AlertNotice n) async {
+  if (!await _allowed()) throw StateError('notifications are off');
+  await _notifications.show(
       id: n.dishName.hashCode & 0x7fffffff,
       title: n.dishName,
       body: n.body,
       notificationDetails: const NotificationDetails(android: _channel, iOS: DarwinNotificationDetails()),
       payload: n.route,
     );
+}
 
 /// The background check's own connection to udine.db, apart from the app's (see openStore's singleInstance).
 Future<StoreOpen> openAlertStore({String? path, DatabaseFactory? factory}) async =>

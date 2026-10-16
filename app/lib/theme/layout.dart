@@ -136,6 +136,11 @@ abstract final class M2Layout {
   static const logAtPad = 14.0; // `.gbtn` in choose mode
   static const plateTabsInset = -8.0, plateTabsBottom = 4.0, plateTabPad = 10.0, plateTabUnder = 3.0, plateTabUnderBottom = 4.0, plateTabGap = 4.0; // `.ptabs`
   static const prowMin = 64.0, prowGap = 8.0, prowMetaTop = 3.0; // `.prow`
+  static const pwTop = 2.0, pwLine = 16.9; // `.prow .pw`: 13 dp at 1.3
+  // the bowl builder (`.dish .bh`, `.brow`, `#bfoot`)
+  static const bhTop = 24.0, bhBottom = 4.0, bpartsSynTop = 16.0, browMin = 56.0, browGap = 8.0, browMetaTop = 2.0, browPriceGap = 8.0;
+  static const footBodyPad = 92.0; // `#isheet:has(#bfoot) .sbody` padding-bottom, plus the bottom inset
+  static const synRowMin = 64.0; // `.row.syn` is a `.row`
   static const plateBodyTop = 4.0, factsMargin = 16.0; // `#psheet .sbody` padding-top, `.sheet .facts` margin
   static const midFrac = 0.36; // the plate sheet's resting line: 36% of the frame down
   static const factCalBottom = 7.0, factRowTop = 7.0, factRowBottom = 5.0; // `.facts .cal`, `.nr`

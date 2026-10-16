@@ -11,9 +11,9 @@ double r1(num x) => (x * 10).round() / 10;
 void main() {
   group('plate ops match M2', () {
     for (final v in vectors['plate'] as List) {
-      // Bowls (M2 R10 §4) are a feature of their own; the bake-off never had them. Skipped here, built by flutter-port-bowls.
-      final bowl = (v['ops'] as List).any((op) => op[0] == 'bowl');
-      test(v['name'], skip: bowl ? 'bowl op: flutter-port-bowls' : null, () {
+      // Bowl ops (M2 R10 §4) are run in bowl_test.dart.
+      if ((v['ops'] as List).any((op) => op[0] == 'bowl')) continue;
+      test(v['name'], () {
         var s = emptyPlates;
         for (final op in v['ops'] as List) {
           if (op[0] == 'add') {

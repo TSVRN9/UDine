@@ -39,7 +39,7 @@ List<AlertNotice> dueAlerts(Board fx, List<Favorite> favorites, DateTime now, {b
 
 /// The background check: nothing unless Notify me is on and it is 7 AM or later; reads the cached menus and hours ([loadBoard], null when
 /// there is nothing to read), claims each dish for the day in alert_sent, and posts it. Returns how many were posted.
-// ponytail: a dish is claimed before it is posted, so a post that fails (permission pulled mid-day) is not retried that day; at-most-once is the stated rule.
+// A dish is claimed before it is posted (two checks at once cannot both post it); a post that throws gives the claim back, so permission granted later in the day still gets it.
 Future<int> runAlertCheck({
   required UdineStore store,
   required DateTime Function() now,
@@ -56,7 +56,12 @@ Future<int> runAlertCheck({
   var posted = 0;
   for (final n in dueAlerts(fx, favorites, t, newton: await store.charlesRiver())) {
     if (!await store.claimAlert(n.dishName, day)) continue;
-    await notify(n);
+    try {
+      await notify(n);
+    } catch (_) {
+      await store.releaseAlert(n.dishName, day);
+      rethrow;
+    }
     posted++;
   }
   return posted;

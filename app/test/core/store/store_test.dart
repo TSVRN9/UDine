@@ -377,4 +377,24 @@ void main() {
       expect(exportAlertSentAsJson([]), '[]');
     });
   });
+
+  group('a logged bowl keeps its parts (source_json only: no new column, user_version unchanged)', () {
+    const part = '{"name":"Hard Boiled Egg","servings":2,"nutrition":$nut}';
+    const bowl = '{"type":"umass-menu","dishName":"Beef Brisket Noodle Bowl","hallTid":1,"parts":[$part]}';
+    test('add, read back, and export carry the parts; the old rows still read and export as before', () async {
+      expect((await db.rawQuery('PRAGMA user_version')).first.values.first, kUserVersion);
+      final e = LogEntry(
+          id: 'bowl1', loggedAt: '2026-10-02T12:00:00.000', servings: 1, nutrition: NutritionFacts.fromJson(jsonDecode(nut)),
+          source: LogSource.fromJson(jsonDecode(bowl)));
+      await s.addEntry(e);
+      final all = await s.allEntries();
+      final back = all.firstWhere((x) => x.id == 'bowl1').source as UmassMenuSource;
+      expect([for (final p in back.parts!) (p.name, p.servings, p.nutrition.calories)], [('Hard Boiled Egg', 2, 210)]);
+      expect((all.firstWhere((x) => x.id == 'e0').source as UmassMenuSource).parts, isNull);
+      final json = jsonDecode(exportEntriesAsJson(all)) as List;
+      expect(((json.firstWhere((x) => x['id'] == 'bowl1')['source'] as Map)['parts'] as List).single['name'], 'Hard Boiled Egg');
+      expect((json.firstWhere((x) => x['id'] == 'e0')['source'] as Map).containsKey('parts'), isFalse);
+      expect(((await db.query('log_entries', where: 'id = ?', whereArgs: ['bowl1'])).single['source_json'] as String), jsonEncode(jsonDecode(bowl)));
+    });
+  });
 }

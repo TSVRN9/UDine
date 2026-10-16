@@ -237,6 +237,9 @@ class UdineStore {
   Future<bool> claimAlert(String dish, String day) async =>
       await db.rawUpdate('INSERT OR IGNORE INTO alert_sent (dish_name, day) VALUES (?, ?)', [dish, day]) == 1;
 
+  /// Gives a claim back (the post failed), so a later check tries again.
+  Future<void> releaseAlert(String dish, String day) => db.rawDelete('DELETE FROM alert_sent WHERE dish_name = ? AND day = ?', [dish, day]);
+
   Future<List<({String dishName, String day})>> alertsSent() async =>
       [for (final r in await db.rawQuery('SELECT dish_name, day FROM alert_sent ORDER BY rowid')) (dishName: r['dish_name']! as String, day: r['day']! as String)];
 
