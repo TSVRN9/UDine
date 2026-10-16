@@ -101,7 +101,7 @@ void main() {
   test('a logged meal keeps its own snapshot: editing or deleting the food leaves the past day as it was', () async {
     final f = await book.save(SavedFood.packed(off('1', 'Chocolate Chip')));
     await store.addEntries([LogEntry(id: 'e1', loggedAt: '2026-10-07T12:00:00.000', servings: 1, source: f.source, nutrition: f.nutrition)]);
-    final day = () async => [for (final e in await store.entriesForDay('2026-10-07')) e.toJson()];
+    Future<List<Map<String, dynamic>>> day() async => [for (final e in await store.entriesForDay('2026-10-07')) e.toJson()];
     final was = await day();
     await book.edit(f, f.edited(name: 'Other', cal: 1, p: 1, c: 1, f: 1));
     expect(await day(), was);

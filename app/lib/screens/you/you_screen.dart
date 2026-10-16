@@ -81,7 +81,7 @@ class _Choices extends StatelessWidget {
     Widget sec(List<Widget> children) => Padding(padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.secTop, M2Space.gutter, 0), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children));
     final rows = <(String, String, WidgetBuilder)>[
       ('Favorites', favs == 0 ? 'None yet' : '$favs ${favs == 1 ? 'dish' : 'dishes'}', (_) => FavoritesPage(top: top)),
-      if (prefs.track) ('Your foods', foodCount == 0 ? 'None yet' : '$foodCount ${foodCount == 1 ? 'food' : 'foods'}', (_) => FoodsPage(top: top)),
+      if (prefs.track && scope.foods != null) ('Your foods', foodCount == 0 ? 'None yet' : '$foodCount ${foodCount == 1 ? 'food' : 'foods'}', (_) => FoodsPage(top: top)),
       ('Dietary preferences', prefSummary(prefs.diet), (_) => DietPage(top: top)),
       // "Which was better?" is shelved (owner, 2026-10-15): RankPage stays behind the `/you/rank` route until it comes back here
       if (days > 0) ('Export my data', '$days ${days == 1 ? 'day' : 'days'}', (_) => ExportPage(top: top)),

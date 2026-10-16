@@ -20,15 +20,16 @@ void main() {
   setUpAll(loadFonts);
 
   group('the rows', () {
-    testWidgets('under Earlier: Favorites, Dietary preferences, Export, then Campus and Show on dishes; Which was better? is shelved', (t) async {
+    testWidgets('under Earlier: Favorites, Your foods, Dietary preferences, Export, then Campus and Show on dishes; Which was better? is shelved', (t) async {
       final b = await bootYou(t);
       await openYou(t, b);
-      for (final s in ['Favorites', 'None yet', 'Dietary preferences', 'Everything', 'Export my data', '3 days', 'Campus', 'Charles River Campus', 'Show on dishes', 'Healthfulness', 'Carbon rating']) {
+      for (final s in ['Favorites', 'Your foods', 'Dietary preferences', 'Everything', 'Export my data', '3 days', 'Campus', 'Charles River Campus', 'Show on dishes', 'Healthfulness', 'Carbon rating']) {
         await t.ensureVisible(find.text(s));
         expect(find.text(s), findsOneWidget, reason: s);
       }
+      expect(find.text('None yet'), findsNWidgets(2)); // (no favorites, no foods)
       expect(find.text('Which was better?'), findsNothing); // shelved (owner, 2026-10-15): its page stays behind /you/rank
-      final y = [for (final s in ['Earlier', 'Favorites', 'Dietary preferences', 'Export my data', 'Charles River Campus', 'Healthfulness', 'Carbon rating']) t.getTopLeft(find.text(s)).dy];
+      final y = [for (final s in ['Earlier', 'Favorites', 'Your foods', 'Dietary preferences', 'Export my data', 'Charles River Campus', 'Healthfulness', 'Carbon rating']) t.getTopLeft(find.text(s)).dy];
       expect(y, orderedEquals([...y]..sort()));
       await drain(t);
     });
