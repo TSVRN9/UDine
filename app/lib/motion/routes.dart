@@ -128,15 +128,26 @@ abstract class StackRoute<T> extends PageRoute<T> {
 
   void _release(double v) {
     final c = controller;
+    if (c != null) _settle(close: settlesClosed(v, c.value));
+  }
+
+  /// Ends a drag-back from where it is: out (the pop's own simulation starts at the current progress) or back up.
+  void _settle({required bool close}) {
+    final c = controller;
     if (c == null || !navigator!.userGestureInProgress) return;
-    final p = c.value;
-    if (settlesClosed(v, p)) {
+    if (close) {
       navigator!.pop();
     } else {
-      c.animateWith(_Shaped(from: p, to: 1, anim: _use(anim)));
+      c.animateWith(_Shaped(from: c.value, to: 1, anim: _use(anim)));
     }
     navigator!.didStopUserGesture();
   }
+
+  // Android's predictive back (the system gesture, sent to the Shell) draws the same drag-back. Android decides commit or cancel, so
+  // there is no settle rule here; TransitionRoute's own handlers would reverse from the top after the pop's simulation started.
+  void backStart() => _grab();
+  void backMove(double dist, double width) => _move(dist, width);
+  void backEnd({required bool commit}) => _settle(close: commit && isCurrent); // (a page pushed over it meanwhile is not the one to pop)
 
   Widget _withBack(Widget child, double width) => RawGestureDetector(
         behavior: HitTestBehavior.translucent,
