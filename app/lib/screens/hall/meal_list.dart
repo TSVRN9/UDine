@@ -49,7 +49,7 @@ class ListItem {
 
 /// What the list says for a place's meal on a day (M2 `renderMenuList`): the Grab 'N Go note, the line over a filtered list, station
 /// heads and dish rows, or what an empty list says.
-List<ListItem> mealItems(Board fx, Prefs prefs, String place, String name, int day, String meal, bool reveal, {MenuState state = MenuState.ok}) {
+List<ListItem> mealItems(Board fx, Prefs prefs, String place, String name, int day, String meal, bool reveal, {MenuState state = MenuState.ok, bool track = true}) {
   final iso = dayIsos(fx)[day], menu = fx.days[iso]?[place]?[meal];
   // what a list says when there is nothing to list (M2 `renderMenuList`): loading, not saved offline, didn't load, nothing posted
   switch (state) {
@@ -78,7 +78,7 @@ List<ListItem> mealItems(Board fx, Prefs prefs, String place, String name, int d
         si = it.si;
         out.add(ListItem(ItemKind.head, si: si, text: it.name));
         // another day's dishes can't go on today's plate, so its stations build nothing
-        final y = day == 0 ? synOf(fx, iso, place, meal, si) : null;
+        final y = day == 0 && track ? synOf(fx, iso, place, meal, si) : null;
         if (y != null) out.add(ListItem(ItemKind.syn, si: si, text: y.label));
       case 'dish':
         out.add(ListItem(ItemKind.dish, si: si, dish: it.dish, contains: it.contains));

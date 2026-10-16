@@ -5,6 +5,7 @@ import 'package:udine/boot.dart';
 import 'package:udine/shell/prefs.dart';
 import 'package:udine/screens/halls/first_run.dart';
 import 'package:udine/screens/hall/hall_menu.dart';
+import 'package:udine/theme/tokens.dart';
 import 'package:udine/ui/ui.dart';
 import '../fonts.dart';
 import 'support.dart';
@@ -31,6 +32,27 @@ void main() {
     await openApp(t, b);
     await t.pumpAndSettle();
     expect(find.byType(FirstRunSheet), findsNothing);
+    await drain(t);
+  });
+
+  testWidgets('it rises only once Halls is on screen: not in the launch frames, then from the bottom edge up to rest', (t) async {
+    final b = await bootRecorded(t, firstRun: true);
+    await openApp(t, b, route: '/halls?data=recorded&firstRun=1');
+    await t.pump();
+    await t.pump(M2Motion.cont.duration ~/ 2);
+    expect(find.byType(FirstRunSheet), findsNothing, reason: 'raised under the launch cover, its rise is never seen');
+    await t.pump(M2Motion.cont.duration);
+    await until(t, () => find.byType(FirstRunSheet).evaluate().isNotEmpty);
+    final h = t.widget<M2Sheet>(find.descendant(of: find.byType(FirstRunSheet), matching: find.byType(M2Sheet))).handle;
+    expect(h.px, lessThan(60), reason: 'it starts at the bottom edge');
+    final seen = <double>[];
+    for (var i = 0; i < 40; i++) {
+      await t.pump(const Duration(milliseconds: 16));
+      seen.add(h.px);
+    }
+    expect(seen.any((v) => v > 0 && v < seen.last - 20), isTrue, reason: 'in between, rising: $seen');
+    await t.pumpAndSettle();
+    expect(sheetTop(t), closeTo(band(t, 'Berkshire').bottom, 1.0));
     await drain(t);
   });
 

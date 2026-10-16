@@ -1,3 +1,5 @@
+import 'dart:async' show Timer;
+
 import 'package:flutter/widgets.dart';
 
 import '../../core/m2/board.dart' show halls;
@@ -32,6 +34,7 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
   bool _hk = false, _lk = false, _asked = false;
   /// first run's sheet while it is up
   SheetHandle? _firstRun;
+  Timer? _firstRunTimer;
 
   @override
   void didChangeDependencies() {
@@ -50,7 +53,9 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
     _c ??= HallsController(AppScope.of(context).repo)..addListener(_onData);
     if (!_asked) {
       _asked = true;
-      if (!AppScope.of(context).prefs.firstRunSeen) WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? _showFirstRun() : null);
+      // Halls is on screen once the launch cover has faded off it (one container-length after the first frame): raised under the cover, the
+      // sheet's rise would play unseen and it would fade in with the app (M2: `obsheet.to('mid')` from closed, on a visible page)
+      if (!AppScope.of(context).prefs.firstRunSeen) WidgetsBinding.instance.addPostFrameCallback((_) => _firstRunTimer = Timer(M2Motion.cont.duration, () => mounted ? _showFirstRun() : null));
     }
   }
 
@@ -91,6 +96,7 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
 
   @override
   void dispose() {
+    _firstRunTimer?.cancel();
     _c?.removeListener(_onData);
     _c?.dispose();
     _arrive.dispose();

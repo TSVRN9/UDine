@@ -34,7 +34,8 @@ SheetHandle openDishSheet(
   VoidCallback? onClosed,
 }) {
   // today's dish that builds opens its builder (the row's + still adds it plain); a plate row of a plain dish opens as itself
-  build ??= day == 0 && !plain ? buildFor(fx, place, meal, dish) : null;
+  // (tracking off: a build station's dishes are just dishes, M2 CONCEPT R10 §2)
+  build = !AppScope.of(context).prefs.track ? null : build ?? (day == 0 && !plain ? buildFor(fx, place, meal, dish) : null);
   final book = WhereBook(AppScope.of(context).repo, fx, cafeIds);
   return ShellScope.of(context).pushSheet((handle, done) => DishSheet(
         handle: handle, dish: dish, place: place, meal: meal, day: day, fx: fx, book: book, avoid: avoid, refs: refs, onServe: onServe, build: build, sel: sel, edit: edit,
@@ -271,7 +272,7 @@ class _DishSheetState extends State<DishSheet> {
                           ],
                         ]),
                       ),
-                    ] else if (widget.day == 0)
+                    ] else if (widget.day == 0 && scope.prefs.track)
                       Padding(padding: const EdgeInsets.only(top: M2Layout.dadd), child: Button(kind: ButtonKind.primary, label: on ? 'Add another' : 'Add to plate', expand: true, onTap: () => _add(scope, pm))),
                     // tracking off: "where it's served" takes the action's place, 16 after the identity group
                     if (board != null && head != null) Padding(padding: EdgeInsets.only(top: scope.prefs.track ? M2Layout.whereTop : M2Layout.whereTopOff), child: _where(board, head)),

@@ -529,7 +529,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     final meals = menuOpen && ok ? mealsOf(fx, _iso, place) : const <String>[];
     final meal = _effectiveMeal, spacer = hh + th + sw, tail = M2Layout.listFoot + safeBottom(context);
     _seen = st;
-    _items = menuOpen ? mealItems(fx, _prefs, place, c.name, _day, meal, _reveal, state: st) : const [];
+    _items = menuOpen ? mealItems(fx, _prefs, place, c.name, _day, meal, _reveal, state: st, track: AppScope.of(context).prefs.track) : const [];
     final wrap = widget.dragWrap ?? (Widget c) => c;
     final fade = _FadeProduct(p, _dayFade, _arrive);
     return ColoredBox(

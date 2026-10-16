@@ -245,6 +245,7 @@ class PlateModel extends ChangeNotifier {
 
   /// A builder's Add (M2 `badd`): a bowl is one item named for its base; a base with nothing chosen is the plain dish.
   void addBowl(String meal, BowlSpec spec, Bowl bowl) {
+    if (!tracking()) return;
     _failure = null;
     _drop();
     _failed = false;
@@ -254,6 +255,7 @@ class PlateModel extends ChangeNotifier {
 
   /// A builder's Update: the plate item becomes the new bowl where it is (a twin on the plate takes its servings).
   void updateBowl(int plateId, String key, BowlSpec spec, Bowl bowl) {
+    if (!tracking()) return;
     _s = core.updateBowl(_s, plateId, key, bowl, spec, spec.place);
     notifyListeners();
   }
