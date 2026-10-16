@@ -13,9 +13,9 @@ import 'dish_sheet.dart';
 
 /// Opens a food's sheet (M2 `openFood`) above everything: a saved food from You, Your foods in Search, or a plate row; or a packaged or UMass
 /// Dining hit not yet kept. `meal` is the plate its Add joins (Search's meal, else the one the clock is in).
-SheetHandle openFoodSheet(BuildContext context, {required SavedFood food, required String meal, VoidCallback? onClosed}) =>
+SheetHandle openFoodSheet(BuildContext context, {required SavedFood food, required String meal, VoidCallback? onClosed, bool startEdit = false}) =>
     ShellScope.of(context).pushSheet((handle, done) => FoodSheet(
-          handle: handle, food: food, meal: meal,
+          handle: handle, food: food, meal: meal, startEdit: startEdit,
           onClosed: () {
             onClosed?.call();
             done();
@@ -26,7 +26,9 @@ SheetHandle openFoodSheet(BuildContext context, {required SavedFood food, requir
 /// ingredients. It is served nowhere, so it has no "where", grades or star. A saved food has Edit where a dish has its star; Edit turns the
 /// sheet into the form in place, with Save (back to the sheet) and Delete (the sheet goes down, and a receipt with Undo takes its place in the plate bar).
 class FoodSheet extends StatefulWidget {
-  const FoodSheet({super.key, required this.handle, required this.food, required this.meal, required this.onClosed});
+  const FoodSheet({super.key, required this.handle, required this.food, required this.meal, required this.onClosed, this.startEdit = false});
+  /// opens already in Edit (a screenshot route)
+  final bool startEdit;
   final SheetHandle handle;
   final SavedFood food;
   final String meal;
@@ -38,7 +40,8 @@ class FoodSheet extends StatefulWidget {
 class _FoodSheetState extends State<FoodSheet> {
   final _cal = GlobalKey();
   final _px = ValueNotifier<double>(0);
-  bool _stuck = false, _ingOpen = false, _edit = false;
+  late bool _edit = widget.startEdit;
+  bool _stuck = false, _ingOpen = false;
   late SavedFood _food = widget.food;
 
   @override

@@ -14,6 +14,7 @@ import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import '../../data/repository.dart' show HoursData, Loaded, LoadedOffline;
 import '../dish/dish_sheet.dart';
+import '../dish/food_sheet.dart';
 import '../hall/hall_controller.dart';
 import '../dish/full_label.dart';
 import 'plate_bar.dart';
@@ -180,6 +181,12 @@ class _PlateSheetState extends State<PlateSheet>
     );
   }
 
+  /// A saved food's row opens the food as it is kept now (M2 `foodById`); one that has since been deleted opens nothing.
+  void _openFood(Plate p, PlateItem it) {
+    final f = _scope.foods?.byKey(it.key);
+    if (f != null) openFoodSheet(context, food: f, meal: p.meal);
+  }
+
   void _fullLabel(Plate p, Board fx) =>
       openPlateLabel(context, plate: p, fx: fx);
 
@@ -246,7 +253,7 @@ class _PlateSheetState extends State<PlateSheet>
                 item: it,
                 cal: macroOf(it, hs?.firstOrNull).cal,
                 withText: it.bowl == null ? null : withLine(it.bowl!.bowl.parts),
-                onOpen: it.custom == null ? () => _openDish(p, it) : null,
+                onOpen: it.custom == null ? () => _openDish(p, it) : it.food == null ? null : () => _openFood(p, it),
                 onInc: () {
                   m.step(p.id, it.key, 1);
                   Haptics.add();
