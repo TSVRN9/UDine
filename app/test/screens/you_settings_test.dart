@@ -159,8 +159,8 @@ void main() {
       await wrote(t);
       await t.tap(find.text('Export CSV'));
       await wrote(t);
-      expect(sent[0].keys, ['udine-export.json', 'udine-ranked-dishes.json', 'udine-ranked-foods.json', 'udine-favorites.json', 'udine-custom-foods.json']);
-      expect(sent[1].keys, ['udine-export.csv', 'udine-ranked-dishes.csv', 'udine-ranked-foods.csv', 'udine-favorites.csv', 'udine-custom-foods.csv']);
+      expect(sent[0].keys, ['udine-export.json', 'udine-ranked-dishes.json', 'udine-ranked-foods.json', 'udine-favorites.json', 'udine-custom-foods.json', 'udine-saved-foods.json']);
+      expect(sent[1].keys, ['udine-export.csv', 'udine-ranked-dishes.csv', 'udine-ranked-foods.csv', 'udine-favorites.csv', 'udine-custom-foods.csv', 'udine-saved-foods.csv']);
       expect(sent[0]['udine-export.json'], await real(t, () => b.store!.exportJson().then((m) => m['udine-export.json']!)));
       await drain(t);
     });
