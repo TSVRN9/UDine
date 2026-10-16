@@ -56,7 +56,7 @@ class _PlateSheetState extends State<PlateSheet>
   PlateModel get _m => _scope.plate;
   bool get _visible =>
       _m.write != null &&
-      (_m.state.plates.isNotEmpty || _m.receipt != null);
+      (_m.state.plates.isNotEmpty || _m.receipt != null || _m.deleted != null);
   Plate? get _front => _m.state.front < _m.state.plates.length
       ? _m.state.plates[_m.state.front]
       : null;
@@ -147,6 +147,7 @@ class _PlateSheetState extends State<PlateSheet>
 
   void _open() {
     if (_m.receipt == null &&
+        _m.deleted == null &&
         _handle.attached &&
         _handle.px <= M2Layout.barMin + 1) {
       _handle.to(_mid);
@@ -346,7 +347,7 @@ class _PlateSheetState extends State<PlateSheet>
                   child: IgnorePointer(
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                        color: _m.state.plates.length > 1 && _m.receipt == null
+                        color: _m.state.plates.length > 1 && _m.receipt == null && _m.deleted == null
                             ? M2Color.felt
                             : null,
                         borderRadius: const BorderRadius.vertical(

@@ -103,8 +103,11 @@ String dayCell(Board fx, int i) {
 }
 
 /// "Saturday, October 10".
-String dayFull(Board fx, int i) {
-  final d = _noon(dayIsos(fx)[i]);
+String dayFull(Board fx, int i) => isoFull(dayIsos(fx)[i]);
+
+/// "Saturday, October 10" for an ISO day (M2 `isoFull`).
+String isoFull(String iso) {
+  final d = _noon(iso);
   return '${_wd[d.weekday - 1]}, ${_mo[d.month - 1]} ${d.day}';
 }
 

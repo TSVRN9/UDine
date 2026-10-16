@@ -82,7 +82,12 @@ String placeName(Board b, String k) => b.places.firstWhere((p) => p.key == k).na
 
 /// The standard window the clock is in: M2's CLOCKMEAL (lunch at 12:41).
 String clockMeal(DateTime instant) {
-  final w = easternWall(instant), m = w.hour * 60 + w.minute;
+  final w = easternWall(instant);
+  return mealOfMinute(w.hour * 60 + w.minute);
+}
+
+/// The standard window a minute of the day (0..1559, after-midnight minutes counted past 1440) is in; outside them, lunch.
+String mealOfMinute(int m) {
   return m >= 420 && m < 660 ? 'breakfast' : m >= 660 && m < 990 ? 'lunch' : m >= 990 && m < 1260 ? 'dinner' : m >= 1260 && m < 1560 ? 'late' : 'lunch';
 }
 

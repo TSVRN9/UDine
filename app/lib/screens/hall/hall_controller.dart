@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import '../../core/m2/history.dart' show cafeIdsOf;
 
 import '../../core/m2/board.dart';
 import '../../core/m2/places.dart';
@@ -51,12 +52,6 @@ List<HoursEvent> hoursEvents(List<DiningEvent> feed) {
     ));
   }
   return out..sort((a, b) => a.expires - b.expires);
-}
-
-/// Every café's location id by place key (`c3`), for the cafés the feed has one for (where a dish is served names them).
-Map<String, int> cafeIdsOf(DiningHoursFeed feed) {
-  final byTitle = {for (final r in feed.retail) straight(r.name): r.locationId};
-  return {for (var i = 0; i < cafeTable.length; i++) 'c$i': ?byTitle[straight(cafeTable[i].title)]};
 }
 
 /// Every hall's Grab 'N Go window (its own get_infov2 entry, the hall's name and Grab 'N Go), for the halls that have one.

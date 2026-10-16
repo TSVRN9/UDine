@@ -10,8 +10,9 @@ import '../../shell/plate_model.dart';
 import '../../shell/prefs.dart';
 import '../dish/where_book.dart';
 import '../halls/halls_controller.dart';
+import '../../core/m2/history.dart' show cafeIdsOf;
 import '../halls/halls_model.dart' show NetLine;
-import '../hall/hall_controller.dart' show cafeIdsOf, grabsOf;
+import '../hall/hall_controller.dart' show grabsOf;
 
 /// Search's one load, started when the tab first opens (never at launch): today's hours (Halls' own controller, which also reads busy
 /// for the hall cards), then every place's today and tomorrow through the repository's prefetch (`WhereBook`: the halls, then the cafés,

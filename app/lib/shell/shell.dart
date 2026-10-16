@@ -1,12 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import '../core/m2/history.dart' show cafeIdsOf;
+import '../core/store/log_book.dart';
+import '../data/repository.dart' show DataState, HoursData, Loaded, LoadedOffline;
 import '../motion/fade_through.dart';
+import 'app_scope.dart';
 import '../motion/routes.dart';
 import '../screens/hall/hall_route.dart';
 import '../screens/halls/hall_page.dart';
 import '../screens/plate/custom_food.dart';
 import '../screens/halls/halls_screen.dart';
+import '../screens/you/day_page.dart';
+import '../screens/you/you_screen.dart';
 import '../screens/search/events.dart';
 import '../screens/search/search_screen.dart';
 import '../core/m2/search.dart' show Lens;
@@ -36,7 +44,7 @@ class _Sheet {
 }
 
 class ShellState extends State<Shell> implements ShellApi {
-  late final _tab = ValueNotifier<int>(searchLaunch(widget.initialRoute) == null ? 0 : 1);
+  late final _tab = ValueNotifier<int>(searchLaunch(widget.initialRoute) != null ? 1 : Uri.parse(widget.initialRoute).path.startsWith('/you') ? 2 : 0);
   bool Function()? _plateBack;
   final navigator = GlobalKey<NavigatorState>();
 
@@ -74,8 +82,36 @@ class ShellState extends State<Shell> implements ShellApi {
     if (mounted) setState(() => _sheets.remove(s));
   }
 
+  StreamSubscription<DataState<HoursData>>? _hours;
+  LogBook? _book;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_book == null && AppScope.of(context).log != null) {
+      _book = AppScope.of(context).log!..addListener(_wantCafeIds);
+      _wantCafeIds();
+    }
+  }
+
+  /// The café ids the saved hours carry name a café's past meals (You). Asked for only once the log holds one, so a log of halls costs
+  /// nothing; a failure or no hours leaves the meal as "Lunch".
+  void _wantCafeIds() {
+    final book = _book!, scope = AppScope.of(context);
+    if (_hours != null || !book.meals.any((m) => m.needsCafeIds)) return;
+    _hours = scope.repo.hours(scope.repo.today).listen((s) {
+      if (s is Loaded<HoursData>) {
+        book.cafeIds = cafeIdsOf(s.value.feed);
+      } else if (s is LoadedOffline<HoursData>) {
+        book.cafeIds = cafeIdsOf(s.value.feed);
+      }
+    }, onError: (Object _) {});
+  }
+
   @override
   void dispose() {
+    _hours?.cancel();
+    _book?.removeListener(_wantCafeIds);
     _tab.dispose();
     super.dispose();
   }
@@ -87,10 +123,17 @@ class ShellState extends State<Shell> implements ShellApi {
           builder: (_, i, _) => FadeThroughTabs(index: i, children: [
             HallsScreen(top: top),
             SearchScreen(top: top, tab: _tab, query: searchLaunch(widget.initialRoute)?.$1 ?? '', lenses: searchLaunch(widget.initialRoute)?.$2 ?? const {}, idle: EventsIdle(top: top)),
-            const ColoredBox(color: M2Color.chalk, child: SizedBox.expand()),
+            YouScreen(top: top),
           ]),
         ),
       );
+
+  /// `/you/day/2026-10-07` opens that day over You at launch (a screenshot route).
+  Route<void>? _youLaunch(String route, double top) {
+    final s = Uri.parse(route).pathSegments;
+    if (s.length != 3 || s[0] != 'you' || s[1] != 'day') return null;
+    return BaseRoute<void>(settings: RouteSettings(name: route), builder: (_) => DayPage(top: top, day: s[2]));
+  }
 
   void _select(int i) {
     Haptics.selection();
@@ -126,7 +169,7 @@ class ShellState extends State<Shell> implements ShellApi {
               Positioned.fill(
                 child: Navigator(
                   key: navigator,
-                  onGenerateInitialRoutes: (_, name) => [_tabs(const RouteSettings(name: '/'), top), ?hallLaunchRoute(widget.initialRoute, top)],
+                  onGenerateInitialRoutes: (_, name) => [_tabs(const RouteSettings(name: '/'), top), ?hallLaunchRoute(widget.initialRoute, top), ?_youLaunch(widget.initialRoute, top)],
                   onGenerateRoute: (s) => _tabs(s, top),
                 ),
               ),

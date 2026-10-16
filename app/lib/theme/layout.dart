@@ -183,6 +183,11 @@ abstract final class M2Layout {
   static const mcGap = 6.0; // `.lrow .mc` gap: "Not saved" and the chevron
   static const namesRowMin = 48.0; // `.cbody .lrow` min-height
   static const pinGlyphStroke = 2.2; // `.icon svg` stroke-width
+  // You's sections and the day page (`.sec`, `.lgone`, `.lrow .mc b`, `.empty`, `.pbody > .sec`)
+  static const secHeadBottom = 4.0; // `.sec h2{margin:0 0 4px}` (secTop above is `.sec`'s padding-top)
+  static const lgoneMin = 64.0, lgoneGap = 8.0; // `.lgone`
+  static const lgoneName = M2Type(16.0, null, 'LibreFranklin', FontWeight.w500); // `.lgone .n`: the row's name at 500
+  static const mealCalNum = M2Type(18.0, null, 'Oswald', FontWeight.w600, tabular: true); // `.lrow .mc b`
 
   // Search (`.shead`, `.field`, `.lenses`, `.sgrp`, `.prow2`, `.hcards`, `.hcard`, `.ht`, `.cnm`, `.empty`, `.custom`)
   static const searchHeadTop = 12.0, searchHeadBottom = 14.0; // `.shead` padding: calc(var(--st) + 12px) 20px 14px
