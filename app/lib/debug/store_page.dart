@@ -34,12 +34,12 @@ class StorePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = M2Text.rowName.style(M2Color.ink);
+    final style = M2Text.meta.style(M2Color.ink);
     return ColoredBox(
       color: M2Color.chalk,
       child: SafeArea(
         child: DefaultTextStyle(
-          style: style.copyWith(fontSize: 11, height: 1.3),
+          style: style,
           child: db == null
               ? const Text('menus only: no store')
               : FutureBuilder(
