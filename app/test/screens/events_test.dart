@@ -1,11 +1,18 @@
 // Search's idle events and the event page, on the recorded Oct 8 12:41 feed (Indigenous Peoples Day merged with its Hours twin).
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:share_plus/share_plus.dart' show XFile;
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:udine/boot.dart';
+import 'package:udine/data/flyer.dart';
+import 'package:udine/data/source.dart' show Unreachable;
 import 'package:udine/data/states.dart';
 import 'package:url_launcher_platform_interface/link.dart';
 import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
@@ -105,41 +112,97 @@ void main() {
     await finish(t);
   });
 
-  testWidgets('an event card opens its page: the date, See the menu gold and Holiday hours outlined; back returns to Search', (t) async {
+  testWidgets('an event card opens its page: the date, Holiday hours gold and Share the flyer outlined; back returns to Search', (t) async {
     await openSearch(t);
     await until(t, () => find.byType(EventCard).evaluate().isNotEmpty);
     await t.tap(find.byType(EventCard).first);
     await t.pumpAndSettle();
-    expect(find.text('See the menu'), findsOneWidget);
     expect(find.text('Holiday hours'), findsOneWidget);
+    expect(find.text('Share the flyer'), findsOneWidget);
     final kinds = [for (final b in t.widgetList<Button>(find.byType(Button))) b.kind];
-    expect(kinds, [ButtonKind.gold, ButtonKind.outline, ButtonKind.outline]);
-    expect(find.text('Open the flyer'), findsOneWidget);
+    expect(kinds, [ButtonKind.gold, ButtonKind.outline]);
+    for (final gone in ['See the menu', 'Open the flyer']) {
+      expect(find.text(gone), findsNothing);
+    }
     expect(find.text('Mon, Oct 12'), findsOneWidget);
     await t.tap(find.byType(BackButton));
     await t.pumpAndSettle();
-    expect(find.text('See the menu'), findsNothing);
     expect(find.text('Events'), findsOneWidget);
     await finish(t);
   });
 
-  testWidgets('See the menu lands on the hall menu of the event\'s own day (Monday Oct 12 is 4 days on)', (t) async {
-    await openEventsApp(t, '/event/0');
-    await until(t, () => find.text('See the menu').evaluate().isNotEmpty);
-    await t.tap(find.text('See the menu'));
-    await t.pump();
-    await until(t, () => find.byType(HallMenu).evaluate().isNotEmpty);
-    expect(t.widget<HallMenu>(find.byType(HallMenu)).day, 4);
-    expect(t.widget<HallMenu>(find.byType(HallMenu)).place, 'W');
-    await finish(t);
-  });
-
-  testWidgets('/event/<id>: an event with no merged hours has its flyer link only', (t) async {
+  testWidgets('/event/<id>: an event with no merged hours has one gold Share the flyer and no link', (t) async {
     await openEventsApp(t, '/event/1');
-    await until(t, () => find.text('Open the flyer').evaluate().isNotEmpty);
+    await until(t, () => find.text('Share the flyer').evaluate().isNotEmpty);
+    expect([for (final b in t.widgetList<Button>(find.byType(Button))) b.kind], [ButtonKind.gold]);
     expect(find.text('Holiday hours'), findsNothing);
     expect(find.text('Through Oct 31'), findsOneWidget);
     await finish(t);
+  });
+
+  testWidgets('the flyer: Photos off requests no picture and holds a letter-shaped felt ground', (t) async {
+    await openEventsApp(t, '/event/1');
+    expect(find.byType(Image), findsNothing);
+    expect(find.byKey(const ValueKey('flyer-ground')), findsOneWidget);
+    expect(t.getSize(find.byKey(const ValueKey('flyer-ground'))).aspectRatio, closeTo(8.5 / 11, 0.01));
+    await finish(t);
+  });
+
+  testWidgets('Share the flyer hands the flyer\'s address to the share hook, once while it is out', (t) async {
+    final calls = <String>[];
+    final gate = Completer<void>();
+    await openApp(t, await bootRecorded(t, shareFlyer: (u) {
+      calls.add(u);
+      return gate.future;
+    }), route: '/event/1');
+    await until(t, () => find.text('Share the flyer').evaluate().isNotEmpty);
+    await t.drag(find.byType(SingleChildScrollView), const Offset(0, -400));
+    await t.pump();
+    await t.tap(find.text('Share the flyer'));
+    await t.pump();
+    await t.tap(find.text('Share the flyer'));
+    await t.pump();
+    expect(calls, ['https://umassdining.com/sites/default/files/events/IMG_2765.png']);
+    gate.complete();
+    await settle(t);
+    await finish(t);
+  });
+
+  testWidgets('a failed share says so and the button works again', (t) async {
+    var n = 0;
+    await openApp(t, await bootRecorded(t, shareFlyer: (_) async {
+      n++;
+      throw const Unreachable('offline');
+    }), route: '/event/1');
+    await until(t, () => find.text('Share the flyer').evaluate().isNotEmpty);
+    await t.drag(find.byType(SingleChildScrollView), const Offset(0, -400));
+    await t.pump();
+    await t.tap(find.text('Share the flyer'));
+    await settle(t);
+    expect(find.text('Couldn\'t share the flyer'), findsOneWidget);
+    await t.tap(find.text('Share the flyer'));
+    await settle(t);
+    expect(n, 2);
+    await finish(t);
+  });
+
+  test('shareFlyerFile writes the bytes to <temp>/flyer/<name with its extension> and shares that FILE, never text', () async {
+    final tmp = Directory.systemTemp.createTempSync('udine-flyer');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    Directory('${tmp.path}/flyer').createSync();
+    File('${tmp.path}/flyer/stale.png').writeAsStringSync('old');
+    final shared = <XFile>[];
+    await shareFlyerFile('https://umassdining.com/sites/default/files/events/Pete%20and%20Gerrys.jpg',
+        client: MockClient((_) async => http.Response.bytes([1, 2, 3], 200)), tempDir: () async => tmp, share: (f) async => shared.add(f));
+    expect(shared, hasLength(1));
+    expect(shared[0].path, '${tmp.path}/flyer/Pete and Gerrys.jpg');
+    expect(shared[0].mimeType, 'image/jpeg');
+    expect(File(shared[0].path).readAsBytesSync(), [1, 2, 3]);
+    expect(File('${tmp.path}/flyer/stale.png').existsSync(), isFalse);
+    for (final bad in ['intent://x/', 'https://', 'not a url']) {
+      await expectLater(shareFlyerFile(bad, client: MockClient((_) async => http.Response('', 200)), tempDir: () async => tmp, share: (f) async => shared.add(f)), throwsArgumentError);
+    }
+    expect(shared, hasLength(1));
   });
 
   testWidgets('Photos off: no event picture is requested', (t) async {

@@ -44,13 +44,10 @@ List<HoursEvent> hoursEvents(List<DiningEvent> feed) {
     if (t.endsWith(' Hours') && byTitle.containsKey(t.substring(0, t.length - 6))) continue;
     final h = byTitle['$t Hours'];
     out.add(HoursEvent(
-      title: t, scope: h != null ? halls.join() : '', expires: expires(e), hoursTitle: h?.title.trim(), image: e.featuredImage,
+      title: t, scope: h != null ? halls.join() : '', expires: expires(e), hoursTitle: h?.title.trim(), image: e.featuredImage, flyer: e.pdfLink,
       links: [
-        if (e.pdfLink.isNotEmpty) [h != null ? 'See the menu' : 'Open the flyer', e.pdfLink],
         if (e.externalLink.isNotEmpty) ['Open the link', e.externalLink],
         if (h != null) ['Holiday hours', h.externalLink.isNotEmpty ? h.externalLink : h.pdfLink],
-        // a merged event's "See the menu" opens its day in the app, so the flyer it names keeps a button of its own (not M2's: its link is the flyer)
-        if (h != null && e.pdfLink.isNotEmpty) ['Open the flyer', e.pdfLink],
       ],
     ));
   }

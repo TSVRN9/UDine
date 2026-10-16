@@ -1,4 +1,4 @@
-// What M2 says about an event's date (`evWhen`, `evDay`). The feed publishes only an expiry.
+// What M2 says about an event's date (`evWhen`). The feed publishes only an expiry.
 
 DateTime _utcDay(String iso) => DateTime.parse('${iso}T00:00:00Z');
 
@@ -9,6 +9,3 @@ String eventWhen(String todayIso, int expires) {
   if (days <= 7) return '${wd[d.weekday - 1]}, ${mo[d.month - 1]} ${d.day}';
   return days <= 60 ? 'Through ${mo[d.month - 1]} ${d.day}' : '';
 }
-
-/// How many days after [todayIso] the event's expiry falls (its own day's menu, M2 `evDay`); negative once it has gone by.
-int eventDay(String todayIso, int expires) => ((expires * 1000 - _utcDay(todayIso).millisecondsSinceEpoch) / 864e5).floor();
