@@ -19,6 +19,9 @@ class DishRow extends StatelessWidget {
   /// null: another day's dish, which carries no control (it cannot go on today's plate)
   final RowCode? code;
   final bool here;
+  /// Track what I eat is off: the lane is kept, empty, so the row is the size it was and its name wraps where it did (`visibility:hidden`); in Search
+  /// the tags rise into the control's place
+  final bool track;
   /// a favourite dish carries a star after its name
   final bool favorite;
   final VoidCallback onOpen, onAdd, onInc, onDec;
@@ -26,10 +29,17 @@ class DishRow extends StatelessWidget {
   final Widget? tags;
   /// Search's Later rows: what follows the numbers on the meta line (when, and where), at the wider column gap
   final Widget? tail;
-  const DishRow({super.key, required this.dish, required this.scores, this.contains = const [], this.code, this.here = false, this.favorite = false, required this.onOpen, required this.onAdd, required this.onInc, required this.onDec, this.tags, this.tail});
+  const DishRow({super.key, required this.dish, required this.scores, this.contains = const [], this.code, this.here = false, this.track = true, this.favorite = false, required this.onOpen, required this.onAdd, required this.onInc, required this.onDec, this.tags, this.tail});
 
   /// M2 `.lane`: the control over the tags, both at the right edge; the tags keep clear of it by `tagRight` (a café's name by less)
-  Widget _lane(Widget control) => tags == null
+  Widget _lane(Widget control) => !track
+      ? tags == null
+          ? const SizedBox(width: M2Layout.lane, height: M2Layout.addSize)
+          : ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: M2Layout.laneMin, minWidth: M2Layout.lane),
+              child: Padding(padding: const EdgeInsets.only(top: M2Layout.laneOffTop), child: Align(alignment: Alignment.topRight, child: Padding(padding: const EdgeInsets.only(right: M2Layout.tagRight), child: tags))),
+            )
+      : tags == null
       ? control
       : Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [control, Padding(padding: const EdgeInsets.only(right: M2Layout.tagRight), child: tags)]);
 

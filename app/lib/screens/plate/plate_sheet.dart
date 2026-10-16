@@ -58,6 +58,7 @@ class _PlateSheetState extends State<PlateSheet>
   PlateModel get _m => _scope.plate;
   bool get _visible =>
       _m.write != null &&
+      _scope.prefs.track &&
       (_m.state.plates.isNotEmpty || _m.receipt != null || _m.deleted != null);
   Plate? get _front => _m.state.front < _m.state.plates.length
       ? _m.state.plates[_m.state.front]
@@ -67,6 +68,7 @@ class _PlateSheetState extends State<PlateSheet>
   void initState() {
     super.initState();
     _m.addListener(_onModel);
+    _scope.prefs.addListener(_onModel);
     _shell = ShellScope.of(context)..handleBack(_back);
   }
 
@@ -82,6 +84,7 @@ class _PlateSheetState extends State<PlateSheet>
   @override
   void dispose() {
     _m.removeListener(_onModel);
+    _scope.prefs.removeListener(_onModel);
     _shell.handleBack(null);
     _in.dispose();
     _px.dispose();
@@ -104,7 +107,7 @@ class _PlateSheetState extends State<PlateSheet>
       _in.animateBack(0, duration: a.duration, curve: a.curve);
     }
     // M2 refresh(): no plate left, the sheet closes
-    if (p == null && _handle.attached && _handle.px > M2Layout.barMin) {
+    if ((p == null || !_scope.prefs.track) && _handle.attached && _handle.px > M2Layout.barMin) {
       _handle.to(M2Layout.barMin);
     }
   }

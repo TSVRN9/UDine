@@ -164,7 +164,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final place = g.refs.entries.firstWhere((x) => identical(x.value, d)).key;
     return DishRow(
       key: ValueKey(e.id), dish: d, scores: scope.prefs.scores, contains: _reveal ? hits(scope.prefs.diet, d) : const [], favorite: scope.prefs.isFavorite(d.dishName),
-      code: _code(e, meal), tags: _tags(fx, g.places, 'Served now'),
+      code: _code(e, meal), track: scope.prefs.track, tags: _tags(fx, g.places, 'Served now'),
       onOpen: () => _open(d, place: place, meal: meal, day: 0, refs: g.refs),
       onAdd: () {
         _plate.add(meal, g.name, g.refs);
@@ -295,7 +295,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final extras = c == null ? const <Widget>[] : widget.extras?.call(context, c.query.trim()) ?? const <Widget>[];
     final entries = c == null || ix == null
         ? const <SearchEntry>[]
-        : searchEntries(raw: c.result, query: c.query, lenses: c.lenses, meal: meal, prefs: scope.prefs.diet, reveal: _reveal, track: !scope.menusOnly, hasExtras: extras.isNotEmpty, net: c.menusIn ? c.net : NetLine.failed);
+        : searchEntries(raw: c.result, query: c.query, lenses: c.lenses, meal: meal, prefs: scope.prefs.diet, reveal: _reveal, track: scope.prefs.track, hasExtras: extras.isNotEmpty, net: c.menusIn ? c.net : NetLine.failed);
     _entries = entries;
     final ids = {for (var i = 0; i < entries.length; i++) entries[i].id: i}; // a row that survives a keystroke keeps its element at its new index
     final idle = c != null && c.query.trim().isEmpty && c.lenses.isEmpty;

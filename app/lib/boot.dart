@@ -51,7 +51,7 @@ class Boot {
   final hider = BandHider();
   /// The log You reads (null with no store: menus only). Held in memory, read once at launch and again after anything writes to it.
   late final LogBook? log = store == null ? null : LogBook(store!, now: repo.now);
-  late final plate = PlateModel(write: store?.addEntries, readDay: store?.entriesForDay, now: repo.now, changed: log?.reload);
+  late final plate = PlateModel(tracking: () => prefs.track, write: store?.addEntries, readDay: store?.entriesForDay, now: repo.now, changed: log?.reload);
 
   /// The user's database was saved by a newer build (they installed an older one): the file is never opened for writing, tracking
   /// stays off, and nothing the user does is saved. Menus, hours and busy work as ever, cached in a throwaway in-memory database.
@@ -66,6 +66,8 @@ class Boot {
     final (cache, store) = await openDb(dbPath: flags != null ? inMemoryDatabasePath : (dbPath ?? await udineDbPath()));
     if (flags != null) {
       await store?.setScores(healthfulness: flags.scores.health, carbon: flags.scores.carbon);
+      await store?.setTracking(!flags.trackOff);
+      await store?.setFirstRunSeen(!flags.firstRun);
       if (flags.avoid.isNotEmpty) await store?.setAvoid(flags.avoid);
       if (flags.onlyShow.isNotEmpty) await store?.setOnlyShow(flags.onlyShow);
     }

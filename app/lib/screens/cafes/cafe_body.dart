@@ -45,7 +45,7 @@ class CafeStandingBody extends StatelessWidget {
               Padding(padding: const EdgeInsets.symmetric(vertical: M2Space.kvTop), child: Text("${place.name} doesn't list its menu in the app.", style: M2Text.sched.style(M2Color.slate))),
             ]),
         },
-        if (AppScope.of(context).plate.write != null) // (no plate to put it on when a newer build owns the database)
+        if (AppScope.of(context).prefs.track) // (off, or no plate to put it on when a newer build owns the database)
           Padding(padding: EdgeInsets.only(top: kind is NamesBody ? M2Space.group : pdf ? M2Space.eventBottom : 0), child: Button(kind: ButtonKind.primary, label: 'Add a custom food', expand: true, onTap: () => openCustomFood(context, meal: clockMeal(AppScope.of(context).repo.now())))),
         if (pdf) desc(M2Space.group),
       ]),

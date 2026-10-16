@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:udine/ui/ui.dart' show Button;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/boot.dart';
+import 'package:udine/shell/prefs.dart';
 import 'package:udine/core/hours.dart' show easternInstant;
 import 'package:udine/core/m2/board.dart' show Macro;
 import 'package:udine/core/m2/log.dart';
@@ -179,7 +180,7 @@ void main() {
 
     testWidgets('a café page has no Add a custom food when a newer build owns the database (nothing to put it on)', (t) async {
       final b = await bootRecorded(t);
-      final none = Boot(b.repo, null, b.prefs);
+      final none = Boot(b.repo, null, (await t.runAsync(() => AppPrefs.load(null)))!); // (as Boot.open pairs them: no store, no preferences)
       await openApp(t, none, route: '/cafe/0');
       await until(t, () => find.textContaining("doesn't list its menu").evaluate().isNotEmpty);
       expect(find.text('Add a custom food'), findsNothing);

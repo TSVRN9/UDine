@@ -9,6 +9,7 @@ import 'package:udine/core/store/store.dart';
 import 'package:udine/shell/prefs.dart';
 
 void main() {
+  group('track', trackTests);
   sqfliteFfiInit();
   late Directory dir;
   late Database db;
@@ -65,5 +66,55 @@ void main() {
     expect(p.scores, (health: true, carbon: true));
     expect(await store.scores(), (healthfulness: true, carbon: true));
     expect(heard, 2);
+  });
+}
+
+// Track what I eat and first run (flutter-port-you Task 3): both ride preferences_kv, written only when the user acts.
+void trackTests() {
+  sqfliteFfiInit();
+  late Directory dir;
+  late Database db;
+  late UdineStore store;
+  setUp(() async {
+    dir = Directory.systemTemp.createTempSync('udine_track');
+    db = ((await openStore('${dir.path}/SQLite/udine.db', factory: databaseFactoryFfi)) as StoreReady).db;
+    store = UdineStore(db);
+  });
+  tearDown(() async {
+    await db.close();
+    dir.deleteSync(recursive: true);
+  });
+
+  test('tracking is on by default, off survives a restart, and a newer database never tracks', () async {
+    var p = await AppPrefs.load(store);
+    expect(p.track, isTrue);
+    await p.setTrack(false);
+    expect(p.track, isFalse);
+    p = await AppPrefs.load(store);
+    expect(p.track, isFalse);
+    await p.setTrack(true);
+    expect((await AppPrefs.load(store)).track, isTrue);
+    final none = await AppPrefs.load(null);
+    expect(none.track, isFalse);
+    await none.setTrack(true);
+    expect(none.track, isFalse, reason: 'nothing can be recorded without a store');
+  });
+
+  test('first run is unseen until it is marked, and the mark survives a restart', () async {
+    var p = await AppPrefs.load(store);
+    expect(p.firstRunSeen, isFalse);
+    expect(await store.firstRunSeen(), isFalse); // (nothing was written by loading)
+    await p.markFirstRunSeen();
+    expect(p.firstRunSeen, isTrue);
+    expect((await AppPrefs.load(store)).firstRunSeen, isTrue);
+  });
+
+  test('marking first run seen writes nothing else: an RN user\'s preferences are untouched', () async {
+    await db.insert('preferences_kv', {'key': 'food_preferences', 'value_json': '{"allergensToAvoid":["Milk"],"requiredDietTags":["Halal"]}'});
+    final p = await AppPrefs.load(store);
+    await p.markFirstRunSeen();
+    expect((await db.query('preferences_kv', where: "key = 'food_preferences'")).single['value_json'], '{"allergensToAvoid":["Milk"],"requiredDietTags":["Halal"]}');
+    expect(await store.scores(), (healthfulness: false, carbon: false));
+    expect(await store.tracking(), isTrue);
   });
 }
