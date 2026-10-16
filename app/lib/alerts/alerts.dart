@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'package:sqflite/sqflite.dart' show DatabaseFactory;
@@ -18,9 +20,21 @@ const alertTask = 'com.udinetogether.udine.favoriteAlerts';
 const _channel = AndroidNotificationDetails('favorite_alerts', 'Favorites on the menu');
 final _notifications = FlutterLocalNotificationsPlugin();
 
-/// A tap on a notification while the app is running; the app (see app.dart) opens the route. Single-subscription, so a tap that arrives
-/// before the app listens (the OS restarting a killed process on the notification's intent) is held, not dropped.
-final alertTaps = StreamController<String>();
+/// A tap on a notification while the app is running; the app (see app.dart) opens the route.
+final alertTaps = StreamController<String>.broadcast();
+String? _heldTap;
+
+/// A tap that arrived before the app listened (the OS restarting a killed process on the notification's intent), once.
+String? takeHeldTap() {
+  final t = _heldTap;
+  _heldTap = null;
+  return t;
+}
+
+@visibleForTesting
+void debugTapForTest(String route) => _tapped(route);
+
+void _tapped(String route) => alertTaps.hasListener ? alertTaps.add(route) : _heldTap = route;
 
 Future<void> _initNotifications() => _notifications.initialize(
       settings: const InitializationSettings(
@@ -29,7 +43,7 @@ Future<void> _initNotifications() => _notifications.initialize(
         iOS: DarwinInitializationSettings(requestAlertPermission: false, requestBadgePermission: false, requestSoundPermission: false),
       ),
       onDidReceiveNotificationResponse: (r) {
-        if (r.payload case final route?) alertTaps.add(route);
+        if (r.payload case final route?) _tapped(route);
       },
     );
 
