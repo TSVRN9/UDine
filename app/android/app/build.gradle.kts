@@ -26,7 +26,7 @@ android {
         applicationId = "com.udinetogether.udine"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = maxOf(flutter.minSdkVersion, 26)   // Health Connect's client library
+        minSdk = flutter.minSdkVersion   // 24, as RN shipped; Health Connect's client library needs 26 (manifest overrideLibrary, calls guarded in MainActivity)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

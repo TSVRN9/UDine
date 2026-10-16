@@ -98,6 +98,17 @@ void main() {
       expect(m, isNot(contains('health.READ')));
     });
 
+    test('minSdk is not raised: Gradle keeps Flutter\'s, and the manifest overrides the Health Connect library', () {
+      final g = File('android/app/build.gradle.kts').readAsStringSync();
+      expect(g, contains('minSdk = flutter.minSdkVersion'));
+      expect(g, isNot(contains('maxOf(')));
+      final m = File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+      expect(m, contains('xmlns:tools="http://schemas.android.com/tools"'));
+      expect(m, contains('<uses-sdk tools:overrideLibrary="androidx.health.connect.client"/>'));
+      final k = File('android/app/src/main/kotlin/com/udinetogether/udine/MainActivity.kt').readAsStringSync();
+      expect(k, contains('Build.VERSION.SDK_INT < 26'));
+    });
+
     test('iOS: HealthKit entitlement and the update string, no share (read) string', () {
       final plist = File('ios/Runner/Info.plist').readAsStringSync();
       expect(plist, contains('NSHealthUpdateUsageDescription'));

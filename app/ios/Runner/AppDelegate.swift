@@ -72,7 +72,7 @@ final class HealthChannel {
             guard let (id, unit) = map[k], let t = HKQuantityType.quantityType(forIdentifier: id) else { continue }
             samples.insert(HKQuantitySample(type: t, quantity: HKQuantity(unit: unit, doubleValue: v), start: start, end: end, metadata: meta))
           }
-          let meal = HKCorrelation(type: HKCorrelationType(.food), start: start, end: end, objects: samples, metadata: meta)
+          let meal = HKCorrelation(type: HKCorrelationType.correlationType(forIdentifier: .food)!, start: start, end: end, objects: samples, metadata: meta)
           store.save(meal) { ok, _ in
             DispatchQueue.main.async {
               result(ok ? ([meal.uuid.uuidString] + samples.map { $0.uuid.uuidString }) : nil)
@@ -92,7 +92,7 @@ final class HealthChannel {
     let uuids = Set(ids.compactMap { UUID(uuidString: $0) })
     if uuids.isEmpty { done(true); return }
     let pred = HKQuery.predicateForObjects(with: uuids)
-    let types: [HKSampleType] = [HKCorrelationType(.food)] + map.values.compactMap { HKQuantityType.quantityType(forIdentifier: $0.0) }
+    let types: [HKSampleType] = [HKCorrelationType.correlationType(forIdentifier: .food)!] + map.values.compactMap { HKQuantityType.quantityType(forIdentifier: $0.0) }
     var objs: [HKObject] = []
     let lock = NSLock()
     let group = DispatchGroup()

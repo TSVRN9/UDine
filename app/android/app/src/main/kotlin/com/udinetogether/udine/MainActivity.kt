@@ -1,5 +1,6 @@
 package com.udinetogether.udine
 
+import android.os.Build
 import androidx.activity.result.ActivityResultLauncher
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
@@ -25,6 +26,7 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT < 26) return
         askForPermissions = registerForActivityResult(PermissionController.createRequestPermissionResultContract()) { granted ->
             pending?.success(granted.isNotEmpty())
             pending = null
@@ -40,6 +42,11 @@ class MainActivity : FlutterFragmentActivity() {
 
     // Write only: nothing here ever reads a record back.
     private fun handle(call: MethodCall, result: MethodChannel.Result) {
+        // minSdk is 24 but Health Connect's library is 26+ (manifest overrideLibrary): no call below may run on older devices.
+        if (Build.VERSION.SDK_INT < 26) {
+            result.success(when (call.method) { "access" -> "unsupported"; "write" -> null; else -> false })
+            return
+        }
         val status = HealthConnectClient.getSdkStatus(this)
         if (call.method == "access" && status != HealthConnectClient.SDK_AVAILABLE) {
             result.success(if (status == HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED) "notInstalled" else "unsupported")

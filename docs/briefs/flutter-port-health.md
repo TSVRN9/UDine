@@ -53,7 +53,19 @@ Rationale:
   returns no ids (its Android side does take `clientRecordId`), and it has no iOS delete by id; it also needs its own read-leaning
   permission plumbing. The channel is `udine/health`: `MainActivity.kt` (Health Connect 1.1.0 client, `clientRecordId` upsert) and
   `AppDelegate.swift` (HealthKit food correlation). Dart side `app/lib/core/health/`.
-- **Field mapping, verified against the sources** (HC `NutritionRecord` properties; HealthKit `HKQuantityTypeIdentifier`):
+- **Field mapping, verified (2026-10-16).** Health Connect: `connect-client` 1.1.0 sources jar and AAR from Google Maven, field names,
+  `Mass`/`Energy` units, ranges (0 to 100 g for sodium and cholesterol, 0 to 100 kg for fat, carbohydrate, fibre, sugar and protein),
+  `Metadata.manualEntry(clientRecordId, clientRecordVersion, device)`, `deleteRecords(recordType, recordIdsList, clientRecordIdsList)`,
+  `getSdkStatus` (API 34+: available when the platform service exists; API 28 to 33: available when the app is installed, else
+  `SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED`; below 28: `SDK_UNAVAILABLE`), `PermissionController.createRequestPermissionResultContract()`
+  (a contract of `Set<String>` to `Set<String>`) and `NutritionRecord` requiring start before end all read from source. HealthKit: Apple's
+  docs pages are JavaScript-rendered and could not be fetched, so the nine dietary identifiers and the absence of a trans-fat type were
+  checked in the shipping Swift of `health` 13.3.2 (`HealthConstants.swift`: its trans-fat entry is commented out), and the food
+  correlation is made with `HKCorrelationType.correlationType(forIdentifier: .food)`, the form that package uses.
+- **minSdk stays 24** (RN's). `connect-client` declares 26, so the manifest has `tools:overrideLibrary="androidx.health.connect.client"`
+  (its proto dependencies are jars with no manifest) and `MainActivity.kt` returns `unsupported` (false or null) below API 26 without
+  touching the library. Note Health Connect itself reports unavailable below API 28.
+- **Field mapping:** (HC `NutritionRecord` properties; HealthKit `HKQuantityTypeIdentifier`):
 
   | Label field | Health Connect `NutritionRecord` | Apple Health type | Unit |
   |---|---|---|---|
