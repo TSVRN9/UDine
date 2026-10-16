@@ -1,10 +1,10 @@
 {
-  "sha": "389c0ac116ea5a387117637c1a4a3c7f6e9d8304",
+  "sha": "dd27251c3a4668d2279bd48ee9ded8e428d1b667",
   "branch": "flutter/custom-food",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/port-custom",
   "route": "/custom?data=recorded&at=2026-10-08T12:41&net=ok&photos=off",
   "device": "sdk_gphone64_x86_64",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-15T14:46:36Z"
+  "ts": "2026-10-16T02:42:38Z"
 }
