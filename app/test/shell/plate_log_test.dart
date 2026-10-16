@@ -6,6 +6,8 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:udine/core/m2/board.dart';
+import 'package:udine/core/m2/bowl.dart' show buildOf;
+import 'package:udine/core/m2/bowl_builder.dart';
 import 'package:udine/core/m2/log.dart';
 import 'package:udine/core/date.dart';
 import 'package:udine/core/m2/plate.dart';
@@ -154,6 +156,27 @@ void main() {
       benchmark(none);
       expect(await none.log(), isFalse);
       expect(none.state.plates, hasLength(1));
+    });
+  });
+
+  group('a bowl', () {
+    test('Log writes one row with its parts in source_json and the summed nutrition; Undo takes exactly it out; a plain dish beside it has no parts', () async {
+      final ss = board.days[today]!['W']!['lunch']!, si = ss.indexWhere((x) => x.name == 'Noodle Bowl'), di = ss[si].dishes.indexWhere((x) => x.dishName == brisket);
+      final spec = BowlSpec.build(buildOf(board, today, 'W', 'lunch', si, di)!, place: 'W', meal: 'lunch');
+      final bowl = bowlNow(spec, {spec.parts.indexWhere((x) => x.dishName == 'Hard Boiled Egg'): 2});
+      m.addBowl('lunch', spec, bowl);
+      m.add('lunch', bbq, refs('lunch', bbq, ['W']));
+      expect(await m.log(), isTrue);
+      final mine = (await store.allEntries()).where((e) => e.id != 'old').toList(), row = mine.firstWhere((e) => (e.source as UmassMenuSource).dishName == brisket);
+      final src = (row.source as UmassMenuSource).toJson();
+      expect((src['parts'] as List).single, containsPair('name', 'Hard Boiled Egg'));
+      expect((src['parts'] as List).single, containsPair('servings', 2));
+      expect(row.nutrition.calories, bowl.item.nutrition.calories);
+      expect(((await raw(store)).firstWhere((r) => (r['source_json'] as String).contains('"parts"'))['source_json'] as String), contains('"Hard Boiled Egg"'));
+      expect((mine.firstWhere((e) => (e.source as UmassMenuSource).dishName == bbq).source as UmassMenuSource).parts, isNull);
+      expect(await m.undo(), isTrue);
+      expect((await store.allEntries()).map((e) => e.id), ['old']);
+      expect(m.state.plates.single.items.first.bowl, isNotNull); // the plate is back with its bowl
     });
   });
 

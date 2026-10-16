@@ -4,7 +4,6 @@ import 'package:udine/boot.dart';
 import 'package:udine/core/m2/board.dart';
 import 'package:udine/screens/dish/dish_sheet.dart';
 import 'package:udine/screens/dish/full_label.dart';
-import 'package:udine/screens/hall/dish_row.dart';
 import 'package:udine/screens/hall/hall_menu.dart';
 import 'package:udine/ui/ui.dart';
 import '../fonts.dart';
