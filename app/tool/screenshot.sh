@@ -5,7 +5,11 @@ set -euo pipefail
 # provenance sidecar scripts/pr-gate.sh checks (same keys as mobile/scripts/screenshot.sh).
 #
 #   app/tool/screenshot.sh <route> [--serial S] [--apk PATH] [--record SECS]
-#                          [--swipe X1 Y1 X2 Y2 [MS]] [--tap X Y]... [--tap-gap SECS] [--settle SECS] [--out PATH] [--with-photos]
+#                          [--swipe X1 Y1 X2 Y2 [MS]] [--tap X Y]... [--tap-gap SECS] [--then-swipe X1 Y1 X2 Y2 [MS]]
+#                          [--settle SECS] [--out PATH] [--with-photos]
+#
+# --swipe runs before the taps, --then-swipe 1.5 s after them (a back gesture over a page the taps opened; from x=1 with
+# gesture navigation on, it is Android's back swipe).
 #
 # <route> is handed to FlutterActivity as the `route` extra (-> PlatformDispatcher.defaultRouteName),
 # e.g. /kit or '/hall/franklin?data=recorded&at=2026-10-08T12:41&net=ok'. Recorded data assets ship
@@ -27,13 +31,14 @@ set -euo pipefail
 PKG=com.udinetogether.udine.internal
 ACT=$PKG/com.udinetogether.udine.MainActivity
 ROUTE="${1:?usage: screenshot.sh <route> [flags]}"; shift
-SERIAL="${ANDROID_SERIAL:-}"; APK=""; RECORD=""; SWIPE=(); TAPS=(); TAPGAP=0.15; OUT=""; SETTLE=3; PHOTOS=off
+SERIAL="${ANDROID_SERIAL:-}"; APK=""; RECORD=""; SWIPE=(); THEN=(); TAPS=(); TAPGAP=0.15; OUT=""; SETTLE=3; PHOTOS=off
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --serial) SERIAL="$2"; shift 2 ;;
     --apk) APK="$2"; shift 2 ;;
     --record) RECORD="$2"; shift 2 ;;
     --swipe) SWIPE=("$2" "$3" "$4" "$5"); shift 5; [[ "${1:-}" =~ ^[0-9]+$ ]] && { SWIPE+=("$1"); shift; } ;;
+    --then-swipe) THEN=("$2" "$3" "$4" "$5"); shift 5; [[ "${1:-}" =~ ^[0-9]+$ ]] && { THEN+=("$1"); shift; } ;;
     --tap) TAPS+=("$2 $3"); shift 3 ;;
     --tap-gap) TAPGAP="$2"; shift 2 ;;
     --out) OUT="$2"; shift 2 ;;
@@ -91,6 +96,7 @@ if [[ -n "$RECORD" ]]; then
   sleep 1
   [[ ${#SWIPE[@]} -gt 0 ]] && "${A[@]}" shell input swipe "${SWIPE[@]}"
   for t in "${TAPS[@]}"; do "${A[@]}" shell input tap $t; sleep "$TAPGAP"; done
+  [[ ${#THEN[@]} -gt 0 ]] && { sleep 1.5; "${A[@]}" shell input swipe "${THEN[@]}"; }
   wait "$REC" || true
   sleep 1
   "${A[@]}" pull /sdcard/udine-shot.mp4 "$STEM.mp4" >/dev/null
@@ -102,6 +108,7 @@ else
   [[ ${#SWIPE[@]} -gt 0 ]] && { "${A[@]}" shell input swipe "${SWIPE[@]}"; sleep 1; }
   for t in "${TAPS[@]}"; do "${A[@]}" shell input tap $t; sleep "$TAPGAP"; done
   [[ ${#TAPS[@]} -gt 0 ]] && sleep 1
+  [[ ${#THEN[@]} -gt 0 ]] && { sleep 0.5; "${A[@]}" shell input swipe "${THEN[@]}"; sleep 1; }
 fi
 "${A[@]}" exec-out screencap -p > "$STEM.png"
 python3 -I - "$STEM.png" <<'PY'
