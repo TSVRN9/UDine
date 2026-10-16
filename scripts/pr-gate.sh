@@ -112,6 +112,9 @@ if [[ ${#RENDERED[@]} -gt 0 ]]; then
     PIXEL_PATHS=(app/lib app/assets app/pubspec.yaml app/pubspec.lock app/android/app/src/main/res app/ios/Runner
       mobile/src mobile/assets mobile/app.json mobile/plugins shared/src
       ':(exclude)*_test.dart' ':(exclude)*.test.ts' ':(exclude)*.test.tsx')
+    # ...and only the ones this PR itself changes: code a merge of the base brings in was captured by its own PR
+    # (and, per capture, the ones it had changed when captured, so a file it later deletes or reverts still counts)
+    mapfile -d '' -t OWN < <(git diff -z --name-only "$BASE" "$HEAD_REF" -- "${PIXEL_PATHS[@]}")
     read_sidecar() {
       if [[ -n "$PR" ]]; then git show "$HEAD_REF:$1" 2>/dev/null; else cat "$1" 2>/dev/null; fi
     }
@@ -125,8 +128,10 @@ if [[ ${#RENDERED[@]} -gt 0 ]]; then
       if [[ "$dirty" == "true" ]]; then fail "$png: captured with uncommitted changes -- commit, then re-capture"; continue; fi
       if ! git merge-base --is-ancestor "$sha" "$HEAD_REF" 2>/dev/null; then fail "$png: captured at $sha, not an ancestor of $HEAD_REF"; continue; fi
       # Only paths that can change pixels make a capture stale; test, doc and script commits don't (owner, 2026-10-15).
-      if ! git diff --quiet "$sha" "$HEAD_REF" -- "${PIXEL_PATHS[@]}"; then
-        fail "$png: rendered code changed since capture ($sha -> ${HEAD_SHA:0:8}) -- re-capture"
+      mapfile -d '' -t then_own < <(git diff -z --name-only "$(git merge-base "origin/$BASE_BRANCH" "$sha")" "$sha" -- "${PIXEL_PATHS[@]}")
+      own=("${OWN[@]}" "${then_own[@]}")
+      if [[ ${#own[@]} -gt 0 ]] && ! git diff --quiet "$sha" "$HEAD_REF" -- "${own[@]}"; then
+        fail "$png: this PR's rendered code changed since capture ($sha -> ${HEAD_SHA:0:8}) -- re-capture"
       else
         info "$png  ok (sha ${sha:0:8}, route $(jq -r .route <<<"$side_content"), device $(jq -r .device <<<"$side_content"))"
       fi
