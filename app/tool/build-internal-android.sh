@@ -14,6 +14,8 @@ for a in "$@"; do case $a in --install) install=1;; --replace) install=1 replace
 sha="$(git rev-parse --short HEAD)$(git status --porcelain -- . | grep -q . && echo -dirty || true)"
 version="$(sed -nE 's/^version: *([^+ ]+).*/\1/p' pubspec.yaml)"
 tool/link_photos.sh || echo "building without UMass photos" >&2 # the owner ships them (2026-10-14); never committed
+# the links only need to last the build: left in place, they break the goldens (which expect the maroon ground) for every later flutter test
+trap 'find assets/photos -type l -delete 2>/dev/null || true' EXIT
 # Flutter's asset step doesn't notice files newly linked into a declared folder: a tree built without the photos keeps building without them
 rm -rf build/app/intermediates/flutter/internalProfile
 flutter build apk --flavor internal --profile --build-name "$version+$sha"
