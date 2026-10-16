@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds "UDine (internal)" (com.udinetogether.udine.internal), a profile APK signed with the key in ~/.config/udine/ and named
 # <pubspec version>+<commit sha> so a stale install shows in Settings. --install puts it on the attached device ($ANDROID_SERIAL
-# when several are attached); --replace uninstalls an internal build signed with another key first, which wipes its data.
+# when several are attached); --replace also uninstalls an internal build signed with another key, which wipes its data.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 props="$HOME/.config/udine/key.properties"
@@ -14,15 +14,20 @@ for a in "$@"; do case $a in --install) install=1;; --replace) install=1 replace
 sha="$(git rev-parse --short HEAD)$(git status --porcelain -- . | grep -q . && echo -dirty || true)"
 version="$(sed -nE 's/^version: *([^+ ]+).*/\1/p' pubspec.yaml)"
 tool/link_photos.sh || echo "building without UMass photos" >&2 # the owner ships them (2026-10-14); never committed
+# Flutter's asset step doesn't notice files newly linked into a declared folder: a tree built without the photos keeps building without them
+rm -rf build/app/intermediates/flutter/internalProfile
 flutter build apk --flavor internal --profile --build-name "$version+$sha"
 apk=build/app/outputs/flutter-apk/app-internal-profile.apk
 echo "built $apk ($version+$sha)"
 (( install )) || exit 0
 pkg=com.udinetogether.udine.internal
-(( replace )) && adb uninstall "$pkg" >/dev/null 2>&1 || true
 if ! out="$(adb install -r "$apk" 2>&1)"; then
-  echo "$out" >&2
-  grep -q UPDATE_INCOMPATIBLE <<<"$out" && echo "the installed $pkg is signed with another key: rerun with --replace (it wipes that build's data)" >&2
-  exit 1
+  if grep -q UPDATE_INCOMPATIBLE <<<"$out" && (( replace )); then
+    adb uninstall "$pkg" >/dev/null && out="$(adb install "$apk" 2>&1)" || { echo "$out" >&2; exit 1; }
+  else
+    echo "$out" >&2
+    grep -q UPDATE_INCOMPATIBLE <<<"$out" && echo "the installed $pkg is signed with another key: rerun with --replace (it wipes that build's data)" >&2
+    exit 1
+  fi
 fi
 echo "installed $pkg on ${ANDROID_SERIAL:-the attached device}"
