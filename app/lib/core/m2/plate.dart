@@ -54,8 +54,9 @@ String customKey(String name, Macro m) {
 /// M2 `wouldSplit`: a plate exists and none of them can take the dish (its + would start another).
 bool wouldSplit(PlateState s, String meal, List<String> places) => s.plates.isNotEmpty && !s.plates.any((p) => _canJoin(p, meal, places));
 
-PlateState addDish(PlateState s, String meal, String name, Map<String, MenuItem> refs, [Macro? custom]) {
-  final key = custom != null ? customKey(name, custom) : dishKey(name);
+/// [key0] is a bowl's own (`Bowl.key`); otherwise a custom food's is [customKey], a dish's its name's.
+PlateState addDish(PlateState s, String meal, String name, Map<String, MenuItem> refs, [Macro? custom, String? key0]) {
+  final key = key0 ?? (custom != null ? customKey(name, custom) : dishKey(name));
   final hs = custom != null ? null : refs.keys.toList();
   final front = s.front < s.plates.length ? s.plates[s.front] : null;
   var plates = s.plates, nextId = s.nextId;
