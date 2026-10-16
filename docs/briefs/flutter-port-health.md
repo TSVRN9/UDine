@@ -45,10 +45,33 @@ Rationale:
   verified here, against Health Connect's `NutritionRecord` and HealthKit's dietary types, and recorded
   in this brief.
 - **Record ids are kept on the device.** A `health_writes(meal_id, platform, record_ids_json)` table
-  (migration `user_version` 2) lets an edit or delete find its record without reading Health. It's
+  (migration `user_version` 3 to 4: saved_foods took 2, favorite alerts 3) lets an edit or delete find its record without reading Health. It's
   exported like every other table.
 - **Package:** the `health` pub package if it supports writing nutrition records with client ids on both
   platforms. Otherwise, a minimal platform channel per OS. Name the choice and the reason in the PR.
+- **Package decision (Task 1): a platform channel, not `health` 13.3.2.** The package's iOS `writeMeal` takes no client id and
+  returns no ids (its Android side does take `clientRecordId`), and it has no iOS delete by id; it also needs its own read-leaning
+  permission plumbing. The channel is `udine/health`: `MainActivity.kt` (Health Connect 1.1.0 client, `clientRecordId` upsert) and
+  `AppDelegate.swift` (HealthKit food correlation). Dart side `app/lib/core/health/`.
+- **Field mapping, verified against the sources** (HC `NutritionRecord` properties; HealthKit `HKQuantityTypeIdentifier`):
+
+  | Label field | Health Connect `NutritionRecord` | Apple Health type | Unit |
+  |---|---|---|---|
+  | calories | `energy` | `dietaryEnergyConsumed` | kcal |
+  | total fat | `totalFat` | `dietaryFatTotal` | g |
+  | saturated fat | `saturatedFat` | `dietaryFatSaturated` | g |
+  | trans fat | `transFat` | none (HealthKit has no trans-fat type; iOS skips it) | g |
+  | cholesterol | `cholesterol` | `dietaryCholesterol` | mg |
+  | sodium | `sodium` | `dietarySodium` | mg |
+  | carbohydrate | `totalCarbohydrate` | `dietaryCarbohydrates` | g |
+  | fibre | `dietaryFiber` | `dietaryFiber` | g |
+  | sugars | `sugar` | `dietarySugar` | g |
+  | protein | `protein` | `dietaryProtein` | g |
+
+  Calories from fat is not written. Values are the meal's rows times servings, rounded to 2 places. Name = the meal's title; time =
+  loggedAt (the meal id), a one-minute span because Health Connect needs start before end.
+- **Ids:** Android keeps `udine-<loggedAt>` as the record's client id (an edit writes the same id with a higher version, which
+  replaces it in place); iOS keeps the correlation's and its samples' UUIDs (objects are immutable: an edit deletes them, then saves).
 - iOS can't be seen until store builds are allowed. The HealthKit entitlement and usage strings are set
   up here, and the iOS check goes on `docs/agents/ios-checklist.md` for the tester.
 
