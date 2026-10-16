@@ -4,12 +4,12 @@ import '../theme/tokens.dart';
 
 typedef TableDump = ({String name, int count, List<String> rows});
 
-const _newest = 40, _cell = 90;
+const _newest = 40, _cell = 56;
 
 /// Every table of the device database: its row count and its newest rows (by rowid), one line each. Reads only.
 Future<({int userVersion, List<TableDump> tables})> dumpStore(Database db) async {
   final version = (await db.rawQuery('PRAGMA user_version')).first.values.first! as int;
-  final names = [for (final r in await db.rawQuery("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")) r['name']! as String];
+  final names = [for (final r in await db.rawQuery("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name <> 'android_metadata' ORDER BY name")) r['name']! as String];
   String cell(Object? v) {
     final s = '$v';
     return s.length > _cell ? '${s.substring(0, _cell)}...' : s;
