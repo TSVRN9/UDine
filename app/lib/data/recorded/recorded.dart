@@ -68,6 +68,7 @@ Future<Repository> recordedRepository(RecordedFlags f, Database db, {
   if (f.net == NetMode.offline) {
     await repo.launch(pins: pins);
     await repo.savePdfs(f.savedPdfs);
+    await repo.saveCafes(f.savedCafes);
     net.mode = NetMode.offline;
   }
   return repo;

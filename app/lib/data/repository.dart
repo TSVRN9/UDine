@@ -232,10 +232,10 @@ class Repository {
     },
   );
 
-  /// Events aren't saved: nothing in the brief asks for them offline.
-  Stream<DataState<List<DiningEvent>>> events() => _load(fetch: source.events, parse: (raw, _) => parseEvents(raw as Map<String, dynamic>));
+  /// Events are saved for the day like hours (`events:v2:<date>`), so offline Search keeps its Events row; always re-fetched behind the saved copy.
+  Stream<DataState<List<DiningEvent>>> events() => _load(key: 'events:v2:$today', fetch: source.events, parse: (raw, _) => parseEvents(raw as Map<String, dynamic>));
 
-  /// Launch: drop entries older than yesterday, then warm today and tomorrow for the four halls, and today's hours, and the PDFs of the
+  /// Launch: drop entries older than yesterday, then warm today and tomorrow for the four halls, and today's hours and events, and the PDFs of the
   /// [pins]' menus (pinned cafés only: owner, round 11). Per-item failures are swallowed; this never throws.
   Future<void> launch({List<String> pins = const []}) async {
     final t = today;
@@ -244,6 +244,7 @@ class Repository {
       for (final d in [t, addDays(t, 1)])
         for (final h in diningHalls) menu(h.tid, d).drain<void>(),
       _warmHours(t, pins),
+      events().drain<void>(),
     ]);
   }
 
@@ -269,6 +270,20 @@ class Repository {
           if (names.contains(menuName(l.label))) await cache.fetch(l.url).then<void>((_) {}, onError: (_) {});
         }
       }
+    }
+  }
+
+  /// Saves today's menu of the cafés named [names], from today's hours (recorded mode's `saved=Green Fields`: a café opened today).
+  Future<void> saveCafes(Set<String> names) async {
+    if (names.isEmpty) return;
+    HoursData? last;
+    await for (final s in hours(today)) {
+      if (s case Loaded(:final value) || LoadedOffline(:final value)) last = value;
+    }
+    final byTitle = {for (final r in last?.feed.retail ?? const <RetailLocationHours>[]) straight(r.name): r.locationId};
+    for (final e in cafeTable) {
+      final id = names.contains(e.name) ? byTitle[straight(e.title)] : null;
+      if (id != null) await menu(id, today).drain<void>();
     }
   }
 
@@ -302,7 +317,7 @@ class Repository {
   /// Deletes menu:v2:/hours:v2: entries dated before yesterday. Keys end in their YYYY-MM-DD.
   Future<void> prune(String today) => db.delete(
     'preferences_kv',
-    where: "(key LIKE 'menu:v2:%' OR key LIKE 'hours:v2:%') AND substr(key, -10) < ?",
+    where: "(key LIKE 'menu:v2:%' OR key LIKE 'hours:v2:%' OR key LIKE 'events:v2:%') AND substr(key, -10) < ?",
     whereArgs: [addDays(today, -1)],
   );
 

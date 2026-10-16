@@ -11,6 +11,7 @@ import 'package:udine/data/recorded/recorded_client.dart';
 import 'package:udine/data/repository.dart';
 import 'package:udine/data/source.dart';
 import 'package:udine/data/supabase_source.dart';
+import 'package:udine/screens/halls/halls_model.dart' show NetLine;
 import 'package:udine/screens/search/search_controller.dart';
 import 'package:udine/shell/plate_model.dart';
 import 'package:udine/shell/prefs.dart';
@@ -91,13 +92,81 @@ void main() {
     expect(identical(c.result, before), isFalse, reason: 'a keystroke recomputes, with the plate as it is now');
   });
 
-  test('no hours (offline, nothing saved): nothing to search, no throw, no message of its own', () async {
+  Future<SearchController> open(NetMode mode, {Set<String> cafes = const {}}) async {
+    final r = await recordedRepository(RecordedFlags(at: lunch, net: mode, savedCafes: cafes), db, read: _read);
+    final c = SearchController(r, prefs, plate);
+    addTearDown(c.dispose);
+    await ready(c);
+    return c;
+  }
+
+  test('offline: the halls\' two days are searched from the phone, no café is named, and the net line says offline', () async {
+    final c = await open(NetMode.offline);
+    expect(c.net, NetLine.offline);
+    expect(c.savedCafes, isEmpty);
+    c.setQuery('chicken');
+    expect(c.result.now, isNotEmpty);
+    expect(c.result.cafes, isEmpty, reason: 'a café never opened has nothing saved');
+  });
+
+  test('offline with a café opened today: its dishes are found and it is named', () async {
+    final c = await open(NetMode.offline, cafes: {'Green Fields'});
+    expect(c.savedCafes, ['Green Fields']);
+    final dish = c.index!.fx.days[c.repo.today]!['c3']!.values.first.first.dishes.first.dishName;
+    c.setQuery(dish);
+    expect([...c.result.cafes, ...c.result.now].any((x) => x.g.refs.keys.contains('c3')), isTrue, reason: 'the saved café\'s own dish is found offline');
+    final online = await open(NetMode.ok);
+    expect(online.net, NetLine.none);
+    expect(online.savedCafes, isEmpty, reason: 'only offline names what is saved');
+  });
+
+  test('offline with nothing saved at all: places still match by name, no dish does', () async {
     final off = Repository(UmassSource(NetClient(RecordedClient(menus: const {}, locations: '[]', events: '{}'), NetMode.offline, Duration.zero)), db, now: () => lunch);
     final c = SearchController(off, prefs, plate);
     addTearDown(c.dispose);
     await Future<void>.delayed(const Duration(milliseconds: 300));
-    expect(c.index, isNull);
-    c.setQuery('pizza');
-    expect(c.result.isEmpty, isTrue);
+    expect(c.net, NetLine.offline);
+    c.setQuery('worcester');
+    expect(c.result.places, isNotEmpty);
+    expect(c.result.dishes, isEmpty);
   });
+
+  test('failed: no menu group, the places still match, and Try again asks the hours again', () async {
+    final c = await _failed(db, prefs, plate);
+    expect(c.net, NetLine.failed);
+    c.setQuery('worcester');
+    expect(c.result.places, isNotEmpty);
+    expect(c.result.dishes, isEmpty);
+    c.hallsData.retry();
+    expect(c.hallsData.state, isA<Loading>());
+  });
+
+  test('failed, then the network is back: Try again brings the menus in place', () => _recovers(db, prefs, plate));
+}
+
+// (kept after main: it builds its own client)
+Future<void> _recovers(Database db, AppPrefs prefs, PlateModel plate) async {
+  final net = NetClient(RecordedClient(menus: jsonDecode(await _read('menus-2026-10-08-to-22.json')) as Map<String, dynamic>, locations: await recordedLocations(_read), events: await _read('events-raw.json')), NetMode.fail, Duration.zero);
+  final c = SearchController(Repository(UmassSource(net), db, supabase: SupabaseSource(net), now: () => lunch), prefs, plate);
+  for (var i = 0; i < 100 && c.net != NetLine.failed; i++) {
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+  expect(c.net, NetLine.failed);
+  expect(c.menusIn, isFalse);
+  net.mode = NetMode.ok;
+  c.hallsData.retry();
+  await ready(c);
+  expect(c.net, NetLine.none);
+  c.setQuery('chicken');
+  expect(c.result.now, isNotEmpty, reason: 'the menus come back in place');
+  c.dispose();
+}
+
+Future<SearchController> _failed(Database db, AppPrefs prefs, PlateModel plate) async {
+  final r = await recordedRepository(RecordedFlags(at: lunch, net: NetMode.fail), db, read: _read);
+  final c = SearchController(r, prefs, plate);
+  for (var i = 0; i < 100 && c.net != NetLine.failed; i++) {
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+  return c;
 }

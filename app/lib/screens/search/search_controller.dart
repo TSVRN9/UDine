@@ -10,6 +10,7 @@ import '../../shell/plate_model.dart';
 import '../../shell/prefs.dart';
 import '../dish/where_book.dart';
 import '../halls/halls_controller.dart';
+import '../halls/halls_model.dart' show NetLine;
 import '../hall/hall_controller.dart' show cafeIdsOf, grabsOf;
 
 /// Search's one load, started when the tab first opens (never at launch): today's hours (Halls' own controller, which also reads busy
@@ -41,6 +42,19 @@ class SearchController extends ChangeNotifier {
   /// every place's days are in (the halls' arrive first and are searched while the cafés come)
   bool get complete => _book?.complete ?? false;
 
+  /// What the network did to the hours (Halls' own reading): the menus are searched from the phone when offline, and are none when it failed.
+  NetLine get net => switch (hallsData.state) { LoadedOffline() || NotSaved() => NetLine.offline, Failed() => NetLine.failed, _ => NetLine.none };
+
+  /// the menus were asked for and a place's days may be in (false while the hours are, or failed to be, had: nothing to find a dish in)
+  bool get menusIn => _book != null;
+
+  /// Offline, the cafés whose menu for today is saved (what the top line names beyond the halls).
+  List<String> get savedCafes {
+    final b = _book?.board, day = b?.days[repo.today];
+    if (net != NetLine.offline || b == null || day == null) return const [];
+    return [for (final p in b.places) if (isCafe(p.key) && (day[p.key]?.isNotEmpty ?? false)) p.name];
+  }
+
   HoursData? get _hours => switch (hallsData.state) { Loaded(:final value) || LoadedOffline(:final value) => value, _ => null };
 
   void _onHours() {
@@ -54,6 +68,13 @@ class SearchController extends ChangeNotifier {
       );
       _charles = prefs.charlesRiver;
       _book = WhereBook(repo, base, cafeIdsOf(h.feed))..addListener(_onBook);
+    } else if (h == null && _book == null && (hallsData.state is Failed || hallsData.state is NotSaved)) {
+      // no hours to be had: the places still match by name, from the bundled table, with no menu to find a dish in
+      final fx = Board(clock: repo.now(), places: [for (var i = 0; i < halls.length; i++) Place(key: halls[i], name: diningHalls[i].name, area: -1), ...Roster.table.cafes], hours: const {}, grab: const {}, days: const {}, events: const []);
+      index = SearchIndex(fx, repo.now(), charlesRiver: prefs.charlesRiver);
+      _charles = prefs.charlesRiver;
+      _compute();
+      return;
     }
     notifyListeners();
   }

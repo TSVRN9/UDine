@@ -11,6 +11,7 @@ import 'package:http/testing.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:udine/boot.dart';
+import 'package:udine/core/types.dart' show DiningEvent;
 import 'package:udine/data/flyer.dart';
 import 'package:udine/data/source.dart' show Unreachable;
 import 'package:udine/data/states.dart';
@@ -64,7 +65,7 @@ void main() {
     final boots = await t.runAsync(() async {
       sqfliteFfiInit();
       databaseFactory = databaseFactoryFfi;
-      Future<int> n(String route) async => switch (await (await Boot.open(route, read: readRecorded)).repo.events().firstWhere((s) => s is Loaded)) { Loaded(:final value) => value.length, _ => -1 };
+      Future<int> n(String route) async => switch ((await (await Boot.open(route, read: readRecorded)).repo.events().toList()).whereType<Loaded<List<DiningEvent>>>().last) { Loaded(:final value) => value.length, _ => -1 };
       return (await n('/search?data=recorded&events=0'), await n('/search?data=recorded'));
     });
     expect(boots!.$1, 0);
@@ -116,6 +117,7 @@ void main() {
     await openSearch(t);
     await until(t, () => find.byType(EventCard).evaluate().isNotEmpty);
     await t.tap(find.byType(EventCard).first);
+    await until(t, () => find.text('Holiday hours').evaluate().isNotEmpty); // (the saved events are read from the store)
     await t.pumpAndSettle();
     expect(find.text('Holiday hours'), findsOneWidget);
     expect(find.text('Share the flyer'), findsOneWidget);
@@ -142,6 +144,7 @@ void main() {
 
   testWidgets('the flyer: Photos off requests no picture and holds a letter-shaped felt ground', (t) async {
     await openEventsApp(t, '/event/1');
+    await until(t, () => find.byKey(const ValueKey('flyer-ground')).evaluate().isNotEmpty); // (the saved events are read from the store)
     expect(find.byType(Image), findsNothing);
     expect(find.byKey(const ValueKey('flyer-ground')), findsOneWidget);
     expect(t.getSize(find.byKey(const ValueKey('flyer-ground'))).aspectRatio, closeTo(8.5 / 11, 0.01));
