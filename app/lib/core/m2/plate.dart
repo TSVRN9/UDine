@@ -127,3 +127,9 @@ double rowCode(PlateState s, String meal, String key, String place) {
   if (f != null) return f.item.qty;
   return wouldSplit(s, meal, [place]) ? -1 : 0;
 }
+
+/// M2's plate-sheet mid detent (`psheet`'s sizer): where the sheet's top edge rests, measured down from the frame's top. It is
+/// the 36% line, or higher when the content (the bar, the plate and 16) needs more room, and never above the top detent
+/// (`top`, the status inset + 8). `tabTop` is where the tab bar starts.
+double plateMidTop({required double frameH, required double tabTop, required double top, required double content, required double frac}) =>
+    (frameH * frac < tabTop - content ? frameH * frac : tabTop - content).clamp(top, double.infinity);

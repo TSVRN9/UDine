@@ -140,6 +140,11 @@ abstract final class M2Layout {
   static const midFrac = 0.36; // the plate sheet's resting line: 36% of the frame down
   static const factCalBottom = 7.0, factRowTop = 7.0, factRowBottom = 5.0; // `.facts .cal`, `.nr`
   static const peekRadius = 3.0; // `.peek` border-radius 3 3 0 0
+  static const customPadX = 16.0, customGap = 10.0; // `.custom`, its plus is `glyph`
+  static const customRing = Color.fromRGBO(136, 28, 28, 0.5); // `.custom` inset 1.5px rgba(136,28,28,.5)
+  static const buzzLogGap = 72.0; // M2 `buzz([12,60,24])`: a 12 ms pulse, 60 ms off, then a 24 ms one: the second starts 72 ms after the first
+  static const barHide = 1.1; // `#bar{transform:translateY(110%)}` until a plate is on it
+  static const twobTop = 6.0; // `.twob`
   // You and its pages (`.yhead`, `.pbody`, `.dh`)
   static const youHeadBottom = 18.0; // `.yhead` padding-bottom
   static const pbodyTop = 8.0, pbodyBottom = 20.0, dietTop = 22.0, dietGroupTop = 28.0; // `.pbody` padding 8 20 20, `.h3{margin:22px 0 4px}` wins over `.dh{margin-top:12px}` at equal specificity; `.dh~.dh` 28
@@ -194,7 +199,7 @@ abstract final class M2Layout {
   static const tagLetter = M2Type(12.0, 12.0, 'Oswald', FontWeight.w600); // `.row .tags .ht`: 12 dp
   static const tagCafe = M2Type(13.0, 16.9, 'LibreFranklin', FontWeight.w400); // `.tags .cnm`: 13 dp at 1.3
   static const laterGapX = 16.0, nextToTags = 12.0; // `.row.later .m` column-gap; `.lnext` margin-right 2 + `.mg` gap 4 + `.mg .lnext+.tags` margin-left 6
-  static const customMin = 52.0, customMargin = 8.0, customPadX = 16.0, customGap = 10.0, customRing = Color.fromRGBO(136, 28, 28, 0.5); // `.custom`
+  static const customMin = 52.0, customMargin = 8.0; // `.custom` min-height and margin (its padding, gap and ring are above)
   static const customPlus = 20.0; // `.custom` svg
   // Events (`.sdisc`, `.evc`, `.evcard`, `.evcap`)
   static const evBandTop = 4.0, evBandBottom = 16.0; // `.sdisc` padding 4 0 16

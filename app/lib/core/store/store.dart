@@ -102,6 +102,17 @@ class UdineStore {
         );
       });
 
+  /// A plate's rows in one transaction: all of them or, if any insert fails, none. Undo removes exactly those rows (and puts back any
+  /// row of the same id that was replaced), as [addEntry]'s does.
+  Future<Undo> addEntries(List<LogEntry> es) => _change('log_entries', 'id', [for (final e in es) e.id], (tx) async {
+        for (final e in es) {
+          await tx.rawInsert(
+            'INSERT OR REPLACE INTO log_entries (id, logged_at, source_json, servings, nutrition_json) VALUES (?, ?, ?, ?, ?)',
+            [e.id, e.loggedAt, jsonEncode(e.source.toJson()), e.servings, jsonEncode(e.nutrition.toJson())],
+          );
+        }
+      });
+
   /// Touches only the servings column; source/nutrition bytes stay as written.
   /// Undo is compare-and-set: it restores the old value only if the row still exists with the servings this edit set.
   Future<Undo> changeServings(String id, num servings) async {

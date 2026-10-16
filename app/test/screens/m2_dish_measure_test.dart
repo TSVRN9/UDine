@@ -51,11 +51,11 @@ List<double> left(Object? r) => [(r as List)[0].toDouble(), r[1].toDouble()];
 /// What the sheet shows, against the M2 rects `m` (a `dish` block): every key M2 measured and the sheet has a widget for.
 void compareSheet(WidgetTester t, int w, Map<String, dynamic> m) {
   const frame = 844.0;
-  final sheet = t.widget<M2Sheet>(find.byType(M2Sheet));
+  final sheet = t.widget<M2Sheet>(find.byType(M2Sheet).last);
   if ((frame - sheet.handle.px - ((m['sheet'] as List)[1] as num)).abs() > 1.0) _misses.add('resting top ours ${frame - sheet.handle.px}, M2 ${m['sheet']}');
   near('grab', rect(t, find.byType(SheetGrab)), m['grab'], w);
   final name = find.byType(DishSheet).evaluate().isEmpty ? 'Your plate' : t.widget<DishSheet>(find.byType(DishSheet)).dish.dishName;
-  near('dn', rect(t, find.descendant(of: find.byType(M2Sheet), matching: find.text(name))), m['dn'] ?? m['sh1h2'], w, block: true);
+  near('dn', rect(t, find.descendant(of: find.byType(M2Sheet).last, matching: find.text(name))), m['dn'] ?? m['sh1h2'], w, block: true);
   if (m['dsv'] != null && find.byType(DishSheet).evaluate().isNotEmpty) {
     final serving = t.widget<DishSheet>(find.byType(DishSheet)).dish.nutrition.servingSize.trim().toLowerCase();
     near('dsv', rect(t, find.byWidgetPredicate((x) => x is RichText && x.text.toPlainText().endsWith(serving) && !x.text.toPlainText().contains('Nutrition'))), m['dsv'], w, block: true);
@@ -83,7 +83,7 @@ void main() {
     testWidgets('the dish sheet of Golden BBQ Chicken Thigh at $w dp: every block where M2 puts it (within 1 dp)', (t) async {
       await openHall(t, await bootRecorded(t, health: true, carbon: true), route, w: w.toDouble());
       await sheetUp(t);
-      final sheet = t.widget<M2Sheet>(find.byType(M2Sheet));
+      final sheet = t.widget<M2Sheet>(find.byType(M2Sheet).last);
       // the sheet's top edge is where it rests (M2 `IS.mid`, 4 dp fix: the label's rule under Calories plus a 6 dp sliver)
       expect(sheet.handle.px, closeTo(844 - (m['mid'] as num), 1.0), reason: 'IS.mid');
       near('favb', rect(t, find.descendant(of: find.byType(FavoriteStar), matching: find.byType(Press))), m['favb'], w);
