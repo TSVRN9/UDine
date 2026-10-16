@@ -1,6 +1,5 @@
 // First run and tracking off (flutter-port-you Task 3) at 360 and 390 dp over M2's recordings and fixed clock (Thursday Oct 8, 12:41).
 // Photos are UMass's and never committed: nothing here draws one.
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/app.dart';
 import 'package:udine/boot.dart';
@@ -9,7 +8,7 @@ import 'package:udine/screens/halls/first_run.dart';
 import 'package:udine/screens/hall/dish_row.dart';
 import '../fonts.dart';
 import 'dish_support.dart';
-import 'search_screen_test.dart' show finish, settle;
+import 'search_screen_test.dart' show finish;
 import 'support.dart';
 import 'you_support.dart';
 
