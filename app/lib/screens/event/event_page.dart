@@ -132,8 +132,9 @@ class _EventScreenState extends State<EventScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _sub ??= AppScope.of(context).repo.events().listen((s) {
-      if (s is! Loaded<List<DiningEvent>> || !mounted) return;
-      final all = hoursEvents(s.value);
+      final value = switch (s) { Loaded(:final value) || LoadedOffline(:final value) => value, _ => null };
+      if (value == null || !mounted) return;
+      final all = hoursEvents(value);
       setState(() => _event = widget.index < all.length ? all[widget.index] : null);
     });
   }

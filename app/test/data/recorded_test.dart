@@ -52,6 +52,7 @@ void main() {
     test('saved=pdf:Lunch names the menus opened before; other saved entries are not PDFs', () {
       expect(recordedFlags('/?data=recorded&saved=pdf:Lunch,Green Fields,pdf:Dinner')!.savedPdfs, {'Lunch', 'Dinner'});
       expect(recordedFlags('/?data=recorded')!.savedPdfs, isEmpty);
+      expect(recordedFlags('/?data=recorded&saved=pdf:Lunch,Green Fields,Worcester Café')!.savedCafes, {'Green Fields', 'Worcester Café'});
       expect(recordedFlags('/?data=recorded&events=0')!.noEvents, isTrue); // M2's `?events=0`
       expect(recordedFlags('/?data=recorded')!.noEvents, isFalse);
     });

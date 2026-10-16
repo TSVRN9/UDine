@@ -1,8 +1,14 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// The internal flavor signs with the key outside the repo (app/tool/build-internal-android.sh); without it, it keeps Flutter's debug key.
+val internalKey = file("${System.getProperty("user.home")}/.config/udine/key.properties").takeIf { it.exists() }
+    ?.let { f -> Properties().apply { f.inputStream().use { load(it) } } }
 
 android {
     namespace = "com.udinetogether.udine"
@@ -23,6 +29,15 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+    }
+
+    signingConfigs {
+        if (internalKey != null) create("internal") {
+            storeFile = file(internalKey.getProperty("storeFile"))
+            storePassword = internalKey.getProperty("storePassword")
+            keyAlias = internalKey.getProperty("keyAlias")
+            keyPassword = internalKey.getProperty("keyPassword")
+        }
     }
 
     buildFeatures { resValues = true }   // AGP 8+ disables resValue() by default; the flavors' app_name needs it
@@ -46,6 +61,13 @@ android {
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
+    }
+}
+
+// A build type's signing config outranks a flavor's, and Flutter's profile type inherits debug's: set it on the internal variants instead.
+androidComponents {
+    onVariants(selector().withFlavor("channel" to "internal")) { v ->
+        if (internalKey != null) v.signingConfig.setConfig(android.signingConfigs.getByName("internal"))
     }
 }
 

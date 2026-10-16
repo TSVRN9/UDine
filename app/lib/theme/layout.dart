@@ -59,7 +59,7 @@ abstract final class M2Layout {
   static const wcGap = 8.0; // `.wc`
   // buttons (`.btn`, `.gbtn`, `.obtn`, `.dirb`)
   static const btnL = 52.0, btnM = 48.0; // `.btn`, `.gbtn` heights (`.obtn`, `.dirb`, `.tbtn` are M2Size.tap)
-  static const gbtnMinW = 84.0, gbtnPad = 18.0, obtnPad = 14.0, dirbPad = 16.0, tbtnPad = 12.0;
+  static const gbtnMinW = 84.0, gbtnPad = 18.0, obtnPad = 14.0, dirbPad = 16.0, lineBtnPad = 16.0, tbtnPad = 12.0;
   static const rule = 1.5; // `.btn.line`, `.obtn`, `.add.ghost`, `.dirb` inset ring
   // the row (`.row`, `.add`, `.step`)
   static const rowPadTop = 6.0, rowPadRight = 8.0, rowGap = 8.0; // `.row` padding 6 8 6 20, gap 8
@@ -214,6 +214,10 @@ abstract final class M2Layout {
   static const evCapTop = 10.0, evCapGap = 10.0; // `.evcap` margin-top, gap
   static const evBanner = 1024 / 432; // `.evpatch` aspect-ratio
   static const flyer = 8.5 / 11; // the event page's flyer ground (not in M2): a US letter sheet, as UMass prints its flyers
+  // Search's network lines (`.netnote`, `.netfail`)
+  static const netNoteV = 10.0, netFailV = 8.0, netFailGap = 12.0; // padding 10 20, and 8 20 with a 12 gap
+  static const netNote = M2Type(14.0, 19.6, 'LibreFranklin', FontWeight.w400); // `.netnote` 14/1.4
+  static const netFail = M2Type(16.0, null, 'LibreFranklin', FontWeight.w600); // `.netfail span` 600, the body's 16
   static const evTitle = M2Type(15.0, 19.5, 'LibreFranklin', FontWeight.w600); // `.evtt` 600 15/1.3
   static const evTag = M2Type(15.0, 19.5, 'Oswald', FontWeight.w600, tabular: true); // `.evtag` 600 15/1.3
   static const evTitleColor = Color.fromRGBO(255, 255, 255, 0.92); // `.evtt`

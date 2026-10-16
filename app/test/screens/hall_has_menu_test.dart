@@ -53,6 +53,7 @@ void main() {
     addTearDown(c.dispose);
     expect(c.hours, isA<Loading<HoursData>>());
     expect(c.hasMenu, isTrue);
+    await until(() => c.hours is! Loading<HoursData>); // (its reads of the store finish before the database closes)
   });
 
   test('failed: with no hours the café stays on the dish layout', () async {
