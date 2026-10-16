@@ -5,6 +5,7 @@ import '../motion/fade_through.dart';
 import '../motion/routes.dart';
 import '../screens/hall/hall_route.dart';
 import '../screens/halls/hall_page.dart';
+import '../screens/plate/custom_food.dart';
 import '../screens/halls/halls_screen.dart';
 import '../screens/search/events.dart';
 import '../screens/search/search_screen.dart';
@@ -38,6 +39,18 @@ class ShellState extends State<Shell> implements ShellApi {
   late final _tab = ValueNotifier<int>(searchLaunch(widget.initialRoute) == null ? 0 : 1);
   bool Function()? _plateBack;
   final navigator = GlobalKey<NavigatorState>();
+
+  @override
+  void initState() {
+    super.initState();
+    // `/custom?name=&meal=` (a screenshot route): the custom food form over Halls; `cal`, `p`, `c` and `f` fill the macros
+    final u = Uri.parse(widget.initialRoute), q = u.queryParameters;
+    if (u.path == '/custom') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) openCustomFood(navigator.currentContext!, name: q['name'] ?? '', meal: q['meal'] ?? 'lunch', cal: q['cal'] ?? '', p: q['p'] ?? '', c: q['c'] ?? '', f: q['f'] ?? '');
+      });
+    }
+  }
   final _sheets = <_Sheet>[];
 
   @override
