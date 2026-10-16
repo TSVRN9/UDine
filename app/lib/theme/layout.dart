@@ -212,6 +212,7 @@ abstract final class M2Layout {
   static const evCardW = 280.0, evCardInset = 4.0; // `.evc .evcard` flex-basis; `.evpatch::after` inset 4
   static const evCapTop = 10.0, evCapGap = 10.0; // `.evcap` margin-top, gap
   static const evBanner = 1024 / 432; // `.evpatch` aspect-ratio
+  static const flyer = 8.5 / 11; // the event page's flyer ground (not in M2): a US letter sheet, as UMass prints its flyers
   static const evTitle = M2Type(15.0, 19.5, 'LibreFranklin', FontWeight.w600); // `.evtt` 600 15/1.3
   static const evTag = M2Type(15.0, 19.5, 'Oswald', FontWeight.w600, tabular: true); // `.evtag` 600 15/1.3
   static const evTitleColor = Color.fromRGBO(255, 255, 255, 0.92); // `.evtt`

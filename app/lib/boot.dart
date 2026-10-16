@@ -11,6 +11,7 @@ import 'core/m2/board.dart' show dishKey, halls, MenuItem, M2MenuItem;
 import 'core/types.dart' show MealPeriod;
 import 'core/store/db.dart';
 import 'core/store/store.dart';
+import 'data/flyer.dart';
 import 'data/recorded/recorded.dart';
 import 'data/pdf_cache.dart';
 import 'data/pdf_pages.dart';
@@ -31,8 +32,9 @@ const _fivePins = ['Wasabi', 'Tamales', "Peet's Coffee & Tea", 'Harvest Market',
 /// network from the route's `?data=recorded&at=&net=`), and the preferences. Recorded mode keeps everything in a throwaway
 /// in-memory store so a capture never reads or leaves anything on the device.
 class Boot {
-  Boot(this.repo, this.store, this.prefs, {this.pdfOpen = pdfxOpen});
+  Boot(this.repo, this.store, this.prefs, {this.pdfOpen = pdfxOpen, FlyerShare? shareFlyer}) : shareFlyer = shareFlyer ?? shareFlyerFile;
   final PdfOpen pdfOpen;
+  final FlyerShare shareFlyer;
   final Repository repo;
 
   /// The device store; null when the file was written by a newer build (menus only, below).
@@ -109,5 +111,5 @@ class Boot {
     }
   }
 
-  Widget wrap(Widget child) => AppScope(repo: repo, store: store, prefs: prefs, hider: hider, plate: plate, pdfOpen: pdfOpen, child: child);
+  Widget wrap(Widget child) => AppScope(repo: repo, store: store, prefs: prefs, hider: hider, plate: plate, pdfOpen: pdfOpen, shareFlyer: shareFlyer, child: child);
 }

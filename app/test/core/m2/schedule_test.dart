@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:udine/core/m2/board.dart';
 import 'package:udine/core/m2/schedule.dart';
 import 'support.dart';
 
@@ -27,6 +28,14 @@ void main() {
     expect(s.days[4].event, (title: 'Indigenous Peoples Day Hours', href: 'https://www.umassdining.com/hours', index: 0));
     expect(s.days[4].meals, isEmpty);
     expect(schedule(board, 'W', 0).days[4].right, 'Holiday hours');
+  });
+  test('a holiday whose only feed link was the flyer has no link to open and still lists', () {
+    final e = board.events[0];
+    final bare = Board(
+      clock: board.clock, places: board.places, hours: board.hours, grab: board.grab, days: board.days,
+      events: [HoursEvent(title: e.title, scope: e.scope, expires: e.expires, hoursTitle: e.hoursTitle, links: const [], flyer: 'https://umassdining.com/a.png')],
+    );
+    expect(schedule(bare, 'W', 4).days[4].event!.href, '');
   });
   test('a café has no holiday row and carries its building, payment and description; empty café days say so', () {
     final wasabi = board.places.firstWhere((p) => p.name == 'Wasabi').key;
