@@ -33,6 +33,12 @@ class MainActivity : FlutterFragmentActivity() {
         }
     }
 
+    override fun onDestroy() {
+        pending?.success(false)
+        pending = null
+        super.onDestroy()
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "udine/health").setMethodCallHandler { call, result -> handle(call, result) }
@@ -55,10 +61,20 @@ class MainActivity : FlutterFragmentActivity() {
         if (status != HealthConnectClient.SDK_AVAILABLE) { result.success(if (call.method == "write" || call.method == "delete") null else false); return }
         val client = HealthConnectClient.getOrCreate(this)
         when (call.method) {
+            // The scope has no exception handler: anything Health Connect throws (RemoteException, SecurityException) must be caught here.
             "access" -> scope.launch {
-                result.success(if (client.permissionController.getGrantedPermissions().containsAll(perms(call))) "granted" else "denied")
+                try {
+                    result.success(if (client.permissionController.getGrantedPermissions().containsAll(perms(call))) "granted" else "denied")
+                } catch (e: Exception) { result.success("denied") }
             }
-            "requestWrite" -> { pending = result; askForPermissions.launch(perms(call)) }
+            "requestWrite" -> {
+                if (pending != null) { result.success(false); return }
+                try {
+                    val wanted = perms(call)
+                    pending = result
+                    askForPermissions.launch(wanted)
+                } catch (e: Exception) { pending = null; result.success(false) }
+            }
             "write" -> scope.launch {
                 try {
                     val id = call.argument<String>("clientId")!!

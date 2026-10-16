@@ -22,9 +22,13 @@ import workmanager_apple
   }
 }
 
-/// Apple Health, write only: one HKCorrelation (food) per meal holding one sample per nutrient. HealthKit objects are immutable, so an edit
-/// deletes the ids the last write returned and saves anew. The ids are the correlation's and its samples' UUIDs. Nothing is ever read
-/// back except by UUID, to find an object to delete.
+/// Apple Health, write only: one HKCorrelation (food) per meal holding one sample per nutrient.
+/// Edits and deletes use HealthKit's sync identifier, never a query (the app has share authorization only, and a query without read
+/// authorization can return nothing): the correlation is "udine-<mealId>" and each sample "udine-<mealId>-<field>", all stamped with
+/// HKMetadataKeySyncVersion (ms since epoch). Saving again with a higher version replaces the old object; as HealthKit's handling of a
+/// correlation's replacement can't be seen from here, a write also deletes (deleteObjects, share authorization is enough) every object of
+/// those identifiers with a lower version once the save has succeeded. A failed save therefore never costs the old record. The ids
+/// returned (and kept in health_writes) are the sync identifiers.
 final class HealthChannel {
   static let store = HKHealthStore()
   // field key -> (type, unit)
@@ -40,72 +44,86 @@ final class HealthChannel {
     "proteinG": (.dietaryProtein, .gram()),
   ]
 
+  static var foodType: HKCorrelationType { HKCorrelationType.correlationType(forIdentifier: .food)! }
+
   static func types(_ call: FlutterMethodCall) -> Set<HKSampleType> {
     let ids = (call.arguments as? [String: Any])?["permissions"] as? [String] ?? []
     return Set(ids.compactMap { HKObjectType.quantityType(forIdentifier: HKQuantityTypeIdentifier(rawValue: $0)) })
+  }
+
+  static func allWritable(_ call: FlutterMethodCall) -> Bool {
+    !types(call).contains { store.authorizationStatus(for: $0) != .sharingAuthorized }
   }
 
   static func register(_ messenger: FlutterBinaryMessenger) {
     FlutterMethodChannel(name: "udine/health", binaryMessenger: messenger).setMethodCallHandler { call, result in
       let args = call.arguments as? [String: Any] ?? [:]
       guard HKHealthStore.isHealthDataAvailable() else {
-        result(call.method == "access" ? "unsupported" : (call.method == "write" ? nil : false))
+        switch call.method {
+        case "access": result("unsupported")
+        case "write": result(nil)
+        default: result(false)
+        }
         return
       }
       switch call.method {
       case "access":
-        // Write status is readable for share types: denied when any is.
-        let denied = types(call).contains { store.authorizationStatus(for: $0) != .sharingAuthorized }
-        result(denied ? "denied" : "granted")
+        result(allWritable(call) ? "granted" : "denied")
       case "requestWrite":
         store.requestAuthorization(toShare: types(call), read: nil) { _, _ in
-          DispatchQueue.main.async { result(!types(call).contains { store.authorizationStatus(for: $0) != .sharingAuthorized }) }
+          DispatchQueue.main.async { result(allWritable(call)) }
         }
       case "write":
-        delete(args["replacing"] as? [String] ?? []) { _ in
-          let fields = args["fields"] as? [String: Double] ?? [:]
-          let start = Date(timeIntervalSince1970: (args["startMs"] as? Double ?? 0) / 1000)
-          let end = Date(timeIntervalSince1970: (args["endMs"] as? Double ?? 0) / 1000)
-          let meta: [String: Any] = [HKMetadataKeyFoodType: args["name"] as? String ?? "", HKMetadataKeyWasUserEntered: true]
-          var samples = Set<HKSample>()
-          for (k, v) in fields {
-            guard let (id, unit) = map[k], let t = HKQuantityType.quantityType(forIdentifier: id) else { continue }
-            samples.insert(HKQuantitySample(type: t, quantity: HKQuantity(unit: unit, doubleValue: v), start: start, end: end, metadata: meta))
-          }
-          let meal = HKCorrelation(type: HKCorrelationType.correlationType(forIdentifier: .food)!, start: start, end: end, objects: samples, metadata: meta)
-          store.save(meal) { ok, _ in
-            DispatchQueue.main.async {
-              result(ok ? ([meal.uuid.uuidString] + samples.map { $0.uuid.uuidString }) : nil)
-            }
-          }
+        let id = args["clientId"] as? String ?? ""
+        let fields = args["fields"] as? [String: Double] ?? [:]
+        let start = Date(timeIntervalSince1970: (args["startMs"] as? Double ?? 0) / 1000)
+        let end = Date(timeIntervalSince1970: (args["endMs"] as? Double ?? 0) / 1000)
+        let version = Int(Date().timeIntervalSince1970 * 1000)
+        func meta(_ syncId: String) -> [String: Any] {
+          [HKMetadataKeyFoodType: args["name"] as? String ?? "", HKMetadataKeyWasUserEntered: true,
+           HKMetadataKeySyncIdentifier: syncId, HKMetadataKeySyncVersion: version]
+        }
+        var samples = Set<HKSample>()
+        var ids = [id]
+        for (k, v) in fields.sorted(by: { $0.key < $1.key }) {
+          guard let (qid, unit) = map[k], let t = HKQuantityType.quantityType(forIdentifier: qid) else { continue }
+          samples.insert(HKQuantitySample(type: t, quantity: HKQuantity(unit: unit, doubleValue: v), start: start, end: end, metadata: meta("\(id)-\(k)")))
+          ids.append("\(id)-\(k)")
+        }
+        let meal = HKCorrelation(type: foodType, start: start, end: end, objects: samples, metadata: meta(id))
+        store.save(meal) { ok, _ in
+          guard ok else { DispatchQueue.main.async { result(nil) }; return }
+          // Only now are the older versions of the same identifiers removed.
+          purge(ids, olderThan: version) { purged in DispatchQueue.main.async { result(purged ? ids : nil) } }
         }
       case "delete":
-        delete(args["ids"] as? [String] ?? []) { ok in DispatchQueue.main.async { result(ok) } }
+        purge(args["ids"] as? [String] ?? [], olderThan: nil) { ok in DispatchQueue.main.async { result(ok) } }
       default:
         result(FlutterMethodNotImplemented)
       }
     }
   }
 
-  /// Deletes every object with one of [ids] that this app saved (the store only returns and deletes its own); an id already gone is fine.
-  static func delete(_ ids: [String], _ done: @escaping (Bool) -> Void) {
-    let uuids = Set(ids.compactMap { UUID(uuidString: $0) })
-    if uuids.isEmpty { done(true); return }
-    let pred = HKQuery.predicateForObjects(with: uuids)
-    let types: [HKSampleType] = [HKCorrelationType.correlationType(forIdentifier: .food)!] + map.values.compactMap { HKQuantityType.quantityType(forIdentifier: $0.0) }
-    var objs: [HKObject] = []
+  /// deleteObjects by predicate (no read authorization needed) for the correlation and every nutrient type: objects whose sync identifier is
+  /// in [ids], and, when [olderThan] is given, whose sync version is lower. Nothing matching is success.
+  static func purge(_ ids: [String], olderThan: Int?, _ done: @escaping (Bool) -> Void) {
+    if ids.isEmpty { done(true); return }
+    var pred = HKQuery.predicateForObjects(withMetadataKey: HKMetadataKeySyncIdentifier, allowedValues: ids)
+    if let v = olderThan {
+      let lower = HKQuery.predicateForObjects(withMetadataKey: HKMetadataKeySyncVersion, operatorType: .lessThan, value: v)
+      pred = NSCompoundPredicate(andPredicateWithSubpredicates: [pred, lower])
+    }
+    let types: [HKObjectType] = [foodType] + map.values.compactMap { HKQuantityType.quantityType(forIdentifier: $0.0) }
+    var allOk = true
     let lock = NSLock()
     let group = DispatchGroup()
     for t in types {
       group.enter()
-      store.execute(HKSampleQuery(sampleType: t, predicate: pred, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, found, _ in
-        lock.lock(); objs += found ?? []; lock.unlock()
+      store.deleteObjects(of: t, predicate: pred) { ok, _, _ in
+        lock.lock(); if !ok { allOk = false }; lock.unlock()
         group.leave()
-      })
+      }
     }
-    group.notify(queue: .main) {
-      if objs.isEmpty { done(true); return }
-      store.delete(objs) { ok, _ in done(ok) }
-    }
+    group.notify(queue: .main) { done(allOk) }
   }
 }

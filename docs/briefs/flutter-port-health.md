@@ -83,7 +83,7 @@ Rationale:
   Calories from fat is not written. Values are the meal's rows times servings, rounded to 2 places. Name = the meal's title; time =
   loggedAt (the meal id), a one-minute span because Health Connect needs start before end.
 - **Ids:** Android keeps `udine-<loggedAt>` as the record's client id (an edit writes the same id with a higher version, which
-  replaces it in place); iOS keeps the correlation's and its samples' UUIDs (objects are immutable: an edit deletes them, then saves).
+  replaces it in place); iOS keeps HealthKit sync identifiers (`udine-<loggedAt>` on the correlation, `udine-<loggedAt>-<field>` on each sample) with an increasing `HKMetadataKeySyncVersion`: an edit saves again at a higher version (the old record survives a failed save), then deletes the lower versions with `deleteObjects`, which needs only share authorization; a delete is `deleteObjects` on the identifiers. No query is ever made.
 - iOS can't be seen until store builds are allowed. The HealthKit entitlement and usage strings are set
   up here, and the iOS check goes on `docs/agents/ios-checklist.md` for the tester.
 

@@ -24,11 +24,13 @@ abstract class HealthClient {
 /// Native side: `MainActivity.kt` (Health Connect, clientRecordId upsert) and `AppDelegate.swift` (HealthKit food correlation).
 /// The health pub package was passed over: its iOS writeMeal takes no client id and returns no ids, and it has no iOS delete by id.
 class ChannelHealthClient implements HealthClient {
-  ChannelHealthClient([MethodChannel? channel]) : _c = channel ?? const MethodChannel('udine/health');
+  ChannelHealthClient({MethodChannel? channel, String? platform})
+      : _c = channel ?? const MethodChannel('udine/health'),
+        platform = platform ?? (Platform.isIOS ? 'ios' : 'android');
   final MethodChannel _c;
 
   @override
-  String get platform => Platform.isIOS ? 'ios' : 'android';
+  final String platform;
 
   @override
   Future<HealthAccess> access() async {
