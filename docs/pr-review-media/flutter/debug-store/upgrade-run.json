@@ -1,5 +1,69 @@
-{"rn":{"source":"origin/main cb17474b, expo run:android --variant release, EXPO_PUBLIC_BAKEOFF unset, re-signed with the internal key","package":"com.udinetogether.udine","versionName":"1.0.0","versionCode":5,"db":"/data/data/com.udinetogether.udine/files/SQLite/udine.db"},
- "flutter":{"flavor":"store profile","versionName":"2.0.0+<sha>","versionCode":6,"first_capture_build":"2.0.0+ba05ecdd","final_build":"2.0.0+e6371224"},
- "seeded":{"log_entries":11,"days":["2026-10-14","2026-10-15","2026-10-16"],"favorites":2,"custom_foods":1,"head_to_head_picks":3,"food_preferences":{"allergensToAvoid":["Peanuts"],"requiredDietTags":["Halal"],"macroPresets":["high-protein","high-fiber"]},"off_items":0},
- "rn_row_hashes_md5":{"log_entries":"c8773ea2d6401940fe9ded18903aa7db","favorites":"5f1f1f4967bb46adc86e3d687dfea0a0","custom_foods":"6a7291294fc189d47e5153f25604e6bb"},
- "after_flutter":{"user_version":2,"same_hashes":true,"preferences_kv_keys_identical":["food_preferences","ranked_dishes","ranked_foods","seen_dishes"]}}
+{
+ "rn": {
+  "source": "origin/main cb17474b, expo run:android --variant release, EXPO_PUBLIC_BAKEOFF unset, re-signed with the internal key",
+  "package": "com.udinetogether.udine",
+  "versionName": "1.0.0",
+  "versionCode": 5,
+  "db": "/data/data/com.udinetogether.udine/files/SQLite/udine.db"
+ },
+ "flutter": {
+  "flavor": "store profile",
+  "versionName": "2.0.0+<sha>",
+  "versionCode": 6,
+  "first_capture_build": "2.0.0+ba05ecdd",
+  "final_build": "2.0.0+e0cfa786"
+ },
+ "seeded": {
+  "log_entries": 11,
+  "days": [
+   "2026-10-14",
+   "2026-10-15",
+   "2026-10-16"
+  ],
+  "favorites": 2,
+  "custom_foods": 1,
+  "head_to_head_picks": 3,
+  "food_preferences": {
+   "allergensToAvoid": [
+    "Peanuts"
+   ],
+   "requiredDietTags": [
+    "Halal"
+   ],
+   "macroPresets": [
+    "high-protein",
+    "high-fiber"
+   ]
+  },
+  "off_items": 0
+ },
+ "after_flutter": {
+  "user_version": 2
+ },
+ "hashes_md5": {
+  "rn_before_flutter": {
+   "log_entries": "c8773ea2d6401940fe9ded18903aa7db",
+   "favorites": "5f1f1f4967bb46adc86e3d687dfea0a0",
+   "custom_foods": "6a7291294fc189d47e5153f25604e6bb",
+   "preferences_kv": {
+    "food_preferences": "b0ab9a03999449c4bc014197375818ca",
+    "ranked_dishes": "2ee2b250427676f795b2eada416ec394",
+    "ranked_foods": "5d4ba81faf9bd2cf42172a07b3273a6b",
+    "seen_dishes": "3accf5f0ed4d8fcbe931985471b22d08"
+   }
+  },
+  "after_flutter": {
+   "log_entries": "c8773ea2d6401940fe9ded18903aa7db",
+   "favorites": "5f1f1f4967bb46adc86e3d687dfea0a0",
+   "custom_foods": "6a7291294fc189d47e5153f25604e6bb",
+   "preferences_kv": {
+    "food_preferences": "b0ab9a03999449c4bc014197375818ca",
+    "ranked_dishes": "2ee2b250427676f795b2eada416ec394",
+    "ranked_foods": "5d4ba81faf9bd2cf42172a07b3273a6b",
+    "seen_dishes": "3accf5f0ed4d8fcbe931985471b22d08"
+   }
+  },
+  "identical": true,
+  "method": "md5 of rows joined by | and newline, ordered by rowid (preferences values: value_json by key)"
+ }
+}
