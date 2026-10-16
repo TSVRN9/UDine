@@ -8,7 +8,7 @@ enum NetMode { ok, slow, offline, fail }
 const recordedAvailable = !kReleaseMode;
 
 class RecordedFlags {
-  const RecordedFlags({this.at, this.net = NetMode.ok, this.scores = (health: false, carbon: false), this.avoid = const [], this.onlyShow = const [], this.savedPdfs = const {}, this.savedCafes = const {}, this.noEvents = false});
+  const RecordedFlags({this.at, this.net = NetMode.ok, this.scores = (health: false, carbon: false), this.avoid = const [], this.onlyShow = const [], this.savedPdfs = const {}, this.savedCafes = const {}, this.noEvents = false, this.trackOff = false, this.firstRun = false});
   final DateTime? at;
   final NetMode net;
 
@@ -18,6 +18,9 @@ class RecordedFlags {
   final Set<String> savedCafes;
   /// `events=0` (M2's own flag): the feed has no events, so Search idles without its band.
   final bool noEvents;
+  /// `track=off`: Track what I eat is off, as a user who turned it off. `firstRun=1`: first run has not been shown (a recorded route marks it
+  /// shown, as M2's own harnesses do, so only the capture of the sheet itself sees it).
+  final bool trackOff, firstRun;
   /// `scores=health,carbon`: the You switches a capture has no screen to set yet.
   final ({bool health, bool carbon}) scores;
   /// `avoid=Milk,Eggs` and `only=Halal`: You's Avoid list and "Only show" tags, likewise.
@@ -34,6 +37,8 @@ RecordedFlags? recordedFlags(String route, {bool available = recordedAvailable})
     at: q['at'] == null ? null : DateTime.parse(q['at']!),
     net: NetMode.values.asNameMap()[q['net']] ?? NetMode.ok,
     noEvents: q['events'] == '0',
+    trackOff: q['track'] == 'off',
+    firstRun: q['firstRun'] == '1',
     savedPdfs: {for (final x in (q['saved'] ?? '').split(',')) if (x.startsWith('pdf:')) x.substring(4)},
     savedCafes: {for (final x in (q['saved'] ?? '').split(',')) if (x.isNotEmpty && !x.startsWith('pdf:')) x},
     scores: (health: (q['scores'] ?? '').split(',').contains('health'), carbon: (q['scores'] ?? '').split(',').contains('carbon')),

@@ -5,9 +5,11 @@ import '../../core/m2/places.dart' show cafeKey, cafeTable;
 import '../../data/repository.dart' show HoursData, Loaded, LoadedOffline;
 import '../../motion/routes.dart';
 import '../../shell/app_scope.dart';
+import '../../shell/shell_scope.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import '../cafes/cafes_page.dart';
+import 'first_run.dart';
 import 'hall_page.dart';
 import 'halls_controller.dart';
 import 'halls_model.dart';
@@ -27,7 +29,9 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
   late final _arrive = AnimationController(vsync: this, value: 1);
   final _keys = <String, GlobalKey>{};
   HallsController? _c;
-  bool _hk = false, _lk = false;
+  bool _hk = false, _lk = false, _asked = false;
+  /// first run's sheet while it is up
+  SheetHandle? _firstRun;
 
   @override
   void didChangeDependencies() {
@@ -44,6 +48,31 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
       });
     }
     _c ??= HallsController(AppScope.of(context).repo)..addListener(_onData);
+    if (!_asked) {
+      _asked = true;
+      if (!AppScope.of(context).prefs.firstRunSeen) WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? _showFirstRun() : null);
+    }
+  }
+
+  /// First run: You's choices over the open menu, resting under the fourth hall band (M2: the lower of 70% of the frame and the bands' bottom).
+  void _showFirstRun() {
+    final prefs = AppScope.of(context).prefs, top = safeTop(context);
+    double rest(double frame) {
+      final box = _keys['B']?.currentContext?.findRenderObject() as RenderBox?;
+      final bands = box == null || !box.attached ? frame * 0.7 : box.localToGlobal(Offset(0, box.size.height)).dy;
+      return bands.clamp(top + M2Layout.sheetTop, frame * 0.7 < top + M2Layout.sheetTop ? top + M2Layout.sheetTop : frame * 0.7);
+    }
+
+    late final SheetHandle h;
+    h = ShellScope.of(context).pushSheet((handle, done) => FirstRunSheet(
+          handle: handle, top: top + M2Layout.sheetTop, restTop: rest,
+          onClosed: () {
+            if (_firstRun == h) _firstRun = null;
+            prefs.markFirstRunSeen();
+            done();
+          },
+        ));
+    _firstRun = h;
   }
 
   bool get _hoursIn => _c!.state is Loaded<HoursData> || _c!.state is LoadedOffline<HoursData>;
@@ -70,6 +99,18 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
   }
 
   void _open(BandVM b) {
+    final up = _firstRun;
+    if (up != null) {
+      // a band tap while first run is up: the sheet goes away (its choices kept) and the hall opens as it leaves
+      _firstRun = null;
+      AppScope.of(context).prefs.markFirstRunSeen();
+      up.away(() => mounted ? _openNow(b) : null);
+      return;
+    }
+    _openNow(b);
+  }
+
+  void _openNow(BandVM b) {
     final scope = AppScope.of(context);
     if (!b.isCafe) scope.prefs.lastHall = b.key;
     final box = _keys[b.key]!.currentContext!.findRenderObject()! as RenderBox;

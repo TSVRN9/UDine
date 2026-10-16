@@ -88,7 +88,7 @@ List<ListItem> mealItems(Board fx, Prefs prefs, String place, String name, int d
 }
 
 /// An item as a widget. `keys` is null for a copy.
-Widget buildItem(BuildContext context, ListItem it, {required Board fx, required PlateState plate, required ({bool health, bool carbon}) scores, required String place, required int day, required String meal, required bool reveal, ListKeys? keys, required MealActions actions, Set<String> favorites = const {}, String? here}) {
+Widget buildItem(BuildContext context, ListItem it, {required Board fx, required PlateState plate, required ({bool health, bool carbon}) scores, required String place, required int day, required String meal, required bool reveal, ListKeys? keys, required MealActions actions, Set<String> favorites = const {}, String? here, bool track = true}) {
   switch (it.kind) {
     case ItemKind.state:
       return StateLine(text: it.text!);
@@ -118,7 +118,7 @@ Widget buildItem(BuildContext context, ListItem it, {required Board fx, required
     case ItemKind.dish:
       final d = it.dish!, pm = plateMeal(fx, place, meal, fx.clock);
       return DishRow(
-        key: keys?.keyFor(it.id, here == it.id) ?? ValueKey(it.id), dish: d, scores: scores, contains: it.contains, here: here == it.id, favorite: favorites.contains(d.dishName),
+        key: keys?.keyFor(it.id, here == it.id) ?? ValueKey(it.id), dish: d, scores: scores, contains: it.contains, here: here == it.id, track: track, favorite: favorites.contains(d.dishName),
         code: day == 0 ? rowCode(plate, pm, d.key, place) : null,
         onOpen: () => actions.onOpen(d), onAdd: () => actions.onAdd(d), onInc: () => actions.onInc(d), onDec: () => actions.onDec(d),
       );
@@ -141,9 +141,10 @@ class MealSliver extends StatelessWidget {
   final Set<String> favorites;
   /// the id of the item a where-served tap landed on
   final String? here;
+  final bool track;
   /// wraps every row in the container's back-drag recogniser (see HallMenu.dragWrap)
   final Widget Function(Widget child)? dragWrap;
-  const MealSliver({super.key, this.sliverKey, this.dragWrap, this.favorites = const {}, this.here, required this.fx, required this.items, required this.plate, required this.scores, required this.place, required this.day, required this.meal, required this.reveal, required this.keys, required this.actions});
+  const MealSliver({super.key, this.sliverKey, this.dragWrap, this.favorites = const {}, this.here, this.track = true, required this.fx, required this.items, required this.plate, required this.scores, required this.place, required this.day, required this.meal, required this.reveal, required this.keys, required this.actions});
 
   @override
   Widget build(BuildContext context) {
@@ -152,7 +153,7 @@ class MealSliver extends StatelessWidget {
       key: sliverKey,
       delegate: SliverChildBuilderDelegate(
         (context, i) {
-          final child = buildItem(context, items[i], fx: fx, plate: plate, scores: scores, place: place, day: day, meal: meal, reveal: reveal, keys: keys, actions: actions, favorites: favorites, here: here);
+          final child = buildItem(context, items[i], fx: fx, plate: plate, scores: scores, place: place, day: day, meal: meal, reveal: reveal, keys: keys, actions: actions, favorites: favorites, here: here, track: track);
           return KeyedSubtree(key: ValueKey(items[i].id), child: dragWrap == null ? child : dragWrap!(child));
         },
         childCount: items.length,

@@ -90,9 +90,11 @@ class M2Sheet extends StatefulWidget {
   final double? Function(SheetMetrics m, double mid)? landing;
   /// the ground of the sheet
   final Color color;
+  /// the sheet's own shadow (a sheet that sits over a live screen rather than over a scrim)
+  final List<BoxShadow>? shadow;
   const M2Sheet({
     super.key, required this.handle, required this.top, required this.slivers, this.mid, this.min = 0, this.startOpen = true, this.onClosed, this.onSize,
-    this.radius = M2Radius.sheet, this.scrim = true, this.header, this.physics, this.landing, this.bottomPad, this.color = M2Color.chalk,
+    this.radius = M2Radius.sheet, this.scrim = true, this.header, this.physics, this.landing, this.bottomPad, this.color = M2Color.chalk, this.shadow,
   });
   @override
   State<M2Sheet> createState() => _M2SheetState();
@@ -341,7 +343,7 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
             return NotificationListener<ScrollNotification>(
               onNotification: _onScroll,
               child: DecoratedBox(
-                decoration: BoxDecoration(color: widget.color, borderRadius: BorderRadius.vertical(top: Radius.circular(widget.radius))),
+                decoration: BoxDecoration(color: widget.color, borderRadius: BorderRadius.vertical(top: Radius.circular(widget.radius)), boxShadow: widget.shadow),
                 child: widget.radius == 0
                     ? _scroll(sc)
                     : ClipRRect(borderRadius: BorderRadius.vertical(top: Radius.circular(widget.radius)), child: _scroll(sc)),

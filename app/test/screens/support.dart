@@ -25,7 +25,7 @@ Future<String> readRecorded(String name) => File('assets/recorded/$name').readAs
 
 /// The app's `Boot` over M2's recordings and a throwaway store, as `Boot.open` builds it for a recorded route. Real I/O (sqlite on an
 /// isolate) runs under `runAsync`.
-Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? at, List<String> pins = const [], bool charlesRiver = false, Duration? slow, bool health = false, bool carbon = false, Set<String> savedCafes = const {}, bool persistPins = false, List<String> avoid = const [], List<String> onlyShow = const [], PdfOpen? pages, bool pdfsLinked = true, Future<String> Function(String)? read, Future<void> Function(String)? shareFlyer}) async {
+Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? at, List<String> pins = const [], bool charlesRiver = false, Duration? slow, bool health = false, bool carbon = false, bool track = true, bool firstRun = false, Set<String> savedCafes = const {}, bool persistPins = false, List<String> avoid = const [], List<String> onlyShow = const [], PdfOpen? pages, bool pdfsLinked = true, Future<String> Function(String)? read, Future<void> Function(String)? shareFlyer}) async {
   return (await t.runAsync(() async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
@@ -34,6 +34,8 @@ Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? a
     final store = UdineStore(db.db);
     await store.setCharlesRiver(charlesRiver);
     await store.setScores(healthfulness: health, carbon: carbon);
+    await store.setTracking(track);
+    await store.setFirstRunSeen(!firstRun); // (a recorded route marks it shown, as M2's own harnesses do)
     if (avoid.isNotEmpty) await store.setAvoid(avoid);
     if (onlyShow.isNotEmpty) await store.setOnlyShow(onlyShow);
     // the recorded PDFs are UMass's and never in the repo: a test's are synthetic, and its pages are drawn by [pages]

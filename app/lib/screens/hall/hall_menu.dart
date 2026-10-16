@@ -330,7 +330,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
         left: 0, right: 0, top: _hh + _th + _sw + lo - _sc.offset,
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           for (var i = fi; i < _items.length && i < fi + M2Layout.ghostRows; i++)
-            buildItem(context, _items[i], fx: fx, plate: plate, scores: scope.prefs.scores, place: place, day: _day, meal: _effectiveMeal, reveal: _reveal, keys: null, actions: a, favorites: scope.prefs.favorites, here: _here),
+            buildItem(context, _items[i], fx: fx, plate: plate, scores: scope.prefs.scores, place: place, day: _day, meal: _effectiveMeal, reveal: _reveal, keys: null, actions: a, favorites: scope.prefs.favorites, here: _here, track: scope.prefs.track),
         ]),
       ),
     ]);
@@ -558,7 +558,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
                       listenable: Listenable.merge([scope.plate, scope.prefs]),
                       builder: (_, _) => MealSliver(
                         sliverKey: _listKey, fx: fx, items: _items, plate: scope.plate.state, scores: scope.prefs.scores, place: place, day: _day, meal: meal, reveal: _reveal,
-                        keys: _keys, actions: _actions, dragWrap: widget.dragWrap, favorites: scope.prefs.favorites, here: _here,
+                        keys: _keys, actions: _actions, dragWrap: widget.dragWrap, favorites: scope.prefs.favorites, here: _here, track: scope.prefs.track,
                       ),
                     ),
                   // the list is at least a screen (`#mlist{min-height:100%}`) and then the room that clears the plate bar

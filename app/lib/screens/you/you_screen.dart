@@ -15,7 +15,7 @@ import 'you_parts.dart';
 
 /// You: the date and the title, then Today (its totals and meals) and Earlier (one row per logged day, newest first; a row pushes the day).
 /// On a database a newer build wrote there is no log to show, and the one line says so. Then the choices: Favorites, Dietary preferences,
-/// and Export, Campus, Show on dishes. The "Track what I eat" and Health rows go above them (Task 3 and `flutter-port-health`).
+/// and Export, Campus, Show on dishes. "Track what I eat" is the first section; with it off Today and Earlier go and Export stays while any history exists. The Health row goes under it (`flutter-port-health`).
 class YouScreen extends StatelessWidget {
   const YouScreen({super.key, required this.top});
   final double top;
@@ -28,11 +28,11 @@ class YouScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scope = AppScope.of(context), book = scope.log, fx = plateBoard(scope.repo.now());
+    final scope = AppScope.of(context), prefs = scope.prefs, book = scope.log, fx = plateBoard(scope.repo.now());
     return ColoredBox(
       color: M2Color.chalk,
       child: ListenableBuilder(
-        listenable: Listenable.merge([?book, scope.prefs]),
+        listenable: Listenable.merge([?book, prefs]),
         builder: (context, _) {
           final today = book?.today ?? '', meals = book?.meals ?? const <LoggedMeal>[], earlier = [for (final d in loggedDays(meals)) if (d != today) d];
           return Stack(children: [
@@ -45,7 +45,7 @@ class YouScreen extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.emptyTop, M2Space.gutter, M2Layout.emptyBottom),
                     child: Text(newerDatabase, style: M2Text.empty.style(M2Color.slate)),
                   )
-                else ...[
+                else if (prefs.track) ...[
                   DayBlock(meals: meals, day: today, title: 'Today', titleOf: (m) => mealTitle(m, fx, book.cafeIds), onMeal: (m) => openMealSheet(context, at: m.loggedAt)),
                   if (earlier.isNotEmpty)
                     Padding(
@@ -86,16 +86,13 @@ class _Choices extends StatelessWidget {
       if (days > 0) ('Export my data', '$days ${days == 1 ? 'day' : 'days'}', (_) => ExportPage(top: top)),
     ];
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (book != null) sec([const TrackRow(last: true)]), // (the Health row goes under it: flutter-port-health)
       sec([for (final (i, r) in rows.indexed) LRow(title: r.$1, subtitle: r.$2, last: i == rows.length - 1, onTap: () => Nav.push<void>(context, r.$3))]),
       sec([
         const SecHead('Campus'),
         CheckRow(label: 'Charles River Campus', line: 'Newton', on: prefs.charlesRiver, last: true, onChanged: (v) { Haptics.selection(); prefs.setCharlesRiver(v); }),
       ]),
-      sec([
-        const SecHead('Show on dishes'),
-        CheckRow(label: 'Healthfulness', lead: const ScoreBadge(kind: ScoreKind.health, value: 5, size: ScoreSize.sheet), on: prefs.scores.health, onChanged: (v) { Haptics.selection(); prefs.setScore(health: v); }),
-        CheckRow(label: 'Carbon rating', lead: const ScoreBadge(kind: ScoreKind.carbon, value: 'B', size: ScoreSize.sheet), on: prefs.scores.carbon, last: true, onChanged: (v) { Haptics.selection(); prefs.setScore(carbon: v); }),
-      ]),
+      sec([const SecHead('Show on dishes'), const ShowRows()]),
     ]);
   }
 }
