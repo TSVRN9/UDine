@@ -231,6 +231,16 @@ test("parseRetailMenuHtml splits a trailing '$X.XX' into name + price", () => {
   assert.deepEqual(parsed.items[1], { name: "Bagel", price: null });
 });
 
+test("parseRetailMenuHtml keeps a whole trailing run of prices (Peet's sizes) as the price", () => {
+  const parsed = parseRetailMenuHtml("<p>Chai or Matcha Green Tea $4 / $4.50 / $5<br />+ Chocolate &amp; Caramel Swirl $4.25 / 4.75 / $5.25</p><p>Hot Coffee $1.95/$2.25/$2.50</p>");
+  if (parsed.kind !== "items") throw new Error("unreachable");
+  assert.deepEqual(parsed.items, [
+    { name: "Chai or Matcha Green Tea", price: "$4 / $4.50 / $5" },
+    { name: "+ Chocolate & Caramel Swirl", price: "$4.25 / 4.75 / $5.25" },
+    { name: "Hot Coffee", price: "$1.95/$2.25/$2.50" },
+  ]);
+});
+
 // #178 pr-review finding 1: a real, live shape splitting on `</p>|</li>|</div>` alone can't see --
 // several real cafés (Argo Tea #9605, Peet's #4311, Courtside #18, live-measured by the reviewer)
 // pack their entire menu into ONE <p> with <br>-separated lines, not one <p> per dish. Before this

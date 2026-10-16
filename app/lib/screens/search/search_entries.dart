@@ -1,6 +1,7 @@
 import '../../core/m2/board.dart' show M2MenuItem, MenuItem, mealLabel;
 import '../../core/m2/menu_view.dart';
 import '../../core/m2/search.dart';
+import '../halls/halls_model.dart' show NetLine;
 
 /// One thing in Search's list, before it is a widget: the groups in M2's order (`renderSearch`).
 sealed class SearchEntry {
@@ -77,7 +78,7 @@ class CustomEntry extends SearchEntry {
 }
 
 /// M2 `renderSearch`'s html as entries. `raw` is every group before Dietary preferences hide anything; `hasExtras` is whether the extras
-/// slot has anything in it (the custom button is the solid, only thing on offer when it has not, and no menu group does).
+/// slot has anything in it; [net] is what the network did to the menus (the custom button is the solid, only thing on offer when it has not, and no menu group does).
 List<SearchEntry> searchEntries({
   required SearchResult raw,
   required String query,
@@ -87,6 +88,7 @@ List<SearchEntry> searchEntries({
   required bool reveal,
   required bool track,
   required bool hasExtras,
+  NetLine net = NetLine.none,
 }) {
   final shown = raw.where((d) => reveal || prefOK(prefs, d));
   final idle = query.trim().isEmpty && lenses.isEmpty;
@@ -109,11 +111,12 @@ List<SearchEntry> searchEntries({
   final custom = query.trim().isNotEmpty && track;
   if (raw.isEmpty) {
     // (everything hidden by preferences still has the line, and is not a miss)
-    out.add(EmptyEntry(query.trim().isNotEmpty
-        ? 'Nothing called “${query.trim()}” is on any menu today or tomorrow.'
+    final miss = query.trim().isNotEmpty
+        ? 'Nothing called “${query.trim()}” is on ${net == NetLine.offline ? 'a saved menu' : 'any menu today or tomorrow'}.'
         : lenses.contains(Lens.fav)
             ? "Star a dish from its details and it shows up here whenever it's served."
-            : 'No dishes match these filters at ${mealLabel[meal]!.toLowerCase()}.'));
+            : 'No dishes match these filters at ${mealLabel[meal]!.toLowerCase()}.';
+    if (net != NetLine.failed) out.add(EmptyEntry(miss)); // (failed: no menu was to be had, so nothing is said of one)
     if (hasExtras) out.add(const ExtrasSlot());
     if (custom) out.add(CustomEntry(query.trim(), solid: !hasExtras));
   } else {

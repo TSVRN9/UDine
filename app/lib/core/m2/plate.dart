@@ -41,12 +41,22 @@ bool _canJoin(Plate p, String meal, List<String>? hs) {
   return ph == null || hs == null || ph.any(hs.contains);
 }
 
+/// A custom food's plate key (and so its log row's `customFoodId`): its name plus a short digest of its macros (FNV-1a, base 36), so the
+/// same name with other macros is another food, and an identical one is the same.
+String customKey(String name, Macro m) {
+  var h = 0x811c9dc5;
+  for (final u in '${m.cal.toDouble()}|${m.p.toDouble()}|${m.c.toDouble()}|${m.f.toDouble()}'.codeUnits) {
+    h = ((h ^ u) * 0x01000193) & 0xffffffff;
+  }
+  return 'custom:${dishKey(name)}:${h.toRadixString(36)}';
+}
+
 /// M2 `wouldSplit`: a plate exists and none of them can take the dish (its + would start another).
 bool wouldSplit(PlateState s, String meal, List<String> places) => s.plates.isNotEmpty && !s.plates.any((p) => _canJoin(p, meal, places));
 
-/// [key] is a bowl's own (`Bowl.key`); a dish's is its name's.
+/// [key0] is a bowl's own (`Bowl.key`); otherwise a custom food's is [customKey], a dish's its name's.
 PlateState addDish(PlateState s, String meal, String name, Map<String, MenuItem> refs, [Macro? custom, String? key0]) {
-  final key = key0 ?? (custom != null ? 'custom:${dishKey(name)}' : dishKey(name));
+  final key = key0 ?? (custom != null ? customKey(name, custom) : dishKey(name));
   final hs = custom != null ? null : refs.keys.toList();
   final front = s.front < s.plates.length ? s.plates[s.front] : null;
   var plates = s.plates, nextId = s.nextId;
