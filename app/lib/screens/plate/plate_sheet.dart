@@ -74,12 +74,8 @@ class _PlateSheetState extends State<PlateSheet>
 
   late final ShellApi _shell;
 
-  /// Android back: an open sheet goes back into the bar, and nothing else moves.
-  bool _back() {
-    if (!_handle.attached || _handle.px <= M2Layout.barMin + 1) return false;
-    _handle.to(M2Layout.barMin);
-    return true;
-  }
+  /// Android back: an open sheet goes back into the bar (its lowest height), and nothing else moves.
+  SheetHandle? _back() => _handle.attached && _handle.px > M2Layout.barMin + 1 ? _handle : null;
 
   @override
   void dispose() {
