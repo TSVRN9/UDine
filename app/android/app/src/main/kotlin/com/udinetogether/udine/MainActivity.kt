@@ -94,13 +94,13 @@ class MainActivity : FlutterFragmentActivity() {
                         metadata = Metadata.manualEntry(clientRecordId = id, clientRecordVersion = System.currentTimeMillis()),
                     )))
                     result.success(listOf(id))
-                } catch (e: Exception) { result.success(null) }
+                } catch (e: Exception) { android.util.Log.w("UDineHealth", "write failed", e); result.success(null) }
             }
             "delete" -> scope.launch {
                 try {
                     client.deleteRecords(NutritionRecord::class, emptyList(), call.argument<List<String>>("ids")!!)
                     result.success(true)
-                } catch (e: Exception) { result.success(false) }
+                } catch (e: Exception) { android.util.Log.w("UDineHealth", "delete failed", e); result.success(false) }
             }
             else -> result.notImplemented()
         }
