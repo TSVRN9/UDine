@@ -24,7 +24,7 @@ class Meal {
 }
 
 /// M2 tracking/score/campus/first-run settings: new preferences_kv keys, prefixed so they never meet RN's.
-const kTrackKey = 'm2:track', kScoresKey = 'm2:scores', kCharlesRiverKey = 'm2:charles_river', kFirstRunSeenKey = 'm2:first_run_seen', kPinsKey = 'm2:pins';
+const kTrackKey = 'm2:track', kScoresKey = 'm2:scores', kCharlesRiverKey = 'm2:charles_river', kFirstRunSeenKey = 'm2:first_run_seen', kPinsKey = 'm2:pins', kAlertsKey = 'm2:alerts';
 
 /// Repositories over an opened db, reading and writing RN's exact rows and JSON shapes.
 class UdineStore {
@@ -227,6 +227,19 @@ class UdineStore {
   Future<void> setScores({required bool healthfulness, required bool carbon}) =>
       _setKv(kScoresKey, {'healthfulness': healthfulness, 'carbon': carbon});
 
+  // ---- favourite-dish alerts: "Notify me" and what has been posted ----
+
+  Future<bool> alertsOn() async => await _kv(kAlertsKey) as bool? ?? false;
+  Future<void> setAlertsOn(bool v) => _setKv(kAlertsKey, v);
+
+  /// Takes the right to post [dish] for [day]: true for the one caller that records it, false for every later one (also from another
+  /// process: the primary key decides).
+  Future<bool> claimAlert(String dish, String day) async =>
+      await db.rawUpdate('INSERT OR IGNORE INTO alert_sent (dish_name, day) VALUES (?, ?)', [dish, day]) == 1;
+
+  Future<List<({String dishName, String day})>> alertsSent() async =>
+      [for (final r in await db.rawQuery('SELECT dish_name, day FROM alert_sent ORDER BY rowid')) (dishName: r['dish_name']! as String, day: r['day']! as String)];
+
   // ---- export: every device-local user table, through core/export.dart ----
 
   Future<Map<String, String>> exportJson() async => {
@@ -236,6 +249,7 @@ class UdineStore {
         'udine-favorites.json': exportFavoritesAsJson(await favorites()),
         'udine-custom-foods.json': exportCustomFoodsAsJson(await customFoods()),
         'udine-saved-foods.json': exportSavedFoodsAsJson(await savedFoods()),
+        'udine-alert-sent.json': exportAlertSentAsJson(await alertsSent()),
       };
 
   Future<Map<String, String>> exportCsv() async => {
@@ -245,5 +259,6 @@ class UdineStore {
         'udine-favorites.csv': exportFavoritesAsCsv(await favorites()),
         'udine-custom-foods.csv': exportCustomFoodsAsCsv(await customFoods()),
         'udine-saved-foods.csv': exportSavedFoodsAsCsv(await savedFoods()),
+        'udine-alert-sent.csv': exportAlertSentAsCsv(await alertsSent()),
       };
 }

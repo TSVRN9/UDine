@@ -342,4 +342,39 @@ void main() {
       expect(exportSavedFoodsAsJson([]), '[]');
     });
   });
+
+  group('alerts', () {
+    test('Notify me is off until set, and keeps its own key', () async {
+      expect(await s.alertsOn(), isFalse);
+      await s.setAlertsOn(true);
+      expect(await s.alertsOn(), isTrue);
+      expect((await db.query('preferences_kv', where: "key = 'm2:alerts'")).single['value_json'], 'true');
+    });
+
+    test('a dish is claimed once per day: the second claim loses, another day or dish wins', () async {
+      expect(await s.claimAlert('Pizza', '2026-10-08'), isTrue);
+      expect(await s.claimAlert('Pizza', '2026-10-08'), isFalse);
+      expect(await s.claimAlert('Pizza', '2026-10-09'), isTrue);
+      expect(await s.claimAlert('Pasta', '2026-10-08'), isTrue);
+    });
+
+    test('alert_sent is exported as udine-alert-sent.json and .csv, like the other tables', () async {
+      await s.claimAlert('Pizza', '2026-10-08');
+      await s.claimAlert('=Evil, "Dish"', '2026-10-09');
+      final sent = await s.alertsSent();
+      expect(sent.length, 2);
+      final j = (await s.exportJson())['udine-alert-sent.json']!;
+      expect(j, exportAlertSentAsJson(sent));
+      expect(jsonDecode(j), [
+        {'dishName': 'Pizza', 'day': '2026-10-08'},
+        {'dishName': '=Evil, "Dish"', 'day': '2026-10-09'},
+      ]);
+      expect((await s.exportCsv())['udine-alert-sent.csv']!.split('\n'), [
+        'dishName,day',
+        '"Pizza","2026-10-08"',
+        '"\t=Evil, ""Dish""","2026-10-09"',
+      ]);
+      expect(exportAlertSentAsJson([]), '[]');
+    });
+  });
 }

@@ -110,3 +110,7 @@ String exportSavedFoodsAsCsv(List<PackagedFood> foods) => _csv(
           [f.id, f.displayName, f.nutrition.servingSize, f.nutrition.calories, f.nutrition.proteinG, f.nutrition.totalCarbG, f.nutrition.totalFatG, f.ingredients ?? ''],
       ],
     );
+
+String exportAlertSentAsJson(List<({String dishName, String day})> sent) => _json([for (final a in sent) {'dishName': a.dishName, 'day': a.day}]);
+
+String exportAlertSentAsCsv(List<({String dishName, String day})> sent) => _csv(['dishName', 'day'], [for (final a in sent) [a.dishName, a.day]]);

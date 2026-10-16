@@ -44,11 +44,14 @@ const nut = '{"calories":210,"protein":9.5,"carbs":30,"fat":6,"sodium":340}';
 Future<Map<String, Object?>> dump(Database db) async => {
       for (final t in tables) t: await db.rawQuery('SELECT * FROM $t ORDER BY rowid'),
       'schema': await db.rawQuery(
-          "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != 'saved_foods' ORDER BY name"),
+          "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT IN ('saved_foods', 'alert_sent') ORDER BY name"),
     };
 
 Future<String?> savedFoodsShape(Database db) async =>
     ((await db.rawQuery("SELECT sql FROM sqlite_master WHERE name = 'saved_foods'")).firstOrNull?['sql'] as String?)?.replaceAll(RegExp(r'\s+'), ' ');
+
+Future<String?> alertSentShape(Database db) async =>
+    ((await db.rawQuery("SELECT sql FROM sqlite_master WHERE name = 'alert_sent'")).firstOrNull?['sql'] as String?)?.replaceAll(RegExp(r'\s+'), ' ');
 
 Future<int> version(Database db) async =>
     (await db.rawQuery('PRAGMA user_version')).first.values.first! as int;
@@ -104,10 +107,10 @@ void main() {
     await db.close();
   }
 
-  test('fresh create == RN schema + saved_foods, user_version 2', () async {
+  test('fresh create == RN schema + saved_foods + alert_sent, user_version 3', () async {
     final r = await openStore(path, factory: f);
     final db = (r as StoreReady).db;
-    expect(await version(db), 2);
+    expect(await version(db), 3);
     final ref = await f.openDatabase(inMemoryDatabasePath);
     for (final s in rnSchema) {
       await ref.execute(s);
@@ -115,18 +118,37 @@ void main() {
     expect(await dump(db), await dump(ref));
     expect(await savedFoodsShape(db), 'CREATE TABLE saved_foods (id TEXT PRIMARY KEY NOT NULL, food_json TEXT NOT NULL)');
     expect(await db.query('saved_foods'), isEmpty);
+    expect(await alertSentShape(db), 'CREATE TABLE alert_sent (dish_name TEXT NOT NULL, day TEXT NOT NULL, PRIMARY KEY (dish_name, day))');
+    expect(await db.query('alert_sent'), isEmpty);
     await db.close();
   });
 
-  test('user_version 1 (an earlier Flutter build) with RN data upgrades to 2, rows identical, saved_foods added', () async {
+  test('user_version 1 (an earlier Flutter build) with RN data upgrades to 3, rows identical, both tables added', () async {
     await seedRn(1);
     final before = await f.openDatabase(path, options: OpenDatabaseOptions(readOnly: true));
     final want = await dump(before);
     await before.close();
     final db = (await openStore(path, factory: f) as StoreReady).db;
-    expect(await version(db), 2);
+    expect(await version(db), 3);
     expect(await dump(db), want);
     expect(await db.query('saved_foods'), isEmpty);
+    await db.close();
+  });
+
+  test('user_version 2 (the build before alerts) with RN data and saved foods opens, rows identical, alert_sent added', () async {
+    await seedRn(2);
+    final seed = await f.openDatabase(path);
+    await seed.execute('CREATE TABLE saved_foods (id TEXT PRIMARY KEY NOT NULL, food_json TEXT NOT NULL)');
+    await seed.insert('saved_foods', {'id': 'off:1', 'food_json': '{"a":1}'});
+    await seed.close();
+    final before = await f.openDatabase(path, options: OpenDatabaseOptions(readOnly: true));
+    final want = await dump(before);
+    await before.close();
+    final db = (await openStore(path, factory: f) as StoreReady).db;
+    expect(await version(db), 3);
+    expect(await dump(db), want);
+    expect(await db.query('saved_foods'), [{'id': 'off:1', 'food_json': '{"a":1}'}]);
+    expect(await db.query('alert_sent'), isEmpty);
     await db.close();
   });
 
@@ -140,14 +162,14 @@ void main() {
     await db2.close();
   });
 
-  test('RN db at user_version 0 upgrades to 2, rows byte-identical', () async {
+  test('RN db at user_version 0 upgrades to 3, rows byte-identical', () async {
     await seedRn(0);
     final before = await f.openDatabase(path, options: OpenDatabaseOptions(readOnly: true));
     final want = await dump(before);
     expect(await version(before), 0);
     await before.close();
     final db = (await openStore(path, factory: f) as StoreReady).db;
-    expect(await version(db), 2);
+    expect(await version(db), 3);
     expect(await dump(db), want);
     await db.close();
   });
@@ -161,7 +183,7 @@ void main() {
     await db.close();
     final db2 = (await openStore(path, factory: f) as StoreReady).db;
     expect(await dump(db2), want);
-    expect(await version(db2), 2);
+    expect(await version(db2), 3);
     await db2.close();
     expect(File(path).readAsBytesSync(), first);
   });
@@ -172,7 +194,7 @@ void main() {
     final r = await openStore(path, factory: f);
     expect(r, isA<StoreNewerVersion>());
     expect((r as StoreNewerVersion).found, 7);
-    expect(r.supported, 2);
+    expect(r.supported, 3);
     expect(File(path).readAsBytesSync(), before);
   });
 
@@ -210,7 +232,7 @@ void main() {
   test('uncheckpointed RN WAL is replayed: rows present and identical', () async {
     final copy = await walCopy(0);
     final db = (await openStore(copy, factory: f) as StoreReady).db;
-    expect(await version(db), 2);
+    expect(await version(db), 3);
     expect(await dump(db), _want);
     expect((await db.query('log_entries')).length, 3);
     await db.close();

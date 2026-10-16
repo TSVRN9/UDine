@@ -6,7 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
 /// Schema version this build knows. 0 is RN's schema (never stamped a version).
-const kUserVersion = 2; // == _migrations.length
+const kUserVersion = 3; // == _migrations.length
 
 /// RN's schema, copied from mobile/src/lib/db.ts. Never alter these; new
 /// migrations add tables/columns/keys only.
@@ -41,9 +41,11 @@ const _rnSchema = [
 /// Additive-only steps; index i migrates user_version i -> i+1.
 /// 0 -> 1: stamps the version (RN's tables are created above if missing).
 /// 1 -> 2: saved_foods, the packaged and lookup foods added to the plate (custom_foods stays RN's alone).
+/// 2 -> 3: alert_sent, the favourite-dish alerts already posted (day is the effective day, 2 AM rollover; RN's food_sighting_dedup stays RN's alone).
 const _migrations = <List<String>>[
   [],
   ['CREATE TABLE IF NOT EXISTS saved_foods (id TEXT PRIMARY KEY NOT NULL, food_json TEXT NOT NULL)'],
+  ['CREATE TABLE IF NOT EXISTS alert_sent (dish_name TEXT NOT NULL, day TEXT NOT NULL, PRIMARY KEY (dish_name, day))'],
 ];
 
 sealed class StoreOpen {}
