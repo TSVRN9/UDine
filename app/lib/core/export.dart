@@ -1,6 +1,7 @@
 // Port of the exporters in shared/src/storage.ts; shared/vectors/export.json is the byte-equality contract.
 import 'dart:convert';
 
+import 'packaged_food.dart';
 import 'types.dart';
 
 /// Number.prototype.toString: plain shortest digits for integral values below 1e21 and for 1e-6 <= |v| < 1e21,
@@ -97,5 +98,15 @@ String exportCustomFoodsAsCsv(List<CustomFood> foods) => _csv(
       [
         for (final f in foods)
           [f.id, f.name, f.servingSize, f.nutrition.calories, f.nutrition.proteinG, f.nutrition.totalCarbG, f.nutrition.totalFatG, f.ingredients ?? ''],
+      ],
+    );
+
+String exportSavedFoodsAsJson(List<PackagedFood> foods) => _json([for (final f in foods) f.toJson()]);
+
+String exportSavedFoodsAsCsv(List<PackagedFood> foods) => _csv(
+      ['id', 'name', 'servingSize', 'calories', 'proteinG', 'totalCarbG', 'totalFatG', 'ingredients'],
+      [
+        for (final f in foods)
+          [f.id, f.displayName, f.nutrition.servingSize, f.nutrition.calories, f.nutrition.proteinG, f.nutrition.totalCarbG, f.nutrition.totalFatG, f.ingredients ?? ''],
       ],
     );
