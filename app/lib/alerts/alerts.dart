@@ -18,8 +18,9 @@ const alertTask = 'com.udinetogether.udine.favoriteAlerts';
 const _channel = AndroidNotificationDetails('favorite_alerts', 'Favorites on the menu');
 final _notifications = FlutterLocalNotificationsPlugin();
 
-/// A tap on a notification while the app is running; the app (see app.dart) opens the route.
-final alertTaps = StreamController<String>.broadcast();
+/// A tap on a notification while the app is running; the app (see app.dart) opens the route. Single-subscription, so a tap that arrives
+/// before the app listens (the OS restarting a killed process on the notification's intent) is held, not dropped.
+final alertTaps = StreamController<String>();
 
 Future<void> _initNotifications() => _notifications.initialize(
       settings: const InitializationSettings(
