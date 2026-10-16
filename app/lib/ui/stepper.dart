@@ -75,7 +75,11 @@ class RowControl extends StatefulWidget {
   final double qty;
   final bool ghost;
   final VoidCallback onAdd, onInc, onDec;
-  const RowControl({super.key, required this.qty, required this.ghost, required this.onAdd, required this.onInc, required this.onDec});
+
+  /// A menu row keeps its whole 114 lane (`.row .add{margin-left:66px}`), so its text never reflows; a bowl's add-in row (`.brow`) takes only
+  /// what the control is: 48 for the + and 114 for the stepper.
+  final bool lane;
+  const RowControl({super.key, required this.qty, required this.ghost, required this.onAdd, required this.onInc, required this.onDec, this.lane = true});
   @override
   State<RowControl> createState() => _RowControlState();
 }
@@ -146,8 +150,8 @@ class _RowControlState extends State<RowControl> with TickerProviderStateMixin {
       },
     );
     return SizedBox(
-      width: M2Layout.lane, height: M2Layout.addSize,
-      child: Stack(alignment: Alignment.centerRight, children: [
+      width: w.lane || w.qty > 0 ? M2Layout.lane : M2Layout.addSize, height: M2Layout.addSize,
+      child: Stack(clipBehavior: w.lane ? Clip.hardEdge : Clip.none, alignment: Alignment.centerRight, children: [
         ?plus,
         ?step,
         Positioned(right: 0, child: ghostOut),

@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 import '../../core/m2/board.dart';
+import '../../core/m2/bowl.dart' show Bowl;
+import '../../core/m2/bowl_builder.dart';
 import '../../core/m2/dish_sheet.dart';
 import '../../core/m2/plate.dart';
 import '../../core/m2/where.dart';
@@ -7,6 +9,7 @@ import '../../shell/app_scope.dart';
 import '../../shell/shell_scope.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
+import 'bowl_foot.dart';
 import 'where_book.dart';
 
 /// Opens the dish sheet (M2 `openDish`) above everything, the tab bar included, over whatever it was opened from, which stays where it
@@ -24,11 +27,17 @@ SheetHandle openDishSheet(
   List<String> avoid = const [],
   Map<String, MenuItem>? refs,
   Map<String, int> cafeIds = const {},
+  BowlSpec? build,
+  Sel? sel,
+  ({int plateId, String key})? edit,
+  bool plain = false,
   VoidCallback? onClosed,
 }) {
+  // today's dish that builds opens its builder (the row's + still adds it plain); a plate row of a plain dish opens as itself
+  build ??= day == 0 && !plain ? buildFor(fx, place, meal, dish) : null;
   final book = WhereBook(AppScope.of(context).repo, fx, cafeIds);
   return ShellScope.of(context).pushSheet((handle, done) => DishSheet(
-        handle: handle, dish: dish, place: place, meal: meal, day: day, fx: fx, book: book, avoid: avoid, refs: refs, onServe: onServe,
+        handle: handle, dish: dish, place: place, meal: meal, day: day, fx: fx, book: book, avoid: avoid, refs: refs, onServe: onServe, build: build, sel: sel, edit: edit,
         onClosed: () {
           book.dispose();
           onClosed?.call();
@@ -51,9 +60,14 @@ class DishSheet extends StatefulWidget {
   final Map<String, MenuItem>? refs;
   final void Function(String place, WhereGroup group) onServe;
   final VoidCallback onClosed;
+
+  /// The builder this sheet is (M2 `openDish` with a build): the add-ins chosen so far, and the plate item being edited (Update).
+  final BowlSpec? build;
+  final Sel? sel;
+  final ({int plateId, String key})? edit;
   const DishSheet({
     super.key, required this.handle, required this.dish, required this.place, required this.meal, required this.day, required this.fx,
-    required this.book, this.avoid = const [], this.refs, required this.onServe, required this.onClosed,
+    required this.book, this.avoid = const [], this.refs, required this.onServe, required this.onClosed, this.build, this.sel, this.edit,
   });
   @override
   State<DishSheet> createState() => _DishSheetState();
@@ -64,6 +78,8 @@ class _DishSheetState extends State<DishSheet> {
   bool _stuck = false, _ingOpen = false;
   /// the sheet's height now (the star rides its pinned header)
   final _px = ValueNotifier<double>(0);
+  late Sel _sel = {...?widget.sel};
+  final _rowKeys = List.generate(4, (_) => GlobalKey());
 
   @override
   void dispose() {
@@ -74,6 +90,16 @@ class _DishSheetState extends State<DishSheet> {
   MenuItem get d => widget.dish;
 
   double _mid(SheetMetrics m, double st) {
+    final spec = widget.build;
+    if (spec != null) {
+      final sc = m.body?.findRenderObject() as RenderBox?;
+      final rows = [for (final k in _rowKeys.take(spec.parts.length)) k.currentContext?.findRenderObject() as RenderBox?];
+      if (sc == null || rows.isEmpty || rows.any((r) => r == null || !r.hasSize)) return m.height * M2Layout.dishMidGuess;
+      return buildMid(
+        grab: M2Layout.grabH, rowsBottom: [for (final r in rows) r!.localToGlobal(Offset(0, r.size.height), ancestor: sc).dy - M2Layout.grabH],
+        foot: BowlFoot.heightFor(context), winH: m.height, top: st,
+      );
+    }
     final scroll = m.body?.findRenderObject() as RenderBox?, cal = _cal.currentContext?.findRenderObject() as RenderBox?;
     if (scroll == null || cal == null || !cal.hasSize) return m.height * M2Layout.dishMidGuess;
     final bottom = cal.localToGlobal(Offset(0, cal.size.height), ancestor: scroll).dy; // under the pinned grab, to the rule under Calories
@@ -88,6 +114,24 @@ class _DishSheetState extends State<DishSheet> {
     });
   }
 
+  void _step(int i, int dir) {
+    setState(() => _sel = stepPart(widget.build!, _sel, i, dir));
+    dir > 0 ? Haptics.add() : Haptics.remove();
+  }
+
+  /// M2 `badd`: the sheet goes down; the bowl lands on the plate (or replaces the one being edited) where the bar can show it.
+  void _badd(AppScope scope, String pm, Bowl bowl) {
+    final spec = widget.build!, edit = widget.edit;
+    widget.handle.away(() {
+      if (edit != null) {
+        scope.plate.updateBowl(edit.plateId, edit.key, spec, bowl);
+      } else {
+        scope.plate.addBowl(pm, spec, bowl);
+      }
+      Haptics.add();
+    });
+  }
+
   void _serve(String place, WhereGroup g) => widget.handle.away(() {
         Haptics.light();
         widget.onServe(place, g);
@@ -96,8 +140,8 @@ class _DishSheetState extends State<DishSheet> {
   static const _glyphs = {'plant': Glyph.plant, 'veg': Glyph.veg, 'halal': Glyph.halal, 'local': Glyph.local, 'sus': Glyph.sus};
   static const _names = {'plant': 'Plant based', 'veg': 'Vegetarian', 'halal': 'Halal', 'local': 'Local', 'sus': 'Sustainable'};
 
-  Widget _where(Board fx) {
-    final answer = whereAnswer(fx, d.dishName, widget.fx.clock, newton: AppScope.of(context).prefs.charlesRiver);
+  Widget _where(Board fx, MenuItem head) {
+    final answer = whereAnswer(fx, head.dishName, widget.fx.clock, newton: AppScope.of(context).prefs.charlesRiver);
     if (answer.isEmpty) return Text('Not on the menu again today or tomorrow', style: M2Text.sheetHead.style(M2Color.dm));
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       for (var i = 0; i < answer.length; i++) ...[
@@ -114,16 +158,50 @@ class _DishSheetState extends State<DishSheet> {
     ]);
   }
 
+  /// `.brow`: a compact add-in row under the builder's heading: its name, calories (and a café's price), the row's stepper.
+  Widget _brow(int i, Bowl bowl) {
+    final x = widget.build!.parts[i], cafe = isCafe(widget.place), n = M2Text.metaNum.style(M2Color.ink), u = M2Text.meta.style(M2Color.slate);
+    return KeyedSubtree(
+      key: i < _rowKeys.length ? _rowKeys[i] : null,
+      child: Container(
+        key: ValueKey('brow:$i'),
+        constraints: const BoxConstraints(minHeight: M2Layout.browMin),
+        decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: M2Color.hair))),
+        child: Row(children: [
+          Expanded(
+            child: ExcludeSemantics(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text.rich(Badge.name(x.dishName, M2Text.rowName.style(M2Color.ink), badge: Badge.forDiet(x.diet))),
+                Padding(
+                  padding: const EdgeInsets.only(top: M2Layout.browMetaTop),
+                  child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
+                    Text(fc(x.nutrition.calories), style: n), const SizedBox(width: M2Layout.numSpace), Text('cal', style: u),
+                    if (cafe && x.price != null) ...[const SizedBox(width: M2Layout.numSpace + M2Layout.browPriceGap), Text(x.price!, style: n)],
+                  ]),
+                ),
+              ]),
+            ),
+          ),
+          const SizedBox(width: M2Layout.browGap),
+          RowControl(lane: false, qty: (_sel[i] ?? 0).toDouble(), ghost: false, onAdd: () => _step(i, 1), onInc: () => _step(i, 1), onDec: () => _step(i, -1)),
+        ]),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final scope = AppScope.of(context), st = safeTop(context);
+    final scope = AppScope.of(context), st = safeTop(context), spec = widget.build;
     return ListenableBuilder(
       listenable: Listenable.merge([scope.prefs, scope.plate, widget.book]),
       builder: (context, _) {
         final fx = widget.fx, pm = plateMeal(fx, widget.place, widget.meal, fx.clock);
+        final bowl = spec == null ? null : bowlNow(spec, _sel), head = spec == null ? d : spec.base, item = bowl?.item ?? d;
         final on = widget.day == 0 && findItem(scope.plate.state, pm, d.key) != null;
-        final marks = sheetMarks(d, scope.prefs.scores), price = shownPrice(widget.place, d), label = labelRows(d);
-        final board = widget.book.board;
+        final marks = head == null ? null : sheetMarks(head, scope.prefs.scores), label = labelRows(item);
+        final price = spec == null ? shownPrice(widget.place, d) : (isCafe(widget.place) ? item.price : null);
+        final serving = spec == null ? label.serving : (head == null ? null : labelRows(head).serving);
+        final board = widget.book.board, name = bowl?.name ?? d.dishName;
         return NotificationListener<ScrollNotification>(
           onNotification: (n) {
             if (n.metrics.axis == Axis.vertical) {
@@ -135,13 +213,14 @@ class _DishSheetState extends State<DishSheet> {
           child: LayoutBuilder(builder: (context, frame) => Stack(children: [
             Positioned.fill(child: M2Sheet(
             handle: widget.handle, top: st + M2Layout.sheetTop, onClosed: widget.onClosed, mid: (m) => _mid(m, st), header: const SheetGrab(), onSize: (v) => _px.value = v,
+            bottomPad: spec == null ? null : M2Layout.footBodyPad + safeBottom(context),
             slivers: [
-              PinnedHeaderSliver(child: _Head(name: d.dishName, stuck: _stuck)),
+              PinnedHeaderSliver(child: _Head(name: name, stuck: _stuck)),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: M2Space.gutter),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                    if (price != null || label.serving != null)
+                    if (price != null || serving != null)
                       Padding(
                         padding: const EdgeInsets.only(top: M2Layout.dsvTop),
                         child: Text.rich(TextSpan(style: M2Text.date.style(M2Color.slate), children: [
@@ -149,7 +228,7 @@ class _DishSheetState extends State<DishSheet> {
                             TextSpan(text: price, style: M2Text.price.style(M2Color.ink)),
                             const WidgetSpan(child: SizedBox(width: M2Space.part)),
                           ],
-                          TextSpan(text: label.serving),
+                          TextSpan(text: serving),
                         ])),
                       ),
                     if (marks != null)
@@ -168,44 +247,71 @@ class _DishSheetState extends State<DishSheet> {
                             ),
                         ]),
                       ),
-                    if (d.allergens.isNotEmpty)
+                    if (item.allergens.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: M2Layout.dalTop),
                         child: Text.rich(TextSpan(style: M2Text.lbl.style(M2Color.ink), children: [
                           TextSpan(text: 'Contains ', style: const TextStyle(color: M2Color.dm, fontWeight: bold700)),
-                          for (var i = 0; i < d.allergens.length; i++) ...[
+                          for (var i = 0; i < item.allergens.length; i++) ...[
                             if (i > 0) const TextSpan(text: ', '),
-                            TextSpan(text: d.allergens[i], style: widget.avoid.contains(d.allergens[i]) ? const TextStyle(color: M2Color.vm, fontWeight: bold700) : null),
+                            TextSpan(text: item.allergens[i], style: widget.avoid.contains(item.allergens[i]) ? const TextStyle(color: M2Color.vm, fontWeight: bold700) : null),
                           ],
                         ])),
                       ),
-                    if (widget.day == 0)
+                    if (spec != null) ...[
+                      if (spec.syn == null)
+                        Padding(padding: const EdgeInsets.only(top: M2Layout.bhTop, bottom: M2Layout.bhBottom), child: Text(spec.head, style: M2Text.sheetHead.style(M2Color.dm))),
+                      Padding(
+                        padding: EdgeInsets.only(top: spec.syn != null ? M2Layout.bpartsSynTop : 0),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                          for (var i = 0; i < spec.parts.length; i++) ...[
+                            if (spec.syn?.topHead != null && i == spec.syn!.choices.length)
+                              Padding(padding: const EdgeInsets.only(top: M2Layout.bhTop, bottom: M2Layout.bhBottom), child: Text(spec.syn!.topHead!, style: M2Text.sheetHead.style(M2Color.dm))),
+                            _brow(i, bowl!),
+                          ],
+                        ]),
+                      ),
+                    ] else if (widget.day == 0)
                       Padding(padding: const EdgeInsets.only(top: M2Layout.dadd), child: Button(kind: ButtonKind.primary, label: on ? 'Add another' : 'Add to plate', expand: true, onTap: () => _add(scope, pm))),
-                    if (board != null) Padding(padding: const EdgeInsets.only(top: M2Layout.whereTop), child: _where(board)),
+                    if (board != null && head != null) Padding(padding: const EdgeInsets.only(top: M2Layout.whereTop), child: _where(board, head)),
                     Padding(padding: const EdgeInsets.only(top: M2Layout.labelTop), child: NutritionLabel(label: label, calKey: _cal)),
-                    if (d.health != null || d.carbon != null) Padding(padding: const EdgeInsets.only(top: M2Layout.gradesTop), child: RatingsPanel(health: d.health, carbon: d.carbon)),
-                    if (d.ingredients?.isNotEmpty ?? false) _Ingredients(text: d.ingredients!, open: _ingOpen, onToggle: () => setState(() => _ingOpen = !_ingOpen)),
+                    if (head != null && (head.health != null || head.carbon != null)) Padding(padding: const EdgeInsets.only(top: M2Layout.gradesTop), child: RatingsPanel(health: head.health, carbon: head.carbon)),
+                    if (head?.ingredients?.isNotEmpty ?? false) _Ingredients(text: head!.ingredients!, open: _ingOpen, onToggle: () => setState(() => _ingOpen = !_ingOpen)),
                   ]),
                 ),
               ),
             ],
           )),
-            ValueListenableBuilder<double>(
-              valueListenable: _px,
-              builder: (_, px, _) => Positioned(
-                top: frame.maxHeight - px + M2Layout.grabH + M2Layout.favUp, right: M2Space.gutter - M2Layout.favOut,
-                child: FavoriteStar(on: scope.prefs.isFavorite(d.dishName), onTap: () => _favorite(scope)),
+            if (head != null)
+              ValueListenableBuilder<double>(
+                valueListenable: _px,
+                builder: (_, px, _) => Positioned(
+                  top: frame.maxHeight - px + M2Layout.grabH + M2Layout.favUp, right: M2Space.gutter - M2Layout.favOut,
+                  child: FavoriteStar(on: scope.prefs.isFavorite(head.dishName), onTap: () => _favorite(scope, head)),
+                ),
               ),
-            ),
+            if (spec != null)
+              ValueListenableBuilder<double>(
+                valueListenable: _px,
+                builder: (_, px, _) {
+                  final h = BowlFoot.heightFor(context);
+                  return Positioned(
+                    left: 0, right: 0, height: h, top: frame.maxHeight - (px < h ? px : h),
+                    child: BowlFoot(
+                      cal: item.nutrition.calories, protein: item.nutrition.proteinG, update: widget.edit != null, off: addOff(spec, bowl!), onTap: () => _badd(scope, pm, bowl),
+                    ),
+                  );
+                },
+              ),
           ])),
         );
       },
     );
   }
 
-  void _favorite(AppScope scope) {
+  void _favorite(AppScope scope, MenuItem head) {
     Haptics.light();
-    scope.prefs.toggleFavorite(d.dishName).catchError((Object e) => debugPrint('favorite not saved: $e'));
+    scope.prefs.toggleFavorite(head.dishName).catchError((Object e) => debugPrint('favorite not saved: $e'));
   }
 }
 

@@ -6,7 +6,10 @@ import '../core/date.dart';
 import '../core/m2/board.dart';
 import '../core/m2/log.dart';
 import '../core/macros.dart';
+import '../core/m2/bowl.dart' show Bowl;
+import '../core/m2/bowl_builder.dart';
 import '../core/m2/plate.dart';
+import '../core/m2/plate.dart' as core show addBowl, updateBowl;
 import '../core/store/store.dart' show Undo;
 import '../core/types.dart' show LogEntry;
 import '../theme/tokens.dart';
@@ -233,6 +236,21 @@ class PlateModel extends ChangeNotifier {
     _drop(); // (M2 addDish: S.lastLog = null. Undo could otherwise put back a plate beside one it could now have joined)
     _failed = false;
     _s = addDish(_s, meal, name, refs, custom);
+    notifyListeners();
+  }
+
+  /// A builder's Add (M2 `badd`): a bowl is one item named for its base; a base with nothing chosen is the plain dish.
+  void addBowl(String meal, BowlSpec spec, Bowl bowl) {
+    _failure = null;
+    _drop();
+    _failed = false;
+    _s = core.addBowl(_s, meal, spec, bowl, spec.place);
+    notifyListeners();
+  }
+
+  /// A builder's Update: the plate item becomes the new bowl where it is (a twin on the plate takes its servings).
+  void updateBowl(int plateId, String key, BowlSpec spec, Bowl bowl) {
+    _s = core.updateBowl(_s, plateId, key, bowl, spec, spec.place);
     notifyListeners();
   }
 

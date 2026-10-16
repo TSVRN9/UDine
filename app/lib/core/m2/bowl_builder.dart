@@ -62,3 +62,19 @@ double buildMid({required double grab, required List<double> rowsBottom, require
   final want = grab + last + foot + 8, cap = winH - top - 8;
   return want < cap ? want : cap;
 }
+
+/// The builder a dish opens in [b] (the board the sheet was given), or null: the dish is found where it sits in the menu, so a copy of it
+/// never builds. Today's dishes only (another day's carry no control).
+BowlSpec? buildFor(Board b, String place, String meal, MenuItem d) {
+  for (final iso in b.days.keys) {
+    final ss = b.days[iso]?[place]?[meal];
+    if (ss == null) continue;
+    for (var si = 0; si < ss.length; si++) {
+      final di = ss[si].dishes.indexWhere((x) => identical(x, d));
+      if (di < 0) continue;
+      final k = buildOf(b, iso, place, meal, si, di);
+      return k == null ? null : BowlSpec.build(k, place: place, meal: meal);
+    }
+  }
+  return null;
+}

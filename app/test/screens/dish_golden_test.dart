@@ -67,16 +67,8 @@ void main() {
       await expectLater(find.byType(UdineApp), matchesGoldenFile('../goldens/dish_avoid_$n.png'));
       await drain(t);
     });
-    testWidgets('a café dish with its price, $n dp', (t) async {
-      final b = await bootRecorded(t);
-      await openPlace(t, b, 'c3', w: w);
-      final row = find.byWidgetPredicate((x) => x is DishRow && x.dish.price != null).first;
-      await t.ensureVisible(row);
-      await t.tap(row, warnIfMissed: false);
-      await sheetUp(t);
-      await expectLater(find.byType(UdineApp), matchesGoldenFile('../goldens/dish_cafe_$n.png'));
-      await drain(t);
-    });
+    // (the Terrace's breakfast sandwich, M2's first café dish with a price today: a café dish whose meal has add-ons opens the builder instead)
+    testWidgets('a café dish with its price, $n dp', (t) => shot(t, 'cafe', '/cafe/27?meal=breakfast&dish=${Uri.encodeQueryComponent('Bacon, Egg & Cheese on English Muffin')}'));
     testWidgets('ingredients cut to three lines, $n dp', (t) => shot(t, 'ing_closed', dishRoute(golden), act: (t, b) => reveal(t, find.text('Show all'))));
     testWidgets('ingredients open, $n dp', (t) => shot(t, 'ing_open', dishRoute(golden), act: (t, b) async {
           await reveal(t, find.text('Show all'));

@@ -11,10 +11,14 @@ class PlateRow extends StatefulWidget {
   final num cal;
   final VoidCallback? onOpen;
   final VoidCallback onInc, onDec;
+
+  /// a bowl's "with Hard Boiled Egg, 2 × Steamed Bok Choy" (`.pw`), under its name
+  final String? withText;
   const PlateRow({
     super.key,
     required this.item,
     required this.cal,
+    this.withText,
     this.onOpen,
     required this.onInc,
     required this.onDec,
@@ -75,6 +79,11 @@ class _PlateRowState extends State<PlateRow>
                     children: [
                       // (`.prow .n` has no line-height of its own: the font's normal line, 19, where a menu row's is 20)
                   Text(it.name, style: M2Text.rowName.normal().style(M2Color.ink)),
+                      if (widget.withText != null && widget.withText!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: M2Layout.pwTop),
+                          child: Text(widget.withText!, style: M2Text.meta.withLine(M2Layout.pwLine).style(M2Color.slate)),
+                        ),
                       Padding(
                         padding: const EdgeInsets.only(
                           top: M2Layout.prowMetaTop,

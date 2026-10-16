@@ -7,6 +7,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
 import 'core/hours.dart';
+import 'core/m2/bowl.dart' show Bowl;
+import 'core/m2/bowl_builder.dart' show BowlSpec, bowlNow;
 import 'core/m2/board.dart' show dishKey, halls, MenuItem, M2MenuItem;
 import 'core/types.dart' show MealPeriod;
 import 'core/store/db.dart';
@@ -97,18 +99,19 @@ class Boot {
   /// `?history=today|full` (recorded screenshot routes): M2's seeded log in the throwaway store, so You has days to show.
   Future<void> seedLog(String route) async {
     final h = Uri.parse(route).queryParameters['history'];
-    if (store == null || recordedFlags(route) == null || (h != 'today' && h != 'full')) return;
-    await store!.addEntries([...seedToday, if (h == 'full') ...seedEarlier]);
+    if (store == null || recordedFlags(route) == null || (h != 'today' && h != 'full' && h != 'bowl')) return;
+    await store!.addEntries([...seedToday, if (h != 'today') ...seedEarlier, if (h == 'bowl') ...seedBowl]);
     await log!.reload();
   }
 
   /// `/plate?seed=` (screenshot routes), added the way Search adds them. `benchmark`: M2's plate, Beef Brisket Noodle Bowl x1 and Golden BBQ
   /// Chicken Thigh x2 (the brisket serves Worcester and Berkshire, the thigh only Worcester, which narrows the plate). `one`: the thigh
   /// alone. `choose`: the brisket alone, so Log asks Worcester or Berkshire. `split`: the benchmark plate and, as M2's `?state=split`,
-  /// the first dish of Franklin's fourth lunch station, which starts a second plate.
+  /// the first dish of Franklin's fourth lunch station, which starts a second plate. `bowls`: two bowls of one base and the plain dish, as M2's
+  /// plate reads after two Adds in the builder: the brisket with Bean Sprouts and 2 x Chopped Cilantro, the brisket plain, the brisket with a Hard Boiled Egg.
   Future<void> seedPlate(String route) async {
     final u = Uri.parse(route), seed = u.queryParameters['seed'];
-    if (u.path != '/plate' || !const {'benchmark', 'one', 'choose', 'split'}.contains(seed)) return;
+    if (u.path != '/plate' || !const {'benchmark', 'one', 'choose', 'split', 'bowls'}.contains(seed)) return;
     Future<List<MenuItem>> lunch(String place) async {
       final s = await repo.menu(halls.indexOf(place) + 1, repo.today).firstWhere((s) => s is Loaded<List<MenuItem>>);
       return [for (final d in (s as Loaded<List<MenuItem>>).value) if (d.mealPeriod == MealPeriod.lunch) d];
@@ -118,6 +121,15 @@ class Boot {
     final b = {for (final h in ['W', 'B']) h: ?await dish(h, brisket)}, t = {'W': ?await dish('W', thigh)};
     if (seed == 'one') {
       plate.add('lunch', thigh, t);
+      return;
+    }
+    if (seed == 'bowls') {
+      final base = b['W']!, st = mealsOfItems(await lunch('W'))['lunch']!.firstWhere((s) => s.dishes.any((d) => d.key == base.key));
+      final spec = BowlSpec(head: 'Noodle Bowl', parts: [for (final d in st.dishes) if (d.key != base.key) d], base: base, place: 'W', meal: 'lunch');
+      Bowl of(Map<String, num> sel) => bowlNow(spec, {for (final e in sel.entries) spec.parts.indexWhere((d) => d.dishName == e.key): e.value});
+      plate.addBowl('lunch', spec, of({'Bean Sprouts': 1, 'Chopped Cilantro': 2}));
+      plate.add('lunch', brisket, {'W': base});
+      plate.addBowl('lunch', spec, of({'Hard Boiled Egg': 1}));
       return;
     }
     plate.add('lunch', brisket, b);
