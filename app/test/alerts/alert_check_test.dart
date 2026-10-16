@@ -83,6 +83,15 @@ void main() {
     expect(sent.single.body.split('\n'), hasLength(today));
   });
 
+  test('a post that fails (notifications off) gives the claim back: the next check posts it', () async {
+    await expectLater(
+      runAlertCheck(store: store, now: () => at('12:41'), loadBoard: (_) async => board, notify: (_) async => throw StateError('off')),
+      throwsStateError,
+    );
+    expect(await store.alertsSent(), isEmpty);
+    expect(await run(at('12:56')), 1);
+  });
+
   test('nothing while Notify me is off, or with no dish favourited', () async {
     await store.setAlertsOn(false);
     expect(await run(at('12:41')), 0);

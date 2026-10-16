@@ -32,13 +32,22 @@ Future<void> _initNotifications() => _notifications.initialize(
       },
     );
 
-Future<void> _post(AlertNotice n) => _notifications.show(
+/// Whether the OS will show a notification now (permission granted, not blocked).
+Future<bool> _allowed() async =>
+    await _notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.areNotificationsEnabled() ??
+    (await _notifications.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()?.checkPermissions())?.isEnabled ??
+    true;
+
+Future<void> _post(AlertNotice n) async {
+  if (!await _allowed()) throw StateError('notifications are off');
+  await _notifications.show(
       id: n.dishName.hashCode & 0x7fffffff,
       title: n.dishName,
       body: n.body,
       notificationDetails: const NotificationDetails(android: _channel, iOS: DarwinNotificationDetails()),
       payload: n.route,
     );
+}
 
 /// The background check's own connection to udine.db, apart from the app's (see openStore's singleInstance).
 Future<StoreOpen> openAlertStore({String? path, DatabaseFactory? factory}) async =>
