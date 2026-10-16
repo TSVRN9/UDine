@@ -19,6 +19,7 @@ import '../hall/meal_list.dart' show DietNote;
 import '../halls/hall_page.dart';
 import '../halls/halls_model.dart';
 import 'glide.dart';
+import 'net_line.dart';
 import 'search_controller.dart';
 import 'search_entries.dart';
 
@@ -294,7 +295,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final extras = c == null ? const <Widget>[] : widget.extras?.call(context, c.query.trim()) ?? const <Widget>[];
     final entries = c == null || ix == null
         ? const <SearchEntry>[]
-        : searchEntries(raw: c.result, query: c.query, lenses: c.lenses, meal: meal, prefs: scope.prefs.diet, reveal: _reveal, track: !scope.menusOnly, hasExtras: extras.isNotEmpty);
+        : searchEntries(raw: c.result, query: c.query, lenses: c.lenses, meal: meal, prefs: scope.prefs.diet, reveal: _reveal, track: !scope.menusOnly, hasExtras: extras.isNotEmpty, net: c.menusIn ? c.net : NetLine.failed);
     _entries = entries;
     final ids = {for (var i = 0; i < entries.length; i++) entries[i].id: i}; // a row that survives a keystroke keeps its element at its new index
     final idle = c != null && c.query.trim().isEmpty && c.lenses.isEmpty;
@@ -325,7 +326,9 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
             SliverToBoxAdapter(child: _lenses(c)),
-            if (idle && widget.idle != null) SliverToBoxAdapter(child: widget.idle),
+            if (c != null && c.net == NetLine.offline) SliverToBoxAdapter(child: NetNote(text: offlineLine(c.savedCafes))),
+            if (c != null && c.net == NetLine.failed) SliverToBoxAdapter(child: NetFail(onRetry: () { Haptics.light(); c.hallsData.retry(); })),
+            if (idle && widget.idle != null && c.net != NetLine.failed) SliverToBoxAdapter(child: widget.idle),
             SliverList(delegate: SliverChildBuilderDelegate((context, i) => _entry(entries[i], c!), childCount: entries.length, addAutomaticKeepAlives: false, findChildIndexCallback: (k) => ids[(k as ValueKey<String>).value])),
             SliverToBoxAdapter(child: SizedBox(height: M2Layout.listFoot + safeBottom(context) + MediaQuery.viewInsetsOf(context).bottom)),
           ],

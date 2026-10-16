@@ -28,11 +28,12 @@ class Button extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final h = switch (_size) { ButtonSize.large => M2Layout.btnL, ButtonSize.medium => M2Layout.btnM, ButtonSize.tap => M2Size.tap };
-    final inset = kind == ButtonKind.directions;
+    final small = kind == ButtonKind.line && _size == ButtonSize.tap; // `.netfail .btn`, `.lkst .btn`: 44 tall, 15 dp, 16 of padding, the ring inset
+    final inset = kind == ButtonKind.directions || small;
     final big = _size == ButtonSize.large && (kind == ButtonKind.gold || kind == ButtonKind.outline); // `.evbtn`: 52 tall, 17 dp
     final (bg, fg, ring, style, pad) = switch (kind) {
       ButtonKind.primary => (M2Color.vm, M2Color.white, null, M2Text.action.bold(), 0.0),
-      ButtonKind.line => (null, M2Color.vm, M2Color.vm, M2Text.action.bold(), 0.0),
+      ButtonKind.line => (null, M2Color.vm, M2Color.vm, small ? M2Text.link.bold() : M2Text.action.bold(), small ? M2Layout.lineBtnPad : 0.0),
       ButtonKind.gold => (M2Color.gold, M2Color.dm, null, big ? M2Text.action.bold() : M2Text.button.bold(), M2Layout.gbtnPad),
       ButtonKind.outline => (null, M2Color.white, M2Color.outline, big ? M2Text.action : M2Text.link, M2Layout.obtnPad),
       ButtonKind.outlineDark => (null, M2Color.vm, M2Color.vm, M2Text.link, M2Layout.obtnPad),

@@ -266,14 +266,38 @@ void main() {
     });
   });
 
-  test('events: fetched, parsed, not saved', () async {
+  test('events: fetched, parsed, saved for the day; offline the saved copy answers, then LoadedOffline', () async {
     final got = await run(repo.events());
     expect(kinds(got), 'Loading,Loaded');
     expect((got.last as Loaded<List<DiningEvent>>).value, isNotEmpty);
-    expect(await db.query('preferences_kv'), isEmpty);
+    expect((await db.query('preferences_kv')).map((r) => r['key']), ['events:v2:2026-10-13']);
+    net.online = false;
+    final off = await run(repo.events());
+    expect(kinds(off), 'Loaded,LoadedOffline');
+    expect((off.last as LoadedOffline<List<DiningEvent>>).value, isNotEmpty);
+  });
+
+  test('events: a copy from another day is not offered offline', () async {
+    await run(repo.events());
+    clock = clock.add(const Duration(days: 1));
+    net.online = false;
+    expect(kinds(await run(repo.events())), 'Loading,NotSaved');
+  });
+
+  test('prune drops saved events older than yesterday with the menus and hours', () async {
+    for (final d in ['2026-10-10', '2026-10-12']) {
+      await db.insert('preferences_kv', {'key': 'events:v2:$d', 'value_json': '{}'});
+    }
+    await repo.prune('2026-10-13');
+    expect((await db.query('preferences_kv')).map((r) => r['key']), ['events:v2:2026-10-12']);
   });
 
   group('launch', () {
+    test('warms the day\'s events too, so they open offline', () async {
+      await repo.launch();
+      expect((await db.query('preferences_kv', where: "key LIKE 'events:v2:%'")).length, 1);
+    });
+
     test(
       'prefetches today and tomorrow for the four halls, plus hours; a second launch asks again only for the non-final tomorrow and hours',
       () async {
