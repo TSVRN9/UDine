@@ -108,7 +108,9 @@ Deno.test("discoverAllDishes fetches longmenu.aspx through a bounded pool, not o
   const gate = new Promise<void>((resolve) => {
     releaseFirstBatch = resolve;
   });
-  const fetchImpl = (async () => {
+  const fetchImpl = (async (input: string | URL | Request) => {
+    // shortmenu.aspx meal-name lookups (one per location) run first and aren't what this gate measures.
+    if (String(input).includes("shortmenu.aspx")) return new Response("", { status: 200 });
     started++;
     inFlight++;
     maxInFlight = Math.max(maxInFlight, inFlight);
@@ -134,4 +136,32 @@ Deno.test("discoverAllDishes fetches longmenu.aspx through a bounded pool, not o
 
   if (started !== 8) throw new Error(`expected all 8 (location x meal) tasks to run, got ${started}`);
   if (maxInFlight > concurrency) throw new Error(`pool exceeded its concurrency cap: ${maxInFlight} > ${concurrency}`);
+});
+
+const mealLink = (meal: string) => `<a href="longmenu.aspx?sName=%60&locationNum=1&mealName=${meal}">x</a>`;
+
+Deno.test("discoverAllDishes requests exactly each location's parsed meal names, and the four standard ones when none are listed", async () => {
+  const locations: RetailLocation[] = [
+    { locationNum: 13, locationNumRaw: "13", hrefLocationName: "Worcester+Cafe", displayName: "Worcester Cafe" },
+    { locationNum: 92, locationNumRaw: "92", hrefLocationName: "Post+%26+Bean+Cafe", displayName: "Post & Bean Cafe" },
+    { locationNum: 99, locationNumRaw: "99", hrefLocationName: "Nowhere", displayName: "Nowhere" },
+  ];
+  const shortMenus: Record<string, string> = { "13": mealLink("Daily+Offerings"), "92": mealLink("Daily+Offering"), "99": "" };
+  const longRequests: string[] = [];
+  const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    const num = /locationNum=(\d+)/.exec(url)![1];
+    if (url.includes("shortmenu.aspx")) {
+      if (!url.includes("locationName=") || (init?.headers as Record<string, string>)?.Cookie !== "cookie=1") throw new Error(`bad shortmenu request ${url}`);
+      return new Response(shortMenus[num], { status: 200 });
+    }
+    longRequests.push(`${num}:${decodeURIComponent(/mealName=([^&]*)/.exec(url)![1])}`);
+    return new Response("", { status: 200 });
+  }) as typeof fetch;
+
+  await discoverAllDishes(locations, "cookie=1", fetchImpl, 3);
+
+  const got = longRequests.sort();
+  const want = ["13:Daily Offerings", "92:Daily Offering", "99:Breakfast", "99:Dinner", "99:Late Night", "99:Lunch"].sort();
+  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(`got ${JSON.stringify(got)}, expected ${JSON.stringify(want)}`);
 });
