@@ -65,7 +65,7 @@ void main() {
     final boots = await t.runAsync(() async {
       sqfliteFfiInit();
       databaseFactory = databaseFactoryFfi;
-      Future<int> n(String route) async => switch ((await (await Boot.open(route, read: readRecorded)).repo.events().toList()).whereType<Loaded<List<DiningEvent>>>().last) { Loaded(:final value) => value.length, _ => -1 };
+      Future<int> n(String route) async => (await (await Boot.open(route, read: readRecorded)).repo.events().toList()).whereType<Loaded<List<DiningEvent>>>().last.value.length;
       return (await n('/search?data=recorded&events=0'), await n('/search?data=recorded'));
     });
     expect(boots!.$1, 0);
