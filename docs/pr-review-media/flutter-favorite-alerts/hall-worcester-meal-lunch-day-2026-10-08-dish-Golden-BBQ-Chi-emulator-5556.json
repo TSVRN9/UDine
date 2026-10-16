@@ -1,10 +1,10 @@
 {
-  "sha": "331c5c7251035e5109ca6c9798c84bc651c7a5cf",
+  "sha": "e5cd8a8dbf7dd15b08dbe6c15a7b59defe797c3c",
   "branch": "flutter/favorite-alerts",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/alerts-t1",
   "route": "/hall/worcester?meal=lunch&day=2026-10-08&dish=Golden BBQ Chicken Thigh&data=recorded&at=2026-10-08T12:41&photos=off",
   "device": "sdk_gphone64_x86_64",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-16T06:49:55Z"
+  "ts": "2026-10-16T07:21:43Z"
 }
