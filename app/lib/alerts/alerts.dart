@@ -23,7 +23,7 @@ final alertTaps = StreamController<String>.broadcast();
 
 Future<void> _initNotifications() => _notifications.initialize(
       settings: const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        android: AndroidInitializationSettings('ic_stat_alert'),
         // The OS permission sheet is asked for by the Favorites row (Task 2), never at start-up.
         iOS: DarwinInitializationSettings(requestAlertPermission: false, requestBadgePermission: false, requestSoundPermission: false),
       ),
