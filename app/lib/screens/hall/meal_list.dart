@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import '../../core/m2/board.dart';
+import '../../core/m2/bowl.dart' show synOf;
 import '../../core/m2/menu_view.dart';
 import '../../core/m2/plate.dart';
 import '../../core/m2/schedule.dart' show eventOn;
@@ -25,10 +26,13 @@ class MealActions {
   final ValueChanged<bool> onReveal;
   final VoidCallback onRetry;
   final ValueChanged<int> onEvent;
-  const MealActions({required this.onOpen, required this.onAdd, required this.onInc, required this.onDec, required this.onReveal, required this.onRetry, required this.onEvent});
+
+  /// a synthetic base's row ("Deli Bar", "Noodle Bowl") under its station head opens its builder
+  final ValueChanged<int> onSyn;
+  const MealActions({required this.onSyn, required this.onOpen, required this.onAdd, required this.onInc, required this.onDec, required this.onReveal, required this.onRetry, required this.onEvent});
 }
 
-enum ItemKind { grab, event, note, head, dish, state, retry, spinner }
+enum ItemKind { grab, event, note, head, syn, dish, state, retry, spinner }
 
 /// One thing in the list, before it is a widget: cheap to make for the whole menu, built into a widget only when it scrolls near.
 class ListItem {
@@ -40,7 +44,7 @@ class ListItem {
   final TimeWindow? grab;
   final int ev;
   const ListItem(this.kind, {this.si = -1, this.dish, this.contains = const [], this.text, this.grab, this.ev = -1});
-  String get id => switch (kind) { ItemKind.head => 'h$si', ItemKind.dish => '$si.${dish!.key}', ItemKind.event => 'e$ev', _ => kind.name };
+  String get id => switch (kind) { ItemKind.head => 'h$si', ItemKind.syn => 's$si', ItemKind.dish => '$si.${dish!.key}', ItemKind.event => 'e$ev', _ => kind.name };
 }
 
 /// What the list says for a place's meal on a day (M2 `renderMenuList`): the Grab 'N Go note, the line over a filtered list, station
@@ -73,6 +77,9 @@ List<ListItem> mealItems(Board fx, Prefs prefs, String place, String name, int d
       case 'head':
         si = it.si;
         out.add(ListItem(ItemKind.head, si: si, text: it.name));
+        // another day's dishes can't go on today's plate, so its stations build nothing
+        final y = day == 0 ? synOf(fx, iso, place, meal, si) : null;
+        if (y != null) out.add(ListItem(ItemKind.syn, si: si, text: y.label));
       case 'dish':
         out.add(ListItem(ItemKind.dish, si: si, dish: it.dish, contains: it.contains));
     }
@@ -104,6 +111,10 @@ Widget buildItem(BuildContext context, ListItem it, {required Board fx, required
       return DietNote(line: it.text!, revealed: reveal, onTap: () => actions.onReveal(!reveal));
     case ItemKind.head:
       return _StationHead(key: keys?.station(it.si) ?? ValueKey(it.id), name: it.text!);
+    case ItemKind.syn:
+      return ListRow(
+        key: ValueKey(it.id), label: it.text!, name: TextSpan(text: it.text), onTap: () => actions.onSyn(it.si), control: const Chevron(),
+      );
     case ItemKind.dish:
       final d = it.dish!, pm = plateMeal(fx, place, meal, fx.clock);
       return DishRow(

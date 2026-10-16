@@ -131,7 +131,7 @@ double _cents(String? s) => s == null || s.isEmpty ? 0 : double.tryParse(s.repla
 /// A synthetic bowl has no [base] and no nutrition of its own: only its parts.
 Bowl bowlDish(MenuItem? base, List<Qty> parts, {Syn? syn, required String place}) {
   final all = <Qty>[if (base != null) (base, 1), ...parts];
-  assert(all.isNotEmpty && (base != null || syn != null));
+  assert(base != null || syn != null); // (a synthetic bowl with nothing chosen is the sheet's 0 cal foot)
   num sum(num Function(NutritionFacts) f) => all.fold<num>(0, (a, e) => a + f(e.$1.nutrition) * e.$2);
   final blank = <String>{
     for (final f in const ['caloriesFromFat', 'totalFatG', 'satFatG', 'transFatG', 'cholesterolMg', 'sodiumMg', 'totalCarbG', 'dietaryFiberG', 'sugarsG', 'proteinG'])
@@ -140,7 +140,7 @@ Bowl bowlDish(MenuItem? base, List<Qty> parts, {Syn? syn, required String place}
   final pr = all.fold<double>(0, (a, e) => a + _cents(e.$1.price) * e.$2);
   final algs = {for (final e in all) ...e.$1.allergens}.toList()..sort((a, b) => allergens.indexOf(a) - allergens.indexOf(b));
   final key = '${base != null ? base.key : 'syn:${syn!.label}:$place'}+${([for (final (x, q) in parts) '${x.key}*${jsNum(q)}']..sort()).join('+')}';
-  final src = base ?? all.first.$1, name = base?.dishName ?? syn!.label;
+  final src = base ?? (all.isNotEmpty ? all.first.$1 : syn!.parts.first), name = base?.dishName ?? syn!.label;
   final item = MenuItem(
     dishName: name, category: base?.category ?? syn!.head, mealPeriod: src.mealPeriod, hallTid: src.hallTid, date: src.date,
     nutrition: NutritionFacts(
@@ -161,5 +161,7 @@ Bowl synBowl(Syn y, List<Qty> sel, {required String place}) {
   return bowlDish(c?.$1, [for (final e in sel) if (e != c) e], syn: y, place: place);
 }
 
-/// The plate's second line: "with Hard Boiled Egg, ½ × Steamed Bok Choy".
-String withLine(List<Qty> parts) => parts.isEmpty ? '' : 'with ${parts.map((e) => '${e.$2 != 1 ? '${fq(e.$2.toDouble())} × ' : ''}${e.$1.dishName}').join(', ')}';
+/// The plate's second line: "with Hard Boiled Egg, ½ × Steamed Bok Choy". [withNames] is the same for a logged bowl's parts.
+String withLine(List<Qty> parts) => withNames([for (final (x, q) in parts) (x.dishName, q)]);
+
+String withNames(List<(String, num)> parts) => parts.isEmpty ? '' : 'with ${parts.map((e) => '${e.$2 != 1 ? '${fq(e.$2.toDouble())} × ' : ''}${e.$1}').join(', ')}';
