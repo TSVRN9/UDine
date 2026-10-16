@@ -238,4 +238,12 @@ abstract final class M2Layout {
   static const evTag = M2Type(15.0, 19.5, 'Oswald', FontWeight.w600, tabular: true); // `.evtag` 600 15/1.3
   static const evTitleColor = Color.fromRGBO(255, 255, 255, 0.92); // `.evtt`
   static const clear = Color(0x00000000);
+  // Round 11's foods: Search UMass Dining (`.lkb`, `.lkst`), a food's sheet (`.fedit`, `.fdel`)
+  static const lkbTop = 8.0; // `.lkb` margin-top (44 tall, 20 in)
+  static const lkstTop = 14.0, lkstBottom = 4.0, kvBottom = 10.0, lkstSpinTop = 6.0, lkstSpinBottom = 10.0; // `.lkst` padding 14 20 4, `.kv` margin 0 0 10, `.spin` margin 6 auto 10
+  static const lkstLoadH = 52.0, lkstLoadTop = 12.0; // `.lkst.ld`: a 52 slot the size of the button, the indicator 12 under its top
+  static const kv = M2Type(15.0, 22.5, 'LibreFranklin', FontWeight.w400); // `.kv` 15/1.5
+  static const feditTop = -3.0, feditRight = -12.0, feditBottom = -8.0; // `.dish .fedit` margin -3 -12 -8 auto: centred on the name's first line
+  static const editFadeFrom = 0.4; // a sheet's content becoming another in place: opacity .4 to 1 on `settle`
+  static const fdelTop = 10.0; // `.fdel` margin 10 auto 0
 }

@@ -1,3 +1,4 @@
+import 'dart:convert' show jsonDecode;
 import 'dart:io' show Directory;
 
 import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
@@ -9,7 +10,7 @@ import 'package:sqflite/sqflite.dart';
 import 'core/hours.dart';
 import 'core/m2/bowl.dart' show Bowl;
 import 'core/m2/bowl_builder.dart' show BowlSpec, bowlNow;
-import 'core/m2/board.dart' show dishKey, halls, MenuItem, M2MenuItem;
+import 'core/m2/board.dart' show Macro, dishKey, halls, MenuItem, M2MenuItem;
 import 'core/types.dart' show MealPeriod;
 import 'core/store/db.dart';
 import 'core/store/log_book.dart';
@@ -17,6 +18,7 @@ import 'core/store/store.dart';
 import 'data/flyer.dart';
 import 'data/recorded/recorded.dart';
 import 'dev/log_seed.dart';
+import 'data/packaged.dart';
 import 'data/pdf_cache.dart';
 import 'data/pdf_pages.dart';
 import 'data/repository.dart';
@@ -24,7 +26,9 @@ import 'data/source.dart';
 import 'data/supabase_source.dart';
 import 'motion/routes.dart';
 import 'screens/hall/hall_controller.dart' show mealsOfItems;
+import 'core/saved_food.dart';
 import 'shell/app_scope.dart';
+import 'shell/food_book.dart';
 import 'shell/plate_model.dart';
 import 'shell/prefs.dart';
 import 'shell/share.dart';
@@ -37,7 +41,11 @@ const _fivePins = ['Wasabi', 'Tamales', "Peet's Coffee & Tea", 'Harvest Market',
 /// network from the route's `?data=recorded&at=&net=`), and the preferences. Recorded mode keeps everything in a throwaway
 /// in-memory store so a capture never reads or leaves anything on the device.
 class Boot {
-  Boot(this.repo, this.store, this.prefs, {this.pdfOpen = pdfxOpen, FlyerShare? shareFlyer}) : shareFlyer = shareFlyer ?? shareFlyerFile;
+  Boot(this.repo, this.store, this.prefs, {this.pdfOpen = pdfxOpen, FlyerShare? shareFlyer, this.packaged, this.lookup}) : shareFlyer = shareFlyer ?? shareFlyerFile;
+
+  /// OpenFoodFacts / USDA and Search UMass Dining (live: the real endpoints; recorded: M2's recordings)
+  final PackagedSource? packaged;
+  final LookupDishSource? lookup;
   final PdfOpen pdfOpen;
   /// the OS share sheet Export hands its files to; a test replaces it
   @visibleForTesting
@@ -51,6 +59,8 @@ class Boot {
   final hider = BandHider();
   /// The log You reads (null with no store: menus only). Held in memory, read once at launch and again after anything writes to it.
   late final LogBook? log = store == null ? null : LogBook(store!, now: repo.now);
+  /// Your foods (null with no store). Read once at launch and again after anything writes to it.
+  late final FoodBook? foods = store == null ? null : FoodBook(store!, now: repo.now);
   late final plate = PlateModel(tracking: () => prefs.track, write: store?.addEntries, readDay: store?.entriesForDay, now: repo.now, changed: log?.reload);
 
   /// The user's database was saved by a newer build (they installed an older one): the file is never opened for writing, tracking
@@ -82,8 +92,17 @@ class Boot {
       repo = Repository(UmassSource(client), cache, supabase: SupabaseSource(client), pdfs: PdfCache(Directory('${(await getApplicationSupportDirectory()).path}/pdf'), client));
     }
     if (flags == null) repo.launch(pins: prefs.pins); // warm today and tomorrow; never throws
-    final boot = Boot(repo, store, prefs);
+    final Boot boot;
+    if (flags != null) {
+      final r = await recordedPackaged(flags, read: read);
+      boot = Boot(repo, store, prefs, packaged: r.packaged, lookup: r.lookup);
+    } else {
+      final client = http.Client();
+      boot = Boot(repo, store, prefs, packaged: PackagedSource(client), lookup: LookupDishSource(client));
+    }
+    if (flags != null && flags.seedFoods) await boot.seedFoods(read);
     await boot.log?.reload();
+    await boot.foods?.reload();
     if (flags != null) await boot.seedLog(route);
     if (flags != null) await boot.seedPlate(route); // (recorded data only: a live menu might never arrive)
     return boot;
@@ -96,6 +115,15 @@ class Boot {
     if (r is StoreReady) return (r.db, UdineStore(r.db));
     debugPrint('udine.db was written by a newer build: menus only, nothing is written to it');
     return ((await openStore(inMemoryDatabasePath) as StoreReady).db, null);
+  }
+
+  /// `?foods=seed` (recorded screenshot routes): M2's seeded Your foods, the recorded Clif Bar Chocolate Chip saved first, then Chobani (140 cal, 12 g protein).
+  Future<void> seedFoods(Future<String> Function(String name)? read) async {
+    if (store == null) return;
+    final flow = jsonDecode(await (read ?? recordedAsset)('packaged-2026-10-13.json')) as Map<String, dynamic>;
+    final clif = mapOffSearch({'products': [flow['product']]}).results.single;
+    await store!.saveFood(clif.savedNow(DateTime.utc(2026, 10, 8, 12).millisecondsSinceEpoch));
+    await store!.addCustomFood(customFromForm(id: SavedFood.newCustomId(DateTime.utc(2026, 10, 8, 12, 1), () => 'seed'), name: 'Chobani', m: const Macro(140, 12, 15, 0)));
   }
 
   /// `?history=today|full` (recorded screenshot routes): M2's seeded log in the throwaway store, so You has days to show.
@@ -144,5 +172,5 @@ class Boot {
     }
   }
 
-  Widget wrap(Widget child) => AppScope(repo: repo, store: store, log: log, prefs: prefs, hider: hider, plate: plate, pdfOpen: pdfOpen, share: share, shareFlyer: shareFlyer, child: child);
+  Widget wrap(Widget child) => AppScope(repo: repo, store: store, log: log, foods: foods, packaged: packaged, lookup: lookup, prefs: prefs, hider: hider, plate: plate, pdfOpen: pdfOpen, share: share, shareFlyer: shareFlyer, child: child);
 }

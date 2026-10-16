@@ -150,11 +150,14 @@ void main() {
       await t.tap(find.text('Add to plate'));
       await t.pumpAndSettle();
       expect(find.byType(CustomFoodSheet), findsNothing);
+      await until(t, () => b.plate.state.plates.isNotEmpty); // (kept first, then on the plate)
       final plate = b.plate.state.plates.single;
       expect((plate.meal, plate.items.single.name, plate.items.single.custom?.cal), ('dinner', 'Chobani', 140));
       await t.runAsync(() => b.plate.log());
       final rows = (await t.runAsync(() => b.store!.allEntries()))!;
-      expect(rows.single.source, isA<CustomSource>().having((s) => s.productName, 'productName', 'Chobani'));
+      final kept = (await t.runAsync(() => b.store!.customFoods()))!.single;
+      expect((kept.name, kept.servingSize, kept.nutrition.calories), ('Chobani', '1 serving', 140));
+      expect(rows.single.source, isA<CustomSource>().having((s) => s.productName, 'productName', 'Chobani').having((s) => s.customFoodId, 'customFoodId', kept.id));
       expect((rows.single.nutrition.calories, rows.single.nutrition.proteinG, rows.single.nutrition.totalCarbG, rows.single.nutrition.totalFatG), (140, 12, 15, 0));
       await finish(t);
     });
@@ -174,6 +177,7 @@ void main() {
       await typeIn(t, 'Calories', '200');
       await t.tap(find.text('Add to plate'));
       await t.pumpAndSettle();
+      await until(t, () => b.plate.state.plates.isNotEmpty);
       expect(b.plate.state.plates.single.meal, 'dinner');
       await drain(t);
     });

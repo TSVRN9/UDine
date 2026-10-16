@@ -6,8 +6,8 @@ import 'plate.dart';
 
 /// RN `toLogEntries`: one row per plate item (not per unit), every row stamped with the plate's one `loggedAt`, `servings` = the
 /// quantity, and an id of `<loggedAt>-<index>-<random base 36>`. The source and nutrition are the serving at `place` (the place the
-/// plate was logged at; a plate that serves several is asked), so "Log at Berkshire" writes Berkshire's hallTid and calories. A custom
-/// item has only its macros. A bowl's row is one entry with its parts (a snapshot of each, per serving) and the summed nutrition.
+/// plate was logged at; a plate that serves several is asked), so "Log at Berkshire" writes Berkshire's hallTid and calories. A saved food (Your foods, a
+/// packaged hit, a lookup) is its own source and whole nutrition, as RN's `*ToPlateEntry`; a one-off custom item has only its macros. A bowl's row is one entry with its parts (a snapshot of each, per serving) and the summed nutrition.
 List<LogEntry> logEntries(
   Plate p, {
   required String? place,
@@ -20,7 +20,8 @@ List<LogEntry> logEntries(
   return [
     for (var i = 0; i < p.items.length; i++)
       () {
-        final it = p.items[i], c = it.custom;
+        final it = p.items[i], c = it.custom, food = it.food;
+        if (food != null) return LogEntry(id: id(i), loggedAt: loggedAt, servings: it.qty, source: food.source, nutrition: food.nutrition);
         if (c != null) {
           final cal = c.cal, f = c.f, carb = c.c, pr = c.p;
           return LogEntry(

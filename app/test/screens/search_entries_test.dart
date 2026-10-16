@@ -10,8 +10,8 @@ import '../core/m2/support.dart';
 final now = DateTime.parse('2026-10-08T12:41:00-04:00');
 final ix = SearchIndex(board, now);
 List<SearchEntry> entries(String q, {Set<Lens> lenses = const {}, Prefs prefs = noPrefs, bool reveal = false, bool track = true, bool extras = false, NetLine net = NetLine.none}) =>
-    searchEntries(net: net, raw: runSearch(ix, query: q, lenses: lenses), query: q, lenses: lenses, meal: 'lunch', prefs: prefs, reveal: reveal, track: track, hasExtras: extras);
-List<String> shape(List<SearchEntry> e) => [for (final x in e) switch (x) { GroupHead(:final title) => title, HallCardsEntry() => 'cards', PlaceEntry() => 'place', NowEntry(:final cafe) => cafe ? 'cafe' : 'now', LaterEntry() => 'later', DietLine() => 'diet', EmptyEntry() => 'empty', ExtrasSlot() => 'extras', CustomEntry(:final solid) => solid ? 'custom!' : 'custom'}];
+    searchEntries(net: net, raw: runSearch(ix, query: q, lenses: lenses), query: q, lenses: lenses, meal: 'lunch', prefs: prefs, reveal: reveal, track: track, extras: extras ? const [LookupButtonEntry('x')] : const []);
+List<String> shape(List<SearchEntry> e) => [for (final x in e) switch (x) { GroupHead(:final title) => title, HallCardsEntry() => 'cards', PlaceEntry() => 'place', NowEntry(:final cafe) => cafe ? 'cafe' : 'now', LaterEntry() => 'later', DietLine() => 'diet', EmptyEntry() => 'empty', LookupButtonEntry() => 'extras', FoodEntry() => 'food', PackWaitEntry() => 'pack-wait', PackFailEntry() => 'pack-fail', LookupStateEntry() => 'lookup', CustomEntry(:final solid) => solid ? 'custom!' : 'custom'}];
 
 void main() {
   test('idle: the halls\' lunch under its title, no places, cafés or later rows', () {
@@ -29,7 +29,7 @@ void main() {
   });
   test('only now-results under a query: no title', () {
     final r = runSearch(ix, query: 'brisket');
-    final e = searchEntries(raw: SearchResult(now: r.now), query: 'brisket', lenses: const {}, meal: 'lunch', prefs: noPrefs, reveal: false, track: true, hasExtras: false);
+    final e = searchEntries(raw: SearchResult(now: r.now), query: 'brisket', lenses: const {}, meal: 'lunch', prefs: noPrefs, reveal: false, track: true);
     expect(shape(e).first, 'now');
   });
   test('Places lead with the hall cards as one block, then the rows', () {
@@ -44,7 +44,7 @@ void main() {
     expect(shape(entries('', lenses: {Lens.fav})), ['empty']);
     final t = (entries('', lenses: {Lens.fav}).single as EmptyEntry).text;
     expect(t, "Star a dish from its details and it shows up here whenever it's served.");
-    final u = (searchEntries(raw: const SearchResult(), query: '', lenses: {Lens.protein}, meal: 'lunch', prefs: noPrefs, reveal: false, track: true, hasExtras: false).single as EmptyEntry).text;
+    final u = (searchEntries(raw: const SearchResult(), query: '', lenses: {Lens.protein}, meal: 'lunch', prefs: noPrefs, reveal: false, track: true).single as EmptyEntry).text;
     expect(u, 'No dishes match these filters at lunch.');
   });
   test('the empty line names the query', () {
