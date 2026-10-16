@@ -1,0 +1,10 @@
+{
+  "sha": "64e54deb2d7f31a0266d9e2b2f191c70075cd2f7",
+  "branch": "flutter/search-offline",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/search-t3",
+  "route": "/search?data=recorded&at=2026-10-08T12:41&net=fail&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-10-16T01:30:04Z"
+}
