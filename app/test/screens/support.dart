@@ -25,7 +25,7 @@ Future<String> readRecorded(String name) => File('assets/recorded/$name').readAs
 
 /// The app's `Boot` over M2's recordings and a throwaway store, as `Boot.open` builds it for a recorded route. Real I/O (sqlite on an
 /// isolate) runs under `runAsync`.
-Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? at, List<String> pins = const [], bool charlesRiver = false, Duration? slow, bool health = false, bool carbon = false, bool persistPins = false, List<String> avoid = const [], List<String> onlyShow = const [], PdfOpen? pages, bool pdfsLinked = true, Future<String> Function(String)? read}) async {
+Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? at, List<String> pins = const [], bool charlesRiver = false, Duration? slow, bool health = false, bool carbon = false, bool persistPins = false, List<String> avoid = const [], List<String> onlyShow = const [], PdfOpen? pages, bool pdfsLinked = true, Future<String> Function(String)? read, Future<void> Function(String)? shareFlyer}) async {
   return (await t.runAsync(() async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
@@ -38,7 +38,7 @@ Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? a
     if (onlyShow.isNotEmpty) await store.setOnlyShow(onlyShow);
     // the recorded PDFs are UMass's and never in the repo: a test's are synthetic, and its pages are drawn by [pages]
     final repo = await recordedRepository(RecordedFlags(at: at ?? lunch, net: net), db.db, read: read ?? readRecorded, slow: slow, pins: pins, readPdf: (_) async => pdfsLinked ? utf8.encode('%PDF-1.4\n%synthetic\n') : throw 'not linked', pdfDir: Directory.systemTemp.createTempSync('udine-test-pdf'));
-    return Boot(repo, store, await AppPrefs.load(store, pins: persistPins ? null : pins), pdfOpen: pages ?? pdfxOpen);
+    return Boot(repo, store, await AppPrefs.load(store, pins: persistPins ? null : pins), pdfOpen: pages ?? pdfxOpen, shareFlyer: shareFlyer);
   }))!;
 }
 

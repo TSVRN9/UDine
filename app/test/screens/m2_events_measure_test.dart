@@ -55,12 +55,19 @@ void main() {
       await open(t, '/event/0');
       final m = dom('page_0');
       near(t, 'back', find.byType(BackButton), m['back']);
-      // a third button (the flyer M2's "See the menu" opens) is 52 + 12 more in the centred group: everything above moves up by half of that
-      List<num> up(List l) => [l[0], (l[1] as num) - 32, l[2], l[3]];
-      near(t, 'patch', find.byType(EventBanner), up(m['patch']));
-      near(t, 'btn 0', find.byType(Button).at(0), up((m['btn'] as List)[0]));
-      near(t, 'btn 1', find.byType(Button).at(1), up((m['btn'] as List)[1]));
-      expect(find.text('Open the flyer'), findsOneWidget);
+      // M2 centres the banner and its buttons in what the bar leaves; ours adds the flyer, so the group is taller than the screen and starts at
+      // the top. Only left, width and height still map to M2 (top does not); the second button is Share the flyer, which M2 has no counterpart for.
+      void across(String what, Finder f, List want) {
+        final x = t.getRect(f), v = want.cast<num>(), got = [x.left, x.width, x.height], exp = [v[0], v[2], v[3]];
+        for (var i = 0; i < 3; i++) {
+          if ((got[i] - exp[i]).abs() > 1.0) misses.add('$what[${const ['left', 'width', 'height'][i]}] ours $got, M2 $exp');
+        }
+      }
+
+      across('patch', find.byType(EventBanner), m['patch']);
+      across('btn 0', find.byType(Button).at(0), (m['btn'] as List)[0]);
+      across('btn 1', find.byType(Button).at(1), (m['btn'] as List)[1]);
+      expect(find.text('Share the flyer'), findsOneWidget);
       await finish(t);
     });
   }
