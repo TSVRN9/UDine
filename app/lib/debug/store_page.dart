@@ -6,7 +6,8 @@ typedef TableDump = ({String name, int count, List<String> rows});
 
 const _newest = 40, _cell = 56;
 
-/// Every table of the device database: its row count and its newest rows (by rowid), one line each. Reads only.
+/// Every table of the device database: its row count and its newest rows (by rowid), one line each. preferences_kv is the exception: every
+/// key by name (settings and rankings live there among the caches), with the `occupancy:` caches folded into one count line. Reads only.
 Future<({int userVersion, List<TableDump> tables})> dumpStore(Database db) async {
   final version = (await db.rawQuery('PRAGMA user_version')).first.values.first! as int;
   final names = [for (final r in await db.rawQuery("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name <> 'android_metadata' ORDER BY name")) r['name']! as String];
@@ -21,10 +22,16 @@ Future<({int userVersion, List<TableDump> tables})> dumpStore(Database db) async
         (
           name: n,
           count: Sqflite.firstIntValue(await db.rawQuery('SELECT count(*) FROM "$n"'))!,
-          rows: [for (final r in await db.rawQuery('SELECT * FROM "$n" ORDER BY rowid DESC LIMIT $_newest')) r.values.map(cell).join(' | ')],
+          rows: n == 'preferences_kv' ? await _prefs(db, cell) : [for (final r in await db.rawQuery('SELECT * FROM "$n" ORDER BY rowid DESC LIMIT $_newest')) r.values.map(cell).join(' | ')],
         ),
     ],
   );
+}
+
+Future<List<String>> _prefs(Database db, String Function(Object?) cell) async {
+  final rows = await db.rawQuery("SELECT * FROM preferences_kv WHERE key NOT LIKE 'occupancy:%' ORDER BY key");
+  final n = Sqflite.firstIntValue(await db.rawQuery("SELECT count(*) FROM preferences_kv WHERE key LIKE 'occupancy:%'"))!;
+  return [for (final r in rows) r.values.map(cell).join(' | '), if (n > 0) 'occupancy:*: $n cached'];
 }
 
 /// `/debug/store`: the device database as it stands, for the on-device upgrade evidence. Not in release builds (app.dart).

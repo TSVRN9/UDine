@@ -37,11 +37,28 @@ void main() {
     expect(t.keys, containsAll(['preferences_kv', 'saved_foods', 'food_sighting_dedup']));
   });
 
-  test('dumpStore writes nothing', () async {
-    final before = await db.rawQuery('PRAGMA data_version');
+  test('dumpStore writes nothing: no row changed on the connection, whatever it undid after', () async {
+    Future<Object?> changes() async => (await db.rawQuery('SELECT total_changes() c')).first['c'];
+    final before = await changes();
     await dumpStore(db);
-    expect(await db.rawQuery('SELECT count(*) c FROM log_entries'), [{'c': 3}]);
-    expect(await db.rawQuery('PRAGMA data_version'), before);
+    expect(await changes(), before);
+  });
+
+  test('preferences_kv lists every key by name, with the occupancy caches folded into one line', () async {
+    await db.insert('preferences_kv', {'key': 'food_preferences', 'value_json': '{"allergensToAvoid":["Peanuts"]}'});
+    await db.insert('preferences_kv', {'key': 'ranked_dishes', 'value_json': '[]'});
+    for (var i = 0; i < 60; i++) {
+      await db.insert('preferences_kv', {'key': 'occupancy:v1:$i', 'value_json': '{}'});
+    }
+    await db.insert('preferences_kv', {'key': 'seen_dishes', 'value_json': '{}'}); // newest rowid, so the first 40 by rowid would hold only caches
+    final t = {for (final x in (await dumpStore(db)).tables) x.name: x}['preferences_kv']!;
+    expect(t.count, 63);
+    expect(t.rows.where((r) => r.startsWith('food_preferences')), hasLength(1));
+    expect(t.rows.where((r) => r.startsWith('ranked_dishes')), hasLength(1));
+    expect(t.rows.where((r) => r.startsWith('seen_dishes')), hasLength(1));
+    expect(t.rows.where((r) => r.contains('occupancy')), ['occupancy:*: 60 cached']);
+    final keys = [for (final r in t.rows) if (!r.contains('occupancy')) r.split(' | ').first];
+    expect(keys, [...keys]..sort());
   });
 
   testWidgets('the page shows counts and rows', (t) async {
