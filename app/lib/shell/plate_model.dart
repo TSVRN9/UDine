@@ -228,11 +228,11 @@ class PlateModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void add(String meal, String name, Map<String, MenuItem> refs) {
+  void add(String meal, String name, Map<String, MenuItem> refs, [Macro? custom]) {
     _failure = null;
     _drop(); // (M2 addDish: S.lastLog = null. Undo could otherwise put back a plate beside one it could now have joined)
     _failed = false;
-    _s = addDish(_s, meal, name, refs);
+    _s = addDish(_s, meal, name, refs, custom);
     notifyListeners();
   }
 

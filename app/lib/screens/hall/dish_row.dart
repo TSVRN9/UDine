@@ -43,7 +43,7 @@ class DishRow extends StatelessWidget {
     final meta = Wrap(
       spacing: tail != null ? M2Layout.laterGapX : M2Layout.metaGapX, runSpacing: M2Layout.metaGapY, crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        if (contains.isNotEmpty) Text('Contains ${_andList(contains.map((a) => a.toLowerCase()).toList())}', style: M2Text.meta.style(M2Color.vm).copyWith(fontWeight: FontWeight.w600)),
+        if (contains.isNotEmpty) Text('Contains ${andList(contains.map((a) => a.toLowerCase()).toList())}', style: M2Text.meta.style(M2Color.vm).copyWith(fontWeight: FontWeight.w600)),
         group([
           Text(fc(d.nutrition.calories), style: num), gap, Text('cal', style: unit), gap, const SizedBox(width: M2Layout.numGap), gap, Text('${f1(d.nutrition.proteinG)}g', style: num), gap, Text('protein', style: unit),
         ]),
@@ -71,4 +71,5 @@ class DishRow extends StatelessWidget {
   }
 }
 
-String _andList(List<String> l) => l.length < 2 ? l.join() : '${l.sublist(0, l.length - 1).join(', ')} and ${l.last}';
+/// "a, b and c" (M2 `andList`)
+String andList(List<String> l) => l.length < 2 ? l.join() : '${l.sublist(0, l.length - 1).join(', ')} and ${l.last}';

@@ -74,7 +74,8 @@ void main() {
     test('a custom item is a custom-source row with its macros and no other nutrient', () {
       final s = addDish(emptyPlates, 'lunch', 'My chili', {}, const Macro(310, 20, 30, 10));
       final e = logEntries(s.plates.single, place: null, loggedAt: 'x').single;
-      expect(e.source.toJson(), {'type': 'custom', 'customFoodId': 'my chili', 'productName': 'My chili'});
+      expect(e.source.toJson(), {'type': 'custom', 'customFoodId': customKey('My chili', const Macro(310, 20, 30, 10)).substring('custom:'.length), 'productName': 'My chili'});
+      expect((e.source as CustomSource).customFoodId, startsWith('my chili:'));
       expect([e.nutrition.calories, e.nutrition.proteinG, e.nutrition.totalCarbG, e.nutrition.totalFatG], [310, 20, 30, 10]);
     });
   });

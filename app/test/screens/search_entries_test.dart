@@ -3,13 +3,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/core/m2/menu_view.dart';
 import 'package:udine/core/m2/search.dart';
+import 'package:udine/screens/halls/halls_model.dart' show NetLine;
 import 'package:udine/screens/search/search_entries.dart';
 import '../core/m2/support.dart';
 
 final now = DateTime.parse('2026-10-08T12:41:00-04:00');
 final ix = SearchIndex(board, now);
-List<SearchEntry> entries(String q, {Set<Lens> lenses = const {}, Prefs prefs = noPrefs, bool reveal = false, bool track = true, bool extras = false}) =>
-    searchEntries(raw: runSearch(ix, query: q, lenses: lenses), query: q, lenses: lenses, meal: 'lunch', prefs: prefs, reveal: reveal, track: track, hasExtras: extras);
+List<SearchEntry> entries(String q, {Set<Lens> lenses = const {}, Prefs prefs = noPrefs, bool reveal = false, bool track = true, bool extras = false, NetLine net = NetLine.none}) =>
+    searchEntries(net: net, raw: runSearch(ix, query: q, lenses: lenses), query: q, lenses: lenses, meal: 'lunch', prefs: prefs, reveal: reveal, track: track, hasExtras: extras);
 List<String> shape(List<SearchEntry> e) => [for (final x in e) switch (x) { GroupHead(:final title) => title, HallCardsEntry() => 'cards', PlaceEntry() => 'place', NowEntry(:final cafe) => cafe ? 'cafe' : 'now', LaterEntry() => 'later', DietLine() => 'diet', EmptyEntry() => 'empty', ExtrasSlot() => 'extras', CustomEntry(:final solid) => solid ? 'custom!' : 'custom'}];
 
 void main() {
@@ -61,5 +62,14 @@ void main() {
   test('everything hidden by preferences still shows the line, and is not "no match"', () {
     final e = entries('chicken', prefs: const Prefs(avoid: ['Milk', 'Eggs', 'Fish', 'Shellfish', 'Tree Nuts', 'Peanuts', 'Wheat', 'Soy', 'Sesame', 'Gluten', 'Corn'], halal: true, veg: true, plant: true));
     expect(shape(e), isNot(contains('empty')));
+  });
+  test('offline, no match: the empty line says a saved menu; online it says any menu', () {
+    String empty(NetLine n) => (entries('zzzq', net: n).whereType<EmptyEntry>().single).text;
+    expect(empty(NetLine.offline), 'Nothing called “zzzq” is on a saved menu.');
+    expect(empty(NetLine.none), 'Nothing called “zzzq” is on any menu today or tomorrow.');
+  });
+  test('failed: no empty line, only the custom button (solid) and the extras', () {
+    expect(shape(entries('zzzq', net: NetLine.failed)), ['custom!']);
+    expect(shape(entries('zzzq', net: NetLine.failed, extras: true)), ['extras', 'custom']);
   });
 }
