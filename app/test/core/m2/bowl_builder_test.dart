@@ -37,7 +37,41 @@ BowlSpec pho() {
   throw StateError('no pho bar');
 }
 
+BowlSpec cafePho() {
+  for (final MapEntry(key: iso, value: places) in board.days.entries) {
+    for (final MapEntry(key: place, value: meals) in places.entries) {
+      for (final MapEntry(key: meal, value: sts) in meals.entries) {
+        for (var si = 0; si < sts.length; si++) {
+          if (synOf(board, iso, place, meal, si) case final y? when y.pho && isCafe(place) && y.choices.length >= 2 && y.parts.length > y.choices.length) return BowlSpec.syn(y);
+        }
+      }
+    }
+  }
+  throw StateError('no café pho');
+}
+
 void main() {
+  test('a café pho reopened from the plate has its base selected; Update keeps its place, and another broth renames and re-sums it', () {
+    final y = cafePho(), a = y.syn!.choices[0], c = y.syn!.choices[1], top = y.parts.indexWhere((x) => !y.syn!.choices.contains(x));
+    final ia = y.parts.indexOf(a), ic = y.parts.indexOf(c);
+    var s = addBowl(emptyPlates, 'lunch', y, bowlNow(y, {ia: 1, top: 1}), y.place);
+    s = addDish(s, 'lunch', 'Chobani', {}, const Macro(120, 12, 9, 4));
+    final it = s.plates.single.items[0], pb = it.bowl!;
+    expect(selOf(pb.spec, pb.bowl), {ia: 1, top: 1});
+    final u = updateBowl(s, s.plates.single.id, it.key, bowlNow(pb.spec, stepPart(pb.spec, selOf(pb.spec, pb.bowl), ic, 1)), pb.spec, y.place);
+    final items = u.plates.single.items;
+    expect(items.length, 2);
+    expect(items[1].custom, isNotNull);
+    expect(items[0].name, c.dishName);
+    expect(items[0].key, isNot(it.key));
+    expect(items[0].qty, it.qty);
+    expect(items[0].refs.keys, [y.place]);
+    expect(items[0].bowl!.bowl.item.nutrition.calories, c.nutrition.calories + y.parts[top].nutrition.calories);
+    final row = logEntries(u.plates.single, place: y.place, loggedAt: 'x', salt: () => 'x')[0];
+    expect((row.source as UmassMenuSource).dishName, c.dishName);
+    expect(row.nutrition.calories, items[0].bowl!.bowl.item.nutrition.calories);
+  });
+
   group('stepPart (M2 stepPart)', () {
     test('+ goes 0, 1, 2; - goes 2, 1, 1/2, 0; + on 1/2 goes to 1', () {
       final b = brisket().spec, i = idx(b, 'Hard Boiled Egg');
