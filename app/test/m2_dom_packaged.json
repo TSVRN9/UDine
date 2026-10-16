@@ -1,0 +1,3826 @@
+{
+ "360": {
+  "clif": {
+   "kids": [
+    {
+     "cls": "empty",
+     "text": "Nothing called “clif” is on any menu tod",
+     "rect": [
+      0,
+      171,
+      360,
+      82.38
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "sgrp",
+     "text": "Your foods",
+     "rect": [
+      0,
+      253.38,
+      360,
+      46
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "row",
+     "text": "Clif Bar Chocolate Chip",
+     "rect": [
+      0,
+      299.38,
+      360,
+      78
+     ],
+     "meta": [
+      20,
+      338.88,
+      210,
+      22
+     ],
+     "name": [
+      20,
+      315.88,
+      210,
+      20
+     ],
+     "lane": [
+      238,
+      305.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "sgrp",
+     "text": "Packaged",
+     "rect": [
+      0,
+      377.38,
+      360,
+      46
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "row",
+     "text": "Clif bar",
+     "rect": [
+      0,
+      423.38,
+      360,
+      78
+     ],
+     "meta": [
+      20,
+      462.88,
+      210,
+      22
+     ],
+     "name": [
+      20,
+      439.88,
+      210,
+      20
+     ],
+     "lane": [
+      238,
+      429.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "Clif Bar Duos",
+     "rect": [
+      0,
+      501.38,
+      360,
+      78
+     ],
+     "meta": [
+      20,
+      540.88,
+      210,
+      22
+     ],
+     "name": [
+      20,
+      517.88,
+      210,
+      20
+     ],
+     "lane": [
+      238,
+      507.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "Clif bar mini chocolate chip",
+     "rect": [
+      0,
+      579.38,
+      360,
+      78
+     ],
+     "meta": [
+      20,
+      618.88,
+      210,
+      22
+     ],
+     "name": [
+      20,
+      595.88,
+      210,
+      20
+     ],
+     "lane": [
+      238,
+      585.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "Clif Bar Peanut Butter Banana",
+     "rect": [
+      0,
+      657.38,
+      360,
+      78
+     ],
+     "meta": [
+      20,
+      706.88,
+      210,
+      22
+     ],
+     "name": [
+      20,
+      663.88,
+      210,
+      40
+     ],
+     "lane": [
+      238,
+      663.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "Clif Bar Cool Mint Chocolate",
+     "rect": [
+      0,
+      735.38,
+      360,
+      78
+     ],
+     "meta": [
+      20,
+      784.88,
+      210,
+      22
+     ],
+     "name": [
+      20,
+      741.88,
+      210,
+      40
+     ],
+     "lane": [
+      238,
+      741.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "Clif Bar Crunchy Peanut Butter",
+     "rect": [
+      0,
+      813.38,
+      360,
+      78
+     ],
+     "meta": [
+      20,
+      862.88,
+      210,
+      22
+     ],
+     "name": [
+      20,
+      819.88,
+      210,
+      40
+     ],
+     "lane": [
+      238,
+      819.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "Clif Bar Dark Chocolate Mocha",
+     "rect": [
+      0,
+      891.38,
+      360,
+      78
+     ],
+     "meta": [
+      20,
+      940.88,
+      210,
+      22
+     ],
+     "name": [
+      20,
+      897.88,
+      210,
+      40
+     ],
+     "lane": [
+      238,
+      897.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "Clif bar minis - coffee collection",
+     "rect": [
+      0,
+      969.38,
+      360,
+      78
+     ],
+     "meta": [
+      20,
+      1018.88,
+      210,
+      22
+     ],
+     "name": [
+      20,
+      975.88,
+      210,
+      40
+     ],
+     "lane": [
+      238,
+      975.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "CLIF bar white chocolate macadamia nut",
+     "rect": [
+      0,
+      1047.38,
+      360,
+      78
+     ],
+     "meta": [
+      20,
+      1096.88,
+      210,
+      22
+     ],
+     "name": [
+      20,
+      1053.88,
+      210,
+      40
+     ],
+     "lane": [
+      238,
+      1053.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "Clif Bar Mini White Chocolate Macadamia ",
+     "rect": [
+      0,
+      1125.38,
+      360,
+      78
+     ],
+     "meta": [
+      20,
+      1174.88,
+      210,
+      22
+     ],
+     "name": [
+      20,
+      1131.88,
+      210,
+      40
+     ],
+     "lane": [
+      238,
+      1131.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "Clif Bar Cool Mint Chocolate Energy Bars",
+     "rect": [
+      0,
+      1203.38,
+      360,
+      97
+     ],
+     "meta": [
+      20,
+      1272.38,
+      210,
+      22
+     ],
+     "name": [
+      20,
+      1209.38,
+      210,
+      60
+     ],
+     "lane": [
+      238,
+      1218.88,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "Clif bar, clif kid, z organic twisted fr",
+     "rect": [
+      0,
+      1300.38,
+      360,
+      97
+     ],
+     "meta": [
+      20,
+      1369.38,
+      210,
+      22
+     ],
+     "name": [
+      20,
+      1306.38,
+      210,
+      60
+     ],
+     "lane": [
+      238,
+      1315.88,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "Clif bar organic twisted fruit bars mixe",
+     "rect": [
+      0,
+      1397.38,
+      360,
+      78
+     ],
+     "meta": [
+      20,
+      1446.88,
+      210,
+      22
+     ],
+     "name": [
+      20,
+      1403.88,
+      210,
+      40
+     ],
+     "lane": [
+      238,
+      1403.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "lkb",
+     "text": "Search UMass Dining for “clif”",
+     "rect": [
+      0,
+      1483.38,
+      360,
+      44
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "custom",
+     "text": "Add “clif” as a custom food",
+     "rect": [
+      20,
+      1535.38,
+      320,
+      52
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    }
+   ],
+   "lkb": [
+    0,
+    1483.38,
+    360,
+    44
+   ],
+   "lkst": null,
+   "lkstKv": null,
+   "lkstBtn": null,
+   "lkstSpin": null,
+   "custom": [
+    20,
+    1535.38,
+    320,
+    52
+   ],
+   "customSolid": false,
+   "empty": [
+    0,
+    171,
+    360,
+    82.38
+   ]
+  },
+  "chobani": {
+   "kids": [
+    {
+     "cls": "empty fadein",
+     "text": "Nothing called “chobani” is on any menu ",
+     "rect": [
+      0,
+      171,
+      360,
+      82.38
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "sgrp",
+     "text": "Your foods",
+     "rect": [
+      0,
+      253.38,
+      360,
+      46
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "row",
+     "text": "Chobani",
+     "rect": [
+      0,
+      299.38,
+      360,
+      78
+     ],
+     "meta": [
+      20,
+      338.88,
+      210,
+      22
+     ],
+     "name": [
+      20,
+      315.88,
+      210,
+      20
+     ],
+     "lane": [
+      238,
+      305.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "lkb",
+     "text": "Search UMass Dining for “chobani”",
+     "rect": [
+      0,
+      385.38,
+      360,
+      44
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "custom",
+     "text": "Add “chobani” as a custom food",
+     "rect": [
+      20,
+      437.38,
+      320,
+      52
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    }
+   ],
+   "lkb": [
+    0,
+    385.38,
+    360,
+    44
+   ],
+   "lkst": null,
+   "lkstKv": null,
+   "lkstBtn": null,
+   "lkstSpin": null,
+   "custom": [
+    20,
+    437.38,
+    320,
+    52
+   ],
+   "customSolid": false,
+   "empty": [
+    0,
+    171,
+    360,
+    82.38
+   ]
+  },
+  "pack_fail": {
+   "kids": [
+    {
+     "cls": "empty",
+     "text": "Nothing called “clif” is on any menu tod",
+     "rect": [
+      0,
+      171,
+      360,
+      82.38
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "sgrp",
+     "text": "Your foods",
+     "rect": [
+      0,
+      253.38,
+      360,
+      46
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "row",
+     "text": "Clif Bar Chocolate Chip",
+     "rect": [
+      0,
+      299.38,
+      360,
+      78
+     ],
+     "meta": [
+      20,
+      338.88,
+      210,
+      22
+     ],
+     "name": [
+      20,
+      315.88,
+      210,
+      20
+     ],
+     "lane": [
+      238,
+      305.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "sgrp",
+     "text": "Packaged",
+     "rect": [
+      0,
+      377.38,
+      360,
+      46
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "lkst",
+     "text": "Packaged foods didn't load.Try again",
+     "rect": [
+      0,
+      423.38,
+      360,
+      94.5
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "lkb",
+     "text": "Search UMass Dining for “clif”",
+     "rect": [
+      0,
+      525.88,
+      360,
+      44
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "custom",
+     "text": "Add “clif” as a custom food",
+     "rect": [
+      20,
+      577.88,
+      320,
+      52
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    }
+   ],
+   "lkb": [
+    0,
+    525.88,
+    360,
+    44
+   ],
+   "lkst": [
+    0,
+    423.38,
+    360,
+    94.5
+   ],
+   "lkstKv": [
+    20,
+    437.38,
+    320,
+    22.5
+   ],
+   "lkstBtn": [
+    20,
+    469.88,
+    97.92,
+    44
+   ],
+   "lkstSpin": null,
+   "custom": [
+    20,
+    577.88,
+    320,
+    52
+   ],
+   "customSolid": false,
+   "empty": [
+    0,
+    171,
+    360,
+    82.38
+   ]
+  },
+  "laksa_idle": {
+   "kids": [
+    {
+     "cls": "empty fadein",
+     "text": "Nothing called “laksa” is on any menu to",
+     "rect": [
+      0,
+      171,
+      360,
+      82.38
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "lkb",
+     "text": "Search UMass Dining for “laksa”",
+     "rect": [
+      0,
+      261.38,
+      360,
+      44
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "custom",
+     "text": "Add “laksa” as a custom food",
+     "rect": [
+      20,
+      313.38,
+      320,
+      52
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    }
+   ],
+   "lkb": [
+    0,
+    261.38,
+    360,
+    44
+   ],
+   "lkst": null,
+   "lkstKv": null,
+   "lkstBtn": null,
+   "lkstSpin": null,
+   "custom": [
+    20,
+    313.38,
+    320,
+    52
+   ],
+   "customSolid": false,
+   "empty": [
+    0,
+    171,
+    360,
+    82.38
+   ]
+  },
+  "zzzq": {
+   "kids": [
+    {
+     "cls": "empty fadein",
+     "text": "Nothing called “zzzq” is on any menu tod",
+     "rect": [
+      0,
+      171,
+      360,
+      82.38
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "lkb",
+     "text": "Search UMass Dining for “zzzq”",
+     "rect": [
+      0,
+      261.38,
+      360,
+      44
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "custom",
+     "text": "Add “zzzq” as a custom food",
+     "rect": [
+      20,
+      313.38,
+      320,
+      52
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    }
+   ],
+   "lkb": [
+    0,
+    261.38,
+    360,
+    44
+   ],
+   "lkst": null,
+   "lkstKv": null,
+   "lkstBtn": null,
+   "lkstSpin": null,
+   "custom": [
+    20,
+    313.38,
+    320,
+    52
+   ],
+   "customSolid": false,
+   "empty": [
+    0,
+    171,
+    360,
+    82.38
+   ]
+  },
+  "laksa_loading": {
+   "kids": [
+    {
+     "cls": "empty",
+     "text": "Nothing called “laksa” is on any menu to",
+     "rect": [
+      0,
+      171,
+      360,
+      82.38
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "lkst ld",
+     "text": "",
+     "rect": [
+      0,
+      253.38,
+      360,
+      52
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "custom",
+     "text": "Add “laksa” as a custom food",
+     "rect": [
+      20,
+      313.38,
+      320,
+      52
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    }
+   ],
+   "lkb": null,
+   "lkst": [
+    0,
+    253.38,
+    360,
+    52
+   ],
+   "lkstKv": null,
+   "lkstBtn": null,
+   "lkstSpin": [
+    163.14,
+    262.52,
+    33.71,
+    33.71
+   ],
+   "custom": [
+    20,
+    313.38,
+    320,
+    52
+   ],
+   "customSolid": false,
+   "empty": [
+    0,
+    171,
+    360,
+    82.38
+   ]
+  },
+  "laksa_found": {
+   "kids": [
+    {
+     "cls": "empty",
+     "text": "Nothing called “laksa” is on any menu to",
+     "rect": [
+      0,
+      171,
+      360,
+      82.38
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "sgrp",
+     "text": "UMass Dining",
+     "rect": [
+      0,
+      253.38,
+      360,
+      46
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "row",
+     "text": "Laksa Noodle Bowl (Shrimp, Fish, Eggs, A",
+     "rect": [
+      0,
+      299.38,
+      360,
+      97
+     ],
+     "meta": [
+      20,
+      368.38,
+      210,
+      22
+     ],
+     "name": [
+      20,
+      305.38,
+      210,
+      60
+     ],
+     "lane": [
+      238,
+      314.88,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "custom",
+     "text": "Add “laksa” as a custom food",
+     "rect": [
+      20,
+      404.38,
+      320,
+      52
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    }
+   ],
+   "lkb": null,
+   "lkst": null,
+   "lkstKv": null,
+   "lkstBtn": null,
+   "lkstSpin": null,
+   "custom": [
+    20,
+    404.38,
+    320,
+    52
+   ],
+   "customSolid": false,
+   "empty": [
+    0,
+    171,
+    360,
+    82.38
+   ]
+  },
+  "laksa_none": {
+   "kids": [
+    {
+     "cls": "empty",
+     "text": "Nothing called “laksa” is on any menu to",
+     "rect": [
+      0,
+      171,
+      360,
+      82.38
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "lkst",
+     "text": "UMass Dining has nothing else called “la",
+     "rect": [
+      0,
+      253.38,
+      360,
+      50.5
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "custom",
+     "text": "Add “laksa” as a custom food",
+     "rect": [
+      20,
+      311.88,
+      320,
+      52
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    }
+   ],
+   "lkb": null,
+   "lkst": [
+    0,
+    253.38,
+    360,
+    50.5
+   ],
+   "lkstKv": [
+    20,
+    267.38,
+    320,
+    22.5
+   ],
+   "lkstBtn": null,
+   "lkstSpin": null,
+   "custom": [
+    20,
+    311.88,
+    320,
+    52
+   ],
+   "customSolid": false,
+   "empty": [
+    0,
+    171,
+    360,
+    82.38
+   ]
+  },
+  "laksa_fail": {
+   "kids": [
+    {
+     "cls": "empty",
+     "text": "Nothing called “laksa” is on any menu to",
+     "rect": [
+      0,
+      171,
+      360,
+      82.38
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "lkst",
+     "text": "Couldn't reach UMass Dining.Try again",
+     "rect": [
+      0,
+      253.38,
+      360,
+      94.5
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "custom",
+     "text": "Add “laksa” as a custom food",
+     "rect": [
+      20,
+      355.88,
+      320,
+      52
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    }
+   ],
+   "lkb": null,
+   "lkst": [
+    0,
+    253.38,
+    360,
+    94.5
+   ],
+   "lkstKv": [
+    20,
+    267.38,
+    320,
+    22.5
+   ],
+   "lkstBtn": [
+    20,
+    299.88,
+    97.92,
+    44
+   ],
+   "lkstSpin": null,
+   "custom": [
+    20,
+    355.88,
+    320,
+    52
+   ],
+   "customSolid": false,
+   "empty": [
+    0,
+    171,
+    360,
+    82.38
+   ]
+  },
+  "laksa_limited": {
+   "kids": [
+    {
+     "cls": "empty",
+     "text": "Nothing called “laksa” is on any menu to",
+     "rect": [
+      0,
+      171,
+      360,
+      82.38
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "lkst",
+     "text": "Searching UMass Dining is paused until 1",
+     "rect": [
+      0,
+      253.38,
+      360,
+      50.5
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "custom",
+     "text": "Add “laksa” as a custom food",
+     "rect": [
+      20,
+      311.88,
+      320,
+      52
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    }
+   ],
+   "lkb": null,
+   "lkst": [
+    0,
+    253.38,
+    360,
+    50.5
+   ],
+   "lkstKv": [
+    20,
+    267.38,
+    320,
+    22.5
+   ],
+   "lkstBtn": null,
+   "lkstSpin": null,
+   "custom": [
+    20,
+    311.88,
+    320,
+    52
+   ],
+   "customSolid": false,
+   "empty": [
+    0,
+    171,
+    360,
+    82.38
+   ]
+  },
+  "track_off": {
+   "kids": [
+    {
+     "cls": "empty",
+     "text": "Nothing called “clif” is on any menu tod",
+     "rect": [
+      0,
+      171,
+      360,
+      82.38
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    }
+   ],
+   "lkb": null,
+   "lkst": null,
+   "lkstKv": null,
+   "lkstBtn": null,
+   "lkstSpin": null,
+   "custom": null,
+   "customSolid": false,
+   "empty": [
+    0,
+    171,
+    360,
+    82.38
+   ]
+  },
+  "sheet_packaged": {
+   "sheet": [
+    0,
+    528.81,
+    360,
+    812
+   ],
+   "grab": [
+    0,
+    528.81,
+    360,
+    22
+   ],
+   "dhd": [
+    0,
+    550.81,
+    360,
+    40.19
+   ],
+   "dn": [
+    20,
+    554.81,
+    320,
+    32.19
+   ],
+   "fedit": null,
+   "dsv": [
+    20,
+    591,
+    320,
+    18
+   ],
+   "mks": null,
+   "dal": null,
+   "dadd": [
+    20,
+    625,
+    320,
+    52
+   ],
+   "label": [
+    20,
+    701,
+    320,
+    505.38
+   ],
+   "cal": [
+    34,
+    784,
+    292,
+    54
+   ],
+   "ingh": null,
+   "ing": null,
+   "mid": 528.8125,
+   "form": null,
+   "cn": null,
+   "cc": null,
+   "cp": null,
+   "ccb": null,
+   "cf": null,
+   "save": null,
+   "fdel": null,
+   "h2": [
+    20,
+    554.81,
+    320,
+    32.19
+   ],
+   "bar": [
+    0,
+    783.8,
+    360,
+    68
+   ],
+   "receipt": [
+    0,
+    783.8,
+    360,
+    68
+   ]
+  },
+  "sheet_saved": {
+   "sheet": [
+    0,
+    499.81,
+    360,
+    812
+   ],
+   "grab": [
+    0,
+    499.81,
+    360,
+    22
+   ],
+   "dhd": [
+    0,
+    521.81,
+    360,
+    40.19
+   ],
+   "dn": [
+    20,
+    525.81,
+    271.34,
+    32.19
+   ],
+   "fedit": [
+    299.34,
+    518.81,
+    52.66,
+    44
+   ],
+   "dsv": [
+    20,
+    562,
+    320,
+    18
+   ],
+   "mks": null,
+   "dal": [
+    20,
+    588,
+    320,
+    21
+   ],
+   "dadd": [
+    20,
+    625,
+    320,
+    52
+   ],
+   "label": [
+    20,
+    701,
+    320,
+    505.38
+   ],
+   "cal": [
+    34,
+    784,
+    292,
+    54
+   ],
+   "ingh": [
+    20,
+    1230.38,
+    320,
+    24
+   ],
+   "ing": [
+    20,
+    1262.38,
+    320,
+    72
+   ],
+   "mid": 499.8125,
+   "form": null,
+   "cn": null,
+   "cc": null,
+   "cp": null,
+   "ccb": null,
+   "cf": null,
+   "save": null,
+   "fdel": null,
+   "h2": [
+    20,
+    525.81,
+    271.34,
+    32.19
+   ],
+   "bar": [
+    0,
+    783.8,
+    360,
+    68
+   ],
+   "receipt": [
+    0,
+    783.8,
+    360,
+    68
+   ]
+  },
+  "sheet_chobani": {
+   "sheet": [
+    0,
+    528.81,
+    360,
+    812
+   ],
+   "grab": [
+    0,
+    528.81,
+    360,
+    22
+   ],
+   "dhd": [
+    0,
+    550.81,
+    360,
+    40.19
+   ],
+   "dn": [
+    20,
+    554.81,
+    271.34,
+    32.19
+   ],
+   "fedit": [
+    299.34,
+    547.81,
+    52.66,
+    44
+   ],
+   "dsv": [
+    20,
+    591,
+    320,
+    18
+   ],
+   "mks": null,
+   "dal": null,
+   "dadd": [
+    20,
+    625,
+    320,
+    52
+   ],
+   "label": [
+    20,
+    701,
+    320,
+    487.38
+   ],
+   "cal": [
+    34,
+    784,
+    292,
+    54
+   ],
+   "ingh": null,
+   "ing": null,
+   "mid": 528.8125,
+   "form": null,
+   "cn": null,
+   "cc": null,
+   "cp": null,
+   "ccb": null,
+   "cf": null,
+   "save": null,
+   "fdel": null,
+   "h2": [
+    20,
+    554.81,
+    271.34,
+    32.19
+   ],
+   "bar": [
+    0,
+    783.8,
+    360,
+    68
+   ],
+   "receipt": [
+    0,
+    783.8,
+    360,
+    68
+   ]
+  },
+  "sheet_edit": {
+   "sheet": [
+    0,
+    32,
+    360,
+    812
+   ],
+   "grab": [
+    0,
+    32,
+    360,
+    22
+   ],
+   "dhd": null,
+   "dn": null,
+   "fedit": null,
+   "dsv": null,
+   "mks": null,
+   "dal": null,
+   "dadd": null,
+   "label": null,
+   "cal": null,
+   "ingh": null,
+   "ing": null,
+   "mid": 528.8125,
+   "form": [
+    20,
+    98.8,
+    320,
+    367
+   ],
+   "cn": [
+    20,
+    121.8,
+    320,
+    50
+   ],
+   "cc": [
+    20,
+    206.8,
+    154,
+    50
+   ],
+   "cp": [
+    186,
+    206.8,
+    154,
+    50
+   ],
+   "ccb": [
+    20,
+    291.8,
+    154,
+    50
+   ],
+   "cf": [
+    186,
+    291.8,
+    154,
+    50
+   ],
+   "save": [
+    20,
+    359.8,
+    320,
+    52
+   ],
+   "fdel": [
+    144.45,
+    421.8,
+    71.08,
+    44
+   ],
+   "h2": [
+    20,
+    56,
+    98.56,
+    30.8
+   ],
+   "bar": [
+    0,
+    783.8,
+    360,
+    68
+   ],
+   "receipt": [
+    0,
+    783.8,
+    360,
+    68
+   ]
+  },
+  "deleted": {
+   "sheet": [
+    0,
+    844,
+    360,
+    812
+   ],
+   "grab": [
+    0,
+    844,
+    360,
+    22
+   ],
+   "dhd": null,
+   "dn": null,
+   "fedit": null,
+   "dsv": null,
+   "mks": null,
+   "dal": null,
+   "dadd": null,
+   "label": null,
+   "cal": null,
+   "ingh": null,
+   "ing": null,
+   "mid": null,
+   "form": [
+    20,
+    910.8,
+    320,
+    367
+   ],
+   "cn": [
+    20,
+    933.8,
+    320,
+    50
+   ],
+   "cc": [
+    20,
+    1018.8,
+    154,
+    50
+   ],
+   "cp": [
+    186,
+    1018.8,
+    154,
+    50
+   ],
+   "ccb": [
+    20,
+    1103.8,
+    154,
+    50
+   ],
+   "cf": [
+    186,
+    1103.8,
+    154,
+    50
+   ],
+   "save": [
+    20,
+    1171.8,
+    320,
+    52
+   ],
+   "fdel": [
+    144.45,
+    1233.8,
+    71.08,
+    44
+   ],
+   "h2": [
+    20,
+    868,
+    98.56,
+    30.8
+   ],
+   "bar": [
+    0,
+    709,
+    360,
+    68
+   ],
+   "receipt": [
+    0,
+    709,
+    360,
+    68
+   ]
+  },
+  "you": {
+   "rows": [
+    {
+     "a": "Breakfast at Worcester",
+     "b": "8:42 AM",
+     "rect": [
+      20,
+      440.38,
+      320,
+      56
+     ]
+    },
+    {
+     "a": "Lunch at Worcester",
+     "b": "12:41 PM",
+     "rect": [
+      20,
+      496.38,
+      320,
+      56
+     ]
+    },
+    {
+     "a": "Wednesday, October 7",
+     "rect": [
+      20,
+      604.77,
+      320,
+      56
+     ]
+    },
+    {
+     "a": "Tuesday, October 6",
+     "rect": [
+      20,
+      660.77,
+      320,
+      56
+     ]
+    },
+    {
+     "a": "Monday, October 5",
+     "rect": [
+      20,
+      716.77,
+      320,
+      56
+     ]
+    },
+    {
+     "a": "Sunday, October 4",
+     "rect": [
+      20,
+      772.77,
+      320,
+      56
+     ]
+    },
+    {
+     "a": "Friday, October 2",
+     "rect": [
+      20,
+      828.77,
+      320,
+      56
+     ]
+    },
+    {
+     "a": "Thursday, October 1",
+     "rect": [
+      20,
+      884.77,
+      320,
+      56
+     ]
+    },
+    {
+     "a": "Favorites",
+     "b": "None yet",
+     "rect": [
+      20,
+      1096.77,
+      320,
+      56
+     ]
+    },
+    {
+     "a": "Your foods",
+     "b": "2 foods",
+     "rect": [
+      20,
+      1152.77,
+      320,
+      56
+     ]
+    },
+    {
+     "a": "Dietary preferences",
+     "b": "Everything",
+     "rect": [
+      20,
+      1208.77,
+      320,
+      56
+     ]
+    },
+    {
+     "a": "Which was better?",
+     "b": "18 dishes logged",
+     "rect": [
+      20,
+      1264.77,
+      320,
+      56
+     ]
+    },
+    {
+     "a": "Export my data",
+     "b": "7 days",
+     "rect": [
+      20,
+      1320.77,
+      320,
+      56
+     ]
+    }
+   ]
+  },
+  "you_foods": {
+   "rows": [
+    {
+     "a": "Chobani",
+     "b": "140 cal, 1 serving",
+     "rect": [
+      20,
+      84,
+      320,
+      56
+     ],
+     "arect": [
+      20,
+      93,
+      102.69,
+      19
+     ],
+     "brect": [
+      20,
+      114,
+      102.69,
+      16
+     ]
+    },
+    {
+     "a": "Clif Bar Chocolate Chip",
+     "b": "250 cal, 1 bar (68 g)",
+     "rect": [
+      20,
+      140,
+      320,
+      56
+     ],
+     "arect": [
+      20,
+      149.5,
+      175.16,
+      19
+     ],
+     "brect": [
+      20,
+      170.5,
+      175.16,
+      16
+     ]
+    }
+   ]
+  }
+ },
+ "390": {
+  "clif": {
+   "kids": [
+    {
+     "cls": "empty",
+     "text": "Nothing called “clif” is on any menu tod",
+     "rect": [
+      0,
+      171,
+      390,
+      82.38
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "sgrp",
+     "text": "Your foods",
+     "rect": [
+      0,
+      253.38,
+      390,
+      46
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "row",
+     "text": "Clif Bar Chocolate Chip",
+     "rect": [
+      0,
+      299.38,
+      390,
+      78
+     ],
+     "meta": [
+      20,
+      338.88,
+      240,
+      22
+     ],
+     "name": [
+      20,
+      315.88,
+      240,
+      20
+     ],
+     "lane": [
+      268,
+      305.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "sgrp",
+     "text": "Packaged",
+     "rect": [
+      0,
+      377.38,
+      390,
+      46
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "row",
+     "text": "Clif bar",
+     "rect": [
+      0,
+      423.38,
+      390,
+      78
+     ],
+     "meta": [
+      20,
+      462.88,
+      240,
+      22
+     ],
+     "name": [
+      20,
+      439.88,
+      240,
+      20
+     ],
+     "lane": [
+      268,
+      429.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "Clif Bar Duos",
+     "rect": [
+      0,
+      501.38,
+      390,
+      78
+     ],
+     "meta": [
+      20,
+      540.88,
+      240,
+      22
+     ],
+     "name": [
+      20,
+      517.88,
+      240,
+      20
+     ],
+     "lane": [
+      268,
+      507.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "Clif bar mini chocolate chip",
+     "rect": [
+      0,
+      579.38,
+      390,
+      78
+     ],
+     "meta": [
+      20,
+      618.88,
+      240,
+      22
+     ],
+     "name": [
+      20,
+      595.88,
+      240,
+      20
+     ],
+     "lane": [
+      268,
+      585.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "Clif Bar Peanut Butter Banana",
+     "rect": [
+      0,
+      657.38,
+      390,
+      78
+     ],
+     "meta": [
+      20,
+      696.88,
+      240,
+      22
+     ],
+     "name": [
+      20,
+      673.88,
+      240,
+      20
+     ],
+     "lane": [
+      268,
+      663.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "Clif Bar Cool Mint Chocolate",
+     "rect": [
+      0,
+      735.38,
+      390,
+      78
+     ],
+     "meta": [
+      20,
+      774.88,
+      240,
+      22
+     ],
+     "name": [
+      20,
+      751.88,
+      240,
+      20
+     ],
+     "lane": [
+      268,
+      741.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "Clif Bar Crunchy Peanut Butter",
+     "rect": [
+      0,
+      813.38,
+      390,
+      78
+     ],
+     "meta": [
+      20,
+      852.88,
+      240,
+      22
+     ],
+     "name": [
+      20,
+      829.88,
+      240,
+      20
+     ],
+     "lane": [
+      268,
+      819.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "Clif Bar Dark Chocolate Mocha",
+     "rect": [
+      0,
+      891.38,
+      390,
+      78
+     ],
+     "meta": [
+      20,
+      930.88,
+      240,
+      22
+     ],
+     "name": [
+      20,
+      907.88,
+      240,
+      20
+     ],
+     "lane": [
+      268,
+      897.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "Clif bar minis - coffee collection",
+     "rect": [
+      0,
+      969.38,
+      390,
+      78
+     ],
+     "meta": [
+      20,
+      1008.88,
+      240,
+      22
+     ],
+     "name": [
+      20,
+      985.88,
+      240,
+      20
+     ],
+     "lane": [
+      268,
+      975.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "CLIF bar white chocolate macadamia nut",
+     "rect": [
+      0,
+      1047.38,
+      390,
+      78
+     ],
+     "meta": [
+      20,
+      1096.88,
+      240,
+      22
+     ],
+     "name": [
+      20,
+      1053.88,
+      240,
+      40
+     ],
+     "lane": [
+      268,
+      1053.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "Clif Bar Mini White Chocolate Macadamia ",
+     "rect": [
+      0,
+      1125.38,
+      390,
+      78
+     ],
+     "meta": [
+      20,
+      1174.88,
+      240,
+      22
+     ],
+     "name": [
+      20,
+      1131.88,
+      240,
+      40
+     ],
+     "lane": [
+      268,
+      1131.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "Clif Bar Cool Mint Chocolate Energy Bars",
+     "rect": [
+      0,
+      1203.38,
+      390,
+      97
+     ],
+     "meta": [
+      20,
+      1272.38,
+      240,
+      22
+     ],
+     "name": [
+      20,
+      1209.38,
+      240,
+      60
+     ],
+     "lane": [
+      268,
+      1218.88,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "Clif bar, clif kid, z organic twisted fr",
+     "rect": [
+      0,
+      1300.38,
+      390,
+      97
+     ],
+     "meta": [
+      20,
+      1369.38,
+      240,
+      22
+     ],
+     "name": [
+      20,
+      1306.38,
+      240,
+      60
+     ],
+     "lane": [
+      268,
+      1315.88,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "row",
+     "text": "Clif bar organic twisted fruit bars mixe",
+     "rect": [
+      0,
+      1397.38,
+      390,
+      78
+     ],
+     "meta": [
+      20,
+      1446.88,
+      240,
+      22
+     ],
+     "name": [
+      20,
+      1403.88,
+      240,
+      40
+     ],
+     "lane": [
+      268,
+      1403.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "lkb",
+     "text": "Search UMass Dining for “clif”",
+     "rect": [
+      0,
+      1483.38,
+      390,
+      44
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "custom",
+     "text": "Add “clif” as a custom food",
+     "rect": [
+      20,
+      1535.38,
+      350,
+      52
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    }
+   ],
+   "lkb": [
+    0,
+    1483.38,
+    390,
+    44
+   ],
+   "lkst": null,
+   "lkstKv": null,
+   "lkstBtn": null,
+   "lkstSpin": null,
+   "custom": [
+    20,
+    1535.38,
+    350,
+    52
+   ],
+   "customSolid": false,
+   "empty": [
+    0,
+    171,
+    390,
+    82.38
+   ]
+  },
+  "chobani": {
+   "kids": [
+    {
+     "cls": "empty fadein",
+     "text": "Nothing called “chobani” is on any menu ",
+     "rect": [
+      0,
+      171,
+      390,
+      82.38
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "sgrp",
+     "text": "Your foods",
+     "rect": [
+      0,
+      253.38,
+      390,
+      46
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "row",
+     "text": "Chobani",
+     "rect": [
+      0,
+      299.38,
+      390,
+      78
+     ],
+     "meta": [
+      20,
+      338.88,
+      240,
+      22
+     ],
+     "name": [
+      20,
+      315.88,
+      240,
+      20
+     ],
+     "lane": [
+      268,
+      305.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "lkb",
+     "text": "Search UMass Dining for “chobani”",
+     "rect": [
+      0,
+      385.38,
+      390,
+      44
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "custom",
+     "text": "Add “chobani” as a custom food",
+     "rect": [
+      20,
+      437.38,
+      350,
+      52
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    }
+   ],
+   "lkb": [
+    0,
+    385.38,
+    390,
+    44
+   ],
+   "lkst": null,
+   "lkstKv": null,
+   "lkstBtn": null,
+   "lkstSpin": null,
+   "custom": [
+    20,
+    437.38,
+    350,
+    52
+   ],
+   "customSolid": false,
+   "empty": [
+    0,
+    171,
+    390,
+    82.38
+   ]
+  },
+  "pack_fail": {
+   "kids": [
+    {
+     "cls": "empty",
+     "text": "Nothing called “clif” is on any menu tod",
+     "rect": [
+      0,
+      171,
+      390,
+      82.38
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "sgrp",
+     "text": "Your foods",
+     "rect": [
+      0,
+      253.38,
+      390,
+      46
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "row",
+     "text": "Clif Bar Chocolate Chip",
+     "rect": [
+      0,
+      299.38,
+      390,
+      78
+     ],
+     "meta": [
+      20,
+      338.88,
+      240,
+      22
+     ],
+     "name": [
+      20,
+      315.88,
+      240,
+      20
+     ],
+     "lane": [
+      268,
+      305.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "sgrp",
+     "text": "Packaged",
+     "rect": [
+      0,
+      377.38,
+      390,
+      46
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "lkst",
+     "text": "Packaged foods didn't load.Try again",
+     "rect": [
+      0,
+      423.38,
+      390,
+      94.5
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "lkb",
+     "text": "Search UMass Dining for “clif”",
+     "rect": [
+      0,
+      525.88,
+      390,
+      44
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "custom",
+     "text": "Add “clif” as a custom food",
+     "rect": [
+      20,
+      577.88,
+      350,
+      52
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    }
+   ],
+   "lkb": [
+    0,
+    525.88,
+    390,
+    44
+   ],
+   "lkst": [
+    0,
+    423.38,
+    390,
+    94.5
+   ],
+   "lkstKv": [
+    20,
+    437.38,
+    350,
+    22.5
+   ],
+   "lkstBtn": [
+    20,
+    469.88,
+    97.92,
+    44
+   ],
+   "lkstSpin": null,
+   "custom": [
+    20,
+    577.88,
+    350,
+    52
+   ],
+   "customSolid": false,
+   "empty": [
+    0,
+    171,
+    390,
+    82.38
+   ]
+  },
+  "laksa_idle": {
+   "kids": [
+    {
+     "cls": "empty fadein",
+     "text": "Nothing called “laksa” is on any menu to",
+     "rect": [
+      0,
+      171,
+      390,
+      82.38
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "lkb",
+     "text": "Search UMass Dining for “laksa”",
+     "rect": [
+      0,
+      261.38,
+      390,
+      44
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "custom",
+     "text": "Add “laksa” as a custom food",
+     "rect": [
+      20,
+      313.38,
+      350,
+      52
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    }
+   ],
+   "lkb": [
+    0,
+    261.38,
+    390,
+    44
+   ],
+   "lkst": null,
+   "lkstKv": null,
+   "lkstBtn": null,
+   "lkstSpin": null,
+   "custom": [
+    20,
+    313.38,
+    350,
+    52
+   ],
+   "customSolid": false,
+   "empty": [
+    0,
+    171,
+    390,
+    82.38
+   ]
+  },
+  "zzzq": {
+   "kids": [
+    {
+     "cls": "empty fadein",
+     "text": "Nothing called “zzzq” is on any menu tod",
+     "rect": [
+      0,
+      171,
+      390,
+      82.38
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "lkb",
+     "text": "Search UMass Dining for “zzzq”",
+     "rect": [
+      0,
+      261.38,
+      390,
+      44
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "custom",
+     "text": "Add “zzzq” as a custom food",
+     "rect": [
+      20,
+      313.38,
+      350,
+      52
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    }
+   ],
+   "lkb": [
+    0,
+    261.38,
+    390,
+    44
+   ],
+   "lkst": null,
+   "lkstKv": null,
+   "lkstBtn": null,
+   "lkstSpin": null,
+   "custom": [
+    20,
+    313.38,
+    350,
+    52
+   ],
+   "customSolid": false,
+   "empty": [
+    0,
+    171,
+    390,
+    82.38
+   ]
+  },
+  "laksa_loading": {
+   "kids": [
+    {
+     "cls": "empty",
+     "text": "Nothing called “laksa” is on any menu to",
+     "rect": [
+      0,
+      171,
+      390,
+      82.38
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "lkst ld",
+     "text": "",
+     "rect": [
+      0,
+      253.38,
+      390,
+      52
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "custom",
+     "text": "Add “laksa” as a custom food",
+     "rect": [
+      20,
+      313.38,
+      350,
+      52
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    }
+   ],
+   "lkb": null,
+   "lkst": [
+    0,
+    253.38,
+    390,
+    52
+   ],
+   "lkstKv": null,
+   "lkstBtn": null,
+   "lkstSpin": [
+    178.14,
+    262.52,
+    33.71,
+    33.71
+   ],
+   "custom": [
+    20,
+    313.38,
+    350,
+    52
+   ],
+   "customSolid": false,
+   "empty": [
+    0,
+    171,
+    390,
+    82.38
+   ]
+  },
+  "laksa_found": {
+   "kids": [
+    {
+     "cls": "empty",
+     "text": "Nothing called “laksa” is on any menu to",
+     "rect": [
+      0,
+      171,
+      390,
+      82.38
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "sgrp",
+     "text": "UMass Dining",
+     "rect": [
+      0,
+      253.38,
+      390,
+      46
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "row",
+     "text": "Laksa Noodle Bowl (Shrimp, Fish, Eggs, A",
+     "rect": [
+      0,
+      299.38,
+      390,
+      78
+     ],
+     "meta": [
+      20,
+      348.88,
+      240,
+      22
+     ],
+     "name": [
+      20,
+      305.88,
+      240,
+      40
+     ],
+     "lane": [
+      268,
+      305.38,
+      114,
+      66
+     ]
+    },
+    {
+     "cls": "custom",
+     "text": "Add “laksa” as a custom food",
+     "rect": [
+      20,
+      385.38,
+      350,
+      52
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    }
+   ],
+   "lkb": null,
+   "lkst": null,
+   "lkstKv": null,
+   "lkstBtn": null,
+   "lkstSpin": null,
+   "custom": [
+    20,
+    385.38,
+    350,
+    52
+   ],
+   "customSolid": false,
+   "empty": [
+    0,
+    171,
+    390,
+    82.38
+   ]
+  },
+  "laksa_none": {
+   "kids": [
+    {
+     "cls": "empty",
+     "text": "Nothing called “laksa” is on any menu to",
+     "rect": [
+      0,
+      171,
+      390,
+      82.38
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "lkst",
+     "text": "UMass Dining has nothing else called “la",
+     "rect": [
+      0,
+      253.38,
+      390,
+      50.5
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "custom",
+     "text": "Add “laksa” as a custom food",
+     "rect": [
+      20,
+      311.88,
+      350,
+      52
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    }
+   ],
+   "lkb": null,
+   "lkst": [
+    0,
+    253.38,
+    390,
+    50.5
+   ],
+   "lkstKv": [
+    20,
+    267.38,
+    350,
+    22.5
+   ],
+   "lkstBtn": null,
+   "lkstSpin": null,
+   "custom": [
+    20,
+    311.88,
+    350,
+    52
+   ],
+   "customSolid": false,
+   "empty": [
+    0,
+    171,
+    390,
+    82.38
+   ]
+  },
+  "laksa_fail": {
+   "kids": [
+    {
+     "cls": "empty",
+     "text": "Nothing called “laksa” is on any menu to",
+     "rect": [
+      0,
+      171,
+      390,
+      82.38
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "lkst",
+     "text": "Couldn't reach UMass Dining.Try again",
+     "rect": [
+      0,
+      253.38,
+      390,
+      94.5
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "custom",
+     "text": "Add “laksa” as a custom food",
+     "rect": [
+      20,
+      355.88,
+      350,
+      52
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    }
+   ],
+   "lkb": null,
+   "lkst": [
+    0,
+    253.38,
+    390,
+    94.5
+   ],
+   "lkstKv": [
+    20,
+    267.38,
+    350,
+    22.5
+   ],
+   "lkstBtn": [
+    20,
+    299.88,
+    97.92,
+    44
+   ],
+   "lkstSpin": null,
+   "custom": [
+    20,
+    355.88,
+    350,
+    52
+   ],
+   "customSolid": false,
+   "empty": [
+    0,
+    171,
+    390,
+    82.38
+   ]
+  },
+  "laksa_limited": {
+   "kids": [
+    {
+     "cls": "empty",
+     "text": "Nothing called “laksa” is on any menu to",
+     "rect": [
+      0,
+      171,
+      390,
+      82.38
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "lkst",
+     "text": "Searching UMass Dining is paused until 1",
+     "rect": [
+      0,
+      253.38,
+      390,
+      50.5
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    },
+    {
+     "cls": "custom",
+     "text": "Add “laksa” as a custom food",
+     "rect": [
+      20,
+      311.88,
+      350,
+      52
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    }
+   ],
+   "lkb": null,
+   "lkst": [
+    0,
+    253.38,
+    390,
+    50.5
+   ],
+   "lkstKv": [
+    20,
+    267.38,
+    350,
+    22.5
+   ],
+   "lkstBtn": null,
+   "lkstSpin": null,
+   "custom": [
+    20,
+    311.88,
+    350,
+    52
+   ],
+   "customSolid": false,
+   "empty": [
+    0,
+    171,
+    390,
+    82.38
+   ]
+  },
+  "track_off": {
+   "kids": [
+    {
+     "cls": "empty",
+     "text": "Nothing called “clif” is on any menu tod",
+     "rect": [
+      0,
+      171,
+      390,
+      82.38
+     ],
+     "meta": null,
+     "name": null,
+     "lane": null
+    }
+   ],
+   "lkb": null,
+   "lkst": null,
+   "lkstKv": null,
+   "lkstBtn": null,
+   "lkstSpin": null,
+   "custom": null,
+   "customSolid": false,
+   "empty": [
+    0,
+    171,
+    390,
+    82.38
+   ]
+  },
+  "sheet_packaged": {
+   "sheet": [
+    0,
+    528.81,
+    390,
+    812
+   ],
+   "grab": [
+    0,
+    528.81,
+    390,
+    22
+   ],
+   "dhd": [
+    0,
+    550.81,
+    390,
+    40.19
+   ],
+   "dn": [
+    20,
+    554.81,
+    350,
+    32.19
+   ],
+   "fedit": null,
+   "dsv": [
+    20,
+    591,
+    350,
+    18
+   ],
+   "mks": null,
+   "dal": null,
+   "dadd": [
+    20,
+    625,
+    350,
+    52
+   ],
+   "label": [
+    20,
+    701,
+    350,
+    489.19
+   ],
+   "cal": [
+    34,
+    784,
+    322,
+    54
+   ],
+   "ingh": null,
+   "ing": null,
+   "mid": 528.8125,
+   "form": null,
+   "cn": null,
+   "cc": null,
+   "cp": null,
+   "ccb": null,
+   "cf": null,
+   "save": null,
+   "fdel": null,
+   "h2": [
+    20,
+    554.81,
+    350,
+    32.19
+   ],
+   "bar": [
+    0,
+    783.8,
+    390,
+    68
+   ],
+   "receipt": [
+    0,
+    783.8,
+    390,
+    68
+   ]
+  },
+  "sheet_saved": {
+   "sheet": [
+    0,
+    499.81,
+    390,
+    812
+   ],
+   "grab": [
+    0,
+    499.81,
+    390,
+    22
+   ],
+   "dhd": [
+    0,
+    521.81,
+    390,
+    40.19
+   ],
+   "dn": [
+    20,
+    525.81,
+    301.34,
+    32.19
+   ],
+   "fedit": [
+    329.34,
+    518.81,
+    52.66,
+    44
+   ],
+   "dsv": [
+    20,
+    562,
+    350,
+    18
+   ],
+   "mks": null,
+   "dal": [
+    20,
+    588,
+    350,
+    21
+   ],
+   "dadd": [
+    20,
+    625,
+    350,
+    52
+   ],
+   "label": [
+    20,
+    701,
+    350,
+    489.19
+   ],
+   "cal": [
+    34,
+    784,
+    322,
+    54
+   ],
+   "ingh": [
+    20,
+    1214.19,
+    350,
+    24
+   ],
+   "ing": [
+    20,
+    1246.19,
+    350,
+    72
+   ],
+   "mid": 499.8125,
+   "form": null,
+   "cn": null,
+   "cc": null,
+   "cp": null,
+   "ccb": null,
+   "cf": null,
+   "save": null,
+   "fdel": null,
+   "h2": [
+    20,
+    525.81,
+    301.34,
+    32.19
+   ],
+   "bar": [
+    0,
+    783.8,
+    390,
+    68
+   ],
+   "receipt": [
+    0,
+    783.8,
+    390,
+    68
+   ]
+  },
+  "sheet_chobani": {
+   "sheet": [
+    0,
+    528.81,
+    390,
+    812
+   ],
+   "grab": [
+    0,
+    528.81,
+    390,
+    22
+   ],
+   "dhd": [
+    0,
+    550.81,
+    390,
+    40.19
+   ],
+   "dn": [
+    20,
+    554.81,
+    301.34,
+    32.19
+   ],
+   "fedit": [
+    329.34,
+    547.81,
+    52.66,
+    44
+   ],
+   "dsv": [
+    20,
+    591,
+    350,
+    18
+   ],
+   "mks": null,
+   "dal": null,
+   "dadd": [
+    20,
+    625,
+    350,
+    52
+   ],
+   "label": [
+    20,
+    701,
+    350,
+    471.19
+   ],
+   "cal": [
+    34,
+    784,
+    322,
+    54
+   ],
+   "ingh": null,
+   "ing": null,
+   "mid": 528.8125,
+   "form": null,
+   "cn": null,
+   "cc": null,
+   "cp": null,
+   "ccb": null,
+   "cf": null,
+   "save": null,
+   "fdel": null,
+   "h2": [
+    20,
+    554.81,
+    301.34,
+    32.19
+   ],
+   "bar": [
+    0,
+    783.8,
+    390,
+    68
+   ],
+   "receipt": [
+    0,
+    783.8,
+    390,
+    68
+   ]
+  },
+  "sheet_edit": {
+   "sheet": [
+    0,
+    32,
+    390,
+    812
+   ],
+   "grab": [
+    0,
+    32,
+    390,
+    22
+   ],
+   "dhd": null,
+   "dn": null,
+   "fedit": null,
+   "dsv": null,
+   "mks": null,
+   "dal": null,
+   "dadd": null,
+   "label": null,
+   "cal": null,
+   "ingh": null,
+   "ing": null,
+   "mid": 528.8125,
+   "form": [
+    20,
+    98.8,
+    350,
+    367
+   ],
+   "cn": [
+    20,
+    121.8,
+    350,
+    50
+   ],
+   "cc": [
+    20,
+    206.8,
+    169,
+    50
+   ],
+   "cp": [
+    201,
+    206.8,
+    169,
+    50
+   ],
+   "ccb": [
+    20,
+    291.8,
+    169,
+    50
+   ],
+   "cf": [
+    201,
+    291.8,
+    169,
+    50
+   ],
+   "save": [
+    20,
+    359.8,
+    350,
+    52
+   ],
+   "fdel": [
+    159.45,
+    421.8,
+    71.08,
+    44
+   ],
+   "h2": [
+    20,
+    56,
+    98.56,
+    30.8
+   ],
+   "bar": [
+    0,
+    783.8,
+    390,
+    68
+   ],
+   "receipt": [
+    0,
+    783.8,
+    390,
+    68
+   ]
+  },
+  "deleted": {
+   "sheet": [
+    0,
+    844,
+    390,
+    812
+   ],
+   "grab": [
+    0,
+    844,
+    390,
+    22
+   ],
+   "dhd": null,
+   "dn": null,
+   "fedit": null,
+   "dsv": null,
+   "mks": null,
+   "dal": null,
+   "dadd": null,
+   "label": null,
+   "cal": null,
+   "ingh": null,
+   "ing": null,
+   "mid": null,
+   "form": [
+    20,
+    910.8,
+    350,
+    367
+   ],
+   "cn": [
+    20,
+    933.8,
+    350,
+    50
+   ],
+   "cc": [
+    20,
+    1018.8,
+    169,
+    50
+   ],
+   "cp": [
+    201,
+    1018.8,
+    169,
+    50
+   ],
+   "ccb": [
+    20,
+    1103.8,
+    169,
+    50
+   ],
+   "cf": [
+    201,
+    1103.8,
+    169,
+    50
+   ],
+   "save": [
+    20,
+    1171.8,
+    350,
+    52
+   ],
+   "fdel": [
+    159.45,
+    1233.8,
+    71.08,
+    44
+   ],
+   "h2": [
+    20,
+    868,
+    98.56,
+    30.8
+   ],
+   "bar": [
+    0,
+    709,
+    390,
+    68
+   ],
+   "receipt": [
+    0,
+    709,
+    390,
+    68
+   ]
+  },
+  "you": {
+   "rows": [
+    {
+     "a": "Breakfast at Worcester",
+     "b": "8:42 AM",
+     "rect": [
+      20,
+      440.38,
+      350,
+      56
+     ]
+    },
+    {
+     "a": "Lunch at Worcester",
+     "b": "12:41 PM",
+     "rect": [
+      20,
+      496.38,
+      350,
+      56
+     ]
+    },
+    {
+     "a": "Wednesday, October 7",
+     "rect": [
+      20,
+      604.77,
+      350,
+      56
+     ]
+    },
+    {
+     "a": "Tuesday, October 6",
+     "rect": [
+      20,
+      660.77,
+      350,
+      56
+     ]
+    },
+    {
+     "a": "Monday, October 5",
+     "rect": [
+      20,
+      716.77,
+      350,
+      56
+     ]
+    },
+    {
+     "a": "Sunday, October 4",
+     "rect": [
+      20,
+      772.77,
+      350,
+      56
+     ]
+    },
+    {
+     "a": "Friday, October 2",
+     "rect": [
+      20,
+      828.77,
+      350,
+      56
+     ]
+    },
+    {
+     "a": "Thursday, October 1",
+     "rect": [
+      20,
+      884.77,
+      350,
+      56
+     ]
+    },
+    {
+     "a": "Favorites",
+     "b": "None yet",
+     "rect": [
+      20,
+      1096.77,
+      350,
+      56
+     ]
+    },
+    {
+     "a": "Your foods",
+     "b": "2 foods",
+     "rect": [
+      20,
+      1152.77,
+      350,
+      56
+     ]
+    },
+    {
+     "a": "Dietary preferences",
+     "b": "Everything",
+     "rect": [
+      20,
+      1208.77,
+      350,
+      56
+     ]
+    },
+    {
+     "a": "Which was better?",
+     "b": "18 dishes logged",
+     "rect": [
+      20,
+      1264.77,
+      350,
+      56
+     ]
+    },
+    {
+     "a": "Export my data",
+     "b": "7 days",
+     "rect": [
+      20,
+      1320.77,
+      350,
+      56
+     ]
+    }
+   ]
+  },
+  "you_foods": {
+   "rows": [
+    {
+     "a": "Chobani",
+     "b": "140 cal, 1 serving",
+     "rect": [
+      20,
+      84,
+      350,
+      56
+     ],
+     "arect": [
+      20,
+      93,
+      102.69,
+      19
+     ],
+     "brect": [
+      20,
+      114,
+      102.69,
+      16
+     ]
+    },
+    {
+     "a": "Clif Bar Chocolate Chip",
+     "b": "250 cal, 1 bar (68 g)",
+     "rect": [
+      20,
+      140,
+      350,
+      56
+     ],
+     "arect": [
+      20,
+      149.5,
+      175.16,
+      19
+     ],
+     "brect": [
+      20,
+      170.5,
+      175.16,
+      16
+     ]
+    }
+   ]
+  }
+ }
+}

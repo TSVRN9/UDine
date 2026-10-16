@@ -14,12 +14,15 @@ class LookupButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = 'Search UMass Dining for “$query”';
-    return Press(
-      label: label, onTap: onTap,
-      child: Container(
-        width: double.infinity, constraints: const BoxConstraints(minHeight: M2Size.tap), margin: const EdgeInsets.only(top: M2Layout.lkbTop),
-        padding: const EdgeInsets.symmetric(horizontal: M2Space.gutter), alignment: Alignment.centerLeft,
-        child: ExcludeSemantics(child: Text(label, style: M2Text.link.style(M2Color.vm))),
+    return Padding(
+      padding: const EdgeInsets.only(top: M2Layout.lkbTop),
+      child: Press(
+        label: label, onTap: onTap,
+        child: Container(
+          width: double.infinity, constraints: const BoxConstraints(minHeight: M2Size.tap),
+          padding: const EdgeInsets.symmetric(horizontal: M2Space.gutter), alignment: Alignment.centerLeft,
+          child: ExcludeSemantics(child: Text(label, style: M2Text.link.style(M2Color.vm))),
+        ),
       ),
     );
   }
@@ -62,14 +65,21 @@ class PackFail extends StatelessWidget {
 }
 
 /// "Searching UMass Dining is paused until 1 PM.": the server's budget resets on the hour, in the hour the reader keeps.
-String pausedLine(DateTime resetsAt) {
+String pausedLine(DateTime resetsAt, [String? reason]) {
+  // ponytail: `in_progress` (another lookup is running; the hour is not what it waits for) says the same until the owner chooses its copy; this is the one place
+  if (reason == 'in_progress') return _until(resetsAt);
+  return _until(resetsAt);
+}
+
+String _until(DateTime resetsAt) {
   final w = easternWall(resetsAt);
   return 'Searching UMass Dining is paused until ${fmtT('${w.hour % 12 == 0 ? 12 : w.hour % 12}:${w.minute.toString().padLeft(2, '0')} ${w.hour < 12 ? 'AM' : 'PM'}')}.';
 }
 
 /// The lookup's answer in the button's slot (none, failed, rate-limited, or the wait): what happened, and what to do.
 class LookupStatus extends StatelessWidget {
-  const LookupStatus({super.key, required this.phase, required this.query, this.resetsAt, required this.onRetry});
+  const LookupStatus({super.key, required this.phase, required this.query, this.resetsAt, this.reason, required this.onRetry});
+  final String? reason;
   final LookupPhase phase;
   final String query;
   final DateTime? resetsAt;
@@ -81,7 +91,7 @@ class LookupStatus extends StatelessWidget {
             child: const Spinner(label: 'Searching UMass Dining'),
           ),
         LookupPhase.none => _Slot(children: [_kv('UMass Dining has nothing else called “$query”.')]),
-        LookupPhase.limited => _Slot(children: [_kv(pausedLine(resetsAt!))]),
+        LookupPhase.limited => _Slot(children: [_kv(pausedLine(resetsAt!, reason))]),
         _ => _Slot(children: [_kv("Couldn't reach UMass Dining."), Button(kind: ButtonKind.line, size: ButtonSize.tap, label: 'Try again', onTap: onRetry)]),
       };
 }

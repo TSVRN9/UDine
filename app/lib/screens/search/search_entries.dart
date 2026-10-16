@@ -99,13 +99,17 @@ class LookupButtonEntry extends SearchEntry {
 
 /// The lookup's answer in the button's slot: loading, none, failed or rate-limited (found is a group).
 class LookupStateEntry extends SearchEntry {
-  const LookupStateEntry(this.phase, this.query, this.resetsAt);
+  const LookupStateEntry(this.phase, this.query, this.resetsAt, [this.reason]);
+  final String? reason;
   final LookupPhase phase;
   final String query;
   final DateTime? resetsAt;
   @override
   String get id => 'lk';
 }
+
+/// The Packaged group shows about 20 in all (owner, 2026-10-16): the merged list, after the repeats and the zero-calorie hits are gone.
+const packagedShown = 20;
 
 /// What Search offers past the menus (M2 `renderSearch`'s `more`), in order: Your foods, Packaged, then Search UMass Dining. Nothing at all
 /// with tracking off, and neither Packaged nor the lookup offline (Your foods still answers). `foods` is all of Your foods; the ones the
@@ -120,6 +124,7 @@ List<SearchEntry> extraEntries({
   required LookupPhase lookup,
   required List<PackagedFood> lookupFoods,
   DateTime? resetsAt,
+  String? reason,
 }) {
   final q = query.trim();
   if (!track || q.isEmpty) return const [];
@@ -131,12 +136,12 @@ List<SearchEntry> extraEntries({
       if (pack == PackPhase.fail) ...[const GroupHead('Packaged'), const PackFailEntry()],
       if (pack == PackPhase.ok)
         ...() {
-          final group = packagedGroup(packHits, have: {for (final f in foods) f.name.trim().toLowerCase()});
+          final group = packagedGroup(packHits, have: {for (final f in foods) f.name.trim().toLowerCase()}).take(packagedShown).toList();
           return [if (group.isNotEmpty) ...[const GroupHead('Packaged'), for (final f in group) FoodEntry(SavedFood.packed(f))]];
         }(),
       if (lookup == LookupPhase.found) ...[const GroupHead('UMass Dining'), for (final f in lookupFoods) FoodEntry(SavedFood.packed(f))]
       else if (lookup == LookupPhase.idle) LookupButtonEntry(q)
-      else LookupStateEntry(lookup, q, resetsAt),
+      else LookupStateEntry(lookup, q, resetsAt, reason),
     ],
   ];
 }

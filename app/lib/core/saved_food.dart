@@ -64,6 +64,7 @@ class SavedFood {
     final next = NutritionFacts(
       servingSize: n.servingSize, calories: cal, caloriesFromFat: n.caloriesFromFat, totalFatG: f, satFatG: n.satFatG, transFatG: n.transFatG, cholesterolMg: n.cholesterolMg,
       sodiumMg: n.sodiumMg, totalCarbG: c, dietaryFiberG: n.dietaryFiberG, sugarsG: n.sugarsG, proteinG: p,
+      blank: n.blank.difference(const {'totalFatG', 'totalCarbG', 'proteinG'}),
     );
     final cf = custom;
     if (cf != null) return SavedFood.custom(CustomFood(id: cf.id, name: name, servingSize: cf.servingSize, nutrition: next, ingredients: cf.ingredients));

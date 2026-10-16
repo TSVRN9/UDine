@@ -82,7 +82,8 @@ class PackagedSearch extends ChangeNotifier {
     if (failed == got.length) {
       phase = PackPhase.fail;
     } else {
-      hits = [for (final g in got) ...g];
+      // (interleaved, so the 20 the group shows are from every source that answered, not the first one's)
+      hits = [for (var i = 0; got.any((g) => i < g.length); i++) for (final g in got) if (i < g.length) g[i]];
       _memo[q.toLowerCase()] = hits;
       phase = PackPhase.ok;
     }
@@ -109,6 +110,8 @@ class LookupRun extends ChangeNotifier {
   List<PackagedFood> foods = const [];
   /// when the server's budget resets (the next UTC hour), while [phase] is limited
   DateTime? resetsAt;
+  /// the server's reason while limited: `budget_exhausted` (resets on the hour) or `in_progress` (another lookup is running)
+  String? reason;
   int _seq = 0;
   bool _disposed = false;
 
@@ -145,8 +148,9 @@ class LookupRun extends ChangeNotifier {
       case LookupMiss():
         foods = const [];
         phase = LookupPhase.none;
-      case LookupRateLimited(:final resetsAt):
+      case LookupRateLimited(:final resetsAt, reason: final why):
         this.resetsAt = resetsAt;
+        reason = why;
         phase = LookupPhase.limited;
       case LookupFailed():
         phase = LookupPhase.failed;

@@ -53,6 +53,7 @@ class PackagedFood {
         'nutrition': nutrition.toJson(),
         if (ingredients != null) 'ingredients': ingredients,
         if (allergens != null) 'allergens': allergens,
+        if (nutrition.blank.isNotEmpty) 'blank': nutrition.blank.toList()..sort(),
         if (diet != 0) 'diet': diet,
         if (savedAt != null) 'savedAt': savedAt,
       };
@@ -61,7 +62,7 @@ class PackagedFood {
         source: LogSource.fromJson(j['source'] as Map<String, dynamic>),
         productName: j['productName'] as String,
         brand: j['brand'] as String?,
-        nutrition: NutritionFacts.fromJson(j['nutrition'] as Map<String, dynamic>),
+        nutrition: NutritionFacts.fromJson(j['nutrition'] as Map<String, dynamic>).withBlank({...?(j['blank'] as List?)?.cast<String>()}),
         ingredients: j['ingredients'] as String?,
         allergens: (j['allergens'] as List?)?.cast<String>(),
         diet: j['diet'] as int? ?? 0,

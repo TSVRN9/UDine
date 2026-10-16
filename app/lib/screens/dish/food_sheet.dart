@@ -50,6 +50,9 @@ class _FoodSheetState extends State<FoodSheet> {
     super.dispose();
   }
 
+  /// Edit's box: its word and the 12 of padding each side (`.tbtn`), which is what the name leaves room for
+  static final double _editW = (TextPainter(text: TextSpan(text: 'Edit', style: M2Text.link.style(M2Color.vm)), textDirection: TextDirection.ltr)..layout()).width + 2 * M2Layout.tbtnPad;
+
   double _mid(SheetMetrics m, double st) {
     if (_edit) return m.height;
     final scroll = m.body?.findRenderObject() as RenderBox?, cal = _cal.currentContext?.findRenderObject() as RenderBox?;
@@ -125,7 +128,7 @@ class _FoodSheetState extends State<FoodSheet> {
                       ),
                     ]
                   : [
-                      PinnedHeaderSliver(child: DishHead(name: f.name, stuck: _stuck, reserve: saved)),
+                      PinnedHeaderSliver(child: DishHead(name: f.name, stuck: _stuck, reserve: saved, slot: _editW)),
                       SliverToBoxAdapter(
                         child: Arrive(
                           key: ValueKey(f), from: M2Layout.editFadeFrom,

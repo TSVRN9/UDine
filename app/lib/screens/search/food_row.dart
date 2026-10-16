@@ -22,7 +22,11 @@ class FoodRow extends StatelessWidget {
       onTap: onOpen,
       name: Badge.name(food.name, M2Text.rowName.style(M2Color.ink), badge: Badge.forDiet(food.diet)),
       meta: food.per100g ? CalPer100(cal: n.calories) : CalProtein(cal: n.calories, protein: n.proteinG),
-      control: RowControl(qty: code, ghost: false, onAdd: onAdd, onInc: onInc, onDec: onDec),
+      // (`.lane` min-height 66: the control at its top, so a food's row is the size of a dish's)
+      control: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: M2Layout.laneMin),
+        child: Align(alignment: Alignment.topRight, widthFactor: 1, child: RowControl(qty: code, ghost: false, onAdd: onAdd, onInc: onInc, onDec: onDec)),
+      ),
     );
   }
 }

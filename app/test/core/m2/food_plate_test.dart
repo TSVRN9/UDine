@@ -12,6 +12,7 @@ import 'package:udine/core/packaged_food.dart';
 import 'package:udine/core/saved_food.dart';
 import 'package:udine/core/types.dart';
 import 'package:udine/data/packaged.dart';
+import 'package:udine/core/m2/dish_sheet.dart' show labelRowsOf;
 
 PackagedFood clifBar() {
   final flow = jsonDecode(File('../docs/design/explorations/2026-10-ui-overhaul/flows/packaged-2026-10-13.json').readAsStringSync()) as Map<String, dynamic>;
@@ -90,5 +91,28 @@ void main() {
   test('allergens read as M2 spells them, in Dietary preferences order', () {
     expect(bar.allergens, ['Soy']);
     expect(m2Allergens(['Soybeans', 'Milk', 'Crustaceans', 'Palm oil']), ['Milk', 'Shellfish', 'Soy']);
+  });
+
+  test('a nutrient the source did not give draws "–" on the label, not 0; one it gave draws its figure', () {
+    final sparse = SavedFood.packed(mapOffSearch({
+      'products': [
+        {'code': '9', 'product_name': 'Sparse', 'nutriments': {'energy-kcal_100g': 300, 'proteins_100g': 5, 'fat_100g': 2}},
+      ],
+    }).results.single);
+    final rows = {for (final r in labelRowsOf(sparse.nutrition).rows) r.name: r.value};
+    expect(rows['Protein'], '5g');
+    expect(rows['Total Fat'], '2g');
+    expect(rows['Sodium'], '–');
+    expect(rows['Dietary Fiber'], '–');
+    expect(labelRowsOf(sparse.nutrition).rows.any((r) => r.right.startsWith('Fat cal.')), isFalse);
+    // kept on the phone it is still "–": the blanks go in the saved row
+    final back = SavedFood.packed(PackagedFood.fromJson(jsonDecode(jsonEncode(sparse.packed!.toJson())) as Map<String, dynamic>));
+    expect(back.nutrition.blank, sparse.nutrition.blank);
+    // Edit gives the four figures it asks for real values, and leaves the rest blank
+    final e = sparse.edited(name: 'S', cal: 1, p: 1, c: 1, f: 1);
+    expect(e.nutrition.blank, contains('sodiumMg'));
+    expect(e.nutrition.blank, isNot(contains('proteinG')));
+    // the vector-checked JSON does not carry them
+    expect(sparse.nutrition.toJson().containsKey('blank'), isFalse);
   });
 }

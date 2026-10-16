@@ -100,6 +100,22 @@ void main() {
       expect(bad.phase, PackPhase.loading);
     });
 
+    test('the sources are interleaved: one from OFF, one from USDA generic, one branded, and so on', () async {
+      Map<String, dynamic> off(String n) => {'code': 'c$n', 'product_name': 'off $n', 'nutriments': {'energy-kcal_100g': 100}};
+      Map<String, dynamic> usda(String n) => {'fdcId': n.hashCode, 'description': 'usda $n', 'foodNutrients': [{'nutrientName': 'Energy', 'unitName': 'KCAL', 'value': 90}]};
+      final mock = MockClient((r) async {
+        if (r.url.host != 'api.nal.usda.gov') return http.Response(jsonEncode({'count': 3, 'products': [off('a'), off('b'), off('c')]}), 200);
+        final generic = r.url.queryParameters['dataType'] != 'Branded';
+        return http.Response(jsonEncode({'foods': [for (final n in generic ? ['g1', 'g2'] : ['b1', 'b2', 'b3']) usda(n)], 'currentPage': 1, 'totalPages': 1}), 200);
+      });
+      final q = PackagedSearch(PackagedSource(mock, retryDelay: Duration.zero), debounce: Duration.zero)..ask('x');
+      addTearDown(q.dispose);
+      for (var i = 0; i < 100 && q.phase == PackPhase.loading; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect([for (final f in q.hits) f.productName], ['off a', 'usda g1', 'usda b1', 'off b', 'usda g2', 'usda b2', 'off c', 'usda b3']);
+    });
+
     test('one source answering is enough: the others failing leaves what came', () async {
       final half = MockClient((r) async => r.url.host == 'api.nal.usda.gov' ? http.Response('x', 500) : http.Response.bytes(await recorded().send(http.Request('GET', r.url)).then((s) => s.stream.toBytes()), 200));
       final q = PackagedSearch(PackagedSource(half, retryDelay: Duration.zero), debounce: Duration.zero)..ask('clif');
@@ -136,6 +152,7 @@ void main() {
       final lim = run(LookupMode.limited);
       await lim.run('laksa', const {});
       expect([lim.phase, lim.resetsAt], [LookupPhase.limited, DateTime.utc(2026, 10, 8, 17)]);
+      expect(lim.reason, 'budget_exhausted'); // (in_progress is told apart, so its copy can change in one place)
     });
 
     test('an answer is for the query asked: typing on puts the button back, and a late answer to the old query is dropped', () async {

@@ -39,9 +39,23 @@ List<PackagedFood> packagedGroup(
 
 num? _num(Map n, String k) => n[k] is num ? n[k] as num : null;
 
+/// The figures a source gave no number for (the label draws "–" for them, M2's rule): by field name, as `NutritionFacts.blank`. Not part of the
+/// vector-checked JSON; a saved food keeps them beside it (`PackagedFood.toJson`).
+Set<String> _blanks(bool Function(String field) given) => {
+      for (final f in const ['caloriesFromFat', 'totalFatG', 'satFatG', 'transFatG', 'cholesterolMg', 'sodiumMg', 'totalCarbG', 'dietaryFiberG', 'sugarsG', 'proteinG'])
+        if (!given(f)) f,
+    };
+
+const _offKeys = {
+  'totalFatG': 'fat', 'satFatG': 'saturated-fat', 'transFatG': 'trans-fat', 'cholesterolMg': 'cholesterol', 'sodiumMg': 'sodium',
+  'totalCarbG': 'carbohydrates', 'dietaryFiberG': 'fiber', 'sugarsG': 'sugars', 'proteinG': 'proteins',
+};
+
 NutritionFacts _offNutrition(Map n, String servingSize) {
   num v(String k) => _num(n, '${k}_serving') ?? _num(n, '${k}_100g') ?? 0;
+  final blank = _blanks((f) => _offKeys[f] != null && (_num(n, '${_offKeys[f]}_serving') != null || _num(n, '${_offKeys[f]}_100g') != null));
   return NutritionFacts(
+    blank: blank,
     servingSize: servingSize,
     calories: v('energy-kcal'),
     caloriesFromFat: 0,
@@ -144,6 +158,8 @@ PackagedPage mapUsdaSearch(Object? response, {int page = 1}) {
 
     final name = f['description'] as String? ?? 'Unknown food';
     final ingredients = f['ingredients'];
+    bool has(String part, [String? unit]) => nutrients.any((n) => '${n['nutrientName'] ?? ''}'.toLowerCase().contains(part) && (unit == null || '${n['unitName'] ?? ''}'.toUpperCase() == unit) && n['value'] is num);
+    const usdaParts = {'totalFatG': 'total lipid', 'satFatG': 'saturated', 'transFatG': 'trans', 'cholesterolMg': 'cholesterol', 'sodiumMg': 'sodium', 'totalCarbG': 'carbohydrate', 'dietaryFiberG': 'fiber', 'sugarsG': 'sugars', 'proteinG': 'protein'};
     results.add(
       PackagedFood(
         source: UsdaSource(fdcId: '${f['fdcId']}', productName: name),
@@ -152,6 +168,7 @@ PackagedPage mapUsdaSearch(Object? response, {int page = 1}) {
             ? ingredients
             : null,
         nutrition: NutritionFacts(
+          blank: _blanks((f) => usdaParts[f] != null && has(usdaParts[f]!)),
           servingSize: 'per 100g',
           calories: find('energy', 'KCAL'),
           caloriesFromFat: 0,

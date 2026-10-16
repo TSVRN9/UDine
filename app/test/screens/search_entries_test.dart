@@ -1,6 +1,9 @@
 // The ordered groups Search draws, from M2's `renderSearch`: Places, the preferences line, "<Meal> now", At cafés, Later, the extras
 // slot (packaged foods), then the custom-food button.
 import 'package:flutter_test/flutter_test.dart';
+import 'package:udine/data/packaged_search.dart' show LookupPhase, PackPhase;
+import 'package:udine/core/types.dart';
+import 'package:udine/core/packaged_food.dart';
 import 'package:udine/core/m2/menu_view.dart';
 import 'package:udine/core/m2/search.dart';
 import 'package:udine/screens/halls/halls_model.dart' show NetLine;
@@ -71,5 +74,25 @@ void main() {
   test('failed: no empty line, only the custom button (solid) and the extras', () {
     expect(shape(entries('zzzq', net: NetLine.failed)), ['custom!']);
     expect(shape(entries('zzzq', net: NetLine.failed, extras: true)), ['extras', 'custom']);
+  });
+
+  group('extraEntries', () {
+    PackagedFood hit(int i) => PackagedFood(
+          source: OffSource(barcode: '$i', productName: 'Bar $i'), productName: 'Bar $i',
+          nutrition: NutritionFacts(servingSize: 'per 100g', calories: 100, caloriesFromFat: 0, totalFatG: 1, satFatG: 0, transFatG: 0, cholesterolMg: 0, sodiumMg: 0, totalCarbG: 1, dietaryFiberG: 0, sugarsG: 0, proteinG: 1),
+        );
+    List<SearchEntry> run(List<PackagedFood> hits) => extraEntries(
+        track: true, online: true, query: 'bar', foods: const [], pack: PackPhase.ok, packHits: hits, lookup: LookupPhase.idle, lookupFoods: const []);
+
+    test('the Packaged group is about 20 in total: the merged, deduped list is cut at 20', () {
+      final e = run([for (var i = 0; i < 35; i++) hit(i)]);
+      expect(e.whereType<FoodEntry>(), hasLength(20));
+      expect((e.whereType<FoodEntry>().last.food.name), 'Bar 19');
+    });
+
+    test('a name repeated by another source is cut before the 20 are counted', () {
+      final e = run([for (var i = 0; i < 40; i++) hit(i % 25)]);
+      expect(e.whereType<FoodEntry>(), hasLength(20));
+    });
   });
 }

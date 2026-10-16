@@ -56,12 +56,12 @@ class FoodBook extends ChangeNotifier {
     }
   }
 
-  /// A custom food from the form: a new row, or the one already there when the name and the four figures are the same.
+  /// A custom food from the form: a new row, unless the name is one already in Your foods, which is the same food (its first figures stay: whether
+  /// new figures replace them is the owner's to say).
   Future<SavedFood> addCustom(String name, Macro m) async {
     final n = name.trim();
     for (final f in _foods) {
-      final x = f.macro;
-      if (f.kind == FoodKind.custom && dishKey(f.name) == dishKey(n) && x.cal == m.cal.round() && x.p == (m.p * 10).round() / 10 && x.c == (m.c * 10).round() / 10 && x.f == (m.f * 10).round() / 10) return f;
+      if (f.kind == FoodKind.custom && dishKey(f.name) == dishKey(n)) return f;
     }
     final c = customFromForm(id: SavedFood.newCustomId(_now(), _salt), name: n, m: m);
     await _store.addCustomFood(c);

@@ -73,6 +73,15 @@ class NutritionFacts {
   final Set<String> blank;
   final Dv? totalFatDv, satFatDv, cholesterolDv, sodiumDv, totalCarbDv, dietaryFiberDv, sugarsDv, proteinDv;
 
+  /// The same figures with [blank] as the ones the source left empty (a saved packaged food reads them back from its row).
+  NutritionFacts withBlank(Set<String> blank) => blank.isEmpty
+      ? this
+      : NutritionFacts(
+          servingSize: servingSize, calories: calories, caloriesFromFat: caloriesFromFat, totalFatG: totalFatG, satFatG: satFatG, transFatG: transFatG, cholesterolMg: cholesterolMg,
+          sodiumMg: sodiumMg, totalCarbG: totalCarbG, dietaryFiberG: dietaryFiberG, sugarsG: sugarsG, proteinG: proteinG, totalFatDv: totalFatDv, satFatDv: satFatDv,
+          cholesterolDv: cholesterolDv, sodiumDv: sodiumDv, totalCarbDv: totalCarbDv, dietaryFiberDv: dietaryFiberDv, sugarsDv: sugarsDv, proteinDv: proteinDv, blank: blank,
+        );
+
   factory NutritionFacts.fromJson(Map<String, dynamic> j) => NutritionFacts(
         servingSize: j['servingSize'] as String,
         calories: j['calories'] as num,

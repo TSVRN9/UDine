@@ -326,7 +326,9 @@ class DishHead extends StatelessWidget {
   final bool stuck;
   /// the name keeps clear of the star's (or Edit's) slot at its right; a name with nothing there takes the whole line
   final bool reserve;
-  const DishHead({super.key, required this.name, required this.stuck, this.reserve = true});
+  /// the width of what sits there: the star's box, or Edit's
+  final double slot;
+  const DishHead({super.key, required this.name, required this.stuck, this.reserve = true, this.slot = M2Layout.favBox});
   @override
   Widget build(BuildContext context) => Stack(clipBehavior: Clip.none, children: [
         Positioned(
@@ -350,7 +352,7 @@ class DishHead extends StatelessWidget {
             Expanded(child: Padding(padding: const EdgeInsets.only(top: M2Layout.dishHeadTop), child: Semantics(header: true, child: Text(name, style: M2Text.dishName.style(M2Color.dm))))),
             if (reserve) ...[
               const SizedBox(width: M2Layout.favGap),
-              const SizedBox(width: M2Layout.favBox), // (the star itself is drawn over the sheet)
+              SizedBox(width: slot), // (the star itself is drawn over the sheet)
             ],
           ]),
         ),

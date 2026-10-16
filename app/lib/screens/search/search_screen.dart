@@ -328,7 +328,7 @@ class _SearchScreenState extends State<SearchScreen> {
             _focus.unfocus();
             c.askLookup();
           }),
-        LookupStateEntry(:final phase, :final query, :final resetsAt) => LookupStatus(phase: phase, query: query, resetsAt: resetsAt, onRetry: () {
+        LookupStateEntry(:final phase, :final query, :final resetsAt, :final reason) => LookupStatus(phase: phase, query: query, resetsAt: resetsAt, reason: reason, onRetry: () {
             Haptics.light();
             c.askLookup();
           }),
@@ -348,7 +348,7 @@ class _SearchScreenState extends State<SearchScreen> {
         ? const <SearchEntry>[]
         : extraEntries(
             track: scope.prefs.track, online: c.net != NetLine.offline, query: c.query, foods: scope.foods?.foods ?? const [],
-            pack: c.pack?.phase ?? PackPhase.idle, packHits: c.pack?.hits ?? const [], lookup: c.lookup?.phase ?? LookupPhase.idle, lookupFoods: c.lookup?.foods ?? const [], resetsAt: c.lookup?.resetsAt,
+            pack: c.pack?.phase ?? PackPhase.idle, packHits: c.pack?.hits ?? const [], lookup: c.lookup?.phase ?? LookupPhase.idle, lookupFoods: c.lookup?.foods ?? const [], resetsAt: c.lookup?.resetsAt, reason: c.lookup?.reason,
           );
     final entries = c == null || ix == null
         ? const <SearchEntry>[]

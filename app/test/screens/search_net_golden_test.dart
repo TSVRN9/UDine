@@ -26,6 +26,9 @@ void main() {
       await finish(t);
       FocusManager.instance.primaryFocus?.unfocus();
       await settle(t);
+      // (the packaged answer: the query rests in fake time, then real I/O, then its frame; a capture must not catch it half-way)
+      await finish(t);
+      await settle(t);
       await expectLater(find.byType(UdineApp), matchesGoldenFile('../goldens/search_net_${name}_$n.png'));
     }
 

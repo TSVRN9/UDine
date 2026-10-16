@@ -55,13 +55,14 @@ void main() {
     expect(await rows(store, 'custom_foods'), hasLength(1));
   });
 
-  test('adding the same custom food again (same name and figures) is the food already there', () async {
+  test('the same name is the same food: no new row, and the first save\'s figures stay', () async {
     final a = await book.addCustom('Chobani', const Macro(140, 12, 15, 0));
     final b = await book.addCustom(' chobani ', const Macro(140, 12, 15, 0));
     final c = await book.addCustom('Chobani', const Macro(100, 12, 15, 0));
-    expect(b.id, a.id);
-    expect(c.id, isNot(a.id));
-    expect(book.foods, hasLength(2));
+    expect([b.id, c.id], [a.id, a.id]);
+    expect(c.macro.cal, 140);
+    expect(book.foods, hasLength(1));
+    expect(await rows(store, 'custom_foods'), hasLength(1));
   });
 
   test('saving a packaged food already saved keeps the saved copy: an edit is never overwritten by the hit it came from', () async {

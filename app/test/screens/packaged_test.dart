@@ -15,8 +15,8 @@ import 'search_screen_test.dart' show finish, settle;
 import 'support.dart';
 import 'you_support.dart';
 
-Future<AppScope> openQ(WidgetTester t, String q, {bool foods = true, bool track = true, NetMode net = NetMode.ok, LookupMode lookup = LookupMode.found, bool packFail = false, double w = 390}) async {
-  final b = await bootRecorded(t, foods: foods, track: track, net: net, lookup: lookup, packFail: packFail);
+Future<AppScope> openQ(WidgetTester t, String q, {bool foods = true, bool track = true, NetMode net = NetMode.ok, LookupMode lookup = LookupMode.found, bool packFail = false, double w = 390, HangingClient? hang}) async {
+  final b = await bootRecorded(t, foods: foods, track: track, net: net, lookup: lookup, packFail: packFail, hangLookup: hang);
   await openApp(t, b, route: '/search?q=$q', w: w);
   await until(t, () => find.byType(DishRow).evaluate().isNotEmpty || find.textContaining('Nothing called').evaluate().isNotEmpty || find.textContaining('No dishes').evaluate().isNotEmpty);
   await settle(t);
