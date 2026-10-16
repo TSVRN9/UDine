@@ -147,7 +147,7 @@ abstract class StackRoute<T> extends PageRoute<T> {
   // there is no settle rule here; TransitionRoute's own handlers would reverse from the top after the pop's simulation started.
   void backStart() => _grab();
   void backMove(double dist, double width) => _move(dist, width);
-  void backEnd({required bool commit}) => _settle(close: commit);
+  void backEnd({required bool commit}) => _settle(close: commit && isCurrent); // (a page pushed over it meanwhile is not the one to pop)
 
   Widget _withBack(Widget child, double width) => RawGestureDetector(
         behavior: HitTestBehavior.translucent,

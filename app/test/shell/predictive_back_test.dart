@@ -64,6 +64,20 @@ void main() {
       await drain(t);
     });
 
+    testWidgets("on a 3x screen the finger's physical px are taken as dp: the page still follows 1:1", (t) async {
+      await openDiet(t);
+      t.view.physicalSize = const Size(390 * 3, 844 * 3);
+      t.view.devicePixelRatio = 3;
+      await t.pumpAndSettle();
+      final page = find.byType(DietPage);
+      await start(t);
+      await move(t, 102);
+      expect(progressOf(t, page), closeTo(1 - 100 / 390, 0.001));
+      await cancel(t);
+      await t.pumpAndSettle();
+      await drain(t);
+    });
+
     testWidgets('a commit settles the page out from where the finger left it, never back up first', (t) async {
       await openDiet(t);
       final page = find.byType(DietPage);
@@ -109,6 +123,13 @@ void main() {
       await cancel(t);
       await t.pumpAndSettle();
       expect(handle.px, closeTo(rest, 0.5));
+      await start(t);
+      await move(t, rest + 200); // past shut: the sheet stays just open, since Android may still cancel
+      expect(handle.px, greaterThanOrEqualTo(1));
+      await cancel(t);
+      await t.pumpAndSettle();
+      expect(handle.px, closeTo(rest, 0.5));
+      expect(find.byType(DishSheet), findsOneWidget);
       await start(t);
       await move(t, 82);
       await commit(t);

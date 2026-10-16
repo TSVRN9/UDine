@@ -225,6 +225,7 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
   double? _back0;
 
   void _backStart() {
+    if (_closed) return; // (already leaving: the gesture leaves it be)
     _spring.stop();
     _back0 = _px;
   }
