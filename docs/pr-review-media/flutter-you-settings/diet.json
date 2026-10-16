@@ -1,10 +1,10 @@
 {
-  "sha": "cb1bd8edbe282d53f51d3cdb805d15b2c01ad7a4",
+  "sha": "200ad6c38b28f3e17407c56b55e8f67f77c8a4c7",
   "branch": "flutter/you-settings",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/port-you-settings",
   "route": "/you/diet?data=recorded&at=2026-10-08T12:41&history=full&avoid=Milk,Eggs,Peanuts&only=Vegetarian&photos=off",
   "device": "sdk_gphone64_x86_64",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-15T15:35:17Z"
+  "ts": "2026-10-16T02:44:19Z"
 }
