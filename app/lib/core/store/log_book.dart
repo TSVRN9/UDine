@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../date.dart';
 import '../m2/history.dart';
+import '../ranking.dart';
 import '../types.dart';
 import 'store.dart';
 
@@ -108,4 +109,21 @@ class LogBook extends ChangeNotifier {
           await reload();
         });
   }
+
+  // ---- "Which was better?" and Export: device-only reads and writes of RN's rows, in turn behind the log's own ----
+
+  /// RN's `ranked_dishes`, as stored.
+  Future<List<RankedDish>> rankedDishes() => _queue(_store.rankedDishes);
+
+  /// One pick, as RN's `recordComparison`: both Elo tracks read fresh and saved, the dishes returned.
+  Future<List<RankedDish>> pick(LoggedDish winner, LoggedDish loser) => _queue(() async {
+        final dishes = applyComparison(await _store.rankedDishes(), (dishName: winner.dishName, hallTid: winner.hallTid), (dishName: loser.dishName, hallTid: loser.hallTid));
+        final foods = applyFoodComparison(await _store.rankedFoods(), winner.dishName, loser.dishName);
+        await _store.saveRankedDishes(dishes);
+        await _store.saveRankedFoods(foods);
+        return dishes;
+      });
+
+  /// Every device-local table in one format, file name to contents (`core/export.dart`).
+  Future<Map<String, String>> exportFiles({required bool json}) => _queue(json ? _store.exportJson : _store.exportCsv);
 }

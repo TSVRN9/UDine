@@ -14,11 +14,13 @@ Prefs dietPrefs(List<String> avoid, List<String> onlyShow) {
 /// frame so nothing pops in (with no store, as when a newer build owns the database, they live in memory and nothing is written); a write lands in `preferences_kv` and in the notifier at once. `pins` given at load (the `?pins=N`
 /// screenshot route) are held in memory and never saved.
 class AppPrefs extends ChangeNotifier {
-  AppPrefs._(this._store, this._charlesRiver, this._pins, this._memoryPins, this.scores, this.diet, this._favorites);
+  AppPrefs._(this._store, this._charlesRiver, this._pins, this._memoryPins, this.scores, this.diet, this._onlyShow, this._favorites);
   final UdineStore? _store;
   bool _charlesRiver;
   List<String> _pins;
   final bool _memoryPins;
+  /// The stored "Only show" tags as RN wrote them, so a tag M2 has no row for is written back untouched.
+  List<String> _onlyShow;
 
   /// The hall opened last (`W F H B`), for the cafés page's nearest-first order. In memory only, as M2's `S.lastHall`.
   String? lastHall;
@@ -39,7 +41,7 @@ class AppPrefs extends ChangeNotifier {
 
   static Future<AppPrefs> load(UdineStore? store, {List<String>? pins}) async {
     final sc = await store?.scores();
-    return AppPrefs._(store, await store?.charlesRiver() ?? false, pins ?? await store?.pins() ?? const [], pins != null, (health: sc?.healthfulness ?? false, carbon: sc?.carbon ?? false), dietPrefs(await store?.avoid() ?? const [], await store?.onlyShow() ?? const []),
+    return AppPrefs._(store, await store?.charlesRiver() ?? false, pins ?? await store?.pins() ?? const [], pins != null, (health: sc?.healthfulness ?? false, carbon: sc?.carbon ?? false), dietPrefs(await store?.avoid() ?? const [], await store?.onlyShow() ?? const []), await store?.onlyShow() ?? const [],
         {for (final f in await store?.favorites() ?? const []) if (f is DishFavorite) f.dishName});
   }
 
@@ -47,6 +49,30 @@ class AppPrefs extends ChangeNotifier {
     _charlesRiver = v;
     notifyListeners();
     return _store?.setCharlesRiver(v) ?? Future.value();
+  }
+
+  /// A score toggle ("Show on dishes"): the one named changes, the other keeps its value.
+  Future<void> setScore({bool? health, bool? carbon}) {
+    scores = (health: health ?? scores.health, carbon: carbon ?? scores.carbon);
+    notifyListeners();
+    return _store?.setScores(healthfulness: scores.health, carbon: scores.carbon) ?? Future.value();
+  }
+
+  /// "Only show": `tag` is the feed's own string (Vegetarian, Plant Based, Halal). Turning one off also drops its older spelling (RN's "Vegan").
+  Future<void> setOnlyShow(String tag, bool on) {
+    final same = {tag.toLowerCase(), if (tag == 'Plant Based') 'vegan'};
+    _onlyShow = [for (final t in _onlyShow) if (!same.contains(t.toLowerCase())) t, if (on) tag];
+    diet = dietPrefs(diet.avoid, _onlyShow);
+    notifyListeners();
+    return _store?.setOnlyShow(_onlyShow) ?? Future.value();
+  }
+
+  /// "Avoid": one allergen, as the feed spells it, in or out of the list.
+  Future<void> toggleAvoid(String allergen) {
+    final avoid = diet.avoid.contains(allergen) ? [for (final a in diet.avoid) if (a != allergen) a] : [...diet.avoid, allergen];
+    diet = diet.copyWith(avoid: avoid);
+    notifyListeners();
+    return _store?.setAvoid(avoid) ?? Future.value();
   }
 
   Future<void> setPins(List<String> v) {

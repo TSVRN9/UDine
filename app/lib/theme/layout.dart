@@ -199,6 +199,9 @@ abstract final class M2Layout {
   static const lensGlyph = 16.0, lensGlyphGap = 4.0; // `.chip .gl` (margin-right -2 on the chip's 6 gap)
   static const groupTop = 14.0, groupBottom = 2.0; // `.sgrp` padding 14 20 2
   static const emptyTop = 28.0, emptyBottom = 8.0; // `.empty` padding 28 20 8
+  // Which was better? and Export (`.vs`, `.vs .or`, `.stack`)
+  static const vsMin = 96.0, vsPad = 16.0, vsGap = 12.0, vsTop = 12.0; // `.vs button` min-height 96, padding 16; `.vs, .stack` gap 12, margin-top 12
+  static const vsName = M2Type(22.0, 25.3, 'Oswald', FontWeight.w600, tabular: true); // `.vs button`: 600 22/1.15 Oswald
   static const placeRowMin = 60.0, placeRowPadV = 8.0, placeRowGap = 12.0, placeTextTop = 2.0; // `.prow2`
   static const placeStatus = M2Type(14.0, null, 'LibreFranklin', FontWeight.w500); // `.prow2 .r`
   static const cardH = 76.0, cardTextTop = 13.0, cardMeterGap = 10.0; // `.band.hcard`, `.hcard .bt`, `.st` gap
