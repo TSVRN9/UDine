@@ -78,6 +78,14 @@ void main() {
       expect(items(r'<p>Espresso $3.00</p><p>Bagel</p>'), const [RetailMenuItem('Espresso', r'$3.00'), RetailMenuItem('Bagel', null)]);
     });
 
+    test('a run of prices (Peet\'s, Newman) is the price, not part of the name', () {
+      expect(items(r'<p>Chai or Matcha Green Tea $4 / $4.50 / $5<br />+ Chocolate &amp; Caramel Swirl $4.25 / 4.75 / $5.25</p><p>Hot Coffee $1.95/$2.25/$2.50</p>'), const [
+        RetailMenuItem('Chai or Matcha Green Tea', r'$4 / $4.50 / $5'),
+        RetailMenuItem('+ Chocolate & Caramel Swirl', r'$4.25 / 4.75 / $5.25'),
+        RetailMenuItem('Hot Coffee', r'$1.95/$2.25/$2.50'),
+      ]);
+    });
+
     test('<br>-separated lines in one block are separate priced items', () {
       expect(items(brSeparatedMenu), const [
         RetailMenuItem('Chai Latte', r'$3.75'),

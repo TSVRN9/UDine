@@ -125,8 +125,8 @@ class SearchIndex {
   late final Set<String> hasMenu;
 }
 
-/// A standing-menu line longer than this is a paragraph the retail parser did not split into items, not an item to find a café by.
-// ponytail: parser follow-up (Peet's, Carney, Argo parse to one long line); drop the guard when it splits them.
+/// A standing-menu line longer than this is a comma-separated list the café wrote as one line ("Hot Beverages: Coffee, Tea, ..."),
+/// not an item to find a café by.
 const maxItemName = 40;
 
 const _hallWords = ' dining commons hall', _grabWords = " grab n go grab and go";

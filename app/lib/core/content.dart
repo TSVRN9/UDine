@@ -98,7 +98,7 @@ List<RetailMenuItem> _extractItems(String source) => [
     ];
 
 RetailMenuItem _item(String line) {
-  final m = RegExp(r'^(.*?)\s+(\$\d+(?:\.\d{2})?)$').firstMatch(line);
+  final m = RegExp(r'^(.*?)\s+(\$\d+(?:\.\d{2})?(?:\s*\/\s*\$?\d+(?:\.\d{2})?)*)$').firstMatch(line);
   return m == null ? RetailMenuItem(line, null) : RetailMenuItem(m[1]!.trim(), m[2]);
 }
 
