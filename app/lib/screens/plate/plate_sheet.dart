@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import '../../core/m2/board.dart';
+import '../../core/m2/bowl.dart' show withLine;
+import '../../core/m2/bowl_builder.dart' show selOf;
 import '../../core/types.dart' show diningHalls;
 import '../../core/m2/places.dart';
 import '../../core/m2/plate.dart';
@@ -158,6 +160,7 @@ class _PlateSheetState extends State<PlateSheet>
   /// from that place's controller (cached hours answer at once; if they are slow the sheet opens without them).
   Future<void> _openDish(Plate p, PlateItem it) async {
     if (it.custom != null) return;
+    final bowl = it.bowl;
     final place = plateHalls(p)?.firstOrNull ?? it.refs.keys.first, dish = it.refs[place] ?? it.refs.values.first;
     final c = HallController(_scope.repo, place), ready = Completer<void>();
     void check() {
@@ -172,7 +175,8 @@ class _PlateSheetState extends State<PlateSheet>
     c.removeListener(check);
     if (!mounted) return c.dispose();
     openDishSheet(
-      context, dish: dish, place: place, meal: p.meal, day: 0, fx: c.board, cafeIds: c.cafeIds, refs: it.refs, onClosed: c.dispose,
+      context, dish: bowl == null ? dish : bowl.spec.syn != null ? bowl.spec.parts.first : bowl.spec.base!, place: place, meal: p.meal, day: 0, fx: c.board, cafeIds: c.cafeIds, refs: it.refs, onClosed: c.dispose,
+      build: bowl?.spec, sel: bowl == null ? null : selOf(bowl.spec, bowl.bowl), edit: bowl == null ? null : (plateId: p.id, key: it.key), plain: bowl == null,
       onServe: (to, g) => _handle.away(() => ShellScope.of(context).openPlace(to, meal: g.meal, day: g.day, dish: dish.key)),
     );
   }
@@ -242,6 +246,7 @@ class _PlateSheetState extends State<PlateSheet>
                 key: ValueKey('${p.id}/${it.key}'),
                 item: it,
                 cal: macroOf(it, hs?.firstOrNull).cal,
+                withText: it.bowl == null ? null : withLine(it.bowl!.bowl.parts),
                 onOpen: it.custom == null ? () => _openDish(p, it) : null,
                 onInc: () {
                   m.step(p.id, it.key, 1);

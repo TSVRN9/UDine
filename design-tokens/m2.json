@@ -589,6 +589,8 @@
  },
  "opacity": {
   "disabled": 0.4,
+  "footDisabled": 0.45,
+  "settleFrom": 0.4,
   "edgeShadow": 0.3
  },
  "gradient": {
@@ -976,7 +978,9 @@
   "size.tile": ".tile 18 x 22.5",
   "size.tileSheet": ".mks-s .tile 24 x 30",
   "size.tileScale": ".sscale .tile 26 x 32.5",
-  "opacity.disabled": "#bfoot .gbtn[disabled]{opacity:.45}; disabled tab .4 (tbar)",
+  "opacity.disabled": "disabled tab .4 (tbar)",
+  "opacity.footDisabled": "#bfoot .gbtn[disabled]{opacity:.45}",
+  "opacity.settleFrom": "stepPart: A($('#bfoot .l2'),[{opacity:.4},{opacity:1}],'settle')",
   "opacity.edgeShadow": ".dish.stuck .dhd shadow rgba(36,10,14,.32), drawn .3",
   "gradient.band": ".lgrad",
   "gradient.headTop": ".tgrad (height st + 80)",

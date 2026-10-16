@@ -7,7 +7,7 @@ import 'plate.dart';
 /// RN `toLogEntries`: one row per plate item (not per unit), every row stamped with the plate's one `loggedAt`, `servings` = the
 /// quantity, and an id of `<loggedAt>-<index>-<random base 36>`. The source and nutrition are the serving at `place` (the place the
 /// plate was logged at; a plate that serves several is asked), so "Log at Berkshire" writes Berkshire's hallTid and calories. A custom
-/// item has only its macros.
+/// item has only its macros. A bowl's row is one entry with its parts (a snapshot of each, per serving) and the summed nutrition.
 List<LogEntry> logEntries(
   Plate p, {
   required String? place,
@@ -53,7 +53,11 @@ List<LogEntry> logEntries(
           id: id(i),
           loggedAt: loggedAt,
           servings: it.qty,
-          source: UmassMenuSource(dishName: m.dishName, hallTid: m.hallTid),
+          source: UmassMenuSource(
+            dishName: m.dishName,
+            hallTid: m.hallTid,
+            parts: it.bowl == null ? null : [for (final (x, q) in it.bowl!.bowl.parts) LogPart(name: x.dishName, servings: q, nutrition: x.nutrition)],
+          ),
           nutrition: m.nutrition,
         );
       }(),

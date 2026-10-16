@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../core/m2/board.dart';
+import '../../core/m2/bowl.dart' show withNames;
 import '../../core/m2/history.dart';
 import '../../core/m2/plate.dart';
 import '../../core/store/log_book.dart';
@@ -119,7 +120,7 @@ class _MealSheetState extends State<MealSheet> {
                       if (_label)
                         Padding(padding: const EdgeInsets.only(top: M2Layout.labelTop), child: NutritionLabel(label: mealLabelRows(m)))
                       else ...[
-                        for (final it in m.items) PlateRow(key: ValueKey(it.id), item: PlateItem(it.id, it.name, it.qty, const {}, null), cal: it.calEach, onInc: () => _step(m, it, 1), onDec: () => _step(m, it, -1)),
+                        for (final it in m.items) PlateRow(key: ValueKey(it.id), item: PlateItem(it.id, it.name, it.qty, const {}, null), cal: it.calEach, withText: withNames(it.parts), onInc: () => _step(m, it, 1), onDec: () => _step(m, it, -1)),
                         if (_gone != null) GoneRow(name: _gone!.item.name, onUndo: _ungone),
                         Padding(
                           padding: const EdgeInsets.only(top: M2Layout.labelTop), // (`.dish .facts{margin:24px 0 0}` wins over `.sheet .facts{margin:16px 0}`: a meal is a `.dish`)

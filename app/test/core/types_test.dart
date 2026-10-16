@@ -49,4 +49,20 @@ void main() {
     const rd = '{"dishName":"Pizza","hallTid":1,"rating":1512.5,"comparisonCount":3}';
     expect(jsonEncode(RankedDish.fromJson(jsonDecode(rd)).toJson()), rd);
   });
+
+  group('a bowl: the umass-menu source gains an optional parts array', () {
+    const parts = '[{"name":"Hard Boiled Egg","servings":1,"nutrition":$_nutrition},{"name":"Steamed Bok Choy","servings":0.5,"nutrition":$_nutrition}]';
+    test('parts round-trip byte-for-byte, in order', () {
+      final text = entry('{"type":"umass-menu","dishName":"Beef Brisket Noodle Bowl","hallTid":1,"parts":$parts}');
+      final e = LogEntry.fromJson(jsonDecode(text));
+      final src = e.source as UmassMenuSource;
+      expect([for (final p in src.parts!) (p.name, p.servings)], [('Hard Boiled Egg', 1), ('Steamed Bok Choy', 0.5)]);
+      expect(jsonEncode(e.toJson()), text);
+    });
+    test('a row without parts reads as today: no parts, and no key written back', () {
+      final e = LogEntry.fromJson(jsonDecode(entry(sources['umass-menu']!)));
+      expect((e.source as UmassMenuSource).parts, isNull);
+      expect(jsonEncode(e.toJson()), entry(sources['umass-menu']!));
+    });
+  });
 }
