@@ -7,7 +7,7 @@
 // Run: deno test --node-modules-dir=none --allow-env supabase/functions/populate-retail-dishes/parser.test.ts
 (Deno as unknown as { serve: unknown }).serve = () => ({}) as ReturnType<typeof Deno.serve>;
 
-const { parseRetailLocations, parseLongMenuDishes, parseLabelNutrition, parseLabelAllergens, cookieHeaderFromSetCookie } = await import("./index.ts");
+const { parseMealNames, parseRetailLocations, parseLongMenuDishes, parseLabelNutrition, parseLabelAllergens, cookieHeaderFromSetCookie } = await import("./index.ts");
 
 // Trimmed from a real location.aspx response: the 4 residential halls (01-04, must be excluded)
 // plus 3 real retail/café rows (08, 14, 23).
@@ -224,4 +224,25 @@ Deno.test("cookieHeaderFromSetCookie reduces Set-Cookie values to a single Cooki
 
 Deno.test("cookieHeaderFromSetCookie returns an empty string for no cookies", () => {
   if (cookieHeaderFromSetCookie([]) !== "") throw new Error("expected empty string");
+});
+
+// Trimmed from the real shortmenu.aspx captures (2026-10-14): each page carries its location's
+// meal name(s) as the mealName= query param of the longmenu.aspx link. Café names differ from the
+// four standard ones, and Post & Bean's is singular.
+const shortMenuLink = (num: string, name: string, meal: string) =>
+  `<a href="longmenu.aspx?sName=%60&locationNum=${num}&locationName=${name}&naFlag=1&WeeksMenus=This+Week%27s+Menus&dtdate=10%2f14%2f2026&mealName=${meal}"  onMouseOver="window.status = 'Click for Nutritive Analysis.'; return true;" onMouseOut="window.status= ' ';"><img src="apple.gif" border="0" alt="Click for Nutritive Analysis"></a>`;
+
+Deno.test("parseMealNames reads each location's own mealName= links (13 Daily Offerings, 92 Daily Offering, 72 Lunch)", () => {
+  const eq = (a: string[], b: string[]) => {
+    if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(`got ${JSON.stringify(a)}, expected ${JSON.stringify(b)}`);
+  };
+  eq(parseMealNames(shortMenuLink("13", "Worcester+Cafe", "Daily+Offerings")), ["Daily Offerings"]);
+  eq(parseMealNames(shortMenuLink("92", "Post+%26+Bean+Cafe", "Daily+Offering")), ["Daily Offering"]);
+  eq(parseMealNames(shortMenuLink("72", "Newman+Center", "Lunch")), ["Lunch"]);
+  // several links, repeated per dish: distinct names in page order
+  eq(
+    parseMealNames(shortMenuLink("14", "Bluewall+-+Grill", "Lunch") + shortMenuLink("14", "Bluewall+-+Grill", "Lunch") + shortMenuLink("14", "Bluewall+-+Grill", "Late+Night")),
+    ["Lunch", "Late Night"],
+  );
+  eq(parseMealNames("<html>no menu today</html>"), []);
 });

@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:udine/core/packaged_food.dart';
 import 'package:udine/data/packaged.dart';
 import 'package:udine/data/source.dart';
 
