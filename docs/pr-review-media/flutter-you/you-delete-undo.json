@@ -1,10 +1,10 @@
 {
-  "sha": "b4f78d2994ce2b25fbcbdad8f5def7304f1121cb",
-  "branch": "flutter/you",
-  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/port-you",
+  "sha": "1407ff2e2568d388a30ec053d587100034dac99f",
+  "branch": "flutter/you-settings",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/port-you-settings",
   "route": "/you/day/2026-10-07?data=recorded&at=2026-10-08T12:41&history=full&photos=off",
   "device": "sdk_gphone64_x86_64",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-16T02:41:11Z"
+  "ts": "2026-10-16T03:35:20Z"
 }
