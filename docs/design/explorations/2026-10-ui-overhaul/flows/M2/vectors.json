@@ -7606,6 +7606,12 @@
    "rawHealthfulness": 40
   },
   {
+   "dish": "Fountain Drink",
+   "health": null,
+   "carbon": null,
+   "rawHealthfulness": null
+  },
+  {
    "dish": "French Fries",
    "health": 1,
    "carbon": "A",
@@ -30044,6 +30050,39 @@
     "plate": []
    }
   ]
+ },
+ "fountain": {
+  "name": "Fountain Drink",
+  "serving": "1 each",
+  "cal": null,
+  "p": null,
+  "c": null,
+  "f": null,
+  "station": "Beverages",
+  "stationDays": {
+   "W": {
+    "breakfast": 14,
+    "lunch": 14,
+    "dinner": 14,
+    "late": 14
+   },
+   "F": {
+    "breakfast": 11,
+    "lunch": 14,
+    "dinner": 14
+   },
+   "H": {
+    "breakfast": 11,
+    "lunch": 14,
+    "dinner": 14
+   },
+   "B": {
+    "lunch": 14,
+    "dinner": 14,
+    "late": 14,
+    "breakfast": 1
+   }
+  }
  },
  "search": [
   {

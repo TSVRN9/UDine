@@ -58,6 +58,8 @@
 //     "search": [ {"query", "rows": [ {"name", "variant": token | null, "dish": the dish its + adds, "places": [place keys]} ]} ],
 //              // Search's now groups (halls, then "At cafés"): a family is one row; what was typed picks its variant
 //     "alerts": [ {"favorite": family key, "clock", "posted": [[title, body]]} ] }   // a starred family alerts once, by its name
+//   // round 12 (owner, 2026-10-16): "fountain": {"name", "serving", "cal", "p", "c", "f", "station", "stationDays": {hall: {meal: days}}}: every dining commons has a
+//   // Fountain Drink (blank nutrients) in a last "Beverages" station at every meal but Grab 'N Go, on every posted day
 // }
 const { chromium } = require('/home/tavern/Projects/js/UDine/node_modules/.pnpm/node_modules/playwright-core');
 const fs = require('fs');
@@ -233,6 +235,10 @@ const PRICE = [['Harissa Chicken', 'Terrace'], ['Caesar Salad w/Chicken', 'Green
   });
   { const v = out.variants, distinct = new Set(v.families.map(f => [f.place, f.station, f.name].join('|'))).size;
     if (distinct !== 59 || v.families.length !== 392) throw new Error('variant families: ' + distinct + ' / ' + v.families.length); }
+  // ---- round 12: the hall Fountain Drink (a synthetic record in a last "Beverages" station at every non-Grab meal of every hall menu)
+  out.fountain = await p.evaluate(() => { const o = {}; MD.forEach((D, day) => HALLS.forEach(h => Object.entries(D[h] || {}).forEach(([meal, ss]) => { const last = ss.at(-1), ok = meal !== 'grab' && last[0] === 'Beverages' && last[1].length === 1 && DISH[did(day, h, meal, ss.length - 1, 0)].n === 'Fountain Drink';
+    if (ok !== (meal !== 'grab')) throw new Error('fountain: ' + day + h + meal); if (ok) (o[h] ||= {})[meal] = (o[h][meal] || 0) + 1; })));
+    const d = Object.values(DISH).find(d => d.n === 'Fountain Drink' && HALLS.includes(d.h)); return { name: d.n, serving: d.srv, cal: d.cal, p: d.p, c: d.c, f: d.f, station: 'Beverages', stationDays: o }; });
   if (errs.length) throw new Error(errs.join('\n'));
 const SEARCH = [
   { q: '' }, { q: 'green' }, { q: 'pancakes' }, { q: 'apple' }, { q: 'organic' }, { q: 'worcester' }, { q: 'hal' }, { q: 'brisket' }, { q: 'chicken' }, { q: 'pizza' }, { q: 'zzzq' },

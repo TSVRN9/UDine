@@ -1297,6 +1297,29 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       await cafe('Whitmore Café'); await page.locator('#mlist .row.syn', { hasText: /^Noodle Bowl$/ }).tap(); await page.waitForTimeout(800);
       assert.match(await ev(() => [...document.querySelectorAll('#isbody .brow')].find(r => r.querySelector('.n').textContent === 'Add Crispy Chicken')?.querySelector('.m').textContent.trim().replace(/\s+/g, ' ') || 'missing'), /^– cal/, 'a blank-calorie add-on is offered, with – (round 12c)');
     });
+    await scen('every dining commons has a Fountain Drink: a last Beverages station at every meal, blank nutrients, logged as a count, no star; Search finds it', async () => {
+      for (const [h, meals] of [['W', ['breakfast', 'lunch', 'dinner', 'late']], ['F', ['breakfast', 'lunch', 'dinner']], ['H', ['breakfast', 'lunch', 'dinner']], ['B', ['lunch', 'dinner', 'late']]]) {
+        await go('?state=menu&hall=' + h);
+        for (const m of meals) {
+          await page.locator(`#mtabs .mts button[data-meal=${m}]`).tap(); await page.waitForTimeout(600);
+          assert.deepEqual(await ev(() => { const st = [...document.querySelectorAll('#mlist .sth')], last = st.at(-1); const rows = []; for (let e = last?.nextElementSibling; e; e = e.nextElementSibling) if (e.classList.contains('row')) rows.push(e.querySelector('.n').textContent); return [last?.textContent, rows]; }), ['Beverages', ['Fountain Drink']], h + ' ' + m + ': Beverages is the last station, with one row');
+        }
+        await page.locator('#mtabs .mts button[data-meal=grab]').tap().catch(() => {}); await page.waitForTimeout(500);
+        assert.equal(await ev(() => [...document.querySelectorAll('#mlist .sth')].some(x => x.textContent === 'Beverages')), false, h + ': Grab \'N Go has no stations');
+      }
+      await go('?state=menu&hall=W'); await page.locator('#mtabs .mts button[data-meal=lunch]').tap(); await page.waitForTimeout(500);
+      assert.match(await ev(() => { const r = [...document.querySelectorAll('#mlist .row')].find(r => r.querySelector('.n').textContent === 'Fountain Drink'); return r.querySelector('.m').textContent.trim().replace(/\s+/g, ' '); }), /^– cal\s*– protein$/, 'its row: – cal – protein');
+      await openRow('Fountain Drink'); const s = await sheet();
+      assert.deepEqual([s.n, s.star, s.cal], ['Fountain Drink', null, '–'], 'its sheet: no star, Calories –');
+      await ev(() => isheet.to('closed')); await page.waitForTimeout(500);
+      await page.locator('#mlist .row', { has: page.locator('.n', { hasText: /^Fountain Drink$/ }) }).locator('.add').tap(); await page.waitForTimeout(600);
+      assert.deepEqual(await ev(() => [S.plates[0].items[0].n, document.querySelector('#barCal').textContent, document.querySelector('#barP').textContent]), ['Fountain Drink', '–', '–'], 'on the plate: a count, no calories');
+      await ev(() => logPlate(S.plates[0])); await page.waitForTimeout(400);
+      assert.equal(await ev(() => JSON.stringify(S.log.at(-1).items.map(i => [i.n, i.qty, i.cal, i.p]))), '[["Fountain Drink",1,null,null]]', 'logged as a count only');
+      await go('?state=search'); await type('fountain');
+      assert.deepEqual(await ev(() => [...document.querySelectorAll('#sres .row')].map(r => r.querySelector('.n').textContent + ' @ ' + (r.querySelector('.cnm')?.textContent || [...r.querySelectorAll('.ht')].map(x => x.textContent).join('')))), ['Fountain Drink @ WFHB', 'Fountain Drink @ 8 cafés'], 'Search finds it when typed: once among the halls, once among the cafés that list it (a hall and a café group never share a row)');
+      await go('?state=search'); assert.equal(await ev(() => [...document.querySelectorAll('#sres .row .n')].some(n => n.textContent === 'Fountain Drink')), false, 'but it is not in the idle list');
+    });
     await scen('near-misses stay rows: lone sizes, a different word, add-ons, a milk with no name left; the rule finds 59 families on 325 station-days', async () => {
       await cafe('Worcester Café'); const ns = await names();
       for (const n of ['20 oz Cold Brew', '20 oz Iced Latte', '20 oz Iced Tea', 'Single Espresso', 'Double Espresso', 'Chocolate Milkshake']) assert(ns.includes(n), n + ' keeps its row');

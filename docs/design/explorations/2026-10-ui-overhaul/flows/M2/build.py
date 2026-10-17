@@ -123,6 +123,15 @@ for iso in DAYS:
     MD.append(day)
 DISHES = [None] * len(used)
 for i, j in used.items(): DISHES[j] = dish(MENUS['dishes'][i])
+# round 12 (owner, 2026-10-16): every dining commons has fountain drinks, and the feed lists none for a hall. One synthetic record
+# (the café's own "Fountain Drink": 1 each, every nutrient blank), a last station "Beverages" in each hall menu at every meal the hall
+# posts except Grab 'N Go (packaged items, no stations).
+FOUNTAIN = len(DISHES); DISHES.append(dish({'dish-name': 'Fountain Drink', 'serving-size': '1 each'}))
+for day in MD:
+    for h, meals in day.items():
+        if h in HALLLOC:
+            for mk, ss in meals.items():
+                if mk != 'grab': ss.append(['Beverages', [FOUNTAIN]])
 CAFEMENU = sorted({k for d in MD for k in d if k[0] == 'c'}, key=lambda k: int(k[1:]))
 assert len(CAFEMENU) == 18, CAFEMENU
 assert MD[2] == {}, 'Oct 10 is empty everywhere'

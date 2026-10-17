@@ -1218,3 +1218,20 @@ with "Add Bacon Quesadilla".
 5. **Decided, unchanged:** the row does not follow built variants (a variant with add-ins is its own item); and a protein x broth grid
    that is incomplete falls back to one picker of whole dishes (none occurs in the fifteen days).
 
+### Round 12d: a Fountain Drink at every dining commons (owner, 2026-10-17)
+The owner: every hall has fountain drinks. The feed lists none for a hall, so M2 adds one synthetic record, the café add-on's own
+"Fountain Drink" (1 each, every nutrient blank, so "– cal", "–" everywhere, logged as a count only; round 12b/12c rules).
+- **Where.** A last station, "Beverages", in every dining commons menu at every meal the hall posts except Grab 'N Go (packaged
+  items, no stations): Worcester breakfast, lunch, dinner and late night; Franklin and Hampshire breakfast, lunch and dinner;
+  Berkshire lunch, dinner, late night (and its one breakfast). It is last because it is a constant, not part of the cooked line:
+  it never moves a station the menu names, and the station switcher ends with it.
+- **The row** is any dish's row: the name, "– cal – protein", and `+` (a count on the plate: "– cal each"; the log keeps null).
+  Its sheet is the plain sheet with Calories "–" over a label of dashes and no star.
+- **No star, no alert.** Something served everywhere at every meal can't be spotted, so there is nothing to favourite: the sheet
+  has no star, so Favorites and alerts never hold it.
+- **Search.** Typed "fountain" finds it, once among the halls ("W F H B") and once among the cafés that list it ("8 cafés"); a
+  hall and a café group never share a row. Idle Search doesn't list it (its calories are under the idle list's floor, like water).
+- **The café add-on** (Star Ginger's, Green Fields', and the others) is unchanged.
+- **Dietary preferences** treat it as any dish the feed doesn't mark: a Vegetarian or Plant based preference hides it (Show all
+  brings it back). Open (NOTES).
+

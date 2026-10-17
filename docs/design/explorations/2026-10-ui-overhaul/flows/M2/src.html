@@ -905,7 +905,8 @@ const famOf = d => d && FAM.get(d.id)?.f;
 function standing(vars, find, ok){ let best=null; for(const x of vars){ if(!ok(x)) continue; const f=find(x); if(f && (!best || f.it.at>best.f.it.at)) best={x,f}; } return best ? best.x : vars.find(ok); }
 const shown = d => { const e=d && FAM.get(d.id); return e ? e.f.name+', '+e.x.v : d.n; };   // how an item reads on the sheet and the plate
 const shownName = n => VARN.get(n) || n;
-const favKey = d => famOf(d)?.key || d.k;   // a family is starred as one
+const favKey = d => famOf(d)?.key || d.k;
+const ALWAYS = d => d.k==='fountain drink';   // round 12: served at every hall at every meal, so there is nothing to spot: no star, no alert   // a family is starred as one
 const VARK = new Set([...FAM.values()].map(e=>e.x.d.k));   // the members' own keys (Search lists their family instead)
 // every family on every day, for the vectors and the test: {day, place, meal, station, name, axis, variants:[[token, dish, cal]]}
 function variantFamilies(){ const out=[], seen=new Set();
@@ -2139,7 +2140,7 @@ const vpickHTML = (opts, cur, label) => `<div class="vpick" role="radiogroup" ar
 const famPick = d => { const f=famOf(d); return f ? vpickHTML(f.vars.map(x=>[x.d.id, x.chip]), d.id, f.name) : ''; };
 // price (round 9): the serving's, so only a café serving has one, wherever the sheet was opened from. It leads the serving line.
 function renderDish(){ if(DS.build) return renderBuild(); const d=DS.d, N=nutObj(d.nut), on=!d.day && findItem(plateMeal(d),d.k), mk=marksHTML(d)+scoresHTML(d,'mks-s'), pr=isCafe(d.h)&&d.price ? `<b class="pr">${esc(d.price)}</b>` : '';
-  $('#bfoot').classList.add('hide'); $('#isbody').innerHTML=`<div class="dish"><div class="dhd"><h2 class="dn">${esc(shown(d))}</h2><button class="icon favb" data-act="fav" data-k="${esc(favKey(d))}" aria-pressed="${S.fav.has(favKey(d))}" aria-label="Favorite">${IC.star}</button></div>
+  $('#bfoot').classList.add('hide'); $('#isbody').innerHTML=`<div class="dish"><div class="dhd"><h2 class="dn">${esc(shown(d))}</h2>${ALWAYS(d)?'':`<button class="icon favb" data-act="fav" data-k="${esc(favKey(d))}" aria-pressed="${S.fav.has(favKey(d))}" aria-label="Favorite">${IC.star}</button>`}</div>
     ${famPick(d)}${pr||d.srv?`<p class="dsv">${pr}${esc(d.srv)}</p>`:''}${mk?`<div class="mks">${mk}</div>`:''}${d.alg?`<p class="dal"><b>Contains</b>${d.algs.map(a=>S.avoid[a]?`<span class="av">${esc(a)}</span>`:esc(a)).join(', ')}</p>`:''}
     ${d.day||!S.track?'':DS.from?`<button class="btn dadd" data-act="vupd">Update</button>`:`<button class="btn dadd" data-act="dadd">${on?'Add another':'Add to plate'}</button>`}
     ${whereHTML(d.k)}${labelHTML(N, d.cal, d.srv)}${gradesHTML(d.hf, d.cr)}

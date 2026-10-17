@@ -2543,3 +2543,18 @@ the add-on missing.
   now offered at Star Ginger and Green Fields (blank calories, as the add-on).
 - "20 oz – cal – protein" on the row, the bar and the foot read "– cal – protein"; the plate's Calories, Protein, Carbs and Fat boxes read "–";
   the label's every nutrient was already "–".
+
+## Round 12d: a Fountain Drink at every dining commons (owner, 2026-10-17)
+Concept: `CONCEPT.md`, "Round 12d".
+- **Data (`build.py`).** `FOUNTAIN` is one extra record through `dish()` (1 each, blank nutrients), appended to each hall's non-Grab
+  meals as a last station `['Beverages', [FOUNTAIN]]`. The feed's café "Fountain Drink" has a price and a health score; the hall's has
+  neither (halls draw no price). Day 3 (Oct 10) stays empty everywhere.
+- **`ALWAYS(d)`** in `src.html` (`k === 'fountain drink'`) leaves the star out of its sheet: nothing is favouritable, so no alert.
+- **Decisions:** the station sits last; Grab 'N Go has none; Search lists it when typed (hall row and café row) and not idle; no star.
+- **Test** (`round12`, now 12 scenarios): every hall and meal has Beverages last with one row; Grab 'N Go none; the row's "– cal –
+  protein"; its sheet (no star, Calories "–"); on the plate "–", "–"; logged `["Fountain Drink",1,null,null]`; Search finds both rows;
+  idle Search doesn't. Red against round 12c's build (`build/r12/red-fountain.txt`): "W breakfast: Beverages is the last station, with one
+  row", then "Search finds it when typed".
+- **Vectors:** top-level `fountain` (the record and the station-days per hall and meal); `scores` +1.
+- **Open:** a Vegetarian or Plant based preference hides it (the feed marks nothing). Mark it plant based so it survives them?
+
