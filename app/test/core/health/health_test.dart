@@ -109,6 +109,12 @@ void main() {
       expect(k, contains('Build.VERSION.SDK_INT < 26'));
     });
 
+    test('Open Health Connect uses the home action an app may start, not the protected MANAGE_HEALTH_PERMISSIONS', () {
+      final k = File('android/app/src/main/kotlin/com/udinetogether/udine/MainActivity.kt').readAsStringSync();
+      expect(k, contains('android.health.connect.action.HEALTH_HOME_SETTINGS'));
+      expect(k, isNot(contains('"android.health.connect.action.MANAGE_HEALTH_PERMISSIONS"')));
+    });
+
     test('Health Connect\'s "privacy policy" link opens the published policy, not the app', () {
       final m = File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
       String block(String open, String close) => m.substring(m.indexOf(open), m.indexOf(close, m.indexOf(open)));

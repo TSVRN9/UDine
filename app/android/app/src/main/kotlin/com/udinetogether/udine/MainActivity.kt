@@ -48,10 +48,10 @@ class MainActivity : FlutterFragmentActivity() {
 
     private fun perms(call: MethodCall): Set<String> = call.argument<List<String>>("permissions")!!.toSet()
 
-    // UDine's permissions in Health Connect (Android 14+), Health Connect's settings, then its Play listing when it isn't installed.
+    // Health Connect's home (Android 14+; MANAGE_HEALTH_PERMISSIONS is protected, Permission Denial on the A53), the provider's settings, then its Play listing when it isn't installed.
     private fun openSettings() {
         val intents = listOfNotNull(
-            if (Build.VERSION.SDK_INT >= 34) Intent("android.health.connect.action.MANAGE_HEALTH_PERMISSIONS").putExtra(Intent.EXTRA_PACKAGE_NAME, packageName) else null,
+            if (Build.VERSION.SDK_INT >= 34) Intent("android.health.connect.action.HEALTH_HOME_SETTINGS") else null,
             Intent("androidx.health.ACTION_HEALTH_CONNECT_SETTINGS"),
             Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.google.android.apps.healthdata")),
         )
