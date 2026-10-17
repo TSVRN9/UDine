@@ -121,6 +121,16 @@ void main() {
       expect(k, contains('Build.VERSION.SDK_INT < 26'));
     });
 
+    test('the Play listing fallback (market, then https) can be launched on API 30+: both schemes are in <queries>', () {
+      final m = File('android/app/src/main/AndroidManifest.xml').readAsStringSync(), k = File('android/app/src/main/kotlin/com/udinetogether/udine/MainActivity.kt').readAsStringSync();
+      final q = m.substring(m.indexOf('<queries>'));
+      expect(q, contains('android:scheme="market"'));
+      expect(q, contains('android:scheme="https"'));
+      expect(k, contains('market://details?id='));
+      expect(k, contains('https://play.google.com/store/apps/details?id='));
+      expect(k, contains('providerInstalled()')); // Android 13 and below: absent means notInstalled, whatever SDK status says
+    });
+
     test('Open Health Connect uses the home action an app may start, not the protected MANAGE_HEALTH_PERMISSIONS', () {
       final k = File('android/app/src/main/kotlin/com/udinetogether/udine/MainActivity.kt').readAsStringSync();
       expect(k, contains('android.health.connect.action.HEALTH_HOME_SETTINGS'));
@@ -140,8 +150,6 @@ void main() {
       expect(k, contains('Intent.ACTION_VIEW'));
       expect(k, contains('catch (e: ActivityNotFoundException)'));
       expect(k.indexOf('catch'), lessThan(k.indexOf('finish()')));
-      expect(m, isNot(contains('android:scheme="https"'))); // (nothing resolves or canLaunch-es a URL, so no <queries> entry)
-      expect(m, isNot(contains('android:scheme="market"')));
     });
 
     test('iOS: HealthKit entitlement and the update string, no share (read) string', () {
@@ -267,8 +275,8 @@ void main() {
     ]);
     expect((await s.exportCsv())['udine-health-writes.csv']!.split('\n'), [
       'mealId,platform,recordIds,contentSig',
-      '"2026-10-01T12:41:00.000","android","udine-2026-10-01T12:41:00.000"',
-      '"\t=m,2","ios","u1 u2"',
+      '"2026-10-01T12:41:00.000","android","udine-2026-10-01T12:41:00.000",""',
+      '"\t=m,2","ios","u1 u2","123|Lunch|energyKcal=200.0"',
     ]);
   });
 }

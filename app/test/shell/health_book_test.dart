@@ -312,6 +312,47 @@ void main() {
     });
   });
 
+  group('off means hands off: no sync touches Health unless the book is live', () {
+    final modes = <String, Future<void> Function(Rig r)>{
+      'the row is off': (r) => r.book.tap(),
+      'access is revoked': (r) async {
+        r.sim.status = HealthAccess.denied;
+        await r.book.refresh();
+      },
+      'tracking is off': (r) async => tracking = false,
+    };
+    for (final m in modes.entries) {
+      test('a delete made while ${m.key} leaves the record and its row, however often it syncs', () async {
+        final r = await open(enabled: true);
+        await r.logMeal([entry('a', lunchAt)]);
+        await m.value(r);
+        final before = (r.sim.writes, r.sim.deletes);
+        await log.deleteMeal(log.meals.single);
+        await r.settle();
+        await r.book.refresh();
+        await r.book.reconcile();
+        await r.settle();
+        expect(r.sim.records.keys, ['udine-$lunchAt']);
+        expect((await store.healthWrites()).single.mealId, lunchAt);
+        expect((r.sim.writes, r.sim.deletes), before, reason: 'Health was not even asked');
+      });
+
+      test('an edit made while ${m.key} is not written, however often it syncs', () async {
+        final r = await open(enabled: true);
+        await r.logMeal([entry('a', lunchAt)]);
+        await m.value(r);
+        final before = (r.sim.writes, r.sim.deletes);
+        await log.setServings(log.meals.single.items.single, 2);
+        await r.settle();
+        await r.book.refresh();
+        await r.book.reconcile();
+        await r.settle();
+        expect(r.kcal(lunchAt), 200);
+        expect((r.sim.writes, r.sim.deletes), before, reason: 'Health was not even asked');
+      });
+    }
+  });
+
   group('the switch', () {
     test('off: the row is there, unchecked, and asks nothing until tapped', () async {
       final r = await open();
@@ -352,10 +393,22 @@ void main() {
       expect(await store.healthOn(), isTrue); // (nothing is lost on our side)
     });
 
-    test('not installed or unsupported: there is nothing to ask, so the row is hidden', () async {
-      for (final s in [HealthAccess.notInstalled, HealthAccess.unsupported]) {
-        expect((await open(sim: SimulatedHealth(status: s))).book.state, HealthRowState.hidden);
-      }
+    test('unsupported: the device cannot have Health Connect, so the row is hidden', () async {
+      expect((await open(sim: SimulatedHealth(status: HealthAccess.unsupported))).book.state, HealthRowState.hidden);
+    });
+
+    test('not installed: the row is there, a tap opens the Play listing (no permission sheet), and after the install it works as normal', () async {
+      final sim = SimulatedHealth(status: HealthAccess.notInstalled);
+      final r = await open(sim: sim);
+      expect(r.book.state, HealthRowState.notInstalled);
+      await r.book.tap();
+      expect((sim.opened, sim.requests), (1, 0));
+      expect(await store.healthOn(), isFalse);
+      sim.status = HealthAccess.denied; // (installed, nothing allowed yet)
+      await r.book.refresh();
+      expect(r.book.state, HealthRowState.off);
+      await r.book.tap();
+      expect(r.book.state, HealthRowState.allowed);
     });
 
     test('a channel that is not there (a host without Health) hides the row instead of throwing', () async {

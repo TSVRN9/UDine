@@ -11,7 +11,7 @@ void main() {
   setUpAll(loadFonts);
   for (final w in [360.0, 390.0]) {
     final n = w.toInt();
-    for (final (name, os, health, tap) in [('off', 'android', 'allow', false), ('allowed', 'android', 'allow', true), ('denied', 'android', 'deny', true), ('revoked', 'android', 'revoked', false), ('ios_denied', 'ios', 'deny', true)]) {
+    for (final (name, os, health, tap) in [('off', 'android', 'allow', false), ('allowed', 'android', 'allow', true), ('denied', 'android', 'deny', true), ('revoked', 'android', 'revoked', false), ('ios_denied', 'ios', 'deny', true), ('notinstalled', 'android', 'notinstalled', false)]) {
       testWidgets('Health row, $name, $n dp', (t) async {
         final b = await bootYou(t, History.none);
         await bootHealth(t, b, os: os, health: health);

@@ -12,19 +12,21 @@ class SimulatedHealth implements HealthClient {
   HealthAccess status;
   bool failWrites = false;
   final records = <String, HealthMeal>{};
-  var opened = 0;
+  var opened = 0, writes = 0, deletes = 0, requests = 0; // (calls made, whether or not the OS took them)
 
   @override
   Future<HealthAccess> access() async => status;
 
   @override
   Future<bool> requestWrite() async {
+    requests++;
     if (allows && status == HealthAccess.denied) status = HealthAccess.granted;
     return status == HealthAccess.granted;
   }
 
   @override
   Future<List<String>?> write(HealthMeal meal) async {
+    writes++;
     if (failWrites || status != HealthAccess.granted) return null;
     final id = 'udine-${meal.mealId}';
     records[id] = meal;
@@ -33,6 +35,7 @@ class SimulatedHealth implements HealthClient {
 
   @override
   Future<bool> delete(List<String> ids) async {
+    deletes++;
     if (failWrites || status != HealthAccess.granted) return false;
     ids.forEach(records.remove);
     return true;

@@ -27,7 +27,7 @@ class RecordedFlags {
   /// `lookup=found|none|fail|limited|inprogress` (M2's `?lookup=`): what Search UMass Dining answers. `pack=fail`: the packaged search does not come back.
   final LookupMode lookup;
   final bool packFail;
-  /// `os=ios|android` and `health=allow|deny|revoked|unsupported` (M2's own flags; `device` is ours: the real Health Connect / HealthKit, for a capture on a phone): which platform names the Health row and what the simulated OS answers
+  /// `os=ios|android` and `health=allow|deny|revoked|unsupported|notinstalled` (M2's own flags, the last two ours; `device` is ours: the real Health Connect / HealthKit, for a capture on a phone): which platform names the Health row and what the simulated OS answers
   /// (`revoked`: the switch is on and the OS no longer allows it).
   final String os, health;
   /// `foods=seed`: M2's seeded Your foods, Chobani and the recorded Clif Bar Chocolate Chip.
@@ -54,7 +54,7 @@ RecordedFlags? recordedFlags(String route, {bool available = recordedAvailable})
     packFail: q['pack'] == 'fail',
     seedFoods: q['foods'] == 'seed',
     os: q['os'] == 'ios' ? 'ios' : 'android',
-    health: const {'deny', 'revoked', 'unsupported', 'device'}.contains(q['health']) ? q['health']! : 'allow',
+    health: const {'deny', 'revoked', 'unsupported', 'notinstalled', 'device'}.contains(q['health']) ? q['health']! : 'allow',
     savedPdfs: {for (final x in (q['saved'] ?? '').split(',')) if (x.startsWith('pdf:')) x.substring(4)},
     savedCafes: {for (final x in (q['saved'] ?? '').split(',')) if (x.isNotEmpty && !x.startsWith('pdf:')) x},
     scores: (health: (q['scores'] ?? '').split(',').contains('health'), carbon: (q['scores'] ?? '').split(',').contains('carbon')),

@@ -124,7 +124,7 @@ class Boot {
     if (flags == null || flags.health == 'device') {
       client = ChannelHealthClient();
     } else {
-      client = SimulatedHealth(platform: flags.os, allows: flags.health != 'deny', status: flags.health == 'unsupported' ? HealthAccess.unsupported : HealthAccess.denied);
+      client = SimulatedHealth(platform: flags.os, allows: flags.health != 'deny', status: switch (flags.health) { 'unsupported' => HealthAccess.unsupported, 'notinstalled' => HealthAccess.notInstalled, _ => HealthAccess.denied });
       await s.setHealthOn(flags.health == 'revoked'); // revoked: the switch is on and the OS no longer allows it
     }
     final fx = plateBoard(repo.now());

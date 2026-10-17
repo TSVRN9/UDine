@@ -135,6 +135,28 @@ void main() {
     await drain(t);
   });
 
+  testWidgets('Health Connect not installed: the row is there, unchecked, and a tap opens its Play listing; after the install it is a normal row', (t) async {
+    final b = await bootYou(t, History.none);
+    final os = await bootHealth(t, b, health: 'notinstalled');
+    await openYou(t, b);
+    expect(checked(t, row), isFalse);
+    expect(find.text('Each meal you log'), findsOneWidget);
+    expect(find.byType(Button), findsNothing);
+    await t.tap(row);
+    await wrote(t);
+    expect((os.opened, os.requests), (1, 0));
+    expect(checked(t, row), isFalse);
+    os.status = HealthAccess.denied; // (the user installed it and came back)
+    for (final s in [AppLifecycleState.inactive, AppLifecycleState.hidden, AppLifecycleState.paused, AppLifecycleState.hidden, AppLifecycleState.inactive, AppLifecycleState.resumed]) {
+      t.binding.handleAppLifecycleStateChanged(s);
+    }
+    await wrote(t);
+    await t.tap(row);
+    await wrote(t);
+    expect(checked(t, row), isTrue);
+    await drain(t);
+  });
+
   for (final h in ['unsupported']) {
     testWidgets('Health Connect not there ($h): no row', (t) async {
       final b = await bootYou(t, History.none);

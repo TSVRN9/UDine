@@ -7,8 +7,8 @@ import '../core/m2/history.dart';
 import '../core/store/log_book.dart';
 import '../core/store/store.dart';
 
-/// What the You row shows. [hidden]: Health Connect isn't there to ask (not installed, or the device can't have it).
-enum HealthRowState { hidden, off, allowed, denied, revoked }
+/// What the You row shows. [hidden]: the device can't have Health Connect. [notInstalled]: it can, and a tap opens its Play listing.
+enum HealthRowState { hidden, notInstalled, off, allowed, denied, revoked }
 
 /// Write to Health Connect / Apple Health: the switch, what the OS holds now, and the writes that follow the log.
 /// The writes are the log's own changes (Log, an edit, a delete, Undo all end in [LogBook] notifying), diffed against the meals it held
@@ -54,7 +54,8 @@ class HealthBook extends ChangeNotifier {
 
   HealthRowState get state {
     final a = _access;
-    if (a == null || a == HealthAccess.notInstalled || a == HealthAccess.unsupported) return HealthRowState.hidden;
+    if (a == null || a == HealthAccess.unsupported) return HealthRowState.hidden;
+    if (a == HealthAccess.notInstalled) return HealthRowState.notInstalled;
     if (enabled) return a == HealthAccess.granted ? HealthRowState.allowed : HealthRowState.revoked;
     return _denied ? HealthRowState.denied : HealthRowState.off;
   }
@@ -76,8 +77,9 @@ class HealthBook extends ChangeNotifier {
     reconcile(); // (does nothing unless live) a failed write or delete is tried again here
   }
 
-  /// The row was tapped: allowed turns it off; anything else raises the OS permission sheet at once.
+  /// The row was tapped: allowed turns it off; not installed opens the Play listing; anything else raises the OS permission sheet at once.
   Future<void> tap() async {
+    if (state == HealthRowState.notInstalled) return openSettings();
     if (state == HealthRowState.allowed) {
       enabled = false;
       _wasLive = false;
