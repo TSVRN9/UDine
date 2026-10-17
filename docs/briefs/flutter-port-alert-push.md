@@ -150,14 +150,13 @@ problem again.
 
 Project: Firebase `udine-a6996`. `mobile/google-services.json` (the RN app, committed) covers only
 `com.udinetogether.udine` (`:12`).
-1. Firebase console, Project settings, Your apps: **add Android app `com.udinetogether.udine.internal`**.
-   The release app `com.udinetogether.udine` is already registered. The SHA-1 of the internal key (`15:B6…`)
-   is not needed for FCM.
-2. Download each app's `google-services.json` and put them at `app/android/app/src/store/google-services.json`
-   and `app/android/app/src/internal/google-services.json` (flavors `store`/`internal`,
-   `app/android/app/build.gradle.kts:46-53`). These files hold the project's public client config, not a
-   service secret (`mobile/google-services.json` is already committed); the agent commits them from the
-   owner's drop, not from chat.
+1. **Done 2026-10-17:** `com.udinetogether.udine.internal` is registered as "UDine (internal)"
+   (`1:409750876794:android:f914fabbbf6f4544e841c3`), beside the release app.
+2. **Done 2026-10-17:** the project's `google-services.json` now lists both packages, so one file at
+   `app/android/app/google-services.json` serves both flavors. The file is public client config, not a
+   service secret (`mobile/google-services.json` is already committed). A copy is at
+   `~/.cache/udine-scratch/firebase/internal-google-services.json`, or Task 6 regenerates it with
+   `firebase apps:sdkconfig ANDROID 1:409750876794:android:f914fabbbf6f4544e841c3 --project udine-a6996`.
 3. **Enable the Firebase Cloud Messaging API (v1)** in the Google Cloud project, then create a service
    account key: Project settings, Service accounts, Generate new private key. Save it outside the repo.
 4. `supabase secrets set --project-ref ubogyqskqzvkcqboqbhw --env-file <path outside repo>` with
