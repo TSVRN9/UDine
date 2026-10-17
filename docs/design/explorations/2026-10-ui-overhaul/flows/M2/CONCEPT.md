@@ -1242,8 +1242,8 @@ The owner: every hall has fountain drinks. The feed lists none for a hall, so M2
 - **Search.** Typed "fountain" finds it, once among the halls ("W F H B") and once among the cafés that list it ("8 cafés"); a
   hall and a café group never share a row. Idle Search doesn't list it (its calories are under the idle list's floor, like water).
 - **The café add-on** (Star Ginger's, Green Fields', and the others) is unchanged.
-- **Dietary preferences** treat it as any dish the feed doesn't mark: a Vegetarian or Plant based preference hides it (Show all
-  brings it back). Open (NOTES).
+- **Dietary preferences:** it is our own record, so it is marked Vegetarian and Plant based (the diet bits the feed would carry): those
+  preferences never hide it. (A Halal preference still does: nothing says it is halal.)
 
 ## Round 13: landing, favorites on Halls, the icon badge, tracking as a layer (owner, 2026-10-17)
 NOTES "Round 13" has the tests, shots and decisions.

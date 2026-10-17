@@ -127,6 +127,7 @@ for i, j in used.items(): DISHES[j] = dish(MENUS['dishes'][i])
 # (the café's own "Fountain Drink": 1 each, every nutrient blank), a last station "Beverages" in each hall menu at every meal the hall
 # posts except Grab 'N Go (packaged items, no stations).
 FOUNTAIN = len(DISHES); DISHES.append(dish({'dish-name': 'Fountain Drink', 'serving-size': '1 each'}))
+DISHES[FOUNTAIN][5] = 3   # our own record, so we mark it: Vegetarian (1) and Plant based (2), and a diet preference never hides it
 for day in MD:
     for h, meals in day.items():
         if h in HALLLOC:
