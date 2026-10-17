@@ -2556,7 +2556,7 @@ Concept: `CONCEPT.md`, "Round 12d".
   idle Search doesn't. Red against round 12c's build (`build/r12/red-fountain.txt`): "W breakfast: Beverages is the last station, with one
   row", then "Search finds it when typed".
 - **Vectors:** top-level `fountain` (the record and the station-days per hall and meal); `scores` +1.
-- **Closed (coordinator, 2026-10-17):** it is marked Vegetarian and Plant based (`DISHES[FOUNTAIN][5] = 3` in `build.py`), so those preferences don't hide it.
+- **Closed (owner, 2026-10-17, revised):** no diet marks (it is a drink, not food), and no diet preference hides it: `dietOK(d)` returns true for `ALWAYS(d)`. (An earlier pass marked it Vegetarian and Plant based; the marks are removed.) Test: no `.tg` on its row; Vegetarian + Plant based + Halal on, the row is still there.
 
 ## Round 13: landing, favorites on Halls, the icon badge, tracking as a layer (owner, 2026-10-17)
 Branch `design/m2-round-13`, off `design/m2-round-12`. Concept: `CONCEPT.md`, "Round 13" and the rewritten R11 §2 and R10 §5.
