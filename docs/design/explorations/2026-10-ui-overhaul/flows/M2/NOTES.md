@@ -2581,7 +2581,7 @@ Branch `design/m2-round-13`, off `design/m2-round-12`. Concept: `CONCEPT.md`, "R
 - **Star meal rule:** the meal on now, else the next ahead today, else none. A dinner-only favorite does not star a hall while lunch is on.
 - **Badge rule:** iOS number = favorite notifications delivered since the app was last opened (each push adds one); Android = the launcher dot
   while one is unread; both clear on opening the app or tapping a notification. No device-side check feeds it.
-- **bgoff removed** from the alerts' states and the Limits (the lines it showed described a check that no longer exists).
+- **Battery Restricted kept on Android** (reworded for push: "Battery use is restricted, so notifications can't arrive", button **App info**); iOS's Background App Refresh row stays removed. (First built removed both; the coordinator restored Android's on 2026-10-17: FCM isn't delivered to a Restricted app.) `ALQ`/`BGOFF()` read `?alerts=bgoff` on Android only; `alertRun` is empty under it; `vectors.json` `alerts` has a `restricted` case.
 - **Figures stay** on rows when tracking is off (they are the menu's facts); only controls, bar and the ledger go. Asked as Open.
 - **Owner question left open:** the exact schedule of the push (a fixed 7 AM Eastern, tied to menu publication, or per meal).
 
@@ -2596,7 +2596,7 @@ RED    Health Connect not installed: the row shows, and a tap opens its Play lis
 ```
 Changed older tests (round 11's alerts): "never once its last serving has ended" is now "nothing later than the push posts" (12:41 PM empty, 8:00 AM empty);
 the two background-off assertions and the `bgoff` gap check are removed; the notification's tap lands on Halls home.
-- **Now:** `RED=13 node test.js` gives 7 green scenarios, 36 checks (the five above, the hall open, the busy-row reserve); `RED=12` 12 scenarios, 164 checks; `node test.js` 5,448 checks and `RM=1 node test.js` 3,735, all green. (A full run once failed in round 9 on a pinned-café count, 'its pin is kept but not drawn'; a rerun and `RED=9` alone were green, so it is a timing flake under load, not this round's change.)
+- **Now:** `RED=13 node test.js` gives 8 green scenarios, 79 checks (the five above, the hall open, the busy-row reserve, Search tiles); `RED=12` 12 scenarios, 165 checks; `node test.js` 5,356 checks and `RM=1 node test.js` 3,687, all green (final tree). (A full run once failed in round 9 on a pinned-café count, 'its pin is kept but not drawn'; a rerun and `RED=9` alone were green, so it is a timing flake under load, not this round's change.)
 - **Vectors:** `stars` (six cases: favorites, clock, the halls with a star, the meal per hall); `alerts` sequences changed to the push window; `fountain` from round 12d.
 
 ### Shots (`build/r12/p7`)
@@ -2633,4 +2633,17 @@ blocks fold at the same time (their content has faded by then); not staggered.
   the 22 dp as a push. Decision: always reserve both lines (`.mt .bzx:empty{display:block;min-height:17px}`; 17 + the 5 dp row gap = 22), fade the reading in (`settle`, `bz` going from
   ghost to live), Franklin's title moves to 82 like the rest. The hall card on Halls is top-stacked in a fixed band: no shift, unchanged. Test: "the hall header reserves its busy row"
   (red on round 12c's build: Worcester 144, Franklin 166 in the test page, a 22 px difference; `build/r12/red-r13-bz.txt`).
+
+### Round 13 follow-ups (coordinator review, 2026-10-17)
+- **Tracking lift timing.** The first build faded the figures while the blocks closed, so text was cut mid-line ("Write to Health Connect", "Your foods") and faded headings
+  piled up for about 100 ms. Now every leaving block fades to 0 (0-150 ms, `exit`) and only then closes (150-400 ms, `fold`, opacity 0 throughout); on, the space opens empty
+  (0-250 ms) and the content then fades in (250-450 ms); the bar rises 250-500. Strips regenerated: `p7/off.png`, `on.png`, `off360.png`, `on360.png`. T = 400 ms off, 500 ms on.
+- **Search tiles.** Horizontal: `.lane .tags{margin:0 max(12px, calc(26px - 11px*var(--n,1))) 0 0}` with `--n` the tile count (set by `hallGlyph`): the group's visible centre under the +
+  (1 tile: 15 px margin), clamped at 12 px (right edge 340 at 360). Vertical: `alignTiles()` sets `--ty` (a `translateY`, so the lane's height and the row's don't change) to the gap
+  between the tile's centre and the centre of the row's last meta group (cal and protein): it is 2.5 px on a two-line-name row and about 12.5 px on a one-line-name row, because the text column is
+  centred in the row and the tiles hang from the lane's foot; every row is measured, not a sample. Test "Search tiles" measures 1, 2 and 3 tiles at 360
+  (red on the old build: "1 tile(s): centred on the meta line (280 vs 277.5)", `build/r12/red-r13-tiles.txt`).
+- **Fountain Drink** is marked Vegetarian and Plant based (round 12d, closed).
+- **Titles moved by the busy-block reservation, against M2-r12 (the pushed round 12c tree):** Franklin's header title 104 dp to 82 dp (22 dp higher); Worcester, Hampshire and Berkshire unchanged at 82 dp.
+  Nothing else in a header moves.
 

@@ -978,6 +978,13 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       r = await favs('&alerts=blocked'); await r.tap(); await page.waitForTimeout(300);
       assert.equal(await page.locator('.ossheet').count(), 0, 'blocked: the OS will not ask again');
       assert.equal(await page.locator('.page[data-p=favs] [data-act=alerts] .cb').textContent(), 'Notifications are off for UDine');
+      for (const [os, want] of [['android', ['true', "Battery use is restricted, so notifications can't arrive"]], ['ios', ['true', "When a favorite is on today's menu"]]]) {
+        r = await favs('&alerts=bgoff&os=' + os); await r.tap(); await page.waitForTimeout(300); await page.locator('.ossheet [data-os="1"]').tap(); await page.waitForTimeout(300);
+        assert.deepEqual(await ev(() => { const a = document.querySelector('.page[data-p=favs] [data-act=alerts]'); return [a.getAttribute('aria-checked'), a.querySelector('.cb').textContent]; }), want, os + ': restricted battery is a state on Android only (FCM is not delivered to a Restricted app); iOS has no such row'); }
+      assert.deepEqual(await ev(() => document.querySelector('.page[data-p=favs] [data-act=asettings]')?.textContent || null), null, 'iOS: no button');
+      await favs('&alerts=bgoff&os=android'); await page.locator('.page[data-p=favs] [data-act=alerts]').tap(); await page.waitForTimeout(300); await page.locator('.ossheet [data-os="1"]').tap(); await page.waitForTimeout(300);
+      assert.equal(await ev(() => document.querySelector('.page[data-p=favs] [data-act=asettings]').textContent), 'App info', 'Android: App info');
+      assert.deepEqual(await run(7 * 60 + 15), [], 'restricted: the push does not arrive');
       await go('?notify=1'); await page.waitForTimeout(400);
       assert.deepEqual(await ev(() => [...document.querySelectorAll('.osnote b, .osnote span.t')].map(e => e.textContent)), ['Beef Brisket Noodle Bowl', 'Lunch from 11 AM at Worcester and Berkshire'], 'the notification: the dish, then where and when');
       await ev(() => { openHall('W', false, null, { day: 0, meal: 'lunch' }); }); await page.waitForTimeout(1200);
@@ -1053,7 +1060,7 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       const gap = async q => { await go('?state=you' + q); await page.locator('#you [data-p=favs]').tap(); await page.waitForTimeout(800);
         await page.locator('.page[data-p=favs] [data-act=alerts]').tap(); await page.waitForTimeout(300); if (await page.locator('.ossheet').count()) { await page.locator('.ossheet [data-os="1"]').tap(); await page.waitForTimeout(300); }
         return ev(() => { const cb = document.querySelector('.page[data-p=favs] [data-act=alerts] .cb').getBoundingClientRect(), b = document.querySelector('.page[data-p=favs] [data-act=asettings]').getBoundingClientRect(); return Math.round(b.top - cb.bottom); }); };
-      for (const q of ['&alerts=deny']) assert.equal(await gap(q), 12, q + ': 12 px from the line to Open Settings');
+      for (const q of ['&alerts=deny', '&alerts=bgoff']) assert.equal(await gap(q), 12, q + ': 12 px from the line to Open Settings');
       await go('?state=you&health=deny'); await page.locator('#you [data-act=health]').tap(); await page.waitForTimeout(300); await page.locator('.ossheet [data-os="1"]').tap(); await page.waitForTimeout(300);
       assert.equal(await ev(() => Math.round(document.querySelector('#you [data-act=hsettings]').getBoundingClientRect().top - document.querySelector('#you [data-act=health] .cb').getBoundingClientRect().bottom)), 12, "Health's denied row reads the same");
     });
@@ -1420,6 +1427,19 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
         bz.classList.add('ghost'); const g = Math.round(n.getBoundingClientRect().top); bz.classList.remove('ghost'); return [h, a, g]; }));
       assert.deepEqual(tops.map(x => x[1]), [tops[0][1], tops[0][1], tops[0][1], tops[0][1]], 'the four halls: the title at one height, with or without an extra line (' + JSON.stringify(tops) + ')');
       assert(tops.every(x => x[1] === x[2]), 'a reading landing (ghost off) does not move it');
+    });
+    await scen('Search tiles: centred on the meta line, and as one group under the +, clamped at the row\'s content edge (360)', async () => {
+      await page.setViewportSize({ width: 360, height: 844 }); await go('?state=search'); await page.locator('#q').fill('chicken'); await page.waitForTimeout(900);
+      const rows = await ev(() => [...document.querySelectorAll('#sres .row:not(.later)')].map(r => { const t = r.querySelector('.lane .tags'); if (!t || t.querySelector('.cnm')) return null; const R = x => { const q = x.getBoundingClientRect(); return [q.left, q.top, q.width, q.height]; };
+        const tiles = [...t.querySelectorAll('.ht')].map(R), add = R(r.querySelector('.lane .add, .lane .step')), m = R([...r.querySelectorAll('.m .mg:not(.vt)')].at(-1)), rr = R(r); return { n: tiles.length, left: tiles[0][0], right: tiles.at(-1)[0] + tiles.at(-1)[2], cy: tiles[0][1] + tiles[0][3] / 2, addC: add[0] + add[2] / 2, mC: m[1] + m[3] / 2, edge: rr[0] + rr[2] - 20 }; }).filter(Boolean));
+      const seen = new Set();
+      for (const r of rows) { seen.add(r.n);
+        assert(Math.abs(r.cy - r.mC) < .6, r.n + ' tile(s): centred on the meta line (' + r.cy + ' vs ' + r.mC + ')');
+        const gc = (r.left + r.right) / 2, want = Math.min(r.addC, r.edge - (r.right - r.left) / 2);
+        assert(Math.abs(gc - want) < .6, r.n + ' tile(s): the group centres under the + (' + r.addC + '), clamped at the content edge ' + r.edge + ': centre ' + gc + ', wanted ' + want);
+        assert(r.right <= r.edge + .6, r.n + ' tile(s): the right edge never passes the content edge'); }
+      assert([1, 2, 3].every(n => seen.has(n)), 'rows with 1, 2 and 3 tiles were measured: ' + [...seen]);
+      await page.setViewportSize({ width: 390, height: 844 });
     });
   };
   if (process.env.RED) { await ({ 8: round8, 9: round9, 10: round10, 11: round11, 12: round12, 13: round13 }[process.env.RED] || round7)(); console.log(results.join('\n')); console.log(`${NCHK} checks`); await browser.close(); return; }

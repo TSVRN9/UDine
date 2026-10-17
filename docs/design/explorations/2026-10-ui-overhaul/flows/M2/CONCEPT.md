@@ -719,12 +719,13 @@ state says what happened and what to do, in the place where it happened.**
 │ Notify me                          [ ] │ │ When a favorite is on today's    │ │ Beef Brisket Noodle Bowl         │
 │ When a favorite is on today's menu     │ │ menu                             │ │ Lunch from 11 AM at Worcester    │
 │ Beef Brisket Noodle Bowl               │ └──────────────────────────────────┘ └──────────────────────────────────┘
-│ At lunch now at Worcester              │  Denied (or blocked)
-│ Golden BBQ Chicken Thigh               │ ┌──────────────────────────────────┐
-│ At lunch now at Worcester              │ │ Notify me                    [ ] │
-└────────────────────────────────────────┘ │ Notifications are off for UDine  │
-                                           │ [ Open Settings ]                │
-                                           └──────────────────────────────────┘
+│ At lunch now at Worcester              │  Denied (or blocked)                    Android, battery Restricted
+│ Golden BBQ Chicken Thigh               │ ┌──────────────────────────────────┐ ┌──────────────────────────────────┐
+│ At lunch now at Worcester              │ │ Notify me                    [ ] │ │ Notify me                    [x] │
+└────────────────────────────────────────┘ │ Notifications are off for UDine  │ │ Battery use is restricted, so    │
+                                           │ [ Open Settings ]                │ │ notifications can't arrive       │
+                                           └──────────────────────────────────┘ │ [ App info ]                     │
+                                                                                └──────────────────────────────────┘
 ```
 
 - **Where alerts are turned on.** A check row at the top of the Favorites page: "Notify me", with the line "When a
@@ -738,8 +739,10 @@ state says what happened and what to do, in the place where it happened.**
   - **Blocked:** the OS won't ask again (Android after two denials; iOS after one). The tap goes straight to the denied
     state, with no sheet.
   - **Revoked in system settings:** checked when You is shown or the app resumes. It's the denied state.
-  - *Background work off* was a state until round 13: alerts are now server pushes (below), which don't need the app to run, so there is
-    nothing for it to say.
+  - **Battery Restricted (Android only; round 13).** Alerts are server pushes (below) and don't need the app to run, but FCM isn't delivered to an
+    app the user set to "Restricted" battery use, so that state still matters. The check stays on, because the wish is kept; the line reads
+    "Battery use is restricted, so notifications can't arrive", with an outlined **App info** button (Android's app settings). iOS has no row
+    for this: Background App Refresh doesn't gate a visible push, so that state is gone. Sim: `?alerts=bgoff` on Android; the push doesn't arrive.
 - **What the notification says.** The title is the dish's name. The body is M2's "where" sentence, as the dish sheet
   says it, from the moment it's posted:
   - "Lunch from 11 AM at Worcester";
@@ -774,7 +777,7 @@ state says what happened and what to do, in the place where it happened.**
   - **Open (owner): the exact schedule.** "About 7 AM Eastern" is the working time; whether the push is a fixed hour, tied to when the
     menus are published, or per-meal is not decided.
 - The prototype simulates the OS as round 10 does:
-  - `?alerts=allow|deny|blocked`;
+  - `?alerts=allow|deny|blocked|bgoff` (bgoff: Android only);
   - `?os=ios|android`;
   - `?notify=1` posts the 7:15 AM push's notification for the seeded favourite, drawn as a neutral system banner over the app;
   - `?launcher=1` (round 13) draws the OS home screen instead: the notification(s) and the UDine icon with its iOS number or Android dot (`?os=ios|android`).
@@ -1279,16 +1282,18 @@ tracking-only rows (Your foods, Which was better?). Turning it off lifts the lay
 underneath never changes: it is a menu with or without the layer, so the screen reads as something taken off, not as things deleted.
 ```
  Off, on You (390)                                                       On (the reverse)
- 0 ms     bar leaves down; figures fade                                  0 ms    blocks open from nothing (top-down in one fold)
- ~150 ms  Today, Meals, Earlier, Health row, the two rows                ~250 ms the figures fade in
-          fold up (height, padding, fade); everything below rides up     ~250 ms the bar rises from below, last
- 400 ms   the Track switch has not moved; only the choices are left      500 ms  Today and its figures are back as they were
+ 0-150 ms    bar leaves down; every leaving block fades to nothing       0-250 ms   the space opens (empty)
+ 150-400 ms  the faded blocks close up (height, padding, rule);          250-450 ms the content fades in; the bar rises (250-500)
+             everything below rides up with them                          500 ms     Today and its figures are back as they were
+ 400 ms      the Track switch has not moved; only the choices are left
 ```
-- **What leaves, in order:** (1) the plate bar leaves **downward** (`exit`, 150 ms), the way a bar is put away; with it the figures in the
-  Today and Earlier blocks fade (`settle`), so **the numbers go before the rows tighten**; (2) after 150 ms the blocks fold up (`fold`, 250 ms:
-  height, padding and the rule under a row go to nothing while the content fades), and the sections below ride up with them as they close.
+- **The rule: a fold only ever opens or closes empty space.** Everything leaving reaches opacity 0 before its block's height starts to close (fade
+  0-150 ms, `exit`; close 150-400 ms, `fold`), so no frame shows text cut mid-line or faded headings piling on each other. On is the same
+  rule reversed: open the space first (0-250 ms), then fade the content in (`settle`, 250-450 ms).
+- **What leaves, in order:** (1) the plate bar leaves **downward** (`exit`, 150 ms) and the blocks (Today, Meals, Earlier, the Health row, Your foods,
+  Which was better?) fade out with it; (2) at 150 ms the blocks, now empty, close (`fold`, 250 ms) and the sections below ride up as they close.
 - **The Track switch is the anchor:** its check answers at once and it never moves relative to the header; only what was above it closes.
-- **On:** the exact reverse, as one timeline: the blocks open first, the figures fade in after they have room, the bar rises last.
+- **On:** the exact reverse, as one timeline: the space opens first, the content fades in after it has room, the bar rises with it.
 - **Halls on arrival:** the lists are hidden while this plays, so they are already in their off state: rows with their name, calories and
   protein as menu facts, with no `+` lane, so the names take the width and re-wrap wider; no plate bar. Calories and protein on a row stay: they
   are the menu's facts (the label still prints), not the ledger. (Open: the owner's list names "the cal and protein figures on rows" among
@@ -1336,4 +1341,10 @@ under the colour layer's p, which at p .5 covers only 75%.
   22 dp shift for three halls of four when the extra line lands, and growing the late row downward needs a title anchored from the top, which moves all four halls.
   M2 itself now reserves the extra line the same way (its ghost row already reserved the meter line). The **hall card on Halls** doesn't have the shift: its title,
   status and meter are stacked from the top of a fixed-height band, so a late meter grows downward under the status line and nothing above it moves; no change.
+
+### 5. Search's hall tiles (owner decision 2026-10-17, with Flutter PR #611)
+The felt-letter tiles ("W F H B") under a Search row's `+`: a tile **centres vertically on the row's meta line** (the cal and protein line), not at the lane's
+foot (M2 drew it 2.5 px low); a **group of tiles centres under the + as one group**, but is **clamped so its right edge never passes the row's content edge**
+(20 px in from the row's right edge, the gutter). At 360: one tile (18 px) centres on the + glyph; two (40 px) and three (62 px) are wider than the + can centre, so
+they clamp, their right edge at the content edge, 340. A café's name keeps the lane's right edge as before. Measured for 1, 2 and 3 tiles at 360 in the test.
 

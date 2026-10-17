@@ -308,7 +308,7 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
    and a row has the same shape with the scores on or off. (Later rows have no +: their "Dinner B" stays in the meta line.) */
 .lane{flex:none;width:114px;min-height:66px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end}   /* fits + or stepper over the letters: adding never changes the row's height */
 .lane>.add.ghost{margin:2px}
-.lane .tags{margin:0 14px 0 0}
+.lane .tags{margin:0 max(12px,calc(26px - 11px*var(--n,1))) 0 0;transform:translateY(var(--ty,0px))}   /* round 13 (owner 2026-10-17): the tiles centre on the meta line (alignTiles sets --ty: a transform, so the lane's height, and the row's, don't change), and as one group under the +, clamped so the group's right edge stops at the row's content edge (20 px in): 1 tile 15 px margin, 2 and 3 clamp at 12 */
 .mg .lnext+.tags{margin-left:6px}
 /* scores: an Oswald figure with its scale beside it. Healthfulness: seven bars (the ratings panel's), carbon: footprint + letter */
 /* score tiles (round 8b): portrait, rounded, never square, never maroon: unlike a hall letter in shape and colour */
@@ -1329,16 +1329,16 @@ function trkEls(){ const y=$('#you');
   return { bar:$('#bar'), blocks:[...y.querySelectorAll(':scope > .sec')].filter(e=>['Today','Meals','Earlier'].includes(e.querySelector('h2')?.textContent)).concat([...y.querySelectorAll('.hrow')].filter(e=>e.querySelector('[data-act=health]')), [...y.querySelectorAll('.lrow[data-p=foods],.lrow[data-p=rank]')]),
     nums:[...y.querySelectorAll(':scope > .sec .facts b, :scope > .sec .mc .num')] }; }
 const barUp = () => $('#bar .in').children.length>0 && getComputedStyle($('#bar')).display!=='none';
-function foldKF(el, open){ const cs=getComputedStyle(el), full={height:el.offsetHeight+'px', minHeight:cs.minHeight, paddingTop:cs.paddingTop, paddingBottom:cs.paddingBottom, borderBottomWidth:cs.borderBottomWidth, opacity:1}, gone={height:'0px', minHeight:'0px', paddingTop:'0px', paddingBottom:'0px', borderBottomWidth:'0px', opacity:0};
-  el.style.overflow='hidden'; return open ? [gone,full] : [full,gone]; }
+function foldKF(el, open){ const cs=getComputedStyle(el), full={height:el.offsetHeight+'px', minHeight:cs.minHeight, paddingTop:cs.paddingTop, paddingBottom:cs.paddingBottom, borderBottomWidth:cs.borderBottomWidth, opacity:0}, gone={height:'0px', minHeight:'0px', paddingTop:'0px', paddingBottom:'0px', borderBottomWidth:'0px', opacity:0};
+  el.style.overflow='hidden'; return open ? [gone,full] : [full,gone]; }   // opacity 0 throughout: a fold only ever opens or closes empty space
+// Off: everything leaving reaches opacity 0 first (0 to 150 ms, `exit`), THEN its block closes (150 to 400 ms, `fold`), so no frame shows cut or overlapping text.
+// On: the space opens first (0 to 250 ms, `fold`, empty), THEN the content fades in (250 to 450 ms, `settle`).
 async function liftOff(){ const onYou=S.tab==='you' && !NAV.some(n=>n.kind==='page'), E=trkEls(), an=[];
   if(barUp()) an.push(A(E.bar,[{transform:'none',opacity:1},{transform:'translateY(120%)',opacity:0}],'exit',{fill:'both'}));
-  if(onYou){ E.nums.forEach(e=>an.push(A(e,[{opacity:1},{opacity:0}],'settle',{fill:'both'})));
-    E.blocks.forEach(e=>an.push(A(e,foldKF(e,false),'fold',{fill:'both', delay:MO.exit.d}))); }
+  if(onYou) E.blocks.forEach(e=>{ an.push(A(e,[{opacity:1},{opacity:0}],'exit',{fill:'both'})); an.push(A(e,foldKF(e,false),'fold',{fill:'forwards', delay:MO.exit.d})); });
   TRK.an=an; await Promise.all(an.map(done)); an.forEach(a=>a&&a.cancel()); E.blocks.forEach(e=>e.style.overflow=''); }
 async function liftOn(){ const onYou=S.tab==='you' && !NAV.some(n=>n.kind==='page'), E=trkEls(), an=[], fd=MO.fold.d;
-  if(onYou){ E.blocks.forEach(e=>an.push(A(e,foldKF(e,true),'fold',{fill:'both'})));
-    E.nums.forEach(e=>an.push(A(e,[{opacity:0},{opacity:1}],'settle',{fill:'both', delay:fd})));
+  if(onYou){ E.blocks.forEach(e=>{ an.push(A(e,foldKF(e,true),'fold',{fill:'both'})); an.push(A(e,[{opacity:0},{opacity:1}],'settle',{fill:'both', delay:fd})); });
     if(barUp()) an.push(A(E.bar,[{transform:'translateY(120%)',opacity:0},{transform:'none',opacity:1}],'fold',{fill:'both', delay:fd})); }
   else if(barUp()) an.push(A(E.bar,[{transform:'translateY(120%)',opacity:0},{transform:'none',opacity:1}],'fold',{fill:'both'}));
   TRK.an=an; await Promise.all(an.map(done)); an.forEach(a=>a&&a.cancel()); E.blocks.forEach(e=>e.style.overflow=''); }
@@ -1369,12 +1369,14 @@ function osSheet(done, kind='health'){ const o=document.createElement('div'); o.
    The switch lives on the Favorites page. ?alerts=allow|deny|blocked|bgoff is what the OS answers (blocked: it won't ask again;
    bgoff: notifications allowed, background work not). A background run (alertRun) matches favourites against today's saved
    menus: one notification per dish per logical day, from 7 AM, never once the dish's last serving that day has ended. */
-const ALQ = OSQ.get('alerts') || 'allow';
+let ALQ = OSQ.get('alerts') || 'allow';
+// round 13: FCM isn't delivered to an app the user set to battery Restricted, so on Android that state still matters (iOS has no equivalent row)
+const BGOFF = () => ALERTS.on && ALERTS.granted && ALQ==='bgoff' && OS==='android';
 const ALERTS = {on:false, granted:null, denied:false, seen:new Set(), unread:0};   // unread: favourite notifications delivered since the app was last opened (the iOS badge number)
 if(ALQ==='revoked') Object.assign(ALERTS, {on:true, granted:false, denied:true});   // turned off in system settings: found when You shows or the app resumes
-function alertRows(){ const den=ALERTS.denied;
-  const line = den ? 'Notifications are off for UDine' : "When a favorite is on today's menu";
-  return `<div class="hrow">${checkRow('data-act="alerts"', ALERTS.on && !den, 'Notify me', line)}${den?`<button class="obtn dk" data-act="asettings">Open Settings</button>`:''}</div>`; }
+function alertRows(){ const den=ALERTS.denied, bg=BGOFF();
+  const line = den ? 'Notifications are off for UDine' : bg ? "Battery use is restricted, so notifications can't arrive" : "When a favorite is on today's menu";
+  return `<div class="hrow">${checkRow('data-act="alerts"', ALERTS.on && !den, 'Notify me', line)}${den||bg?`<button class="obtn dk" data-act="asettings">${bg?'App info':'Open Settings'}</button>`:''}</div>`; }
 function alertsTap(){
   if(ALERTS.on && !ALERTS.denied){ ALERTS.on=false; rerenderPage(); buzz(4); return; }
   if(ALQ==='blocked' || ALERTS.granted===false){ ALERTS.denied=true; rerenderPage(); return; }   // the OS won't ask again
@@ -1384,7 +1386,7 @@ const dishName = k => FAMNAME[k] || (SERV[k]||[])[0]?.n || k;
 // that push as the phone receives it: it names the favourites on today's menus at that moment. Nothing sends later, so a dish added to a
 // menu after 7 AM is not alerted, and a run outside the window is empty. The app need not be running.
 const PUSHWIN=[7*60, 8*60];
-function alertRun(now){ if(!(ALERTS.on && ALERTS.granted===true) || now<PUSHWIN[0] || now>=PUSHWIN[1]) return [];
+function alertRun(now){ if(!(ALERTS.on && ALERTS.granted===true) || BGOFF() || now<PUSHWIN[0] || now>=PUSHWIN[1]) return [];
   const out=[]; for(const k of S.fav){ const key=k+'|'+TODAY; if(ALERTS.seen.has(key)) continue;
     const A=whereAnswer(k, now); if(!A.length || A[0].day) continue;   // nothing left today: not posted (and not spent)
     ALERTS.seen.add(key); const g=A[0];
@@ -1876,7 +1878,7 @@ function laterHits(){ const toks=norm(S.q).split(' ').filter(Boolean); if(!toks.
 // the halls serving it, by their letters (as on the bands); a row says where, never where not
 const andList = l => l.length<2 ? l.join('') : l.slice(0,-1).join(', ')+' and '+l.at(-1);
 // a café has no letter: its name (or how many cafés), after any hall letters
-const hallGlyph = (hs, said) => { const C=hs.filter(isCafe); return `<span class="tags" role="img" aria-label="${said} at ${esc(andList(hs.map(PN)))}">${hs.filter(h=>!isCafe(h)).map(h=>`<i class="ht on" aria-hidden="true">${h}</i>`).join('')}${C.length?`<span class="cnm" aria-hidden="true">${C.length===1?esc(LANE(C[0])):C.length+' cafés'}</span>`:''}</span>`; };
+const hallGlyph = (hs, said) => { const C=hs.filter(isCafe); return `<span class="tags" style="--n:${hs.filter(h=>!isCafe(h)).length}" role="img" aria-label="${said} at ${esc(andList(hs.map(PN)))}">${hs.filter(h=>!isCafe(h)).map(h=>`<i class="ht on" aria-hidden="true">${h}</i>`).join('')}${C.length?`<span class="cnm" aria-hidden="true">${C.length===1?esc(LANE(C[0])):C.length+' cafés'}</span>`:''}</span>`; };
 // dish detail: where you can get it, now or next. One line per answer, each hall a felt-letter tag that opens it there.
 function whereHTML(k){ const A=whereAnswer(k);
   if(!A.length) return `<div class="where"><p class="wt">Not on the menu again today or tomorrow</p></div>`;
@@ -1933,7 +1935,12 @@ function renderSearch(){
   for(const el of box.children){ if(n++>18) break; const k=key(el); if(k&&before.has(k)){ const dy=before.get(k)-el.getBoundingClientRect().top; if(Math.abs(dy)>1) A(el,[{transform:`translateY(${dy}px)`},{transform:'none'}],'settle'); }
     else if(!el.classList.contains('empty')||!wasEmpty) A(el,[{opacity:0},{opacity:1}],'settle'); }
   const em=box.querySelector('.empty'); if(em && !(wasEmpty && wasText===em.textContent)) em.classList.add('fadein');
+  alignTiles(box);
 }
+// round 13: a Search row's hall tiles sit on the row's meta line (the cal and protein group, its last line), whatever the name's lines: --ty is the gap between the two centres
+function alignTiles(box){ for(const r of box.querySelectorAll('.row')){ const t=r.querySelector('.lane > .tags'), m=[...r.querySelectorAll('.m .mg:not(.vt)')].at(-1); if(!t||!m) continue;
+    t.style.setProperty('--ty','0px'); const a=t.getBoundingClientRect(), b=m.getBoundingClientRect(); t.style.setProperty('--ty',((b.top+b.height/2)-(a.top+a.height/2)).toFixed(2)+'px'); } }
+addEventListener('resize',()=>{ const b=$('#sres'); if(b) alignTiles(b); });
 // Search's idle state (nothing typed, no lens, no scope) is the "what's on" hub: the fixture list on maroon, under the lens chips.
 const isIdle = () => !S.q && !S.lenses.size && !S.scope && EVENTS.length>0 && NET!=='fail';   // failed: nothing came, events neither
 function setIdle(){ const idle=isIdle(), el=$('#sdisc'), was=!el.classList.contains('hide');
@@ -2488,7 +2495,7 @@ function restand(row){
     const V=g0.vars[vi], d=rep(V), hs=Object.keys(V.refs).sort((a,b)=>PORD(a)-PORD(b)); row.dataset.v=vi;
     row.querySelector('.n').innerHTML=nameHTML(g0.n, dietMark(d)+(S.fav.has(g0.k)?'<span class="star" aria-label="Favorite">★</span>':''));
     row.querySelector('.m').innerHTML=`${S.sreveal?contHTML(d):''}${varMeta(V.chip)}${meta(d)}`;
-    const tg=row.querySelector('.lane .tags'); if(tg) tg.outerHTML=hallGlyph(hs,'Served now');
+    const tg=row.querySelector('.lane .tags'); if(tg){ tg.outerHTML=hallGlyph(hs,'Served now'); alignTiles(row.parentElement); }
     A(row.querySelector('.tx'),[{opacity:.4},{opacity:1}],'settle'); } }
 function refreshLists(){
   for(const box of [S.hall&&!S.mday&&$('#mlist'), $('#sres')]) if(box) for(const row of box.querySelectorAll('.row:not(.later):not(.syn)')){ restand(row); const [q,g]=rowState(row); setCtl(row,q,g); }

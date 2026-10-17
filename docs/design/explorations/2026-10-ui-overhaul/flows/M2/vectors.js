@@ -35,7 +35,7 @@
 //              // the one broth picked from "choices"; round 11b). The rule is baseOf; phoOf builds the pho.
 //   "synthetic": [ {"day", "place", "meal", "station", "label"} ],  // every station-day with a synthetic base: unpriced Salad Bar
 //              // and Deli Bar (never by the pound), and the halls' pho bars. A station not listed has none.
-//   "alerts": [ {"favorites": [dish], "runs": [ {"clock", "posted": [[title, body]]} ]} ],   // alertRun, allowed, runs in
+//   "alerts": [ {"favorites": [dish], "restricted"?: true (Android, battery Restricted: nothing arrives), "runs": [ {"clock", "posted": [[title, body]]} ]} ],   // alertRun, allowed, runs in
 //              // order on Oct 8 sharing one dedup: one per dish per day, from 7 AM, not once its last serving today ended
 //   // round 13 (owner, 2026-10-17): the server sends one visible push per dish per day at about 7 AM Eastern (the sim's window: 7:00 to 7:59), so
 //   // alerts' runs after the window post nothing, and the iOS icon badge is the number of notifications delivered since the app was last opened
@@ -107,7 +107,8 @@ const ALERTS = [
   [['Beef Brisket Noodle Bowl', 'Golden BBQ Chicken Thigh'], [6 * 60 + 50, 7 * 60 + 15, 7 * 60 + 30]],   // before 7 AM; the first run; dedup
   [['Beef Brisket Noodle Bowl'], [17 * 60]],                                                              // no push at 5 PM: a dish added after 7 AM isn't alerted
   [['Green Chile Posole'], [7 * 60, 16 * 60 + 31]],                                                       // the 7 AM push posts it; nothing later
-  [['Korean BBQ Chicken', 'Chewy M&M Bar'], [7 * 60 + 59, 8 * 60]],                                       // dinner today; tomorrow only; the window closes at 8
+  [['Korean BBQ Chicken', 'Chewy M&M Bar'], [7 * 60 + 59, 8 * 60]],
+  [['Beef Brisket Noodle Bowl'], [7 * 60 + 15], { restricted: true }],                                     // Android, battery Restricted: FCM isn't delivered, nothing posts                                       // dinner today; tomorrow only; the window closes at 8
 ];
 const STARCASES = [[['Golden BBQ Chicken Thigh'], 12 * 60 + 41], [['Scrambled Eggs'], 6 * 60], [['Korean BBQ Chicken'], 12 * 60 + 41], [['Korean BBQ Chicken'], 17 * 60], [['Korean BBQ Chicken'], 22 * 60], [['Golden BBQ Chicken Thigh', 'Korean BBQ Chicken'], 17 * 60]];
 const SAVEDCASES = [['offline', [], 'W', 0], ['offline', [], 'W', 1], ['offline', [], 'W', 2], ['offline', [], 'Green Fields', 0], ['offline', ['Green Fields'], 'Green Fields', 0],
@@ -182,9 +183,9 @@ const PRICE = [['Harissa Chicken', 'Terrace'], ['Caesar Salad w/Chicken', 'Green
     return { day: x.day, place: x.h, meal: x.meal, base: x.base, synthetic: x.syn, ...(y ? { choices: y.choices.map(d => d.n) } : {}) }; }));
   out.synthetic = await p.evaluate(() => { const out = []; MD.forEach((D, day) => Object.entries(D).forEach(([k, ms]) => Object.entries(ms).forEach(([meal, ss]) => ss.forEach(([st], si) => { const y = synOf(day, k, meal, si); if (y) out.push({ day: DAYS[day], place: k, meal, station: st, label: y.label }); })))); return out; });
   out.alerts = [];
-  for (const [fav, runs] of ALERTS) out.alerts.push(await p.evaluate(([fav, runs]) => { ALERTS.on = true; ALERTS.granted = true; ALERTS.seen.clear(); S.fav = new Set(fav.map(norm));
+  for (const [fav, runs, opt] of ALERTS) out.alerts.push(await p.evaluate(([fav, runs, opt]) => { ALERTS.on = true; ALERTS.granted = true; ALERTS.seen.clear(); S.fav = new Set(fav.map(norm)); const q0 = ALQ; if (opt && opt.restricted) ALQ = 'bgoff';
     const f = m => `${(Math.floor(m / 60) + 11) % 12 + 1}:${String(m % 60).padStart(2, '0')} ${m < 720 ? 'AM' : 'PM'}`;
-    const r = { favorites: fav, runs: runs.map(m => ({ clock: f(m), posted: alertRun(m).map(n => [n.title, n.body]) })) }; S.fav = new Set(); return r; }, [fav, runs]));
+    const r = { favorites: fav, ...(opt && opt.restricted ? { restricted: true } : {}), runs: runs.map(m => ({ clock: f(m), posted: alertRun(m).map(n => [n.title, n.body]) })) }; ALQ = q0; S.fav = new Set(); return r; }, [fav, runs, opt]));
   out.stars = await p.evaluate(cases => cases.map(([fav, now]) => { S.fav = new Set(fav.map(norm)); const r = { favorites: fav, clock: `${(Math.floor(now / 60) + 11) % 12 + 1}:${String(now % 60).padStart(2, '0')} ${now < 720 || now >= 1440 ? 'AM' : 'PM'}`, halls: HALLS.filter(h => hallStar(h, now)), meals: Object.fromEntries(HALLS.map(h => [h, hallMeal(h, now)])) }; S.fav = new Set(); return r; }), STARCASES);
   out.packaged = await p.evaluate(() => { S.q = 'clif'; const r = { query: S.q, yours: S.foods.map(f => f.n), shown: packHits().map(f => [f.n, f.cal]) }; S.q = ''; return r; });
   out.saved = await p.evaluate(cases => cases.map(([net, cafes, place, day]) => { const n0 = NET, s0 = new Set(SAVED); NET = net; SAVED.clear(); cafes.forEach(c => SAVED.add(c));
