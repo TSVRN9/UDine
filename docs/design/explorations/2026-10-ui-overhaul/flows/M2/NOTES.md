@@ -2658,5 +2658,10 @@ blocks fold at the same time (their content has faded by then); not staggered.
   off: every row shorter and never under 48; hall menus no figures; the sheet keeps name/serving/marks and drops the label; back on the figures return). Round 10's "no + or stepper" check counts `display:none` as gone;
   "hall rows keep their height" became "hall rows close up to name-only"; round 12's "tracking off keeps the picker" reads the variant from the sheet's name (the label is hidden), not the label's number.
 - **Vectors:** top-level `tracking`: the windows in ms, the row minimum heights, what is hidden and what is kept.
-- **Final counts (the busy-block and Fountain Drink changes):** `node test.js` 5,508 checks all green; `RED=13` 92, `RED=12` 166, `RED=9` 440. Frames: `p7/lateW390.png`, `lateW360.png`, `lateF390.png`, `lateF360.png` (the reading landing, 12 frames, title and letter fixed) and `p7/f-diet.png` (the Fountain Drink row with Vegetarian, Plant based and Halal all on).
+- **Final counts (the busy-block and Fountain Drink changes):** `node test.js` 5,349 checks all green (final tree); `RED=13` 94, `RED=12` 166. Frames: `p7/lateW390.png`, `lateW360.png`, `lateF390.png`, `lateF360.png` (the reading landing, 12 frames, title and letter fixed) and `p7/f-diet.png` (the Fountain Drink row with Vegetarian, Plant based and Halal all on).
+- **Late reading, clipping and chart (review fix).** The first `arriveBusy` grew the block's box with its text inside, so the line was cut mid-glyph for about the first half of the grow, and the chart was drawn at k 0
+  (`paint()` rewrites `#mhist`'s and `#mbz`'s own opacity every call, so the fade was set on their children: `#mbz > *{opacity:var(--bo)}` and the chart's `svg`). Now `busyStep(k)`: the box grows over the first 60% of
+  `settle` (its easing), the line and the chart fade in over the last 40%. The chart is part of the late block (a live hall's only), absent at k 0, living in the header's foot band, so D (47 dp for Worcester, Hampshire,
+  Berkshire; 25 for Franklin) is the busy lines only. Test (same scenario): at 21 steps, while the line has any opacity its scroll height equals its height and it lies inside the header; the chart is not drawn at k 0.
+  Red: `build/r12/red-r13-late2.txt`. Frames: `p7/lateW390.png`, `lateW360.png`, `lateF390.png`, `lateF360.png` (12 each).
 

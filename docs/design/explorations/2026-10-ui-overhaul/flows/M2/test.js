@@ -1432,6 +1432,12 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
         assert.deepEqual([z.nm, z.let], [a.nm, a.let], h + ': the title and the letter do not move when the reading lands');
         assert(z.tabs[1] - a.tabs[1] >= 20 && z.list[1] - a.list[1] >= 20, h + ': the meal tabs and the list ride down (' + (z.tabs[1] - a.tabs[1]) + ' px)');
         assert.deepEqual([z.nm, z.tabs], [loaded[h].nm, loaded[h].tabs], h + ': and it ends exactly where a header opened with the reading is'); }
+      // no frame shows the line partly clipped, and the chart is not there before the reading
+      for (const h of ['W', 'F']) { await go('?state=menu&hall=' + h + '&busy=late'); await page.waitForTimeout(500); await ev(() => arriveBusy(true));
+        const bad = await ev(() => { const out = []; for (let i = 0; i <= 20; i++) { const k = i / 20; busyStep(k); const bz = document.querySelector('#mbz'), cs = getComputedStyle(bz.firstElementChild), q = bz.getBoundingClientRect(), hd = document.querySelector('#mhead').getBoundingClientRect(), ch = document.querySelector('#mhist svg');
+            if (+cs.opacity > 0 && (bz.scrollHeight > q.height + .5 || q.bottom > hd.bottom + .5)) out.push(['clipped', k, +cs.opacity, bz.scrollHeight, Math.round(q.height)]);
+            if (i === 0 && ch && +getComputedStyle(ch).opacity > 0) out.push(['chart at k 0']); } return out; });
+        assert.deepEqual(bad, [], h + ': while the line has any opacity it is whole and inside the header; the chart is not drawn at k 0'); }
     });
     await scen('Search tiles: centred on the meta line, and as one group under the +, clamped at the row\'s content edge (360)', async () => {
       await page.setViewportSize({ width: 360, height: 844 }); await go('?state=search'); await page.locator('#q').fill('chicken'); await page.waitForTimeout(900);

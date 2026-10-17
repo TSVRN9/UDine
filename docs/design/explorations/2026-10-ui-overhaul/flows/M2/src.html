@@ -271,7 +271,9 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 /* the status line is the schedule's other door: a button, with a chevron quieter than the gold ones in the rows below */
 #mts{display:flex;align-items:center;gap:5px;pointer-events:auto;text-align:left;padding:12px 16px 12px 0;margin:-5px 0 -12px;color:rgba(255,255,255,.86)}
 #mts.none{visibility:hidden}
-#mts .sch,#mbz .bzx{opacity:var(--fx,1)}   /* round 13: what the header adds to a shared element (the chevron, the 'Calmer around' line) crossfades in on top of it */
+#mts .sch{opacity:var(--fx,1)}
+#mbz>*{opacity:var(--bo,1)}   /* round 13: a late reading's text fades in once its box is whole (busyStep sets --bo) */
+#mbz .bzx{opacity:calc(var(--fx,1)*var(--bo,1))}   /* round 13: what the header adds to a shared element (the chevron, the 'Calmer around' line) crossfades in on top of it */
 #mts .sch{width:14px;height:14px;flex:none;stroke:rgba(255,255,255,.6);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .mt .bz.ghost{visibility:hidden}   /* another day, or offline: no live data, but the name and status stay exactly where today has them */
 #mctl .pinb svg{fill:none}
@@ -1704,13 +1706,17 @@ const LATEBUSY = new URLSearchParams(location.search).get('busy')==='late';
 function lateMeasure(){ if(!LATE_D) return; const bz=$('#mbz'); bz.style.display=''; const D=bz.offsetHeight+parseFloat(getComputedStyle(bz).marginTop); bz.style.display='none'; if(D>0 && Math.abs(D-LATE_D)>.01){ LATE_D=D; setHH(ST+282-D); } }   // the block's height, measured on the real fonts
 function lateSetup(){ if(!S.lateWant) return; S.lateWant=false; const bz=$('#mbz'), D=bz.offsetHeight+parseFloat(getComputedStyle(bz).marginTop); if(!(D>0)) return; LATE_D=D; bz.style.display='none'; $('#mhist').innerHTML=''; setHH(ST+282-D); }
 let LB=null;   // the reading landing: {Dc, mt, base, D}
-function busyStep(e){ const bz=$('#mbz'); bz.style.height=LB.Dc*e+'px'; bz.style.marginTop=LB.mt*e+'px'; bz.style.opacity=e; $('#mhist').style.opacity=e; setHH(LB.base+LB.D*e); paint(XP,$('#mscroll').scrollTop); }
+// k is linear time 0..1 over `settle`. The space grows over the first 60% (the block's box and the header, the title fixed) with its text invisible, so a growing box never clips
+// a glyph; only when the box is whole does the text, and the chart in the header's foot, fade in (the last 40%).
+const LB_GROW=.6, LB_E=BEZ([.2,0,0,1]);
+function busyStep(k){ const bz=$('#mbz'), e=LB_E(clamp(k/LB_GROW)), f=clamp((k-LB_GROW)/(1-LB_GROW)), h=$('#mhist').firstElementChild;
+  bz.style.height=LB.Dc*e+'px'; bz.style.marginTop=LB.mt*e+'px'; bz.style.setProperty('--bo',f); if(h) h.style.opacity=f; setHH(LB.base+LB.D*e); paint(XP,$('#mscroll').scrollTop); }
 function arriveBusy(manual){ lateMeasure(); const D=LATE_D; if(!D) return Promise.resolve(); const bz=$('#mbz'), k=PK(); LATE_D=0;
   bz.style.display=''; bz.style.height='auto'; bz.style.marginTop=''; const Dc=bz.offsetHeight, mt=parseFloat(getComputedStyle(bz).marginTop); $('#mhist').innerHTML=histSVG(k);
   LB={Dc, mt, base:ST+282-D, D:Dc+mt}; bz.style.overflow='hidden'; busyStep(0); if(manual) return Promise.resolve();   // (manual: the shots seek it with busyStep)
-  const E_=BEZ([.2,0,0,1]), t0=performance.now(), dur=RM?1:MO.settle.d;
-  return new Promise(res=>{ const f=t=>{ const kk=clamp((t-t0)/dur); busyStep(E_(kk));
-    if(kk<1) requestAnimationFrame(f); else { bz.style.height=bz.style.marginTop=bz.style.opacity=bz.style.overflow=''; $('#mhist').style.opacity=''; setHH(LB.base+LB.D); paint(XP,$('#mscroll').scrollTop); res(); } }; requestAnimationFrame(f); }); }
+  const t0=performance.now(), dur=RM?1:MO.settle.d;
+  return new Promise(res=>{ const f=t=>{ const kk=clamp((t-t0)/dur); busyStep(kk);
+    if(kk<1) requestAnimationFrame(f); else { bz.style.height=bz.style.marginTop=bz.style.overflow=''; bz.style.removeProperty('--bo'); const h=$('#mhist').firstElementChild; if(h) h.style.opacity=''; setHH(LB.base+LB.D); paint(XP,$('#mscroll').scrollTop); res(); } }; requestAnimationFrame(f); }); }
 const menuShowing = () => !!S.hall && S.hallTab===S.tab && !$('#menu').classList.contains('hide');
 // h: a hall letter, or 'C' with opt.cafe. src: the tapped band (container transform) or anything else (push); omitted, the
 // band itself when Halls is showing. instant: state restores.

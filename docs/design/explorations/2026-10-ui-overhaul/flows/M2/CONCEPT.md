@@ -1341,7 +1341,7 @@ under the colour layer's p, which at p .5 covers only 75%.
 - **A late busy reading doesn't move the title or the letter (owner, 2026-10-17: don't reserve).** A header opened with its reading (M2's measured state) is as it was:
   Worcester, Hampshire and Berkshire's titles at one height, Franklin's 22 dp lower (M2's 82 and 104 dp; Franklin has no "Calmer around" line). A header opened *before* the
   reading lands has no busy block and no chart, and is shorter by the block's height D; its title is already where it will stay (the title is anchored by the header's foot, so
-  without the block it sits exactly where it sits with it). When the reading lands the block grows in below the status line (height, spacing and opacity, `settle`), the header
+  without the block it sits exactly where it sits with it). When the reading lands the block's box grows below the status line over the first 60% of `settle` (height and spacing, no text drawn), the header
   grows by D, and the meal tabs and the list ride down by D with it (Worcester, Hampshire, Berkshire: D = 47 dp, 39 of block and 8 of spacing; Franklin: D = 25, 17 and 8). The
   title and the letter do not move at any frame. A header that never gets a reading stays short (no reservation): that differs from M2's own offline and other-day header, which
   keeps reserving the hall's own block as before. The **hall card on Halls** is stacked from the top of a fixed band, so a late meter grows downward under the status line; no change.
@@ -1352,4 +1352,8 @@ The felt-letter tiles ("W F H B") under a Search row's `+`: a tile **centres ver
 foot (M2 drew it 2.5 px low); a **group of tiles centres under the + as one group**, but is **clamped so its right edge never passes the row's content edge**
 (20 px in from the row's right edge, the gutter). At 360: one tile (18 px) centres on the + glyph; two (40 px) and three (62 px) are wider than the + can centre, so
 they clamp, their right edge at the content edge, 340. A café's name keeps the lane's right edge as before. Measured for 1, 2 and 3 tiles at 360 in the test.
+  **The line is never drawn clipped, and the chart belongs to the late block** (coordinator review, 2026-10-17): the box grows first (0 to 60% of `settle`, its text invisible, so no
+  glyph is ever cut by a growing box or the header's edge), then the line and the hour chart fade in together once the box is whole (60 to 100%). The chart is part of the reading (M2 draws it only
+  for a live hall), so it is absent before the reading lands; it sits in the header's foot band (10 dp from the bottom, 30 tall), which is already inside the header, so it adds nothing to D. D is the
+  busy lines only.
 

@@ -42,7 +42,7 @@ o.save(sys.argv[1])" ${OUT}/${name}.png ${files.map(([f, t]) => f + ' ' + t.repl
   for (const w of [390, 360]) for (const hall of ['W', 'F']) { const [ctx, p] = await mk(w); const files = [];
     await p.goto('file://' + SRC + '?state=menu&hall=' + hall + '&busy=late'); await p.evaluate(() => document.fonts.ready); await p.waitForTimeout(700);
     await p.evaluate(() => { arriveBusy(true); });
-    for (let i = 0; i < N; i++) { const k = i / (N - 1); await p.evaluate(k => busyStep(BEZ([.2, 0, 0, 1])(k)), k); await p.waitForTimeout(60);
+    for (let i = 0; i < N; i++) { const k = i / (N - 1); await p.evaluate(k => busyStep(k), k); await p.waitForTimeout(60);
       const f = `${OUT}/late${hall}${w}-${i}.png`; await p.screenshot({ path: f }); files.push([f, 'k ' + k.toFixed(2)]); }
     sheet('late' + hall + w, files); await ctx.close(); }
   await b.close();
