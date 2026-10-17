@@ -969,7 +969,11 @@ ratings, the ingredients) is the picked variant's own, so what you read is what 
   - **a size:** a leading "16 oz " ("16 oz Cappuccino"), or a trailing "(8 oz)" or "(8oz)" ("Coconut Mango Acai Bowl
     (8oz)");
   - **a milk:** "<name> <kind> Milk", where the kind is one the feed uses: Almond, Maple, Oat, Skim, Soy, Whole, 1%
-    ("Boba Oat Milk"). "Maple" is the feed's word (probably the Mapleline dairy; NOTES "Open").
+    ("Boba Oat Milk"). "Maple" is a maple flavour (owner, 2026-10-16), so the chip keeps the feed's word;
+  - **a base** (round 12b, owner, 2026-10-16): Coconut or Yogurt, only as the last word before "Smoothie" ("Banana Berry
+    Coconut Smoothie", family "Banana Berry Smoothie") or after "w/" at the end of a name ("Matcha Strawberry w/Yogurt", family
+    "Matcha Strawberry"). The word anywhere else is no token ("Coconut Mango Acai Bowl", "Coconut Flavored Syrup"), and a
+    "Green Beans w/Coconut" with no "w/Yogurt" beside it is a dish.
 - **A family is two or more items at the station with the same remaining name and different tokens.** What remains
   is the family's name ("Cappuccino", "Boba"). An item whose token has no sibling ("20 oz Cold Brew", "8 oz Spicy
   Lentil & Veggie Soup" at Franklin) is a dish as it always was, under the feed's own name.
@@ -977,19 +981,20 @@ ratings, the ingredients) is the picked variant's own, so what you read is what 
   - an Add-ons or Toppings station: its items are a builder's parts ("MAPLELINE Skim Milk", "MAPLELINE Whole Milk");
   - a milk with nothing left once the milk is taken out ("1% Milk");
   - names that differ by any other word, even with a size in front ("20 oz Iced Latte" and "20 oz Latte"; "12 oz
-    Decaf Coffee" and "12 oz Regular Coffee"; a Coconut and a Yogurt smoothie). Those are different drinks, so they
+    Decaf Coffee" and "12 oz Regular Coffee"; "Single" and "Double Espresso"; the milkshake flavours). Those are different drinks, so they
     stay rows. NOTES lists every one.
 - **The order and the default.** Sizes run smallest first, and the default is the smallest. Milks keep the feed's
-  order, and the default is the first (Almond). The default is what a row stands for.
+  order, and the default is the first (Almond). The default is what a row stands for while none of the family is on the
+  plate (round 12b below: after that, the row follows the plate).
 
 ### 2. The row: one row, standing for its default
 - **One row per family**, where its first member was in the feed's order. The other members' rows are gone.
 - **The name is the family's** ("Cappuccino", "Boba"). The meta line leads with the default's token as its own group,
   in its chip's word ("16 oz", "Almond"; round 12 frame review), then that variant's numbers and scores. A row says what its `+` adds; a range ("180 to
   275 cal") couldn't, and the data has ranges that run backwards (Caramel Macchiato: 152 cal at 16 oz, 27 at 20 oz).
-- **`+` adds the default in one tap**, as a row always does, and its stepper counts the default. Another variant,
-  picked in the sheet, goes on the plate as its own item; the row doesn't count it. That is round 10's bowl rule: a
-  row counts its plain dish, and what the sheet makes lives on the plate.
+- **`+` adds the variant the row stands for in one tap**, as a row always does, and its stepper counts it. (As first
+  built, a row counted only its default and an oat added from the sheet lived on the plate alone, round 10's bowl rule.
+  The owner replaced that on 2026-10-16: "Round 12b, 3" below.)
 - **Dietary preferences:** a family is hidden only when every member is. Otherwise the row stands for the first member
   your preferences allow.
 - A diet mark or star on the row is the default's mark and the family's star (§6).
@@ -1092,3 +1097,96 @@ ratings, the ingredients) is the picked variant's own, so what you read is what 
   Worcester Café, Roots Café and Procrastination Station"). Hall favourites read as before.
 - **Café phos** (Star Ginger's nine, Whitmore's six) are chips like the hall broths, one or two to a line; a name longer
   than the line wraps inside its chip (NOTES "Open").
+
+### Round 12b: the owner's answers (2026-10-16)
+Six answers to round 12's open questions. Four change the design (1, 3, 4, 5), one removes a note (2) and one leaves a
+rule alone (6). NOTES "Round 12b" has the numbers, the tests and the shots.
+
+**1. Courtside Café's smoothies are families.** The rule gains a third token, a *base* (§1 above): Coconut or Yogurt, read only
+at the end of a name before "Smoothie" or after "w/". Seven families at Courtside Café (Banana Berry, Mango Tango, Passionate
+Pineapple, Summer Blush, The Green Monster, V-9, and Matcha Strawberry), two chips each, Coconut first (the feed's order).
+The sheet reads "Banana Berry Smoothie, Coconut"; the log keeps "Banana Berry Coconut Smoothie". Everything else §1 lists
+stays a set of rows: decaf and regular, hot and iced, single and double espresso, the milkshake flavours, and a flavour that
+merely starts with the word ("Coconut Flavored Syrup").
+
+**2. "Maple" stays.** The chip is the feed's word; the note that it might be Mapleline's is gone.
+
+**3. The row follows the plate.** A family row stands for the variant last added to the plate and counts that variant. It
+replaces "a row counts only its default".
+```
+ Procrastination Station, lunch                 After Oat from the sheet           After Soy too                        Soy removed
+┌──────────────────────────────────┐ ┌──────────────────────────────────┐ ┌──────────────────────────────────┐ ┌──────────────────────────────────┐
+│ Boba                             │ │ Boba                             │ │ Boba                             │ │ Boba                             │
+│ Almond  180 cal  0.3g protein  + │ │ Oat  262 cal  0.4g protein [−1+] │ │ Soy  240 cal  …            [−1+] │ │ Oat  262 cal  0.4g protein [−1+] │
+└──────────────────────────────────┘ └──────────────────────────────────┘ └──────────────────────────────────┘ └──────────────────────────────────┘
+  nothing of it on the plate: the default   the row stands for oat, counts it    the later add; oat is on the plate     the next most recent still on it
+```
+- **"Added" means touched upward:** a first add (`+`, Add, Add another), a stepper `+` (the row's or the plate's), or an Update
+  (an Update counts as adding the variant it makes). A stepper `−` never makes a variant the one the row stands for.
+- **The row counts the variant it stands for, not the family.** Its stepper is that variant's own item: `+` and `−` change that
+  item, so what the tap does is what the number says.
+- **Two variants on the plate:** the row stands for the one touched last, and counts it. The other is on the plate (it shows there
+  with its own stepper) and the row doesn't mention it. Stepping the other up on the plate makes it the one touched last, so the
+  row switches to it.
+- **When that variant leaves the plate** (its `−` takes the last half, or it is removed on the plate, or Clear plate), the row
+  falls back to the family variant touched last among those still on the plate; with none, to the default (the first your
+  preferences allow). Logging empties the plate, so the row goes back to the default.
+- **A built variant is its own item** (round 10's bowl rule stays here): a 20 oz Cappuccino made with add-ins is a bowl on the
+  plate, and the row neither follows it nor counts it. Only plain dishes (an Add with no add-ins chosen) are the row's.
+- **The row changes in place:** its token, numbers, scores and diet mark swap and the content crossfades from .4 (`settle`);
+  the row doesn't move or change height, and a `+` that becomes a stepper widens as it always does. Tapping the row opens the
+  sheet on the variant it stands for (the action reads "Add another" when that variant is on the plate).
+- **In Search, what you typed narrows first.** Among the variants whose names fit the typed words, the row stands for the one
+  last added, else the first; "soy" gives Soy even with oat on the plate. With nothing typed or the typed words fitting all
+  (a lens, "boba"), the plate decides.
+- **A variant your preferences hide** is never the one a row stands for, even on the plate.
+
+**4. Café phos are picked by protein, then broth.** Star Ginger's nine ("Beef Pho w/Chicken Broth" … "Pulmuone Tofu Pho w/Vegetable
+Broth") and Whitmore's six are a complete grid of three proteins by three (or two) broths, so the sheet shows two chip groups,
+protein first, under the name. The rule reads the shape `<protein> Pho w/<broth> Broth`, and only a full grid of at least two by two;
+otherwise the station keeps one picker of whole dishes (Star Ginger's ramen days).
+```
+ Star Ginger: the pho builder                    Protein and broth chosen
+┌──────────────────────────────────┐ ┌──────────────────────────────────┐
+│               ────               │ │               ────               │
+│ Noodle Bowl                      │ │ Chicken Pho w/Vegetable Broth    │
+│ (Beef Pho)(Chicken Pho)          │ │ (Beef Pho)(✓Chicken Pho)         │
+│ (Pulmuone Tofu Pho)              │ │ (Pulmuone Tofu Pho)              │
+│ (Chicken Broth)                  │ │ (Chicken Broth)                  │
+│ (Spicy Green Curry Broth)        │ │ (Spicy Green Curry Broth)        │
+│ (Vegetable Broth)                │ │ (✓Vegetable Broth)               │
+│ Add-ons                          │ │ Add-ons                          │
+│ Add Grilled Chicken           +  │ │ Add Grilled Chicken           +  │
+├──────────────────────────────────┤ ├──────────────────────────────────┤
+│ 0 cal  0g protein        [ Add ] │ │ 145 cal  …               [ Add ] │
+└──────────────────────────────────┘ └──────────────────────────────────┘
+   Add waits for both                    (the chosen chips are filled, not checked)
+```
+- **Labels** are the feed's words with the noun kept ("Beef Pho", "Spicy Green Curry Broth"), so the two groups never read alike
+  ("Chicken Pho", "Chicken Broth") and, as everywhere in round 12, there is no heading.
+- **Add waits until both are chosen**, not a default: round 11b's rule for a broth, now for two. Neither chosen, or one,
+  the name is the station's ("Noodle Bowl"), the foot sums only the add-ons chosen so far and Add is disabled.
+- **The bowl is named for the feed's pho** once both are chosen, and that is the plate's, the log's and history's name too
+  ("Beef Pho w/Vegetable Broth"). Nothing is composed ("Pho, Beef, Vegetable"): the feed's name already says both, and it is what
+  RN logs. Changing either chip re-resolves to the matching pho; the add-ons stay chosen; the foot, label, Contains and ratings
+  follow, in place as round 12's pick does.
+- **On the plate, Update** reopens the builder with both chips chosen from the pho. Changing either chip and Update replaces the
+  item with the new pho, keeping its quantity and its add-ons; a twin (the same pho with the same add-ons) merges, as a bowl's does.
+- **Hall pho bars** (broth only) keep their one picker.
+
+**5. Blank calories draw "–".** A feed record with no calories (20 oz Chai, 20 oz Iced Chai Latte, 20 oz Iced Tea, Add Crispy
+Chicken, Fountain Drink; nine records) is unknown, not zero, so wherever calories are drawn they read "–": a row's "20 oz –
+cal", the sheet's Calories line on the label, a plate row ("– cal each"), a logged item. A recorded 0 stays 0
+(the 31 records the feed gives as 0). Totals are the sum of what is known: a plate, meal or foot of only unknowns reads "–", and a
+plate with a known item beside one reads that item's number. The log stores the unknown as null, and an export writes null.
+Protein, carbs and fat on the same records are blank too and still read 0 (NOTES "Open").
+
+**6. A café's add-ons apply to every dish at that meal: unchanged** (round 10's rule). Roots Café's lunch boba still builds
+with "Add Bacon Quesadilla".
+
+### Motion, round 12b (all existing)
+| Interaction | Pattern |
+|---|---|
+| A row stands for another variant | In place: the content crossfades from .4 (`settle`); the row doesn't move |
+| A protein or broth chip chosen | The same as any chip: the fill (`settle`), the content under the chips crossfades from .4 |
+

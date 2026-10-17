@@ -23,7 +23,7 @@
 //              // round 10: a bowl is one plate item, base + parts summed. A null base is a synthetic one (round 11: "Salad Bar", named for
 //              // its station) that carries no nutrition of its own; station names its bar. Another bowl of the same base and
 //              // parts adds to that item's qty; the plain base dish (an "add") is always a separate item.
-//     "plates": [ {"meal", "halls": [place keys] | null, "label", "items": [[dish, qty]], "totals": {"cal","p","c","f"}} ],
+//     "plates": [ {"meal", "halls": [place keys] | null, "label", "items": [[dish, qty]], "totals": {"cal","p","c","f"}} ],   // cal is null when every item's calories are blank (round 12b)
 //     "front": index } ],
 //   "scores": [ {"dish", "health": 0..7 | null, "carbon": "A".."E" | null, "rawHealthfulness": number | null} ],
 //              // every distinct (dish, scores, raw) in the 15 days. health is the H0..H7 code; a raw number without
@@ -44,12 +44,17 @@
 //   "saved": [ {"net": "offline"|"fail", "savedCafes": [name], "place", "day", "saved"} ],  // which menus Search can read
 //   // round 12: variant families (variantOf / famsAt in src.html; NOTES "Round 12")
 //   "variants": {
-//     "families": [ {"day", "place", "meal", "station", "name", "axis": "size"|"milk",
+//     "families": [ {"day", "place", "meal", "station", "name", "axis": "size"|"milk"|"base",   // base: Coconut / Yogurt (round 12b)
 //                    "variants": [[token, feed dish name, cal]]} ],   // every family, each meal of each day; the first variant is the
 //              // default (sizes smallest first, milks in the feed's order). The row is named "name"; a variant reads "name, token".
 //     "nearMiss": [ {"place", "station", "names": [feed names], "reason", "days"} ],   // every item the rule reads a token in but
 //              // leaves alone, and every set of names one word apart that isn't a family (reason says which), over Oct 8-22
 //     "shown": [[feed name, how it reads on the sheet, the plate and in history]],
+//     "follow": [ {"op", "stands": chip token, "counts": its qty on the plate, "plate": [[item name, qty]]} ],   // round 12b: the variant a
+//              // family row stands for after each op on the plate (add / up = added last; down three times removes): Procrastination Station's Boba
+//     "phos": [ {"place", "station", "days", "proteins": [[token, chip]], "broths": [[token, chip]], "grid": [[protein, broth, feed dish name, cal]]} ],
+//              // round 12b: a café pho station whose dishes are a whole protein x broth grid is picked by two pickers (protein, then
+//              // broth); "days" counts its station-meals. A station whose dishes aren't such a grid (Star Ginger's ramen) keeps one picker.
 //     "search": [ {"query", "rows": [ {"name", "variant": token | null, "dish": the dish its + adds, "places": [place keys]} ]} ],
 //              // Search's now groups (halls, then "At cafés"): a family is one row; what was typed picks its variant
 //     "alerts": [ {"favorite": family key, "clock", "posted": [[title, body]]} ] }   // a starred family alerts once, by its name
@@ -86,6 +91,8 @@ const PLATES = [
   { name: 'bowl: the Salad Bar (a synthetic base: only its parts)', ops: [['bowl', 'dinner', 'B', null, 'Salad Bar', [['Chickpeas', 1], ['Cucumbers', 1], ['Cheese Feta', .5]]]] },
   { name: 'bowl: a pho bar (round 11b): named after the broth picked, the rest its parts', ops: [['bowl', 'lunch', 'H', null, 'Noodle Bowl', [['Green Curry Pho Broth (Anchovies)', 1], ['Pho Noodles', 1], ['Chicken for Pho', 1]]]] },
   { name: "bowl: a café's pho builder (Whitmore Café): the pho picked, with the café's add-ons", ops: [['bowl', 'lunch', 'Whitmore Café', null, 'Noodle Bowl', [['Chicken Pho w/Vegetable Broth', 1], ['Hard Boiled Eggs', 1]]]] },
+  { name: 'blank calories (20 oz Chai): the plate has no calorie total', ops: [['add', 'lunch', '20 oz Chai', ['Worcester Café']]] },
+  { name: 'blank calories beside a known item: the total is the known sum', ops: [['add', 'lunch', '20 oz Chai', ['Worcester Café']], ['add', 'lunch', '16 oz Chai', ['Worcester Café']]] },
   { name: 'lunch and dinner are different plates', ops: [['add', 'lunch', 'Golden BBQ Chicken Thigh', ['W']], ['add', 'dinner', 'Korean BBQ Chicken', ['B']]] },
 ];
 // round 11: favourite alerts, each a sequence of background runs on Oct 8 (minutes after midnight)
@@ -142,7 +149,7 @@ const PRICE = [['Harissa Chicken', 'Terrace'], ['Caesar Salad w/Chicken', 'Green
         resolved.push(op);
       }
       const r1 = x => Math.round(x * 10) / 10;
-      return { ops: resolved, plates: S.plates.map(pl => { const t = totals(pl); return { meal: pl.meal, halls: plateHalls(pl), label: plateLabel(pl), items: pl.items.map(i => { const m = macroOf(i); return m.parts ? [i.n, i.qty, { parts: m.parts.map(([x, q]) => [x.n, q]), cal: m.cal, price: m.price }] : [i.n, i.qty]; }), totals: { cal: r1(t.cal), p: r1(t.p), c: r1(t.c), f: r1(t.f) } }; }), front: S.front };
+      return { ops: resolved, plates: S.plates.map(pl => { const t = totals(pl); return { meal: pl.meal, halls: plateHalls(pl), label: plateLabel(pl), items: pl.items.map(i => { const m = macroOf(i); return m.parts ? [i.n, i.qty, { parts: m.parts.map(([x, q]) => [x.n, q]), cal: m.cal, price: m.price }] : [i.n, i.qty]; }), totals: { cal: t.cal == null ? null : r1(t.cal), p: r1(t.p), c: r1(t.c), f: r1(t.f) } }; }), front: S.front };
     }, seq.ops);
     // the ops as written to the file carry place keys only (names and 'hall' / 'café' are resolved above)
     if (r.ops.some(o => (o[0] === 'add' && o[3].some(h => !(h in out.places))) || (o[0] === 'bowl' && !(o[2] in out.places)))) throw new Error('unresolved place in ' + seq.name);
@@ -201,16 +208,31 @@ const PRICE = [['Harissa Chicken', 'Terrace'], ['Caesar Salad w/Chicken', 'Green
     }))));
     const nearMiss = [...miss.values()].map(x => ({ place: x.place, station: x.station, names: x.names, reason: x.reason, days: x.days.size }))
       .sort((a, b) => a.reason.localeCompare(b.reason) || a.place.localeCompare(b.place) || a.station.localeCompare(b.station) || a.names[0].localeCompare(b.names[0]));
-    const shown = ['16 oz Cappuccino', '20 oz Cappuccino', 'Boba Oat Milk', '8 oz Clam Chowder', 'Coconut Mango Acai Bowl (16oz)', 'Berry Acai Bowl (8 oz)', '24 oz Iced Coffee', '20 oz Cold Brew', '1% Milk', 'MAPLELINE Skim Milk']
+    const shown = ['16 oz Cappuccino', '20 oz Cappuccino', 'Boba Oat Milk', '8 oz Clam Chowder', 'Coconut Mango Acai Bowl (16oz)', 'Berry Acai Bowl (8 oz)', '24 oz Iced Coffee', '20 oz Cold Brew', '1% Milk', 'MAPLELINE Skim Milk', 'Banana Berry Yogurt Smoothie', 'Matcha Strawberry w/Coconut', 'V-9 Smoothie w/Yogurt', 'Coconut Flavored Syrup', '20 oz Chai']
       .map(n => [n, shownName(n)]);
     const search = ['boba', 'oat', 'cappuccino', '20 oz latte', 'minestrone'].map(q => { S.q = q; const r = [...results(), ...cafeResults()].map(({ g, d, vi }) => ({ name: g.n, variant: vi >= 0 ? g.vars[vi].v : null, dish: d.n, places: Object.keys((vi >= 0 ? g.vars[vi] : g).refs).sort((a, b) => PORD(a) - PORD(b)) })); S.q = ''; return { query: q, rows: r }; });
     ALERTS.on = true; ALERTS.granted = true; ALERTS.seen.clear(); S.fav = new Set(['f:boba']);
     const alerts = [7 * 60 + 15, 12 * 60 + 41].map(m => ({ favorite: 'f:boba', clock: `${(Math.floor(m / 60) + 11) % 12 + 1}:${String(m % 60).padStart(2, '0')} ${m < 720 ? 'AM' : 'PM'}`, posted: alertRun(m).map(n => [n.title, n.body]) }));
     S.fav = new Set();
-    return { families, nearMiss, shown, search, alerts };
+    const phos = new Map();
+    MD.forEach((D, day) => Object.entries(D).forEach(([h, ms]) => Object.entries(ms).forEach(([meal, ss]) => ss.forEach(([st], si) => { if (!isCafe(h) || stName(st) !== 'Noodle Bowl') return;
+      const y = synOf(day, h, meal, si); if (!y || !y.axes) return; const k = PN(h) + '|' + y.axes.grid.size;
+      if (!phos.has(k)) phos.set(k, { place: PN(h), station: stName(st), days: 0, proteins: y.axes.p, broths: y.axes.b, grid: [...y.axes.grid].map(([pb, d]) => [...pb.split('|'), d.n, d.cal]) }); phos.get(k).days++; }))));
+    // the variant a family row stands for as the plate changes (round 12b): Procrastination Station's Boba at lunch
+    const follow = []; { const h = 'c' + P.places.findIndex(x => x[0] === 'Procrastination Station'), D = n => Object.values(DISH).find(d => !d.day && d.h === h && d.n === n), f = famOf(D('Boba Oat Milk'));
+      S.plates = []; S.front = 0; barMode = 'plate';
+      const rec = op => { const x = standing(f.vars, x => findItem(plateMeal(x.d), x.d.k, h), () => true), it = findItem(plateMeal(x.d), x.d.k, h);
+        follow.push({ op, stands: x.chip, counts: it ? it.it.qty : 0, plate: S.plates.flatMap(pl => pl.items.map(i => [i.n, i.qty])) }); };
+      rec('empty plate');
+      for (const [op, tok] of [['add', 'Oat'], ['add', 'Soy'], ['up', 'Oat'], ['down', 'Oat'], ['down', 'Oat'], ['down', 'Oat'], ['down', 'Soy'], ['down', 'Soy']]) {
+        const d = f.vars.find(x => x.chip === tok).d, found = findItem(plateMeal(d), d.k, h);
+        if (op === 'add') addDish(plateMeal(d), d.k, { [h]: d }, famOf(d).name + ', ' + FAM.get(d.id).x.v); else stepItem(found.pl, found.it, op === 'up' ? 1 : -1);
+        rec(op + ' ' + tok); }
+      S.plates = []; }
+    return { families, nearMiss, shown, search, alerts, phos: [...phos.values()], follow };
   });
   { const v = out.variants, distinct = new Set(v.families.map(f => [f.place, f.station, f.name].join('|'))).size;
-    if (distinct !== 52 || v.families.length !== 322) throw new Error('variant families: ' + distinct + ' / ' + v.families.length); }
+    if (distinct !== 59 || v.families.length !== 392) throw new Error('variant families: ' + distinct + ' / ' + v.families.length); }
   if (errs.length) throw new Error(errs.join('\n'));
 const SEARCH = [
   { q: '' }, { q: 'green' }, { q: 'pancakes' }, { q: 'apple' }, { q: 'organic' }, { q: 'worcester' }, { q: 'hal' }, { q: 'brisket' }, { q: 'chicken' }, { q: 'pizza' }, { q: 'zzzq' },

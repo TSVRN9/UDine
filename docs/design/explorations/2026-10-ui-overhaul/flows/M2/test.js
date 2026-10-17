@@ -1010,7 +1010,8 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
         assert.equal(await ev(() => [...document.querySelectorAll('#mlist .row')].filter(r => /Pho|Ramen/.test(r.querySelector('.n').textContent) && buildOf(DISH[r.dataset.id])).length), 0, cafe + ': no pho builds on its own');
         await page.locator('#mlist .row.syn', { hasText: /^Noodle Bowl$/ }).tap(); await page.waitForTimeout(800);
         assert.deepEqual(await ev(() => [document.querySelector('#isbody .dn').textContent, document.querySelector('#bfoot [data-act=badd]').disabled, [...document.querySelectorAll('#isbody .bh')].map(h => h.textContent)]), ['Noodle Bowl', true, ['Add-ons']], cafe + ': one builder, its add-ons under their own heading');
-        const first = await ev(() => { const c = document.querySelector('#isbody .vpick [data-var]'); c.click(); return DISH[c.dataset.var]; }); await page.waitForTimeout(500);
+        const first = await ev(() => { document.querySelector('#isbody .vpick [data-var]').click(); const g = document.querySelectorAll('#isbody .vpick'); if (g.length > 1) g[1].querySelector('[data-var]').click();   // round 12b: protein, then broth
+          return DISH[[...DS.build.sel.keys()].find(id => DISH[id] && DS.build.syn.choices.includes(DISH[id]))]; }); await page.waitForTimeout(500);
         assert.deepEqual(await ev(() => [document.querySelector('#isbody .dn').textContent, document.querySelector('#isbody .bsv .pr').textContent]), [first.n, first.price], cafe + ': the pho picked names it, at its price');
       }
     });
@@ -1114,7 +1115,8 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       const oat = await ev(() => DS.d.id);
       await page.locator('#isbody .dadd').tap(); await page.waitForTimeout(1000);
       assert.deepEqual(await ev(() => [S.plates[0].items[0].n, S.plates[0].items[0].k]), ['Boba, Oat Milk', 'boba oat milk'], 'the plate names the variant');
-      assert.equal(await ev(() => document.querySelector('#mlist .row[data-id] .step') ? 'step' : 'add'), 'add', 'the row counts its default only');
+      assert.match(await meta('Boba'), /^Oat 262 cal/, 'the row follows the plate: it stands for the oat just added (owner, 2026-10-16)');
+      assert.equal(await ev(() => document.querySelector('#mlist .row[data-id] .step .q')?.textContent), '1', 'and counts it');
       await ev(() => logPlate(S.plates[0])); await page.waitForTimeout(400);
       assert.deepEqual(await ev(() => { const i = S.log.at(-1).items[0]; return [i.n, i.cal, i.id]; }), ['Boba Oat Milk', 262, oat], 'logged as the feed item, with its own nutrition');
       await ev(() => { setTab('you'); openMeal(S.log.at(-1).id); }); await page.waitForTimeout(800);
@@ -1140,9 +1142,9 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       await page.locator('#psbody .prow .n').first().tap(); await page.waitForTimeout(900);
       s = await sheet(); assert.deepEqual([s.n, s.chips.filter(c => c.endsWith('*')), s.add], ['Green Curry Pho Broth (Anchovies)', ['Green Curry Pho Broth (Anchovies)*'], 'Update'], 'reopened on its broth');
       await cafe('Whitmore Café'); await page.locator('#mlist .row.syn', { hasText: /^Noodle Bowl$/ }).tap(); await page.waitForTimeout(800);
-      s = await sheet(); assert(s.chips.length >= 4 && s.chips.every(c => /Pho/.test(c)), 'Whitmore: its phos are the chips');
+      s = await sheet(); assert.equal(s.chips.length, 5, 'Whitmore: three proteins and two broths');
       assert.deepEqual(await ev(() => [...document.querySelectorAll('#isbody .bh')].map(h => h.textContent)), ['Add-ons'], 'its add-ons keep their heading');
-      await chip(s.chips[0]); assert.equal((await sheet()).n, s.chips[0], 'a pho chosen names it');
+      await chip('Beef Pho'); await chip('Vegetable Broth'); assert.equal((await sheet()).n, 'Beef Pho w/Vegetable Broth', 'a protein and a broth name the pho');
       assert.equal(await ev(() => { const c = [...document.querySelectorAll('#isbody .vpick [role=radio]')], w = document.querySelector('#isbody .vpick').getBoundingClientRect().right; return c.filter(x => x.getBoundingClientRect().right > w + 0.5).length; }), 0, 'every chip fits the line, long names wrapping inside');
     });
     await scen('a family on the plate: its own stepper; it reopens on its variant; Update switches the size and merges with a twin', async () => {
@@ -1157,8 +1159,10 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       await upd('20 oz');
       assert.deepEqual(await ev(() => S.plates[0].items.map(i => [i.n, i.qty, i.k])), [['Cappuccino, 20 oz', 1, '20 oz cappuccino']], 'Update: the item is now the 20 oz');
       await ev(() => psheet.to('closed')); await page.waitForTimeout(600);
-      assert.equal(await ev(() => !!document.querySelector('#mlist .row[data-id] .add')), true, 'the row is back to + (its default is off the plate)');
-      await page.locator('#mlist .row', { has: page.locator('.n', { hasText: /^Cappuccino$/ }) }).locator('.add').tap(); await page.waitForTimeout(500);
+      assert.match(await meta('Cappuccino'), /^20 oz/, 'the row follows the plate: it stands for the 20 oz now on it');
+      assert.equal(await ev(() => document.querySelector('#mlist .row[data-id] .step .q')?.textContent), '1', 'and counts it');
+      await openRow('Cappuccino'); await chip('16 oz'); await page.locator('#bfoot [data-act=badd]').tap(); await page.waitForTimeout(1000);
+      assert.deepEqual(await ev(() => S.plates[0].items.map(i => [i.n, i.qty])), [['Cappuccino, 20 oz', 1], ['Cappuccino, 16 oz', 1]], 'the other size is its own item');
       await upd('20 oz');
       assert.deepEqual(await ev(() => S.plates[0].items.map(i => [i.n, i.qty])), [['Cappuccino, 20 oz', 2]], 'a twin merges');
     });
@@ -1184,18 +1188,118 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       let s = await sheet(); assert.deepEqual([s.chips.length, s.add], [5, null], 'tracking off: the picker stays, Add goes');
       await chip('Oat'); assert.equal((await sheet()).cal, '262', 'and it picks the label you read');
     });
-    await scen('near-misses stay rows: lone sizes, a different word, add-ons, a milk with no name left; the rule finds 52 families on 255 station-days', async () => {
+    // ---- round 12b (owner's answers, 2026-10-16) ----
+    const rowQ = n => ev(n => [...document.querySelectorAll('#mlist .row:not(.syn), #sres .row')].find(r => r.querySelector('.n').textContent.replace('★', '') === n)?.querySelector('.step .q')?.textContent || null, n);
+    const addVia = async (n, to) => { await openRow(n); await chip(to); await page.locator('#isbody .dadd, #bfoot [data-act=badd]').first().tap(); await page.waitForTimeout(1000); };
+    await scen('Courtside\'s smoothies are families: Coconut or Yogurt is a base picker, the same shape as the milk; the other near-misses stay', async () => {
+      await cafe('Courtside Café'); const ns = await names();
+      for (const f of ['Banana Berry Smoothie', 'Mango Tango Smoothie', 'Passionate Pineapple Smoothie', 'Summer Blush Smoothie', 'The Green Monster Smoothie', 'Matcha Strawberry', 'V-9 Smoothie']) assert.equal(ns.filter(n => n === f).length, 1, f + ': one row, named for the family');
+      assert.deepEqual(ns.filter(n => /(Coconut|Yogurt) Smoothie$|w\/(Coconut|Yogurt)$/.test(n)), [], 'no member keeps a row');
+      assert.match(await meta('Banana Berry Smoothie'), /^Coconut \d+ cal/, 'the row stands for the first base, in its chip\'s word');
+      await openRow('Banana Berry Smoothie'); let s = await sheet();
+      assert.deepEqual([s.n, s.chips], ['Banana Berry Smoothie, Coconut', ['Coconut*', 'Yogurt']], 'two chips, the base');
+      await chip('Yogurt'); s = await sheet(); assert.equal(s.n, 'Banana Berry Smoothie, Yogurt', 'the name follows');
+      await ev(() => isheet.to('closed')); await page.waitForTimeout(500);
+      await addVia('Matcha Strawberry', 'Yogurt');
+      assert.deepEqual(await ev(() => S.plates[0].items.map(i => [i.n, macroOf(i).n])), [['Matcha Strawberry, Yogurt', 'Matcha Strawberry w/Yogurt']], 'on the plate as the variant; the feed item underneath');
+      await cafe('Worcester Café'); const ws = await names();
+      assert(ws.includes('Coconut Flavored Syrup'), 'a flavour that starts with the word is no base');
+      await cafe('Newman Café'); const nn = await names();
+      assert(nn.includes('Decaf Coffee') && nn.includes('Regular Coffee') && !nn.includes('Coffee'), 'decaf and regular stay two drinks, each a size family');
+      assert.equal(await ev(() => variantFamilies().filter(f => f.axis === 'base').map(f => f.name).filter((n, i, a) => a.indexOf(n) === i).length), 7, 'seven base families');
+    });
+    await scen('a family row follows the plate: it stands for the variant last added, counts it, and falls back when it is removed', async () => {
+      await cafe('Procrastination Station');
+      assert.match(await meta('Boba'), /^Almond/, 'empty plate: the default');
+      await addVia('Boba', 'Oat'); assert.match(await meta('Boba'), /^Oat 262 cal/, 'oat added: the row stands for oat');
+      assert.equal(await rowQ('Boba'), '1', 'and counts it');
+      await addVia('Boba', 'Soy'); assert.match(await meta('Boba'), /^Soy 240 cal/, 'two variants on the plate: the last one added');
+      assert.equal(await rowQ('Boba'), '1', 'the row counts that variant, not the family');
+      assert.deepEqual(await ev(() => S.plates[0].items.map(i => [i.n, i.qty])), [['Boba, Oat Milk', 1], ['Boba, Soy Milk', 1]], 'both are on the plate');
+      await page.locator('#mlist .row', { has: page.locator('.n', { hasText: /^Boba$/ }) }).locator('.inc').tap(); await page.waitForTimeout(400);
+      assert.deepEqual(await ev(() => S.plates[0].items.map(i => [i.n, i.qty])), [['Boba, Oat Milk', 1], ['Boba, Soy Milk', 2]], 'the row\'s stepper changes the variant it stands for');
+      await page.locator('#mlist .row', { has: page.locator('.n', { hasText: /^Boba$/ }) }).locator('.dec').tap(); await page.waitForTimeout(400);
+      await ev(() => { const it = S.plates[0].items[0]; stepItem(S.plates[0], it, 1); }); await page.waitForTimeout(400);
+      assert.match(await meta('Boba'), /^Oat 262 cal/, 'a plate item stepped up counts as added last');
+      assert.equal(await rowQ('Boba'), '2', 'and the row counts it (2)');
+      await ev(() => { const pl = S.plates[0]; stepItem(pl, pl.items[0], -1); stepItem(pl, pl.items[0], -1); stepItem(pl, pl.items[0], -1); }); await page.waitForTimeout(400);
+      assert.deepEqual(await ev(() => S.plates[0].items.map(i => i.n)), ['Boba, Soy Milk'], 'oat is gone');
+      assert.match(await meta('Boba'), /^Soy 240 cal/, 'removed: the row falls back to the next variant still on the plate');
+      await ev(() => { const pl = S.plates[0]; stepItem(pl, pl.items[0], -1); stepItem(pl, pl.items[0], -1); }); await page.waitForTimeout(500);
+      assert.match(await meta('Boba'), /^Almond 180 cal/, 'nothing of the family left: the default');
+      assert.equal(await rowQ('Boba'), null, 'and it is + again');
+    });
+    await scen('a family row follows the plate: an Update counts as added, a built variant is its own item, Search lets what you typed win', async () => {
+      await cafe('Worcester Café');
+      await page.locator('#mlist .row', { has: page.locator('.n', { hasText: /^Cappuccino$/ }) }).locator('.add').tap(); await page.waitForTimeout(500);
+      await openRow('Cappuccino'); await chip('20 oz');
+      await ev(() => [...document.querySelectorAll('#isbody .brow')].find(r => r.querySelector('.n').textContent === 'PACIFIC Almond Milk').querySelector('.add').click()); await page.waitForTimeout(300);
+      await page.locator('#bfoot [data-act=badd]').tap(); await page.waitForTimeout(1000);
+      assert.match(await meta('Cappuccino'), /^16 oz/, 'a variant built with add-ins is its own item (round 10): the row stays on the plain 16 oz');
+      assert.equal(await rowQ('Cappuccino'), '1', 'and counts it');
+      await ev(() => { if (plateOpen()) psheet.to('mid'); }); await page.waitForTimeout(800);
+      await page.locator('#psbody .prow .n', { hasText: /^Cappuccino, 16 oz$/ }).tap(); await page.waitForTimeout(900);
+      await chip('20 oz'); await page.locator('#isbody [data-act=vupd], #bfoot [data-act=badd]').first().tap(); await page.waitForTimeout(1100);
+      await ev(() => psheet.to('closed')); await page.waitForTimeout(600);
+      assert.match(await meta('Cappuccino'), /^20 oz/, 'Update makes the item the 20 oz, and the row follows');
+      await go('?state=search'); await ev(() => { addDish('lunch', 'boba oat milk', Object.fromEntries(Object.entries(DISH).filter(([, d]) => d.n === 'Boba Oat Milk' && !d.day).map(([, d]) => [d.h, d])), 'Boba, Oat Milk'); });
+      await type('boba'); assert.match(await meta('Boba'), /^Oat 262 cal/, 'Search: with oat on the plate, "boba" stands for oat');
+      assert.equal(await rowQ('Boba'), '1', 'and counts it');
+      await type('soy'); assert.match(await meta('Boba'), /^Soy 240 cal/, 'but what you type picks its variant first');
+      assert.equal(await rowQ('Boba'), null, 'soy is not on the plate');
+    });
+    await scen('café phos have two pickers: protein, then broth; Add waits for both; the bowl is the feed\'s pho; Update re-resolves', async () => {
+      await cafe('Star Ginger'); await page.locator('#mlist .row.syn', { hasText: /^Noodle Bowl$/ }).tap(); await page.waitForTimeout(800);
+      let s = await sheet();
+      assert.deepEqual(s.chips, ['Beef Pho', 'Chicken Pho', 'Pulmuone Tofu Pho', 'Chicken Broth', 'Spicy Green Curry Broth', 'Vegetable Broth'], 'Star Ginger: three proteins, then three broths, none chosen');
+      assert.equal(await ev(() => document.querySelectorAll('#isbody .vpick').length), 2, 'two groups');
+      assert.equal(await ev(() => document.querySelectorAll('#isbody .vpick h3, #isbody .bh + .vpick').length), 0, 'no heading: the chips say what is chosen');
+      assert.deepEqual([s.n, await ev(() => document.querySelector('#bfoot [data-act=badd]').disabled)], ['Noodle Bowl', true], 'neither chosen: the station\'s name, Add waits');
+      await chip('Chicken Pho'); s = await sheet();
+      assert.deepEqual([s.n, await ev(() => document.querySelector('#bfoot [data-act=badd]').disabled)], ['Noodle Bowl', true], 'a protein alone: Add still waits');
+      await chip('Vegetable Broth'); s = await sheet();
+      assert.deepEqual([s.n, s.chips.filter(c => c.endsWith('*')), await ev(() => document.querySelector('#bfoot [data-act=badd]').disabled)], ['Chicken Pho w/Vegetable Broth', ['Chicken Pho*', 'Vegetable Broth*'], false], 'both: the feed\'s pho names the bowl, Add is on');
+      assert.equal(await ev(() => +document.querySelector('#bfoot .l2 b').textContent), 145, 'its own calories');
+      await chip('Beef Pho'); s = await sheet(); assert.deepEqual([s.n, s.chips.filter(c => c.endsWith('*'))], ['Beef Pho w/Vegetable Broth', ['Beef Pho*', 'Vegetable Broth*']], 'one protein at a time; the broth stays');
+      assert.equal(await ev(() => { const w = document.querySelector('#isbody .vpick').getBoundingClientRect().right; return [...document.querySelectorAll('#isbody .vpick [role=radio]')].filter(x => x.getBoundingClientRect().right > w + .5).length; }), 0, 'every chip fits the line');
+      await page.locator('#bfoot [data-act=badd]').tap(); await page.waitForTimeout(1000);
+      assert.deepEqual(await ev(() => S.plates[0].items.map(i => [i.n, macroOf(i).base.n])), [['Beef Pho w/Vegetable Broth', 'Beef Pho w/Vegetable Broth']], 'the plate names the feed\'s pho');
+      await ev(() => { if (plateOpen()) psheet.to('mid'); }); await page.waitForTimeout(800);
+      await page.locator('#psbody .prow .n').first().tap(); await page.waitForTimeout(900);
+      s = await sheet(); assert.deepEqual([s.n, s.chips.filter(c => c.endsWith('*')), s.add], ['Beef Pho w/Vegetable Broth', ['Beef Pho*', 'Vegetable Broth*'], 'Update'], 'reopened with both chosen');
+      await chip('Spicy Green Curry Broth'); await page.locator('#bfoot [data-act=badd]').tap(); await page.waitForTimeout(1100);
+      assert.deepEqual(await ev(() => S.plates[0].items.map(i => [i.n, i.qty])), [['Beef Pho w/Spicy Green Curry Broth', 1]], 'Update re-resolves to the new pho and keeps the quantity');
+      await ev(() => logPlate(S.plates[0])); await page.waitForTimeout(400);
+      assert.equal(await ev(() => S.log.at(-1).items[0].n), 'Beef Pho w/Spicy Green Curry Broth', 'logged as the feed item');
+      assert.equal(await ev(() => { const o = []; MD.forEach((D, day) => { const h = 'c' + P.places.findIndex(x => x[0] === 'Star Ginger'); for (const [meal, ss] of Object.entries(D[h] || {})) ss.forEach(([st], si) => { if (stName(st) === 'Noodle Bowl') o.push(!!synOf(day, h, meal, si)?.axes); }); }); return [...new Set(o)].sort().join(); }), 'false,true', 'the ramen days keep one picker');
+    });
+    await scen('blank calories draw "–", not 0; a real 0 stays 0; the plate and the bar leave an unknown out', async () => {
+      await cafe('Worcester Café');
+      assert.match(await meta('Cappuccino'), /^16 oz 0 cal/, 'a recorded 0 is 0');
+      await addVia('Chai', '20 oz');
+      assert.match(await meta('Chai'), /^20 oz – cal/, 'blank calories: the row says –');
+      assert.equal(await ev(() => document.querySelector('#barCal').textContent), '–', 'a plate of only unknowns has no total');
+      await ev(() => { if (plateOpen()) psheet.to('mid'); }); await page.waitForTimeout(800);
+      assert.equal(await ev(() => document.querySelector('#psbody .prow .m').textContent.trim()), '– cal each', 'the plate row');
+      await ev(() => psheet.to('closed')); await page.waitForTimeout(500);
+      await openRow('Chai'); assert.equal((await sheet()).cal, '–', 'the label\'s Calories');
+      await chip('16 oz'); assert.equal((await sheet()).cal, '211', 'the 16 oz has its 211');
+      await page.locator('#isbody .dadd, #bfoot [data-act=badd]').first().tap(); await page.waitForTimeout(1000);
+      assert.equal(await ev(() => document.querySelector('#barCal').textContent), '211', 'with a known item the total is the known');
+      assert.equal(await ev(() => { logPlate(S.plates[0]); return JSON.stringify(S.log.at(-1).items.map(i => i.cal)); }), '[null,211]', 'the log keeps the unknown as null');
+    });
+    await scen('near-misses stay rows: lone sizes, a different word, add-ons, a milk with no name left; the rule finds 59 families on 325 station-days', async () => {
       await cafe('Worcester Café'); const ns = await names();
       for (const n of ['20 oz Cold Brew', '20 oz Iced Latte', '20 oz Iced Tea', 'Single Espresso', 'Double Espresso', 'Chocolate Milkshake']) assert(ns.includes(n), n + ' keeps its row');
       await openRow('Cappuccino');
       assert.deepEqual(await ev(() => [...document.querySelectorAll('#isbody .brow .n')].map(n => n.textContent).filter(n => /^(MAPLELINE|PACIFIC)/.test(n))), ['MAPLELINE Skim Milk', 'MAPLELINE Whole Milk', 'PACIFIC Almond Milk', 'PACIFIC Soy Milk'], 'add-on milks stay add-ins');
       await cafe('Courtside Café'); const cs = await names();
-      assert(cs.includes('Banana Berry Coconut Smoothie') && cs.includes('Banana Berry Yogurt Smoothie'), 'Coconut and Yogurt smoothies are two drinks');
+      assert(cs.includes('Banana Berry Smoothie') && !cs.some(n => /(Coconut|Yogurt) Smoothie$/.test(n)), 'Coconut and Yogurt smoothies are one drink each (owner, 2026-10-16)');
       assert(cs.includes('Coconut Mango Acai Bowl') && !cs.some(n => /Acai Bowl \(/.test(n)), 'the acai bowls, sized "(8oz)", are families');
       await go('?state=menu&hall=W'); await page.locator('#mtabs .mts button[data-meal=grab]').tap(); await page.waitForTimeout(700);
       assert((await names()).includes('1% Milk'), '1% Milk is a dish');
       const f = await ev(() => variantFamilies());
-      assert.deepEqual([new Set(f.map(x => [x.place, x.station, x.name].join('|'))).size, new Set(f.map(x => [x.day, x.place, x.station, x.name].join('|'))).size, f.length], [52, 255, 322], '52 families on 255 station-days (322 with each meal counted), Oct 8-22');
+      assert.deepEqual([new Set(f.map(x => [x.place, x.station, x.name].join('|'))).size, new Set(f.map(x => [x.day, x.place, x.station, x.name].join('|'))).size, f.length], [59, 325, 392], '59 families on 325 station-days (392 with each meal counted), Oct 8-22: the 52 sizes and milks and the 7 smoothies');
     });
   };
   if (process.env.RED) { await ({ 8: round8, 9: round9, 10: round10, 11: round11, 12: round12 }[process.env.RED] || round7)(); console.log(results.join('\n')); console.log(`${NCHK} checks`); await browser.close(); return; }

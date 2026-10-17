@@ -847,7 +847,7 @@ const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const norm = s => s.toLowerCase().replace(/[’']/g,'').replace(/[^a-z0-9]+/g,' ').trim();
 const fq = q => q===.5?'½':(q%1? Math.floor(q)+'½' : String(q));
 const f1 = x => (Math.round(x*10)/10).toFixed(1).replace(/\.0$/,'');
-const fc = x => Math.round(x).toLocaleString('en-US');
+const fc = x => x==null ? '–' : Math.round(x).toLocaleString('en-US');   // round 12b: a blank is unknown, drawn "–" (a recorded 0 is 0)
 const clamp = (x,a=0,b=1)=>Math.min(b,Math.max(a,x));
 
 /* ---------- data ---------- */
@@ -868,10 +868,13 @@ for (let day=0; day<DAYS.length; day++) for (const h in MD[day]) for (const meal
    trailing "(8 oz)"/"(8oz)", and "<kind> Milk" with a kind the feed uses. Add-ons and Toppings are a builder's parts, never a
    family. Sizes run smallest first; milks keep the feed's order. The first is the default, what a row stands for. */
 const MILKS = 'Almond|Maple|Oat|Skim|Soy|Whole|1%';
+const BASES = 'Coconut|Yogurt';   // round 12b (owner, 2026-10-16): a smoothie's base, the milk's shape; only at the end of a name, or after w/ 
 function variantOf(n){ let m;
   if((m=n.match(/^(\d+) ?oz (.+)$/i))) return {axis:'size', name:m[2], v:m[1]+' oz', chip:m[1]+' oz', o:+m[1]};
   if((m=n.match(/^(.+?) \((\d+) ?oz\)$/i))) return {axis:'size', name:m[1], v:m[2]+' oz', chip:m[2]+' oz', o:+m[2]};
   if((m=n.match(new RegExp(`^(.*?) ?(${MILKS}) Milk$`,'i')))) return {axis:'milk', name:m[1], v:m[2]+' Milk', chip:m[2], o:0};
+  if((m=n.match(new RegExp(`^(.+) (${BASES}) Smoothie$`,'i')))) return {axis:'base', name:m[1]+' Smoothie', v:m[2], chip:m[2], o:0};   // Banana Berry Coconut Smoothie
+  if((m=n.match(new RegExp(`^(.+) w/(${BASES})$`,'i')))) return {axis:'base', name:m[1], v:m[2], chip:m[2], o:0};   // Matcha Strawberry w/Yogurt, V-9 Smoothie w/Coconut
   return null; }
 const isPartsSt = st => /^(Add-ons|Toppings)$/.test(st.trim());
 // the families among one station's dishes: [{key, name, axis, vars:[{d, v, chip, o}]}]
@@ -895,6 +898,9 @@ MD.forEach((D,day)=>Object.entries(D).forEach(([h,ms])=>Object.entries(ms).forEa
     if(f.axis==='size') g.vars.sort((a,b)=>parseInt(a.v)-parseInt(b.v)); }
 }))));
 const famOf = d => d && FAM.get(d.id)?.f;
+// round 12b (owner, 2026-10-16): a family's row stands for the variant last added to the plate, and counts it. find(x) is
+// that variant's plain plate item (a built one, with add-ins, is its own item and isn't the row's); with none, the first variant ok(x) allows
+function standing(vars, find, ok){ let best=null; for(const x of vars){ if(!ok(x)) continue; const f=find(x); if(f && (!best || f.it.at>best.f.it.at)) best={x,f}; } return best ? best.x : vars.find(ok); }
 const shown = d => { const e=d && FAM.get(d.id); return e ? e.f.name+', '+e.x.v : d.n; };   // how an item reads on the sheet and the plate
 const shownName = n => VARN.get(n) || n;
 const favKey = d => famOf(d)?.key || d.k;   // a family is starred as one
@@ -964,7 +970,7 @@ function findItem(meal,k,ctxHall){
   return null;
 }
 function wouldSplit(meal, hs){ return S.plates.length>0 && !S.plates.some(pl=>canJoin(pl,meal,hs)); }
-let PID=0;
+let PID=0, SEQ=0;   // SEQ stamps a plate item each time it is added, stepped up or updated: a family's row follows the latest (round 12b)
 function addDish(meal, k, refs, n, custom){
   if(!S.track) return null;   // tracking off: nothing records
   if(barMode!=='plate'){ clearTimeout(barT); barMode='plate'; S.lastLog=null; $('#bar .in').innerHTML=''; }
@@ -976,19 +982,22 @@ function addDish(meal, k, refs, n, custom){
   let it = pl.items.find(x=>x.k===k);
   if(it){ it.qty = it.qty===.5?1:it.qty+1; if(!custom) for(const h in it.refs) if(!refs[h]) delete it.refs[h]; }
   else { it={k,n,refs:{...refs},qty:1,custom}; pl.items.push(it); }
+  it.at=++SEQ;
   buzz(8); refresh();
   return it;
 }
 function stepItem(pl,it,dir){
-  if(dir>0) it.qty = it.qty===.5?1:it.qty+1;
+  if(dir>0){ it.qty = it.qty===.5?1:it.qty+1; it.at=++SEQ; }
   else if(it.qty>1) it.qty--; else if(it.qty===1) it.qty=.5;
   else { pl.items.splice(pl.items.indexOf(it),1); buzz(14);
     if(!pl.items.length){ S.plates.splice(S.plates.indexOf(pl),1); S.front=Math.max(0,Math.min(S.front,S.plates.length-1)); } }
   if(dir>0) buzz(8); refresh();
 }
 function macroOf(it, hall){ if(it.custom) return it.custom; return it.refs[hall] || Object.values(it.refs)[0]; }
-function totals(pl, hall){ hall ||= (plateHalls(pl)||[])[0]; const t={cal:0,p:0,c:0,f:0,n:0};
-  for(const it of pl.items){ const m=macroOf(it,hall); t.cal+=m.cal*it.qty; t.p+=m.p*it.qty; t.c+=m.c*it.qty; t.f+=m.f*it.qty; t.n+=it.qty; } return t; }
+function totals(pl, hall){ hall ||= (plateHalls(pl)||[])[0]; const t={cal:0,p:0,c:0,f:0,n:0}; let known=false;
+  for(const it of pl.items){ const m=macroOf(it,hall); known ||= m.cal!=null; t.cal+=m.cal*it.qty; t.p+=m.p*it.qty; t.c+=m.c*it.qty; t.f+=m.f*it.qty; t.n+=it.qty; }
+  if(pl.items.length && !known) t.cal=null;   // every calorie is unknown: no total (one known item makes it the known sum)
+  return t; }
 function hallLabel(hs){ if(!hs) return ''; const n=hs.map(PN); return n.length===1?n[0]: n.length===4&&!hs.some(isCafe)?'Any hall': n.slice(0,-1).join(', ')+' or '+n[n.length-1]; }
 function plateLabel(pl){ const hs=plateHalls(pl); return hs? `${hallLabel(hs)} ${ML[pl.meal].toLowerCase()}` : ML[pl.meal]; }
 /* ---------- the log (round 10) ----------
@@ -1072,7 +1081,18 @@ function phoOf(day,h,meal,si,ds){ const y={label:'Noodle Bowl', head:'Noodle Bow
   if(!isCafe(h)) return baseOf(day,h,meal,si) ? null : bar;
   // a café's add-ons first: Whitmore's "Beef Pho w/Spicy Green Curry Broth" names a broth but is a whole pho
   const ss=MD[day][h][meal], add=ss.map((s2,j)=>[s2[0].trim(),j]).filter(([n])=>/^(Add-ons|Toppings)$/.test(n)), tops=add.flatMap(([,j])=>stDishes(day,h,meal,j).filter(x=>x.cal>0));
-  return tops.length ? {...y, choices:ds, parts:[...ds, ...tops], topHead:[...new Set(add.map(([n])=>n))].join(' and ')} : bar; }
+  return tops.length ? {...y, choices:ds, axes:phoAxes(ds), parts:[...ds, ...tops], topHead:[...new Set(add.map(([n])=>n))].join(' and ')} : bar; }
+// round 12b (owner, 2026-10-16): a café's phos that are a whole protein x broth grid ("Beef Pho w/Vegetable Broth": Star Ginger 3 x 3,
+// Whitmore 3 x 2) are picked by protein, then broth. The grid must be complete, or the station keeps one picker of whole dishes.
+const PHONAME = /^(.+?) Pho w\/(.+) Broth$/;
+function phoAxes(ds){ const g=new Map(), P=[], B=[];
+  for(const d of ds){ const m=d.n.match(PHONAME); if(!m) return null; if(!P.includes(m[1])) P.push(m[1]); if(!B.includes(m[2])) B.push(m[2]); g.set(m[1]+'|'+m[2], d); }
+  return P.length>=2 && B.length>=2 && g.size===P.length*B.length && g.size===ds.length ? {p:P.map(v=>[v,v+' Pho']), b:B.map(v=>[v,v+' Broth']), grid:g} : null; }
+// what is chosen on a two-picker pho: kept on the builder, and read from the pho already chosen when a plate item reopens
+function phoPicks(B){ if(!B.pk){ const c=B.syn.choices.find(x=>B.sel.has(x.id)), m=c&&c.n.match(PHONAME); B.pk=m ? {p:m[1], b:m[2]} : {p:null, b:null}; } return B.pk; }
+const phoPickHTML = B => { const y=B.syn;
+  if(!y.axes) return vpickHTML(y.choices.map(x=>[x.id, x.n]), y.choices.find(x=>B.sel.has(x.id))?.id, y.label);
+  const pk=phoPicks(B); return vpickHTML(y.axes.p.map(([v,l])=>['ax:p:'+v, l]), pk.p&&'ax:p:'+pk.p, 'Protein')+vpickHTML(y.axes.b.map(([v,l])=>['ax:b:'+v, l]), pk.b&&'ax:b:'+pk.b, 'Broth'); };
 // a synthetic bowl from what's chosen: a pho takes its chosen base's name; a bar has none
 function synBowl(y, sel, h){ const c=y.pho && sel.find(([x])=>y.choices.includes(x)); return bowlDish(c?c[0]:null, sel.filter(e=>e!==c), y, h); }
 function synOf(day,h,meal,si){ const st=MD[day][h][meal][si][0], nm=stName(st), ds=stDishes(day,h,meal,si);
@@ -1103,7 +1123,7 @@ function bowlDish(base, parts, syn, h){
   const sum=k=>all.reduce((a,[x,q])=>a+x[k]*q,0), pr=all.reduce((a,[x,q])=>a+cents(x.price)*q,0), algs=[...new Set(all.flatMap(([x])=>x.algs||[]))].sort((a,b)=>ALG.indexOf(a)-ALG.indexOf(b));
   const key=(base?base.k:'syn:'+syn.label+':'+h)+'+'+parts.map(([x,q])=>x.k+'*'+q).sort().join('+');
   const src=base||syn;
-  return {id:'bowl:'+key, k:'bowl:'+key, n:base?base.n:syn.label, cal:Math.round(sum('cal')), p:sum('p'), c:sum('c'), f:sum('f'), nut, d:base?base.d:0, h, meal:src.meal, day:0,
+  return {id:'bowl:'+key, k:'bowl:'+key, n:base?base.n:syn.label, cal:all.length&&all.every(([x])=>x.cal==null)?null:Math.round(sum('cal')), p:sum('p'), c:sum('c'), f:sum('f'), nut, d:base?base.d:0, h, meal:src.meal, day:0,
     srv:base?base.srv:'', price:pr?money(pr):null, alg:algs.join(', '), algs, hf:base?base.hf:null, cr:base?base.cr:null, ing:base?base.ing:'', base, syn, parts}; }
 const withLine = parts => parts.length ? 'with '+parts.map(([x,q])=>(q!==1?fq(q)+' × ':'')+x.n).join(', ') : '';
 
@@ -1419,7 +1439,7 @@ function renderMenuList(){
     MM[meal].forEach((s,si)=>{
       // round 12: a family is one row, where its first member was, standing for its first variant your preferences allow
       const seen=new Set(), rows = s[1].map((x,di)=>DISH[did(day,k,meal,si,di)]).flatMap(d=>{ const f=famOf(d); if(!f) return S.reveal||prefOK(d) ? [d] : [];
-        if(seen.has(f)) return []; seen.add(f); const x=f.vars.find(x=>S.reveal||prefOK(x.d)); return x ? [x.d] : []; });
+        if(seen.has(f)) return []; seen.add(f); const x=standing(f.vars, x=>!day&&findItem(plateMeal(x.d),x.d.k,k), x=>S.reveal||prefOK(x.d)); return x ? [x.d] : []; });
       if(!rows.length) return;
       // another day's dishes can't go on today's plate: their rows open the sheet and carry no control
       const sy = !day && S.track && synOf(0,k,meal,si);
@@ -1690,8 +1710,11 @@ function renderLenses(){
 }
 // round 12: the variant a family's row stands for: the first whose own name has every word typed, else the default (the first);
 // Dietary preferences skip a variant they hide
+// round 12b: among the variants the typed words fit, the one last added to the plate, else the first
 function varFor(g, toks){ const ok=v=>S.sreveal||prefOK(rep(v)), hit=v=>toks.every(t=>v.k.split(' ').some(w=>w.startsWith(t))||v.k.includes(t));
-  const i=g.vars.findIndex(v=>hit(v)&&ok(v)); return i>=0 ? i : Math.max(0, g.vars.findIndex(ok)); }
+  const vs=g.vars.filter(v=>hit(v)&&ok(v)), pool=vs.length ? vs : g.vars.filter(ok);
+  const v=standing(pool, v=>{ const hs=Object.keys(v.refs).sort((a,b)=>PORD(a)-PORD(b)); return findItem(S.smeal, v.k, hs.some(isCafe)?hs[0]:null); }, ()=>true);
+  return Math.max(0, g.vars.indexOf(v)); }
 function rep(g){ const pl=S.plates[S.front]; const ph=pl&&pl.meal===S.smeal&&plateHalls(pl);
   const h=(S.scope&&g.refs[S.scope]&&S.scope) || (ph&&ph.find(x=>g.refs[x])) || Object.keys(g.refs).sort((a,b)=>PORD(a)-PORD(b))[0]; return g.refs[h]; }
 const qToks = () => norm(S.q).split(' ').filter(Boolean);
@@ -1859,7 +1882,7 @@ function setTab(t){
 }
 // You (round 10): with tracking on, Today (its totals and meals), then Earlier, one row per logged day; then the choices.
 // With tracking off, only the choices, under "You"; Export stays while there is history.
-const mealRow = m => `<button class="lrow mealr" data-meal-id="${m.id}"><div><div class="a">${esc(mealLabel(m))}</div><div class="b">${esc(m.time)}</div></div><span class="mc"><b class="num">${fc(mealTotal(m).cal)}</b> cal${IC.rchev}</span></button>`;
+const mealRow = m => `<button class="lrow mealr" data-meal-id="${m.id}"><div><div class="a">${esc(mealLabel(m))}</div><div class="b">${esc(m.time)}</div></div><span class="mc"><b class="num">${fc(m.items.every(i=>i.cal==null)?null:mealTotal(m).cal)}</b> cal${IC.rchev}</span></button>`;
 const dayBlock = (day, title='') => { const ms=S.log.filter(m=>m.day===day).sort((a,b)=>a.at<b.at?-1:1); return `<div class="sec" style="padding-top:20px">${title?`<h2>${title}</h2>`:''}${factsHTML(dayTotal(day))}</div>
   <section class="sec"><h2>Meals</h2>${ms.length?ms.map(mealRow).join(''):'<p class="kv">Nothing logged yet today.</p>'}</section>`; };
 const checkRow = (attrs, on, label, line, lead='') => `<button class="check" role="checkbox" aria-checked="${on}" ${attrs}><span class="cl">${lead}<span>${label}${line?`<span class="cb">${line}</span>`:''}</span></span><i></i></button>`;
@@ -1996,7 +2019,7 @@ function exportData(fmt){ const body=exportBody(fmt);
   toast('Exported udine-2026-10-08.'+fmt);
 }
 function exportBody(fmt){
-  const rows=[]; for(const m of S.log) for(const i of m.items) rows.push({date:'2026-10-08',time:m.time,meal:m.meal,hall:m.hall?PN(m.hall):'',dish:i.n,servings:i.qty,cal:i.cal*i.qty,protein:+(i.p*i.qty).toFixed(1),carbs:+(i.c*i.qty).toFixed(1),fat:+(i.f*i.qty).toFixed(1)});
+  const rows=[]; for(const m of S.log) for(const i of m.items) rows.push({date:'2026-10-08',time:m.time,meal:m.meal,hall:m.hall?PN(m.hall):'',dish:i.n,servings:i.qty,cal:i.cal==null?null:i.cal*i.qty,protein:+(i.p*i.qty).toFixed(1),carbs:+(i.c*i.qty).toFixed(1),fat:+(i.f*i.qty).toFixed(1)});
   const foods=S.foods.map(f=>({name:f.n, serving:f.srv, cal:f.cal, protein:f.p, carbs:f.c, fat:f.f, source:{custom:'custom',pack:'packaged',umass:'UMass Dining'}[f.src]}));   // round 11: saved foods (device only) export too
   return fmt==='json' ? JSON.stringify({log:rows,favorites:[...S.fav],rankings:S.wins,foods},null,2)
     : [rows, foods].filter(t=>t.length).map(t=>[Object.keys(t[0]).join(','), ...t.map(r=>Object.values(r).map(v=>/[",]/.test(v)?`"${String(v).replace(/"/g,'""')}"`:v).join(','))].join('\n')).join('\n\n');   // the log, then your foods
@@ -2126,7 +2149,7 @@ const bowlNow = () => { const B=DS.build, sel=[...B.sel].filter(([,q])=>q>0).map
 const nameOf = m => m.parts && m.base && !m.syn ? shown(m.base) : shown(m);   // a built family member reads as its variant
 function renderBuild(){ const B=DS.build, bd=bowlNow(), base=B.base, mk=base?marksHTML(base)+scoresHTML(base,'mks-s'):'', ch=B.syn&&B.syn.pho ? B.syn.choices : null, parts=ch ? B.parts.filter(x=>!ch.includes(x)) : B.parts;
   $('#isbody').innerHTML=`<div class="dish build"><div class="dhd"><h2 class="dn">${esc(nameOf(bd))}</h2>${base?`<button class="icon favb" data-act="fav" data-k="${esc(favKey(base))}" aria-pressed="${S.fav.has(favKey(base))}" aria-label="Favorite">${IC.star}</button>`:''}</div>
-    ${ch ? vpickHTML(ch.map(x=>[x.id, x.n]), ch.find(x=>B.sel.has(x.id))?.id, B.syn.label) : base ? famPick(base) : ''}<p class="dsv bsv">${bd.price&&isCafe(B.h)?`<b class="pr">${esc(bd.price)}</b>`:''}${esc(base?base.srv:'')}</p>${mk?`<div class="mks">${mk}</div>`:''}<p class="dal bal"${bd.algs.length?'':' hidden'}><b>Contains</b>${bd.algs.map(a=>S.avoid[a]?`<span class="av">${esc(a)}</span>`:esc(a)).join(', ')}</p>
+    ${ch ? phoPickHTML(B) : base ? famPick(base) : ''}<p class="dsv bsv">${bd.price&&isCafe(B.h)?`<b class="pr">${esc(bd.price)}</b>`:''}${esc(base?base.srv:'')}</p>${mk?`<div class="mks">${mk}</div>`:''}<p class="dal bal"${bd.algs.length?'':' hidden'}><b>Contains</b>${bd.algs.map(a=>S.avoid[a]?`<span class="av">${esc(a)}</span>`:esc(a)).join(', ')}</p>
     ${B.syn?'':`<h3 class="bh">${esc(B.head)}</h3>`}<div class="bparts${B.syn?' syn':''}">${parts.map((x,i)=>`${B.syn&&B.syn.topHead&&i===(ch?0:B.syn.choices.length)?`<h3 class="bh">${esc(B.syn.topHead)}</h3>`:''}<div class="brow" data-bp="${x.id}"><div class="tx"><div class="n">${nameHTML(x.n, dietMark(x))}</div><div class="m"><span class="mg"><b>${fc(x.cal)}</b> cal${isCafe(B.h)&&x.price?`<span class="gap"></span><b>${esc(x.price)}</b>`:''}</span></div></div>${ctl(B.sel.get(x.id)||0)}</div>`).join('')}</div>
     ${base?whereHTML(base.k):''}<div class="blab">${labelHTML(nutObj(bd.nut), bd.cal, '')}</div>${base?gradesHTML(base.hf, base.cr):''}
     ${base&&base.ing?`<h3 class="ingh">Ingredients</h3><div class="ing" id="ing"><p>${esc(base.ing)}</p></div><button class="tbtn ingmore" data-act="ing" aria-expanded="false">Show all</button>`:''}</div>`;
@@ -2146,13 +2169,16 @@ function stepPart(id, dir){ const B=DS.build, q=B.sel.get(id)||0;
 // round 12: a chip picks one. A family's sheet becomes that variant's (a builder keeps its add-ins); a pho's choice names it.
 // Everything under the chips is redrawn in place: the chip fills, the rest crossfades from .4, and the sheet stays where it is.
 const sameVar = (d, x) => { const f=famOf(d), e=FAM.get(x.id); return f && e && f.vars.find(y=>y.v===e.x.v)?.d || d; };
-function pickVar(id){ const x=DISH[id], B=DS.build; if(!x) return;
-  if(B && B.syn && B.syn.pho){ if(B.sel.has(id)) return; for(const c of B.syn.choices) B.sel.delete(c.id); B.sel.set(id,1); }
+function pickVar(id){ const x=DISH[id], B=DS.build;
+  if(B && B.syn && B.syn.axes && id.startsWith('ax:')){ const a=id[3], v=id.slice(5), pk=phoPicks(B); if(pk[a]===v) return; pk[a]=v;
+    for(const c of B.syn.choices) B.sel.delete(c.id); const d=pk.p&&pk.b&&B.syn.axes.grid.get(pk.p+'|'+pk.b); if(d) B.sel.set(d.id,1); }
+  else if(!x) return;
+  else if(B && B.syn && B.syn.pho){ if(B.sel.has(id)) return; for(const c of B.syn.choices) B.sel.delete(c.id); B.sel.set(id,1); }
   else { if(DS.d.id===id) return; DS.d=x; DS.refs=Object.fromEntries(Object.entries(DS.refs).map(([h,d])=>[h, sameVar(d,x)]));
     if(B){ const nb=buildOf(x); DS.build=nb ? {...nb, sel:new Map([...B.sel].filter(([p])=>nb.parts.some(y=>y.id===p))), edit:B.edit} : null; } }
   const b=$('#isbody'), y=b.scrollTop; renderDish(); b.scrollTop=y; b.querySelector('.dish').classList.toggle('stuck', y>4);
-  const c=b.querySelector('.vpick [aria-checked=true]'); if(c){ c.setAttribute('aria-checked','false'); void c.offsetWidth; c.setAttribute('aria-checked','true'); }   // the chip fills (its own transition)
-  for(let e=b.querySelector('.vpick')?.nextElementSibling; e; e=e.nextElementSibling) A(e,[{opacity:.4},{opacity:1}],'settle');
+  const c=[...b.querySelectorAll('.vpick [role=radio]')].find(e=>e.dataset.var===id); if(c){ c.setAttribute('aria-checked','false'); void c.offsetWidth; c.setAttribute('aria-checked','true'); }   // the chip fills (its own transition)
+  for(let e=[...b.querySelectorAll('.vpick')].at(-1)?.nextElementSibling; e; e=e.nextElementSibling) A(e,[{opacity:.4},{opacity:1}],'settle');
   if(DS.build) A($('#bfoot .l2'),[{opacity:.4},{opacity:1}],'settle'); buzz(6); }
 // the bowl's resting height: its name and identity, the add-ins heading and four of them, above the foot
 function buildMid(){ const b=$('#isbody'), rows=b.querySelectorAll('.brow'), last=rows[Math.min(3,rows.length-1)], top=b.getBoundingClientRect().top-b.scrollTop;
@@ -2351,8 +2377,22 @@ function setCtl(row, q, ghost){
   st.replaceWith(n); done(A(gh,[{transform:'none',opacity:1},{transform:'scaleX(.4)',opacity:0}],'exit')).then(()=>gh.remove());
   A(n,[{opacity:0},{opacity:1}],'settle');
 }
+// round 12b: when the plate changes, a family's row takes the name marks, token and numbers of the variant it now stands for,
+// in place (the content crossfades from .4, settle)
+function restand(row){
+  if(row.dataset.vars){ const d0=DISH[row.dataset.id], f=famOf(d0); if(!f) return;
+    const x=standing(f.vars, x=>findItem(plateMeal(x.d),x.d.k,x.d.h), x=>S.reveal||prefOK(x.d)); if(!x || x.d.id===d0.id) return;
+    const d=x.d; row.dataset.id=d.id;
+    row.querySelector('.n').innerHTML=nameHTML(f.name, dietMark(d)+(S.fav.has(favKey(d))?'<span class="star" aria-label="Favorite">★</span>':''));
+    row.querySelector('.m').innerHTML=`${S.reveal?contHTML(d):''}${varMeta(x.chip)}${meta(d)}`; A(row.querySelector('.tx'),[{opacity:.4},{opacity:1}],'settle'); return; }
+  if(row.dataset.v!=null && row.dataset.k){ const g0=sGroup(row); if(!g0||!g0.vars) return; const vi=varFor(g0, qToks()); if(vi===+row.dataset.v) return;
+    const V=g0.vars[vi], d=rep(V), hs=Object.keys(V.refs).sort((a,b)=>PORD(a)-PORD(b)); row.dataset.v=vi;
+    row.querySelector('.n').innerHTML=nameHTML(g0.n, dietMark(d)+(S.fav.has(g0.k)?'<span class="star" aria-label="Favorite">★</span>':''));
+    row.querySelector('.m').innerHTML=`${S.sreveal?contHTML(d):''}${varMeta(V.chip)}${meta(d)}`;
+    const tg=row.querySelector('.lane .tags'); if(tg) tg.outerHTML=hallGlyph(hs,'Served now');
+    A(row.querySelector('.tx'),[{opacity:.4},{opacity:1}],'settle'); } }
 function refreshLists(){
-  for(const box of [S.hall&&!S.mday&&$('#mlist'), $('#sres')]) if(box) for(const row of box.querySelectorAll('.row:not(.later):not(.syn)')){ const [q,g]=rowState(row); setCtl(row,q,g); }
+  for(const box of [S.hall&&!S.mday&&$('#mlist'), $('#sres')]) if(box) for(const row of box.querySelectorAll('.row:not(.later):not(.syn)')){ restand(row); const [q,g]=rowState(row); setCtl(row,q,g); }
 }
 function refreshSheet(){ if(psheet.state==='closed') return; const pl=S.plates[S.front], b=$('#psbody');
   if(!pl || b.dataset.pid!=String(pl.id) || +b.dataset.n!==pl.items.length){ renderPSheet(); return; }
@@ -2457,7 +2497,7 @@ document.addEventListener('click',e=>{
     if(inS){ S.sreveal=on; renderSearch(); } else { S.reveal=on; const y=$('#mscroll').scrollTop; renderMenuList(); $('#mscroll').scrollTop=y; A($('#mlist'),[{opacity:.4},{opacity:1}],'settle'); } buzz(4); }
   else if(act==='badd'){ const B=DS.build, bd=bowlNow(), plain=B.base && !bd.parts.length, meal=plateMeal(B.base||{h:B.h,meal:B.meal}), ed=B.edit;
     // the sheet goes down; the bowl lands on the plate (or replaces the one being edited) where the bar can show it
-    isheet.away(()=>{ if(ed){ const {pl,it}=ed, twin=pl.items.find(x=>x!==it && x.k===bd.k); if(twin){ twin.qty+=it.qty; pl.items.splice(pl.items.indexOf(it),1); } else { it.k=bd.k; it.n=nameOf(bd); it.refs={[B.h]:bd}; } buzz(8); refresh(); }
+    isheet.away(()=>{ if(ed){ const {pl,it}=ed, twin=pl.items.find(x=>x!==it && x.k===bd.k); if(twin){ twin.qty+=it.qty; twin.at=++SEQ; pl.items.splice(pl.items.indexOf(it),1); } else { it.k=bd.k; it.n=nameOf(bd); it.refs={[B.h]:bd}; it.at=++SEQ; } buzz(8); refresh(); }
       else if(plain) addDish(meal, B.base.k, {[B.h]:B.base}, shown(B.base)); else addDish(meal, bd.k, {[B.h]:bd}, nameOf(bd)); }); }
   else if(act==='dadd' && DS.food){ const f=DS.food; isheet.away(()=>addFood(f)); }
   else if(act==='dadd'){ const {d,refs}=DS;
@@ -2465,7 +2505,7 @@ document.addEventListener('click',e=>{
     isheet.away(()=>addDish(plateMeal(d),d.k,refs,shown(d))); }
   // round 12: a family member opened from the plate: Update makes the item the variant chosen, keeping its quantity (the bowl's twin rule)
   else if(act==='vupd'){ const {d,refs,from:{pl,it}}=DS;
-    isheet.away(()=>{ const twin=pl.items.find(x=>x!==it && x.k===d.k); if(twin){ twin.qty+=it.qty; pl.items.splice(pl.items.indexOf(it),1); } else { it.k=d.k; it.n=shown(d); it.refs={...refs}; } buzz(8); refresh(); }); }
+    isheet.away(()=>{ const twin=pl.items.find(x=>x!==it && x.k===d.k); if(twin){ twin.qty+=it.qty; twin.at=++SEQ; pl.items.splice(pl.items.indexOf(it),1); } else { it.k=d.k; it.n=shown(d); it.refs={...refs}; it.at=++SEQ; } buzz(8); refresh(); }); }
   else if(act==='fav'){ const k=a.dataset.k; S.fav.has(k)?S.fav.delete(k):S.fav.add(k); save(); a.setAttribute('aria-pressed',S.fav.has(k)); buzz(6);
     // the lists under the sheet show the star where they are
     relist(); }
