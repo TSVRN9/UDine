@@ -42,14 +42,14 @@ const toMin = (t: string) => parseTimeOfDay(t)!;
 
 type Resolved = { contains: boolean; open: number; close: number; valid: boolean };
 
-/** Half-open [open, close) on today's minute axis; close <= open crosses midnight, so yesterday's occurrence is checked too. */
+/** Half-open [open, close) on today's minute axis; close <= open crosses midnight. The probe in mealWindow is at general's open, so
+ * yesterday's occurrence (which the Dart resolve also checks) can never contain it and is left out. */
 function resolve(now: number, w: TimeWindow): Resolved {
   const o = parseTimeOfDay(w.openTime), c = parseTimeOfDay(w.closeTime);
   if (o === null || c === null || o === c) return { contains: false, open: now, close: now, valid: false };
   const crosses = c <= o;
   const open = o, close = crosses ? c + 1440 : c;
   if (now >= open && now < close) return { contains: true, open, close, valid: true };
-  if (crosses && now >= o - 1440 && now < c) return { contains: true, open: o - 1440, close: c, valid: true };
   return { contains: false, open, close, valid: true };
 }
 
@@ -93,7 +93,7 @@ function easternWall(instant: Date) {
   const get = (t: string) => Number(p.find((x) => x.type === t)!.value);
   return { iso: `${p.find((x) => x.type === "year")!.value}-${p.find((x) => x.type === "month")!.value}-${p.find((x) => x.type === "day")!.value}`, min: (get("hour") % 24) * 60 + get("minute") };
 }
-const nextIso = (iso: string) => new Date(Date.parse(`${iso}T12:00:00Z`) + 86400000).toISOString().slice(0, 10);
+const shiftIso = (iso: string, days: number) => new Date(Date.parse(`${iso}T12:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
 
 /** Every group a dish is served in, soonest first. `newton` stays false on the server: topics are per dish, not per user. */
 export function wherePlan(fx: Board, dish: string, instant: Date, opts: { newton?: boolean } = {}): WhereGroup[] {
@@ -101,7 +101,9 @@ export function wherePlan(fx: Board, dish: string, instant: Date, opts: { newton
   const key = dishKey(dish);
   const inNewton = new Set(fx.places.filter((p) => p.area === 4).map((p) => p.key));
   const groups = new Map<string, { g: WhereGroup; open: number; close: number; order: number }>();
-  [today, nextIso(today)].forEach((iso, day) => {
+  // Yesterday's menus count too, for a window that crossed midnight and is still open.
+  [shiftIso(today, -1), today, shiftIso(today, 1)].forEach((iso, i) => {
+    const rel = i - 1, day = rel === 1 ? 1 : 0;
     for (const [place, meals] of Object.entries(fx.days[iso] ?? {})) {
       if (inNewton.has(place) && !opts.newton) continue;
       for (const [meal, names] of Object.entries(meals)) {
@@ -109,11 +111,13 @@ export function wherePlan(fx: Board, dish: string, instant: Date, opts: { newton
         const win = mealWindow(fx, place, meal);
         if (!win) continue;
         const w: [number, number] = [toMin(win[0]), toMin(win[1])];
-        const st = day === 1 ? "tomorrow" : nowMin >= w[1] ? "past" : nowMin >= w[0] ? "now" : "later";
+        const crosses = w[1] <= w[0]; // a close at or before its open is the next day's
+        const end = crosses ? w[1] + 1440 : w[1];
+        const st = rel === 1 ? "tomorrow" : rel === -1 ? (crosses && nowMin < w[1] ? "now" : "past") : nowMin >= end ? "past" : nowMin >= w[0] ? "now" : "later";
         if (st === "past") continue;
         const gk = `${st},${meal},${w[0]},${w[1]}`;
         if (!groups.has(gk)) {
-          groups.set(gk, { g: { st, meal, day, open: fmtMin(w[0]), close: fmtMin(w[1]), halls: [] }, open: w[0], close: w[1], order: groups.size });
+          groups.set(gk, { g: { st, meal, day, open: fmtMin(w[0]), close: fmtMin(w[1]), halls: [] }, open: w[0], close: end, order: groups.size });
         }
         const acc = groups.get(gk)!;
         if (!acc.g.halls.includes(place)) acc.g.halls.push(place);
