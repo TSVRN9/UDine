@@ -7,6 +7,8 @@ import '../../core/m2/plate.dart';
 import '../../core/m2/search.dart';
 import '../../core/m2/status.dart';
 import '../../core/m2/where.dart' show WhereGroup;
+import '../../core/saved_food.dart';
+import '../../data/packaged_search.dart' show LookupPhase, PackPhase;
 import '../../motion/routes.dart';
 import '../../shell/app_scope.dart';
 import '../../shell/plate_model.dart';
@@ -14,11 +16,15 @@ import '../../shell/shell_scope.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import '../dish/dish_sheet.dart';
+import '../dish/food_sheet.dart';
+import '../plate/custom_food.dart' show openCustomFood;
 import '../hall/dish_row.dart';
 import '../hall/meal_list.dart' show DietNote;
 import '../halls/hall_page.dart';
 import '../halls/halls_model.dart';
+import 'food_row.dart';
 import 'glide.dart';
+import 'lookup_slots.dart';
 import 'net_line.dart';
 import 'search_controller.dart';
 import 'search_entries.dart';
@@ -26,10 +32,10 @@ import 'search_entries.dart';
 const _glyphs = {Lens.veg: Glyph.veg, Lens.plant: Glyph.plant, Lens.halal: Glyph.halal, Lens.lowc: Glyph.carbon};
 
 /// Search (M2 `#tab-search`): the field on the maroon header, the lens chips, then the groups. Nothing loads until the tab is first
-/// shown. `idle` is what sits above the results while nothing is typed and no lens is on (the events, `flutter-port-search` Task 2);
-/// `extras` are the groups past the menus (packaged foods, `flutter-port-packaged-foods` Task 3); `onCustom` opens the custom-food form.
+/// shown. `idle` is what sits above the results while nothing is typed and no lens is on (the events, `flutter-port-search` Task 2). Past
+/// the menus come Your foods, Packaged and Search UMass Dining, then the custom-food button (`flutter-port-packaged-foods` Task 3).
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key, required this.top, required this.tab, this.index = 1, this.query = '', this.lenses = const {}, this.idle, this.extras, this.onCustom});
+  const SearchScreen({super.key, required this.top, required this.tab, this.index = 1, this.query = '', this.lenses = const {}, this.idle});
   final double top;
   /// the shell's selected tab, and the one this is
   final ValueListenable<int> tab;
@@ -37,8 +43,6 @@ class SearchScreen extends StatefulWidget {
   final String query;
   final Set<Lens> lenses;
   final Widget? idle;
-  final List<Widget> Function(BuildContext context, String query)? extras;
-  final ValueChanged<String>? onCustom;
   @override
   State<SearchScreen> createState() => _SearchScreenState();
 }
@@ -69,7 +73,7 @@ class _SearchScreenState extends State<SearchScreen> {
   void _start() {
     if (_c != null || widget.tab.value != widget.index || !mounted) return;
     final scope = AppScope.of(context);
-    _c = SearchController(scope.repo, scope.prefs, scope.plate)..addListener(_changed);
+    _c = SearchController(scope.repo, scope.prefs, scope.plate, packaged: scope.packaged, lookupSource: scope.lookup, foods: scope.foods)..addListener(_changed);
     for (final l in widget.lenses) {
       _c!.toggleLens(l);
     }
@@ -189,6 +193,37 @@ class _SearchScreenState extends State<SearchScreen> {
 
   String _said(WhereGroup g) => g.meal == 'all' ? (g.day > 0 ? 'Tomorrow' : 'Later') : g.day > 0 ? 'Tomorrow ${g.meal == 'grab' ? "Grab 'N Go" : mealLabel[g.meal]!.toLowerCase()}' : mealLabel[g.meal]!;
 
+  Widget _food(SavedFood f, SearchController c) {
+    final scope = AppScope.of(context), meal = c.index?.meal ?? clockMeal(scope.repo.now());
+    ({Plate plate, PlateItem item})? on() => findItem(_plate.state, meal, f.key);
+    return FoodRow(
+      key: ValueKey('f:${f.id}'), food: f, code: on()?.item.qty ?? 0,
+      onOpen: () {
+        _focus.unfocus();
+        openFoodSheet(context, food: f, meal: meal);
+      },
+      // kept in Your foods the first time it is added (never over a copy already there), then on the plate as the kept food
+      onAdd: () {
+        Haptics.add();
+        (scope.foods?.keep(f) ?? Future.value(f)).then((k) => _plate.addFood(meal, k));
+      },
+      onInc: () {
+        final x = on();
+        if (x != null) {
+          _plate.step(x.plate.id, f.key, 1);
+          Haptics.add();
+        }
+      },
+      onDec: () {
+        final x = on();
+        if (x != null) {
+          _plate.step(x.plate.id, f.key, -1);
+          Haptics.remove();
+        }
+      },
+    );
+  }
+
   Widget _later(LaterEntry e, SearchController c) {
     final scope = AppScope.of(context), fx = c.index!.fx, g = e.row.g, d = e.row.d, said = _said(g);
     return DishRow(
@@ -282,8 +317,25 @@ class _SearchScreenState extends State<SearchScreen> {
             padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.emptyTop, M2Space.gutter, M2Layout.emptyBottom),
             child: Text(text, style: M2Text.empty.style(M2Color.slate)),
           ),
-        ExtrasSlot() => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: widget.extras!(context, c.query.trim())),
-        CustomEntry(:final query, :final solid) => CustomFoodButton(label: 'Add “$query” as a custom food', solid: solid, onTap: () => widget.onCustom?.call(query)),
+        FoodEntry(:final food) => _food(food, c),
+        PackWaitEntry() => const PackWait(),
+        PackFailEntry() => PackFail(onRetry: () {
+            Haptics.light();
+            c.pack?.retry();
+          }),
+        LookupButtonEntry(:final query) => LookupButton(query: query, onTap: () {
+            Haptics.light();
+            _focus.unfocus();
+            c.askLookup();
+          }),
+        LookupStateEntry(:final phase, :final query, :final resetsAt, :final reason) => LookupStatus(phase: phase, query: query, resetsAt: resetsAt, reason: reason, onRetry: () {
+            Haptics.light();
+            c.askLookup();
+          }),
+        CustomEntry(:final query, :final solid) => CustomFoodButton(label: 'Add “$query” as a custom food', solid: solid, onTap: () {
+            _focus.unfocus();
+            openCustomFood(context, name: query, meal: c.index?.meal ?? clockMeal(AppScope.of(context).repo.now()));
+          }),
       }),
     );
   }
@@ -292,10 +344,15 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     final scope = AppScope.of(context), top = widget.top, c = _c, ix = c?.index;
     final meal = ix?.meal ?? clockMeal(scope.repo.now());
-    final extras = c == null ? const <Widget>[] : widget.extras?.call(context, c.query.trim()) ?? const <Widget>[];
+    final extras = c == null
+        ? const <SearchEntry>[]
+        : extraEntries(
+            track: scope.prefs.track, online: c.net != NetLine.offline, query: c.query, foods: scope.foods?.foods ?? const [],
+            pack: c.pack?.phase ?? PackPhase.idle, packHits: c.pack?.hits ?? const [], lookup: c.lookup?.phase ?? LookupPhase.idle, lookupFoods: c.lookup?.foods ?? const [], resetsAt: c.lookup?.resetsAt, reason: c.lookup?.reason,
+          );
     final entries = c == null || ix == null
         ? const <SearchEntry>[]
-        : searchEntries(raw: c.result, query: c.query, lenses: c.lenses, meal: meal, prefs: scope.prefs.diet, reveal: _reveal, track: scope.prefs.track, hasExtras: extras.isNotEmpty, net: c.menusIn ? c.net : NetLine.failed);
+        : searchEntries(raw: c.result, query: c.query, lenses: c.lenses, meal: meal, prefs: scope.prefs.diet, reveal: _reveal, track: scope.prefs.track, extras: extras, net: c.menusIn ? c.net : NetLine.failed);
     _entries = entries;
     final ids = {for (var i = 0; i < entries.length; i++) entries[i].id: i}; // a row that survives a keystroke keeps its element at its new index
     final idle = c != null && c.query.trim().isEmpty && c.lenses.isEmpty;

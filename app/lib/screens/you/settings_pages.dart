@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 
-import '../../core/m2/board.dart' show MenuItem, M2MenuItem, dishKey, halls;
+import '../../core/m2/board.dart' show MenuItem, M2MenuItem, clockMeal, dishKey, halls;
+import '../../core/saved_food.dart';
+import '../dish/food_sheet.dart';
 import '../../core/m2/plate.dart' show hallLabel;
 import '../../core/m2/rank.dart';
 import '../../core/ranking.dart';
@@ -112,6 +114,35 @@ class _FavoritesPageState extends State<FavoritesPage> {
           }
 
           return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [for (final (i, n) in f.indexed) LRow(title: n, subtitle: line(n), chevron: false, last: i == f.length - 1)]);
+        },
+      ),
+    );
+  }
+}
+
+/// Your foods (`pageContent('foods')`): every saved food, newest first, each opening its sheet. Deleting one from its sheet takes it off here.
+class FoodsPage extends StatelessWidget {
+  const FoodsPage({super.key, required this.top});
+  final double top;
+
+  @override
+  Widget build(BuildContext context) {
+    final scope = AppScope.of(context), book = scope.foods;
+    return SettingsPage(
+      top: top,
+      title: 'Your foods',
+      child: ListenableBuilder(
+        listenable: Listenable.merge([?book]),
+        builder: (context, _) {
+          final foods = book?.foods ?? const <SavedFood>[];
+          if (foods.isEmpty) return const _Empty("Foods you add that aren't on a menu are kept here.");
+          return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            for (final (i, f) in foods.indexed)
+              LRow(
+                title: f.name, subtitle: '${fc(f.nutrition.calories)} cal, ${f.serving}', last: i == foods.length - 1,
+                onTap: () => openFoodSheet(context, food: f, meal: clockMeal(scope.repo.now())),
+              ),
+          ]);
         },
       ),
     );

@@ -48,3 +48,6 @@ Label labelRowsOf(NutritionFacts n) {
     row(LabelKind.row, 'Protein', 'proteinG', n.proteinG, 'g', n.proteinDv, 'protein', last: true),
   ]);
 }
+
+/// The `.mks` marks of a food's diet bits (a food has no scores): plant based wins over vegetarian, as a dish's.
+List<String> dietMarks(int diet) => [if (diet & 2 != 0) 'plant' else if (diet & 1 != 0) 'veg', if (diet & 4 != 0) 'halal', if (diet & 8 != 0) 'local', if (diet & 16 != 0) 'sus'];

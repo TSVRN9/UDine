@@ -6,6 +6,7 @@ import '../core/date.dart';
 import '../core/m2/board.dart';
 import '../core/m2/log.dart';
 import '../core/macros.dart';
+import '../core/saved_food.dart';
 import '../core/m2/bowl.dart' show Bowl;
 import '../core/m2/bowl_builder.dart';
 import '../core/m2/plate.dart';
@@ -240,6 +241,16 @@ class PlateModel extends ChangeNotifier {
     _drop(); // (M2 addDish: S.lastLog = null. Undo could otherwise put back a plate beside one it could now have joined)
     _failed = false;
     _s = addDish(_s, meal, name, refs, custom);
+    notifyListeners();
+  }
+
+  /// A saved food's + or Add to plate (M2 `addFood`): a plate item keyed `food:<id>` that logs as its own source and nutrition.
+  void addFood(String meal, SavedFood f) {
+    if (!tracking()) return;
+    _failure = null;
+    _drop();
+    _failed = false;
+    _s = addDish(_s, meal, f.name, const {}, f.macro, f.key, null, f);
     notifyListeners();
   }
 

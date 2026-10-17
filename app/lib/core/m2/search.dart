@@ -123,6 +123,9 @@ class SearchIndex {
   late final List<DishGroup> hallGroups, cafeGroups;
   late final List<(String, String)> laterCandidates;
   late final Set<String> hasMenu;
+
+  /// every dish on a menu today or tomorrow, as `dishKey` spells it: what Search UMass Dining's answer leaves out, because it is not new
+  late final Set<String> served = {for (final g in hallGroups) g.key, for (final g in cafeGroups) g.key, for (final c in laterCandidates) c.$1};
 }
 
 /// A standing-menu line longer than this is a comma-separated list the café wrote as one line ("Hot Beverages: Coffee, Tea, ..."),

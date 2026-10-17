@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:http/http.dart' as http;
 import 'package:sqflite/sqflite.dart';
 
 import '../../theme/m2_tokens.g.dart';
@@ -9,8 +10,10 @@ import '../pdf_cache.dart';
 import '../repository.dart';
 import '../source.dart';
 import '../supabase_source.dart';
+import '../packaged.dart';
 import 'flags.dart';
 import 'recorded_client.dart';
+import 'recorded_packaged.dart';
 
 export 'flags.dart';
 
@@ -19,6 +22,9 @@ final defaultSlow = Duration(milliseconds: M2Motion.netSlow.round());
 
 const _bundled = 'assets/recorded/'; // internal flavor only (pubspec.yaml)
 Future<String> _fromBundle(String name) => rootBundle.loadString('$_bundled$name');
+
+/// A recording from the app bundle (internal flavor only).
+Future<String> recordedAsset(String name) => _fromBundle(name);
 
 /// The café PDFs UMass publishes are never committed: tool/link_pdfs.sh fills assets/recorded/pdf/ (gitignored) and the internal flavor bundles it.
 Future<List<int>> _pdfFromBundle(String file) async => (await rootBundle.load('${_bundled}pdf/$file')).buffer.asUint8List();
@@ -72,4 +78,17 @@ Future<Repository> recordedRepository(RecordedFlags f, Database db, {
     net.mode = NetMode.offline;
   }
   return repo;
+}
+
+/// The packaged groups' sources over M2's recordings (`RecordedPackagedClient`): the network flag does not reach them, as in M2, where
+/// Packaged and Search UMass Dining are asked for whenever Search is online.
+Future<({PackagedSource packaged, LookupDishSource lookup})> recordedPackaged(RecordedFlags f, {Future<String> Function(String name)? read, http.Client Function(http.Client inner)? wrap}) async {
+  read ??= _fromBundle;
+  final http.Client client = (wrap ?? (c) => c)(RecordedPackagedClient(
+    flow: jsonDecode(await read('packaged-2026-10-13.json')) as Map<String, dynamic>,
+    menus: jsonDecode(await read('menus-2026-10-08-to-22.json')) as Map<String, dynamic>,
+    lookup: f.lookup,
+    packFail: f.packFail,
+  ));
+  return (packaged: PackagedSource(client), lookup: LookupDishSource(client, now: () => f.at ?? DateTime.now()));
 }

@@ -3,9 +3,11 @@ import 'package:flutter/widgets.dart';
 import '../core/store/log_book.dart';
 import '../core/store/store.dart';
 import '../data/flyer.dart';
+import '../data/packaged.dart';
 import '../data/pdf_pages.dart';
 import '../data/repository.dart';
 import '../motion/routes.dart';
+import 'food_book.dart';
 import 'plate_model.dart';
 import 'prefs.dart';
 import 'share.dart';
@@ -13,12 +15,17 @@ import 'share.dart';
 /// What every screen under the shell reads: the repository (live or recorded), the device store, the preferences and which band a
 /// card is open from. The members are the notifiers; the scope itself never changes.
 class AppScope extends InheritedWidget {
-  const AppScope({super.key, required this.repo, required this.store, this.log, required this.prefs, required this.hider, required this.plate, this.pdfOpen = pdfxOpen, this.share = shareFiles, this.shareFlyer = shareFlyerFile, required super.child});
+  const AppScope({super.key, required this.repo, required this.store, this.log, this.foods, this.packaged, this.lookup, required this.prefs, required this.hider, required this.plate, this.pdfOpen = pdfxOpen, this.share = shareFiles, this.shareFlyer = shareFlyerFile, required super.child});
   final Repository repo;
   /// null when a newer build owns the database: menus only, nothing is written
   final UdineStore? store;
   /// the consumption log You shows and edits; null with no store (menus only)
   final LogBook? log;
+  /// Your foods (null with no store: nothing is kept)
+  final FoodBook? foods;
+  /// OpenFoodFacts and USDA, and Search UMass Dining: null where nothing can be asked (a test that wants no network)
+  final PackagedSource? packaged;
+  final LookupDishSource? lookup;
   final AppPrefs prefs;
   final BandHider hider;
   /// the plates being built: in memory until Log

@@ -1,3 +1,4 @@
+import '../saved_food.dart';
 import 'board.dart';
 import 'bowl.dart';
 import 'bowl_builder.dart';
@@ -10,8 +11,11 @@ class PlateItem {
 
   /// a bowl: `refs` hold its summed dish, this the parts and what it was built from
   final PlateBowl? bowl;
-  const PlateItem(this.key, this.name, this.qty, this.refs, this.custom, [this.bowl]);
-  PlateItem withQty(double q) => PlateItem(key, name, q, refs, custom, bowl);
+
+  /// a saved food (Your foods, a packaged hit, a lookup): what Log writes is its own source and full nutrition; `custom` holds its macros
+  final SavedFood? food;
+  const PlateItem(this.key, this.name, this.qty, this.refs, this.custom, [this.bowl, this.food]);
+  PlateItem withQty(double q) => PlateItem(key, name, q, refs, custom, bowl, food);
 }
 
 class Plate {
@@ -60,7 +64,7 @@ String customKey(String name, Macro m) {
 bool wouldSplit(PlateState s, String meal, List<String> places) => s.plates.isNotEmpty && !s.plates.any((p) => _canJoin(p, meal, places));
 
 /// [key0] is a bowl's own (`Bowl.key`); otherwise a custom food's is [customKey], a dish's its name's.
-PlateState addDish(PlateState s, String meal, String name, Map<String, MenuItem> refs, [Macro? custom, String? key0, PlateBowl? bowl]) {
+PlateState addDish(PlateState s, String meal, String name, Map<String, MenuItem> refs, [Macro? custom, String? key0, PlateBowl? bowl, SavedFood? food]) {
   final key = key0 ?? (custom != null ? customKey(name, custom) : dishKey(name));
   final hs = custom != null ? null : refs.keys.toList();
   final front = s.front < s.plates.length ? s.plates[s.front] : null;
@@ -72,11 +76,11 @@ PlateState addDish(PlateState s, String meal, String name, Map<String, MenuItem>
   }
   final pl = plates[idx], at = pl.items.indexWhere((x) => x.key == key);
   final items = at < 0
-      ? [...pl.items, PlateItem(key, name, 1, {...refs}, custom, bowl)]
+      ? [...pl.items, PlateItem(key, name, 1, {...refs}, custom, bowl, food)]
       : [
           for (var i = 0; i < pl.items.length; i++)
             if (i != at) pl.items[i] else PlateItem(key, pl.items[i].name, pl.items[i].qty == 0.5 ? 1 : pl.items[i].qty + 1,
-                custom != null ? pl.items[i].refs : {for (final e in pl.items[i].refs.entries) if (refs.containsKey(e.key)) e.key: e.value}, pl.items[i].custom, pl.items[i].bowl),
+                custom != null ? pl.items[i].refs : {for (final e in pl.items[i].refs.entries) if (refs.containsKey(e.key)) e.key: e.value}, pl.items[i].custom, pl.items[i].bowl, pl.items[i].food),
         ];
   return PlateState([for (var i = 0; i < plates.length; i++) i == idx ? Plate(pl.id, pl.meal, items) : plates[i]], idx, nextId);
 }

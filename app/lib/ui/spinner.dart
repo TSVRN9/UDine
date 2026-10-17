@@ -28,7 +28,9 @@ class _SpinPainter extends CustomPainter {
 /// `.spin`: the platform's activity indicator, drawn only after 400 ms (`spinIn`, 1 ms after a 400 ms delay), turning once in 900 ms,
 /// linear, for as long as it is there. Under reduced motion it does not turn and is there at once (M2 turns animations off).
 class Spinner extends StatefulWidget {
-  const Spinner({super.key});
+  /// what it is waiting for, as a screen reader says it ("Searching UMass Dining")
+  final String label;
+  const Spinner({super.key, this.label = 'Loading the menu'});
   @override
   State<Spinner> createState() => _SpinnerState();
 }
@@ -60,7 +62,7 @@ class _SpinnerState extends State<Spinner> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) => Semantics(
-        label: 'Loading the menu', value: 'progressbar',
+        label: widget.label, value: 'progressbar',
         child: Opacity(
           opacity: _shown ? 1 : 0,
           child: AnimatedBuilder(animation: _c, builder: (_, _) => CustomPaint(size: const Size.square(M2Size.spin), painter: _SpinPainter(_c.value))),

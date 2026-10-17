@@ -11,6 +11,7 @@ import 'app_scope.dart';
 import '../motion/routes.dart';
 import '../screens/hall/hall_route.dart';
 import '../screens/halls/hall_page.dart';
+import '../screens/dish/food_sheet.dart';
 import '../screens/plate/custom_food.dart';
 import '../screens/halls/halls_screen.dart';
 import '../screens/you/day_page.dart';
@@ -55,6 +56,14 @@ class ShellState extends State<Shell> with WidgetsBindingObserver implements She
     WidgetsBinding.instance.addObserver(this);
     // `/custom?name=&meal=` (a screenshot route): the custom food form over Halls; `cal`, `p`, `c` and `f` fill the macros
     final u = Uri.parse(widget.initialRoute), q = u.queryParameters;
+    // `/food?name=Chobani[&edit=1]` (a screenshot route): that saved food's sheet over Halls, in Edit with `edit=1`
+    if (u.path == '/food') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final scope = AppScope.of(context), f = scope.foods?.foods.where((x) => x.name == q['name']).firstOrNull;
+        if (f != null) openFoodSheet(navigator.currentContext!, food: f, meal: 'lunch', startEdit: q['edit'] == '1');
+      });
+    }
     if (u.path == '/custom') {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) openCustomFood(navigator.currentContext!, name: q['name'] ?? '', meal: q['meal'] ?? 'lunch', cal: q['cal'] ?? '', p: q['p'] ?? '', c: q['c'] ?? '', f: q['f'] ?? '');
@@ -131,11 +140,11 @@ class ShellState extends State<Shell> with WidgetsBindingObserver implements She
         ),
       );
 
-  /// `/you/day/2026-10-07`, `/you/diet`, `/you/rank`, `/you/export` and `/you/favs` open that page over You at launch (screenshot routes).
+  /// `/you/day/2026-10-07`, `/you/diet`, `/you/rank`, `/you/export`, `/you/favs` and `/you/foods` open that page over You at launch (screenshot routes).
   Route<void>? _youLaunch(String route, double top) {
     final s = Uri.parse(route).pathSegments;
     if (s.isEmpty || s[0] != 'you') return null;
-    final page = switch (s) { [_, 'day', final d] => DayPage(top: top, day: d), [_, 'diet'] => DietPage(top: top), [_, 'rank'] => RankPage(top: top), [_, 'export'] => ExportPage(top: top), [_, 'favs'] => FavoritesPage(top: top), _ => null };
+    final page = switch (s) { [_, 'day', final d] => DayPage(top: top, day: d), [_, 'diet'] => DietPage(top: top), [_, 'rank'] => RankPage(top: top), [_, 'export'] => ExportPage(top: top), [_, 'favs'] => FavoritesPage(top: top), [_, 'foods'] => FoodsPage(top: top), _ => null };
     return page == null ? null : BaseRoute<void>(settings: RouteSettings(name: route), builder: (_) => page);
   }
 

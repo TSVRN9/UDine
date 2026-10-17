@@ -12,6 +12,9 @@ import '../../ui/ui.dart';
 import 'bowl_foot.dart';
 import 'where_book.dart';
 
+const markGlyphs = {'plant': Glyph.plant, 'veg': Glyph.veg, 'halal': Glyph.halal, 'local': Glyph.local, 'sus': Glyph.sus};
+const markNames = {'plant': 'Plant based', 'veg': 'Vegetarian', 'halal': 'Halal', 'local': 'Local', 'sus': 'Sustainable'};
+
 /// Opens the dish sheet (M2 `openDish`) above everything, the tab bar included, over whatever it was opened from, which stays where it
 /// was. `refs` are the places an Add counts for (the serving at this place by default; every place serving it from Search).
 /// `onServe` runs once a where-served tap has the sheet half-way out: the opener decides between scrolling its own list and pushing
@@ -138,8 +141,7 @@ class _DishSheetState extends State<DishSheet> {
         widget.onServe(place, g);
       });
 
-  static const _glyphs = {'plant': Glyph.plant, 'veg': Glyph.veg, 'halal': Glyph.halal, 'local': Glyph.local, 'sus': Glyph.sus};
-  static const _names = {'plant': 'Plant based', 'veg': 'Vegetarian', 'halal': 'Halal', 'local': 'Local', 'sus': 'Sustainable'};
+  static const _glyphs = markGlyphs, _names = markNames;
 
   Widget _where(Board fx, MenuItem head) {
     final answer = whereAnswer(fx, head.dishName, widget.fx.clock, newton: AppScope.of(context).prefs.charlesRiver);
@@ -216,7 +218,7 @@ class _DishSheetState extends State<DishSheet> {
             handle: widget.handle, top: st + M2Layout.sheetTop, onClosed: widget.onClosed, mid: (m) => _mid(m, st), header: const SheetGrab(), onSize: (v) => _px.value = v,
             bottomPad: spec == null ? null : M2Layout.footBodyPad + safeBottom(context),
             slivers: [
-              PinnedHeaderSliver(child: _Head(name: name, stuck: _stuck)),
+              PinnedHeaderSliver(child: DishHead(name: name, stuck: _stuck)),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: M2Space.gutter),
@@ -278,7 +280,7 @@ class _DishSheetState extends State<DishSheet> {
                     if (board != null && head != null) Padding(padding: EdgeInsets.only(top: scope.prefs.track ? M2Layout.whereTop : M2Layout.whereTopOff), child: _where(board, head)),
                     Padding(padding: const EdgeInsets.only(top: M2Layout.labelTop), child: NutritionLabel(label: label, calKey: _cal)),
                     if (head != null && (head.health != null || head.carbon != null)) Padding(padding: const EdgeInsets.only(top: M2Layout.gradesTop), child: RatingsPanel(health: head.health, carbon: head.carbon)),
-                    if (head?.ingredients?.isNotEmpty ?? false) _Ingredients(text: head!.ingredients!, open: _ingOpen, onToggle: () => setState(() => _ingOpen = !_ingOpen)),
+                    if (head?.ingredients?.isNotEmpty ?? false) DishIngredients(text: head!.ingredients!, open: _ingOpen, onToggle: () => setState(() => _ingOpen = !_ingOpen)),
                   ]),
                 ),
               ),
@@ -319,10 +321,14 @@ class _DishSheetState extends State<DishSheet> {
 
 /// `.dhd`: the name over the label as it scrolls, with room at its right for the favourite star. Padding-bottom 4 under the name and margin-bottom -4, so the
 /// next row starts at the name's own bottom while the ground (and, once something passes under it, its edge) reaches 4 under it.
-class _Head extends StatelessWidget {
+class DishHead extends StatelessWidget {
   final String name;
   final bool stuck;
-  const _Head({required this.name, required this.stuck});
+  /// the name keeps clear of the star's (or Edit's) slot at its right; a name with nothing there takes the whole line
+  final bool reserve;
+  /// the width of what sits there: the star's box, or Edit's
+  final double slot;
+  const DishHead({super.key, required this.name, required this.stuck, this.reserve = true, this.slot = M2Layout.favBox});
   @override
   Widget build(BuildContext context) => Stack(clipBehavior: Clip.none, children: [
         Positioned(
@@ -344,8 +350,10 @@ class _Head extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(M2Space.gutter, 0, M2Space.gutter - M2Layout.favOut, 0),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Expanded(child: Padding(padding: const EdgeInsets.only(top: M2Layout.dishHeadTop), child: Semantics(header: true, child: Text(name, style: M2Text.dishName.style(M2Color.dm))))),
-            const SizedBox(width: M2Layout.favGap),
-            const SizedBox(width: M2Layout.favBox), // (the star itself is drawn over the sheet)
+            if (reserve) ...[
+              const SizedBox(width: M2Layout.favGap),
+              SizedBox(width: slot), // (the star itself is drawn over the sheet)
+            ],
           ]),
         ),
       ]);
@@ -353,11 +361,11 @@ class _Head extends StatelessWidget {
 
 /// `.ingh`, `.ing`, `.ingmore`: Ingredients cut to three lines with a fade, and Show all only when it is cut; the height opens in
 /// place on `settle`.
-class _Ingredients extends StatelessWidget {
+class DishIngredients extends StatelessWidget {
   final String text;
   final bool open;
   final VoidCallback onToggle;
-  const _Ingredients({required this.text, required this.open, required this.onToggle});
+  const DishIngredients({super.key, required this.text, required this.open, required this.onToggle});
   @override
   Widget build(BuildContext context) {
     final style = M2Text.ing.style(M2Color.ink);

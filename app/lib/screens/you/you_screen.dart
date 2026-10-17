@@ -32,7 +32,7 @@ class YouScreen extends StatelessWidget {
     return ColoredBox(
       color: M2Color.chalk,
       child: ListenableBuilder(
-        listenable: Listenable.merge([?book, prefs]),
+        listenable: Listenable.merge([?book, prefs, ?scope.foods]),
         builder: (context, _) {
           final today = book?.today ?? '', meals = book?.meals ?? const <LoggedMeal>[], earlier = [for (final d in loggedDays(meals)) if (d != today) d];
           return Stack(children: [
@@ -77,10 +77,11 @@ class _Choices extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final prefs = AppScope.of(context).prefs, meals = book?.meals ?? const <LoggedMeal>[], days = loggedDays(meals).length, favs = prefs.favorites.length;
+    final scope = AppScope.of(context), prefs = scope.prefs, foodCount = scope.foods?.foods.length ?? 0, meals = book?.meals ?? const <LoggedMeal>[], days = loggedDays(meals).length, favs = prefs.favorites.length;
     Widget sec(List<Widget> children) => Padding(padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.secTop, M2Space.gutter, 0), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children));
     final rows = <(String, String, WidgetBuilder)>[
       ('Favorites', favs == 0 ? 'None yet' : '$favs ${favs == 1 ? 'dish' : 'dishes'}', (_) => FavoritesPage(top: top)),
+      if (prefs.track && scope.foods != null) ('Your foods', foodCount == 0 ? 'None yet' : '$foodCount ${foodCount == 1 ? 'food' : 'foods'}', (_) => FoodsPage(top: top)),
       ('Dietary preferences', prefSummary(prefs.diet), (_) => DietPage(top: top)),
       // "Which was better?" is shelved (owner, 2026-10-15): RankPage stays behind the `/you/rank` route until it comes back here
       if (days > 0) ('Export my data', '$days ${days == 1 ? 'day' : 'days'}', (_) => ExportPage(top: top)),
