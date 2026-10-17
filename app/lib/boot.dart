@@ -121,14 +121,14 @@ class Boot {
     final s = store, l = log;
     if (s == null || l == null) return;
     final HealthClient client;
-    if (flags == null) {
+    if (flags == null || flags.health == 'device') {
       client = ChannelHealthClient();
     } else {
       client = SimulatedHealth(platform: flags.os, allows: flags.health != 'deny', status: flags.health == 'unsupported' ? HealthAccess.unsupported : HealthAccess.denied);
       await s.setHealthOn(flags.health == 'revoked'); // revoked: the switch is on and the OS no longer allows it
     }
     final fx = plateBoard(repo.now());
-    health = await HealthBook.open(client: client, store: s, log: l, titleOf: (m) => mealTitle(m, fx, l.cafeIds), tracking: () => prefs.track, now: flags == null ? null : repo.now);
+    health = await HealthBook.open(client: client, store: s, log: l, titleOf: (m) => mealTitle(m, fx, l.cafeIds), tracking: () => prefs.track, now: flags == null || flags.health == 'device' ? null : repo.now);
   }
 
   /// The database the repository caches in, and the user store over it (null when a newer build owns the file).
