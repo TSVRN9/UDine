@@ -6,6 +6,7 @@ import '../core/date.dart';
 import '../core/m2/board.dart';
 import '../core/m2/log.dart';
 import '../core/macros.dart';
+import '../core/saved_food.dart';
 import '../core/m2/bowl.dart' show Bowl;
 import '../core/m2/bowl_builder.dart';
 import '../core/m2/plate.dart';
@@ -46,7 +47,10 @@ class Receipt {
 class PlateModel extends ChangeNotifier {
   /// `write` and `readDay` are the device store's `addEntries` and `entriesForDay` (null when a newer build owns the database: nothing
   /// is written and the bar never shows); `now` is the app's clock.
-  PlateModel({this.write, this.readDay, DateTime Function()? now, this.changed}) : _now = now; // ignore: prefer_initializing_formals
+  PlateModel({this.tracking = _always, this.write, this.readDay, DateTime Function()? now, this.changed}) : _now = now; // ignore: prefer_initializing_formals
+  /// Track what I eat: while it answers false nothing is added, stepped or logged (M2 `addDish`), and the plate in progress is left as it is.
+  final bool Function() tracking;
+  static bool _always() => true;
   final Future<Undo> Function(List<LogEntry> rows)? write;
   final Future<List<LogEntry>> Function(String day)? readDay;
 
@@ -101,7 +105,7 @@ class PlateModel extends ChangeNotifier {
       };
 
   /// Whether Log can run: a store to write to and something on the front plate.
-  bool get canLog => write != null && _s.front < _s.plates.length;
+  bool get canLog => tracking() && write != null && _s.front < _s.plates.length;
 
   DateTime get _clock => (_now ?? DateTime.now)();
 
@@ -125,7 +129,7 @@ class PlateModel extends ChangeNotifier {
   /// Writes the front plate at `place` (null: the plate's only place, or none for an all-custom plate). Returns whether it did.
   Future<bool> log({String? place}) async {
     final w = write, rd = readDay;
-    if (w == null || rd == null || _busy || !canLog) return false;
+    if (w == null || rd == null || _busy || !canLog) return false; // (canLog: tracking on)
     _busy = true; // (before the first await: a second tap sees it)
     _failed = false;
     _failure = null;
@@ -232,6 +236,7 @@ class PlateModel extends ChangeNotifier {
   }
 
   void add(String meal, String name, Map<String, MenuItem> refs, [Macro? custom]) {
+    if (!tracking()) return;
     _failure = null;
     _drop(); // (M2 addDish: S.lastLog = null. Undo could otherwise put back a plate beside one it could now have joined)
     _failed = false;
@@ -239,8 +244,19 @@ class PlateModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// A saved food's + or Add to plate (M2 `addFood`): a plate item keyed `food:<id>` that logs as its own source and nutrition.
+  void addFood(String meal, SavedFood f) {
+    if (!tracking()) return;
+    _failure = null;
+    _drop();
+    _failed = false;
+    _s = addDish(_s, meal, f.name, const {}, f.macro, f.key, null, f);
+    notifyListeners();
+  }
+
   /// A builder's Add (M2 `badd`): a bowl is one item named for its base; a base with nothing chosen is the plain dish.
   void addBowl(String meal, BowlSpec spec, Bowl bowl) {
+    if (!tracking()) return;
     _failure = null;
     _drop();
     _failed = false;
@@ -250,11 +266,13 @@ class PlateModel extends ChangeNotifier {
 
   /// A builder's Update: the plate item becomes the new bowl where it is (a twin on the plate takes its servings).
   void updateBowl(int plateId, String key, BowlSpec spec, Bowl bowl) {
+    if (!tracking()) return;
     _s = core.updateBowl(_s, plateId, key, bowl, spec, spec.place);
     notifyListeners();
   }
 
   void step(int plateId, String key, int dir) {
+    if (!tracking()) return;
     _s = stepItem(_s, plateId, key, dir);
     notifyListeners();
   }

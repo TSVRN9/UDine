@@ -49,7 +49,7 @@ class ListItem {
 
 /// What the list says for a place's meal on a day (M2 `renderMenuList`): the Grab 'N Go note, the line over a filtered list, station
 /// heads and dish rows, or what an empty list says.
-List<ListItem> mealItems(Board fx, Prefs prefs, String place, String name, int day, String meal, bool reveal, {MenuState state = MenuState.ok}) {
+List<ListItem> mealItems(Board fx, Prefs prefs, String place, String name, int day, String meal, bool reveal, {MenuState state = MenuState.ok, bool track = true}) {
   final iso = dayIsos(fx)[day], menu = fx.days[iso]?[place]?[meal];
   // what a list says when there is nothing to list (M2 `renderMenuList`): loading, not saved offline, didn't load, nothing posted
   switch (state) {
@@ -78,7 +78,7 @@ List<ListItem> mealItems(Board fx, Prefs prefs, String place, String name, int d
         si = it.si;
         out.add(ListItem(ItemKind.head, si: si, text: it.name));
         // another day's dishes can't go on today's plate, so its stations build nothing
-        final y = day == 0 ? synOf(fx, iso, place, meal, si) : null;
+        final y = day == 0 && track ? synOf(fx, iso, place, meal, si) : null;
         if (y != null) out.add(ListItem(ItemKind.syn, si: si, text: y.label));
       case 'dish':
         out.add(ListItem(ItemKind.dish, si: si, dish: it.dish, contains: it.contains));
@@ -88,7 +88,7 @@ List<ListItem> mealItems(Board fx, Prefs prefs, String place, String name, int d
 }
 
 /// An item as a widget. `keys` is null for a copy.
-Widget buildItem(BuildContext context, ListItem it, {required Board fx, required PlateState plate, required ({bool health, bool carbon}) scores, required String place, required int day, required String meal, required bool reveal, ListKeys? keys, required MealActions actions, Set<String> favorites = const {}, String? here}) {
+Widget buildItem(BuildContext context, ListItem it, {required Board fx, required PlateState plate, required ({bool health, bool carbon}) scores, required String place, required int day, required String meal, required bool reveal, ListKeys? keys, required MealActions actions, Set<String> favorites = const {}, String? here, bool track = true}) {
   switch (it.kind) {
     case ItemKind.state:
       return StateLine(text: it.text!);
@@ -118,7 +118,7 @@ Widget buildItem(BuildContext context, ListItem it, {required Board fx, required
     case ItemKind.dish:
       final d = it.dish!, pm = plateMeal(fx, place, meal, fx.clock);
       return DishRow(
-        key: keys?.keyFor(it.id, here == it.id) ?? ValueKey(it.id), dish: d, scores: scores, contains: it.contains, here: here == it.id, favorite: favorites.contains(d.dishName),
+        key: keys?.keyFor(it.id, here == it.id) ?? ValueKey(it.id), dish: d, scores: scores, contains: it.contains, here: here == it.id, track: track, favorite: favorites.contains(d.dishName),
         code: day == 0 ? rowCode(plate, pm, d.key, place) : null,
         onOpen: () => actions.onOpen(d), onAdd: () => actions.onAdd(d), onInc: () => actions.onInc(d), onDec: () => actions.onDec(d),
       );
@@ -141,9 +141,10 @@ class MealSliver extends StatelessWidget {
   final Set<String> favorites;
   /// the id of the item a where-served tap landed on
   final String? here;
+  final bool track;
   /// wraps every row in the container's back-drag recogniser (see HallMenu.dragWrap)
   final Widget Function(Widget child)? dragWrap;
-  const MealSliver({super.key, this.sliverKey, this.dragWrap, this.favorites = const {}, this.here, required this.fx, required this.items, required this.plate, required this.scores, required this.place, required this.day, required this.meal, required this.reveal, required this.keys, required this.actions});
+  const MealSliver({super.key, this.sliverKey, this.dragWrap, this.favorites = const {}, this.here, this.track = true, required this.fx, required this.items, required this.plate, required this.scores, required this.place, required this.day, required this.meal, required this.reveal, required this.keys, required this.actions});
 
   @override
   Widget build(BuildContext context) {
@@ -152,7 +153,7 @@ class MealSliver extends StatelessWidget {
       key: sliverKey,
       delegate: SliverChildBuilderDelegate(
         (context, i) {
-          final child = buildItem(context, items[i], fx: fx, plate: plate, scores: scores, place: place, day: day, meal: meal, reveal: reveal, keys: keys, actions: actions, favorites: favorites, here: here);
+          final child = buildItem(context, items[i], fx: fx, plate: plate, scores: scores, place: place, day: day, meal: meal, reveal: reveal, keys: keys, actions: actions, favorites: favorites, here: here, track: track);
           return KeyedSubtree(key: ValueKey(items[i].id), child: dragWrap == null ? child : dragWrap!(child));
         },
         childCount: items.length,

@@ -1,7 +1,8 @@
 import 'package:flutter/widgets.dart';
 
-import '../../core/m2/board.dart' show MenuItem, M2MenuItem, dishKey, halls;
-import '../../core/m2/menu_view.dart' show allergens;
+import '../../core/m2/board.dart' show MenuItem, M2MenuItem, clockMeal, dishKey, halls;
+import '../../core/saved_food.dart';
+import '../dish/food_sheet.dart';
 import '../../core/m2/plate.dart' show hallLabel;
 import '../../core/m2/rank.dart';
 import '../../core/ranking.dart';
@@ -10,6 +11,7 @@ import '../../shell/app_scope.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import '../plate/plate_sheet.dart' show plateBoard;
+import 'you_parts.dart';
 
 /// A pushed page of You (`.page`): the maroon bar with its title, then the body on chalk.
 class SettingsPage extends StatelessWidget {
@@ -48,7 +50,6 @@ class _Empty extends StatelessWidget {
 class DietPage extends StatelessWidget {
   const DietPage({super.key, required this.top});
   final double top;
-  static const _only = [('Vegetarian', 'Vegetarian'), ('Plant Based', 'Plant based'), ('Halal', 'Halal')];
 
   @override
   Widget build(BuildContext context) {
@@ -58,16 +59,12 @@ class DietPage extends StatelessWidget {
       title: 'Dietary preferences',
       child: ListenableBuilder(
         listenable: prefs,
-        builder: (context, _) {
-          final d = prefs.diet, on = {'Vegetarian': d.veg, 'Plant Based': d.plant, 'Halal': d.halal};
-          return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Padding(padding: const EdgeInsets.only(top: M2Layout.dietTop, bottom: M2Layout.h3Bottom), child: Semantics(header: true, child: Text('Only show', style: M2Text.section.style(M2Color.dm)))),
-            for (final (tag, label) in _only) CheckRow(label: label, on: on[tag]!, onChanged: (v) { Haptics.selection(); prefs.setOnlyShow(tag, v); }),
-            Padding(padding: const EdgeInsets.only(top: M2Layout.dietGroupTop, bottom: M2Layout.h3Bottom), child: Semantics(header: true, child: Text('Avoid', style: M2Text.section.style(M2Color.dm)))),
-            for (final (i, a) in allergens.indexed)
-              CheckRow(label: a[0] + a.substring(1).toLowerCase(), on: d.avoid.contains(a), last: i == allergens.length - 1, onChanged: (_) { Haptics.selection(); prefs.toggleAvoid(a); }),
-          ]);
-        },
+        builder: (context, _) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Padding(padding: const EdgeInsets.only(top: M2Layout.dietTop, bottom: M2Layout.h3Bottom), child: Semantics(header: true, child: Text('Only show', style: M2Text.section.style(M2Color.dm)))),
+          const OnlyShowRows(),
+          Padding(padding: const EdgeInsets.only(top: M2Layout.dietGroupTop, bottom: M2Layout.h3Bottom), child: Semantics(header: true, child: Text('Avoid', style: M2Text.section.style(M2Color.dm)))),
+          const AvoidRows(),
+        ]),
       ),
     );
   }
@@ -117,6 +114,35 @@ class _FavoritesPageState extends State<FavoritesPage> {
           }
 
           return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [for (final (i, n) in f.indexed) LRow(title: n, subtitle: line(n), chevron: false, last: i == f.length - 1)]);
+        },
+      ),
+    );
+  }
+}
+
+/// Your foods (`pageContent('foods')`): every saved food, newest first, each opening its sheet. Deleting one from its sheet takes it off here.
+class FoodsPage extends StatelessWidget {
+  const FoodsPage({super.key, required this.top});
+  final double top;
+
+  @override
+  Widget build(BuildContext context) {
+    final scope = AppScope.of(context), book = scope.foods;
+    return SettingsPage(
+      top: top,
+      title: 'Your foods',
+      child: ListenableBuilder(
+        listenable: Listenable.merge([?book]),
+        builder: (context, _) {
+          final foods = book?.foods ?? const <SavedFood>[];
+          if (foods.isEmpty) return const _Empty("Foods you add that aren't on a menu are kept here.");
+          return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            for (final (i, f) in foods.indexed)
+              LRow(
+                title: f.name, subtitle: '${fc(f.nutrition.calories)} cal, ${f.serving}', last: i == foods.length - 1,
+                onTap: () => openFoodSheet(context, food: f, meal: clockMeal(scope.repo.now())),
+              ),
+          ]);
         },
       ),
     );

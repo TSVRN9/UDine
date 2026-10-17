@@ -5,7 +5,10 @@ import '../../core/m2/board.dart';
 import '../../core/m2/places.dart';
 import '../../core/m2/search.dart';
 import '../../core/types.dart' show diningHalls;
+import '../../data/packaged.dart' show LookupDishSource, PackagedSource;
+import '../../data/packaged_search.dart';
 import '../../data/repository.dart';
+import '../../shell/food_book.dart';
 import '../../shell/plate_model.dart';
 import '../../shell/prefs.dart';
 import '../dish/where_book.dart';
@@ -19,15 +22,22 @@ import '../hall/hall_controller.dart' show grabsOf;
 /// each place-day asked of the network at most once, as background work). Typing and lenses only filter what is in memory, and the
 /// order is computed then, with the plate as it is at that moment: a plate change redraws controls, never the order.
 class SearchController extends ChangeNotifier {
-  SearchController(this.repo, this.prefs, this.plate) {
+  SearchController(this.repo, this.prefs, this.plate, {PackagedSource? packaged, LookupDishSource? lookupSource, this.foods}) {
     hallsData = HallsController(repo)..addListener(_onHours);
     prefs.addListener(_onPrefs);
+    pack = packaged == null ? null : (PackagedSearch(packaged)..addListener(_onExtras));
+    lookup = lookupSource == null ? null : (LookupRun(lookupSource)..addListener(_onExtras));
+    foods?.addListener(_onExtras);
     _onHours();
   }
   final Repository repo;
   final AppPrefs prefs;
   final PlateModel plate;
   late final HallsController hallsData;
+  /// the Packaged group's and Search UMass Dining's asks (null where no network is wired), and Your foods
+  late final PackagedSearch? pack;
+  late final LookupRun? lookup;
+  final FoodBook? foods;
   WhereBook? _book;
   SearchIndex? index;
   String query = '';
@@ -77,6 +87,7 @@ class SearchController extends ChangeNotifier {
       _compute();
       return;
     }
+    _asks();
     notifyListeners();
   }
 
@@ -115,8 +126,30 @@ class SearchController extends ChangeNotifier {
     }
   }
 
+  /// Packaged and Search UMass Dining are asked only with tracking on, online and a query typed; otherwise nothing is sent.
+  void _asks() {
+    final q = query.trim(), on = prefs.track && net != NetLine.offline && q.isNotEmpty;
+    if (on) {
+      pack?.ask(q);
+    } else {
+      pack?.stop();
+    }
+    lookup?.sync(on ? q : '');
+  }
+
+  /// Something past the menus changed (an answer, Your foods): the list is made again, and a row that moved glides.
+  void _onExtras() {
+    if (_disposed) return;
+    generation++;
+    notifyListeners();
+  }
+
+  /// Search UMass Dining, by hand (never by itself: its budget is global).
+  void askLookup() => lookup?.run(query.trim(), index?.served ?? const {});
+
   void _compute() {
     final ix = index;
+    _asks();
     generation++;
     result = ix == null ? const SearchResult() : runSearch(ix, query: query, lenses: lenses, favorites: prefs.favorites, plate: plate.state);
     notifyListeners();
@@ -141,6 +174,11 @@ class SearchController extends ChangeNotifier {
     hallsData.dispose();
     _book?.removeListener(_onBook);
     _book?.dispose();
+    pack?.removeListener(_onExtras);
+    pack?.dispose();
+    lookup?.removeListener(_onExtras);
+    lookup?.dispose();
+    foods?.removeListener(_onExtras);
     super.dispose();
   }
 }

@@ -14,8 +14,9 @@ abstract class ShellApi {
   /// Goes to the Search tab (the plate's Add something else) for a plate of `meal`.
   void openSearch({required String meal});
 
-  /// Android back is offered to this first (after any pushed sheet, before the pages): true when it was used. Null to stop offering.
-  void handleBack(bool Function()? handler);
+  /// Android back is offered to this sheet first (after any pushed sheet, before the pages) while the function returns it: the sheet
+  /// closes to its lowest height, following the gesture when it is the predictive one. Null to stop offering.
+  void handleBack(SheetHandle? Function()? openSheet);
 
 }
 

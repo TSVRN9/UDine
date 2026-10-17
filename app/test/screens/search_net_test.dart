@@ -1,4 +1,5 @@
 // Search offline and failed (M2 round 11 §4): the line at the top says what is searched, Events stay offline, a failure is Halls' own pair.
+import 'package:flutter/widgets.dart' show CustomScrollView;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/data/recorded/flags.dart' show NetMode;
 import 'package:udine/screens/hall/dish_row.dart';
@@ -73,12 +74,15 @@ void main() {
     await finish(t);
   });
 
-  testWidgets('failed, a query: the places still match, nothing says no menu has it, the custom-food button is the only call', (t) async {
+  testWidgets('failed, a query: the places still match, nothing says no menu has it, the the lookups and the custom-food button follow', (t) async {
     await open(t, NetMode.fail, route: '/search?q=worcester');
     expect(find.byType(Band), findsOneWidget);
     expect(find.textContaining('Nothing called'), findsNothing);
     await type(t, 'clif');
     expect(find.textContaining('Nothing called'), findsNothing);
+    // (online, so Packaged and Search UMass Dining are still offered, and the custom-food button follows them)
+    await until(t, () => find.text('Packaged').evaluate().isNotEmpty);
+    await t.dragUntilVisible(find.byType(CustomFoodButton), find.byType(CustomScrollView), const Offset(0, -300));
     expect(find.byType(CustomFoodButton), findsOneWidget);
     await finish(t);
   });

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -9,6 +10,8 @@ import 'package:udine/app.dart';
 import 'package:udine/core/hours.dart';
 import 'package:udine/core/store/db.dart';
 import 'package:udine/core/store/store.dart';
+import 'package:http/http.dart' as http;
+import 'package:udine/data/packaged.dart' show LookupDishSource;
 import 'package:udine/data/pdf_pages.dart';
 import 'package:udine/data/recorded/recorded.dart';
 import 'package:udine/shell/prefs.dart';
@@ -25,7 +28,7 @@ Future<String> readRecorded(String name) => File('assets/recorded/$name').readAs
 
 /// The app's `Boot` over M2's recordings and a throwaway store, as `Boot.open` builds it for a recorded route. Real I/O (sqlite on an
 /// isolate) runs under `runAsync`.
-Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? at, List<String> pins = const [], bool charlesRiver = false, Duration? slow, bool health = false, bool carbon = false, Set<String> savedCafes = const {}, bool persistPins = false, List<String> avoid = const [], List<String> onlyShow = const [], PdfOpen? pages, bool pdfsLinked = true, Future<String> Function(String)? read, Future<void> Function(String)? shareFlyer}) async {
+Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? at, List<String> pins = const [], bool charlesRiver = false, Duration? slow, bool health = false, bool carbon = false, bool track = true, bool firstRun = false, Set<String> savedCafes = const {}, bool persistPins = false, List<String> avoid = const [], List<String> onlyShow = const [], PdfOpen? pages, bool pdfsLinked = true, Future<String> Function(String)? read, Future<void> Function(String)? shareFlyer, bool foods = false, LookupMode lookup = LookupMode.found, bool packFail = false, HangingClient? hangLookup, CountingClient? count}) async {
   return (await t.runAsync(() async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
@@ -34,11 +37,18 @@ Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? a
     final store = UdineStore(db.db);
     await store.setCharlesRiver(charlesRiver);
     await store.setScores(healthfulness: health, carbon: carbon);
+    await store.setTracking(track);
+    await store.setFirstRunSeen(!firstRun); // (a recorded route marks it shown, as M2's own harnesses do)
     if (avoid.isNotEmpty) await store.setAvoid(avoid);
     if (onlyShow.isNotEmpty) await store.setOnlyShow(onlyShow);
     // the recorded PDFs are UMass's and never in the repo: a test's are synthetic, and its pages are drawn by [pages]
     final repo = await recordedRepository(RecordedFlags(at: at ?? lunch, net: net, savedCafes: savedCafes), db.db, read: read ?? readRecorded, slow: slow, pins: pins, readPdf: (_) async => pdfsLinked ? utf8.encode('%PDF-1.4\n%synthetic\n') : throw 'not linked', pdfDir: Directory.systemTemp.createTempSync('udine-test-pdf'));
-    return Boot(repo, store, await AppPrefs.load(store, pins: persistPins ? null : pins), pdfOpen: pages ?? pdfxOpen, shareFlyer: shareFlyer);
+    final flags = RecordedFlags(at: at ?? lunch, net: net, lookup: lookup, packFail: packFail);
+    final r = await recordedPackaged(flags, read: read ?? readRecorded, wrap: count == null ? null : (inner) => count..inner = inner);
+    final boot = Boot(repo, store, await AppPrefs.load(store, pins: persistPins ? null : pins), pdfOpen: pages ?? pdfxOpen, shareFlyer: shareFlyer, packaged: r.packaged, lookup: hangLookup == null ? r.lookup : LookupDishSource(hangLookup, now: () => lunch));
+    if (foods) await boot.seedFoods(read ?? readRecorded);
+    await boot.foods?.reload();
+    return boot;
   }))!;
 }
 
@@ -89,4 +99,23 @@ Future<void> openPlace(WidgetTester t, Boot boot, String place, {double w = 390,
   await t.pump();
   await until(t, () => find.byType(DishRow).evaluate().isNotEmpty || find.textContaining(RegExp(r'^(No menu posted|You.re offline|.* menu .*didn.t load)')).evaluate().isNotEmpty);
   await t.pumpAndSettle();
+}
+
+/// A network that has not answered yet: a request waits until [release] (so a state that is "in flight" can be looked at).
+class HangingClient extends http.BaseClient {
+  final _c = Completer<http.StreamedResponse>();
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) => _c.future;
+  void release() => _c.complete(http.StreamedResponse(const Stream.empty(), 500));
+}
+
+/// Every request that reaches the network boundary, counted (the packaged and lookup sources are built over it).
+class CountingClient extends http.BaseClient {
+  late http.Client inner;
+  final urls = <Uri>[];
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    urls.add(request.url);
+    return inner.send(request);
+  }
 }
