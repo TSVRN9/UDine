@@ -1,5 +1,6 @@
 // The Packaged group's and Search UMass Dining's state machines over M2's recordings (flutter-port-packaged-foods Task 3): what each asks,
 // when, and what a stale or failed answer does. No network: RecordedPackagedClient answers from packaged-2026-10-13.json and the menus.
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -114,6 +115,55 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 10));
       }
       expect([for (final f in q.hits) f.productName], ['off a', 'usda g1', 'usda b1', 'off b', 'usda g2', 'usda b2', 'off c', 'usda b3']);
+    });
+
+    test('an answer to an earlier query that comes in late is dropped: the state is the later query\'s', () async {
+      final gate = {'a': Completer<http.Response>(), 'b': Completer<http.Response>()};
+      Map<String, dynamic> off(String n) => {'code': n, 'product_name': 'Bar $n', 'nutriments': {'energy-kcal_100g': 100}};
+      final mock = MockClient((r) async {
+        if (r.url.host == 'api.nal.usda.gov') return http.Response(jsonEncode({'foods': [], 'currentPage': 1, 'totalPages': 1}), 200);
+        final q = r.url.queryParameters['search_terms']!;
+        return gate[q]!.future;
+      });
+      final q = PackagedSearch(PackagedSource(mock, retryDelay: Duration.zero), debounce: Duration.zero);
+      addTearDown(q.dispose);
+      q.ask('a');
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      q.ask('b');
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      gate['b']!.complete(http.Response(jsonEncode({'count': 1, 'products': [off('b')]}), 200));
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      gate['a']!.complete(http.Response(jsonEncode({'count': 1, 'products': [off('a')]}), 200)); // (A, late)
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      expect([q.query, q.phase, [for (final f in q.hits) f.productName]], ['b', PackPhase.ok, ['Bar b']]);
+    });
+
+    test('a partial answer is not remembered: the source that failed is asked again the next time', () async {
+      var usdaCalls = 0;
+      final mock = MockClient((r) async {
+        if (r.url.host == 'api.nal.usda.gov') {
+          usdaCalls++;
+          return http.Response('x', 500);
+        }
+        return http.Response(jsonEncode({'count': 1, 'products': [{'code': '1', 'product_name': 'Bar', 'nutriments': {'energy-kcal_100g': 100}}]}), 200);
+      });
+      final q = PackagedSearch(PackagedSource(mock, retryDelay: Duration.zero), debounce: Duration.zero);
+      addTearDown(q.dispose);
+      Future<void> settled() async {
+        for (var i = 0; i < 100 && q.phase == PackPhase.loading; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+      }
+      q.ask('x');
+      await settled();
+      expect([q.phase, usdaCalls], [PackPhase.ok, 2]);
+      q.ask('y');
+      await settled();
+      final before = usdaCalls;
+      q.ask('x');
+      expect(q.phase, PackPhase.loading); // (asked again, not answered from memory)
+      await settled();
+      expect(usdaCalls, before + 2);
     });
 
     test('one source answering is enough: the others failing leaves what came', () async {

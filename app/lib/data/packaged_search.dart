@@ -84,7 +84,7 @@ class PackagedSearch extends ChangeNotifier {
     } else {
       // (interleaved, so the 20 the group shows are from every source that answered, not the first one's)
       hits = [for (var i = 0; got.any((g) => i < g.length); i++) for (final g in got) if (i < g.length) g[i]];
-      _memo[q.toLowerCase()] = hits;
+      if (failed == 0) _memo[q.toLowerCase()] = hits; // (a source that failed is asked again the next time, not remembered as empty)
       phase = PackPhase.ok;
     }
     notifyListeners();

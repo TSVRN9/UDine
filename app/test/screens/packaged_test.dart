@@ -3,7 +3,10 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/data/recorded/flags.dart' show LookupMode, NetMode;
+import 'package:udine/core/saved_food.dart';
 import 'package:udine/screens/dish/food_sheet.dart';
+import 'package:udine/screens/plate/plate_bar.dart';
+import 'package:udine/screens/plate/plate_row.dart';
 import 'package:udine/screens/plate/custom_food.dart' show CustomFoodSheet, FoodFormSliver;
 import 'package:udine/screens/search/food_row.dart';
 import 'package:udine/screens/search/search_screen.dart';
@@ -15,8 +18,8 @@ import 'search_screen_test.dart' show finish, settle;
 import 'support.dart';
 import 'you_support.dart';
 
-Future<AppScope> openQ(WidgetTester t, String q, {bool foods = true, bool track = true, NetMode net = NetMode.ok, LookupMode lookup = LookupMode.found, bool packFail = false, double w = 390, HangingClient? hang}) async {
-  final b = await bootRecorded(t, foods: foods, track: track, net: net, lookup: lookup, packFail: packFail, hangLookup: hang);
+Future<AppScope> openQ(WidgetTester t, String q, {bool foods = true, bool track = true, NetMode net = NetMode.ok, LookupMode lookup = LookupMode.found, bool packFail = false, double w = 390, HangingClient? hang, CountingClient? count}) async {
+  final b = await bootRecorded(t, foods: foods, track: track, net: net, lookup: lookup, packFail: packFail, hangLookup: hang, count: count);
   await openApp(t, b, route: '/search?q=$q', w: w);
   await until(t, () => find.byType(DishRow).evaluate().isNotEmpty || find.textContaining('Nothing called').evaluate().isNotEmpty || find.textContaining('No dishes').evaluate().isNotEmpty);
   await settle(t);
@@ -136,6 +139,57 @@ void main() {
       await t.enterText(find.byType(EditableText), 'laksas');
       await settle(t);
       expect(find.text('Search UMass Dining for “laksas”'), findsOneWidget);
+      await finish(t);
+    });
+  });
+
+  group('nothing is sent unless Search may ask', () {
+    // (a query typed and the debounce long past: the count is what reached the network, OFF and USDA alike)
+    Future<int> sent(WidgetTester t, {bool track = true, NetMode net = NetMode.ok}) async {
+      final c = CountingClient();
+      await openQ(t, 'clif', track: track, net: net, count: c);
+      for (var i = 0; i < 4; i++) {
+        await t.pump(const Duration(seconds: 1));
+        await drain(t);
+      }
+      await finish(t);
+      return c.urls.length;
+    }
+
+    testWidgets('control: tracking on and online asks OFF and USDA (lookup-dish only by hand)', (t) async {
+      expect(await sent(t), 3);
+    });
+    testWidgets('tracking off: no request at all, though a query is typed and the debounce has passed', (t) async => expect(await sent(t, track: false), 0));
+    testWidgets('offline: no request at all', (t) async => expect(await sent(t, net: NetMode.offline), 0));
+  });
+
+  group('a plate row opens its food', () {
+    Future<(AppScope, SavedFood)> onPlate(WidgetTester t) async {
+      final s = await openQ(t, 'chobani');
+      final f = s.foods!.foods.firstWhere((x) => x.name == 'Chobani');
+      s.plate.addFood('lunch', f);
+      await t.pumpAndSettle();
+      await t.tap(find.byType(PlateBar));
+      await t.pumpAndSettle();
+      return (s, f);
+    }
+
+    testWidgets('a saved food\'s row opens its sheet', (t) async {
+      await onPlate(t);
+      await t.tap(find.descendant(of: find.byType(PlateRow), matching: find.text('Chobani')));
+      await t.pumpAndSettle();
+      expect(find.byType(FoodSheet), findsOneWidget);
+      await finish(t);
+    });
+
+    testWidgets('a food deleted since opens nothing', (t) async {
+      final (s, f) = await onPlate(t);
+      await t.runAsync(() => s.foods!.delete(f));
+      await t.pumpAndSettle();
+      await t.tap(find.descendant(of: find.byType(PlateRow), matching: find.text('Chobani')));
+      await t.pumpAndSettle();
+      expect(find.byType(FoodSheet), findsNothing);
+      await t.pump(const Duration(seconds: 6));
       await finish(t);
     });
   });

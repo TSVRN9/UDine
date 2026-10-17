@@ -112,6 +112,8 @@ void main() {
     final e = sparse.edited(name: 'S', cal: 1, p: 1, c: 1, f: 1);
     expect(e.nutrition.blank, contains('sodiumMg'));
     expect(e.nutrition.blank, isNot(contains('proteinG')));
+    expect(e.nutrition.blank.intersection({'totalFatG', 'totalCarbG', 'proteinG'}), isEmpty); // (fat, carbs and protein are the figures it set)
+    expect(e.nutrition.blank, containsAll(['satFatG', 'sodiumMg'])); // (the ones it did not touch stay "–")
     // the vector-checked JSON does not carry them
     expect(sparse.nutrition.toJson().containsKey('blank'), isFalse);
   });
