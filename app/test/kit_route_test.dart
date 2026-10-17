@@ -41,8 +41,8 @@ void main() {
       names.addAll(exported.allMatches(f.readAsStringSync()).map((m) => m[1]!));
     }
     final onGallery = shown.map((t) => t.toString()).toSet();
-    // wrappers and sheet internals: Press, NegMargin, BaselineAt; Photo needs a bundled photo; M2Sheet is a modal (sheet_test.dart)
-    const internal = {'Press', 'Photo', 'NegMargin', 'BaselineAt', 'M2Sheet'};
+    // wrappers and sheet internals: Press, NegMargin, BaselineAt, PatchLetter (inside HallChip and HallTags); Photo needs a bundled photo; M2Sheet is a modal (sheet_test.dart)
+    const internal = {'Press', 'Photo', 'NegMargin', 'BaselineAt', 'M2Sheet', 'PatchLetter'};
     expect(names.difference(onGallery).difference(internal), isEmpty);
   });
 }
