@@ -1,0 +1,10 @@
+{
+  "sha": "c9c6210a4b8054cb12e9a92a7408d288b8289fa4",
+  "branch": "flutter/health-ui",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/health-t2",
+  "route": "manual on the A53: s21-row-off-meal-deleted (Health Connect's own app and UDine, adb input; /you?data=recorded&at=2026-10-08T12:41&health=device&photos=off)",
+  "device": "SM-A536B",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-10-17T05:20:00Z"
+}
