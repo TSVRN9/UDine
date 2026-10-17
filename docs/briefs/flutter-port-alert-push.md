@@ -198,7 +198,7 @@ Project: Firebase `udine-a6996`. `mobile/google-services.json` (the RN app, comm
 - [ ] A push sent to a real dish topic arrives with the app force-stopped and with the device force-idled,
   and shows the dish name and the where sentence — evidence: device recording on the A53
 - [ ] Tapping it lands on Halls home with sheets closed (first run excepted), from killed, backgrounded and
-  foreground-with-a-sheet — evidence: device recording
+  foreground-with-a-sheet (the landing itself comes from #605's rework) — evidence: device recording
 - [ ] Android battery use "Restricted" shows the existing row and delivers nothing — evidence: device
   screenshot
 - [ ] CLAUDE.md's residency table and the published privacy policy describe the topics — evidence: diff
@@ -242,14 +242,15 @@ of the owner-only list, once the release brief's TestFlight build exists; the sa
    blocked by: none (owner-merged) — PR:
 4. **`send-dish-alerts` edge function:** menus + hours fetch, match to per-dish topics, claim, FCM HTTP v1
    send with an OAuth token minted from the service account, release on failure, Eastern-time gate, and the
-   test hook `{"test": {"dish": "<name>"}}` (behind `requireCronSecret`; skips the gate and the claim);
+   test hook `{"test": {"dish": "<name>"}}` (behind `requireCronSecret`; skips the gate and the claim, and
+   sends through the same FCM path as a real run, so the device run checks the real message shape);
    `[functions.send-dish-alerts] verify_jwt = true` in `supabase/config.toml`, `requireCronSecret` — files:
    `supabase/functions/send-dish-alerts/`, `supabase/functions/_shared/fcm.ts`, `supabase/config.toml` —
    lanes: deno — blocked by: 1, 2, 3 (owner-merged) — PR:
 5. **Schedule:** pg_cron + pg_net job calling it with the `x-udine-cron-secret` from Vault; inert until the
    owner-only secrets exist — files: `supabase/migrations/` — lanes: pgTAP (job row present) — blocked by: 4
    (owner-merged) — PR:
-6. **Flutter:** `firebase_core`, `firebase_messaging`, per-flavor `google-services.json`, the Gradle plugin,
+6. **Flutter:** `firebase_core`, `firebase_messaging`, one `app/android/app/google-services.json` (both packages), the Gradle plugin,
    auto-init off until Notify me, topic sync (subscribe/unsubscribe/resync), foreground display with the
    shared tag, the three tap sources routed into the existing `alertTaps` path, the iOS row removed. The
    Halls-home landing itself is not here: it lands in #605's rework (M2 round 13). Reds: a fake messaging
