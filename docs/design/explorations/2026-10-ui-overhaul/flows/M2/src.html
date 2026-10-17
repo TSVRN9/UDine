@@ -367,8 +367,8 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .lenses{display:flex;gap:8px;overflow-x:auto;padding:12px 20px;scrollbar-width:none;background:var(--chalk);border-bottom:1px solid var(--hair)}
 .lenses::-webkit-scrollbar{display:none}
 .chip{flex:none;height:44px;padding:0 14px;border-radius:8px;box-shadow:inset 0 0 0 1.5px rgba(110,98,102,.4);font-size:15px;font-weight:500;color:var(--ink);white-space:nowrap;display:flex;align-items:center;gap:6px}
-.chip[aria-pressed=true]{background:var(--tint);color:var(--dm);font-weight:600;box-shadow:inset 0 0 0 1.5px var(--vm)}
-.chip[aria-pressed=true]:not(:has(.gl)):not([data-act=unscope])::before{content:"";width:10px;height:5px;margin:0 2px 3px 0;border:solid currentColor;border-width:0 0 2px 2px;transform:rotate(-45deg)}   /* a filter chip, selected: tonal with a check (M3), never a filled button */
+.chip[aria-pressed=true],.chip[aria-checked=true]{background:var(--tint);color:var(--dm);font-weight:600;box-shadow:inset 0 0 0 1.5px var(--vm)}
+.chip[aria-pressed=true]:not(:has(.gl)):not([data-act=unscope])::before{flex:none;content:"";width:10px;height:5px;margin:0 2px 3px 0;border:solid currentColor;border-width:0 0 2px 2px;transform:rotate(-45deg)}   /* a filter chip, selected: tonal with a check (M3), never a filled button */
 .chip .x{font-size:18px;line-height:1}
 #search{display:flex;flex-direction:column}
 #search>*{flex-shrink:0}
@@ -560,6 +560,13 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .osb button{height:44px;padding:0 14px;color:#1a5fd0;font:500 16px system-ui,sans-serif}
 .row.syn .n{font-weight:600}
 .dish .mks{margin-top:8px}
+/* round 12: a pick-one (a size, a milk, a broth): M2's chips in a single-select group that wraps, so every option shows; a long
+   name wraps inside its chip */
+.vpick{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.vpick .chip{height:auto;min-height:44px;max-width:100%;padding:10px 14px;white-space:normal;text-align:left;line-height:1.25}
+.vpick .chip[aria-checked=true]{font-weight:500}   /* chosen is the tonal fill and edge alone: no check, no bolder text, so a chip never changes width and the group never reflows */
+.dish .vpick+.dsv{margin-top:8px}
+.dish .vpick+.vpick{margin-top:24px}   /* round 12c: a pho's two groups (protein, broth) are two blocks a section gap apart (the add-ons heading's 24 px), not one run of chips */
 .mks-s{display:inline-flex;align-items:center;gap:8px;height:30px}
 .mks-s .tile{width:24px;height:30px}
 .dish .dal{margin:8px 0 0;font-size:15px;line-height:1.4;color:var(--ink)}
@@ -841,7 +848,8 @@ const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const norm = s => s.toLowerCase().replace(/[’']/g,'').replace(/[^a-z0-9]+/g,' ').trim();
 const fq = q => q===.5?'½':(q%1? Math.floor(q)+'½' : String(q));
 const f1 = x => (Math.round(x*10)/10).toFixed(1).replace(/\.0$/,'');
-const fc = x => Math.round(x).toLocaleString('en-US');
+const fg = x => x==null ? '–' : f1(x)+'g';   // round 12c: a missing protein, carbs or fat is "–", never 0g
+const fc = x => x==null ? '–' : Math.round(x).toLocaleString('en-US');   // round 12b: a blank is unknown, drawn "–" (a recorded 0 is 0)
 const clamp = (x,a=0,b=1)=>Math.min(b,Math.max(a,x));
 
 /* ---------- data ---------- */
@@ -855,6 +863,56 @@ for (let day=0; day<DAYS.length; day++) for (const h in MD[day]) for (const meal
   DISH[d.id]=d; if(day<2) (SERV[d.k] ||= []).push(d);
   if(!day){ const B=isCafe(h)?CBYK:BYK; (B[meal] ||= {}); (B[meal][d.k] ||= {k:d.k,n:d.n,refs:{}}).refs[h] ||= d; }
 }));
+/* ---------- variant families (round 12; NOTES "Round 12" has the rule's whole output) ----------
+   UMass lists one item several times when only a size or a milk differs ("16 oz Cappuccino" / "20 oz Cappuccino", "Boba
+   Oat Milk" / "Boba Soy Milk"). Within one place, day, meal and station, two or more items whose names differ by that token
+   alone are one family: one row, with a pick-one in its sheet. The tokens are the feed's own: a leading "16 oz " or a
+   trailing "(8 oz)"/"(8oz)", and "<kind> Milk" with a kind the feed uses. Add-ons and Toppings are a builder's parts, never a
+   family. Sizes run smallest first; milks keep the feed's order. The first is the default, what a row stands for. */
+const MILKS = 'Almond|Maple|Oat|Skim|Soy|Whole|1%';
+const BASES = 'Coconut|Yogurt';   // round 12b (owner, 2026-10-16): a smoothie's base, the milk's shape; only at the end of a name, or after w/ 
+function variantOf(n){ let m;
+  if((m=n.match(/^(\d+) ?oz (.+)$/i))) return {axis:'size', name:m[2], v:m[1]+' oz', chip:m[1]+' oz', o:+m[1]};
+  if((m=n.match(/^(.+?) \((\d+) ?oz\)$/i))) return {axis:'size', name:m[1], v:m[2]+' oz', chip:m[2]+' oz', o:+m[2]};
+  if((m=n.match(new RegExp(`^(.*?) ?(${MILKS}) Milk$`,'i')))) return {axis:'milk', name:m[1], v:m[2]+' Milk', chip:m[2], o:0};
+  if((m=n.match(new RegExp(`^(.+) (${BASES}) Smoothie$`,'i')))) return {axis:'base', name:m[1]+' Smoothie', v:m[2], chip:m[2], o:0};   // Banana Berry Coconut Smoothie
+  if((m=n.match(new RegExp(`^(.+) w/(${BASES})$`,'i')))) return {axis:'base', name:m[1], v:m[2], chip:m[2], o:0};   // Matcha Strawberry w/Yogurt, V-9 Smoothie w/Coconut
+  return null; }
+const isPartsSt = st => /^(Add-ons|Toppings)$/.test(st.trim());
+// the families among one station's dishes: [{key, name, axis, vars:[{d, v, chip, o}]}]
+function famsAt(ds, st){ if(isPartsSt(st)) return []; const G=new Map();
+  for(const d of ds){ const v=variantOf(d.n); if(!v || !v.name) continue; const k=v.axis+':'+norm(v.name);
+    if(!G.has(k)) G.set(k,{key:'f:'+norm(v.name), name:v.name, axis:v.axis, vars:[]}); const g=G.get(k); if(!g.vars.some(x=>x.v===v.v)) g.vars.push({d, v:v.v, chip:v.chip, o:v.o}); }
+  return [...G.values()].filter(g=>g.vars.length>=2).map(g=>(g.axis==='size' && g.vars.sort((a,b)=>a.o-b.o), g)); }
+const FAM = new Map();       // dish id -> {f, x}: its family and its own entry in it
+const FAMNAME = {};          // family key -> the family's name ("Boba")
+const VARN = new Map();      // a member's feed name -> how it reads ("Boba, Oat Milk"): past meals keep only the name
+MD.forEach((D,day)=>Object.entries(D).forEach(([h,ms])=>Object.entries(ms).forEach(([meal,ss])=>ss.forEach(([st,xs],si)=>{
+  for(const f of famsAt(xs.map((_,di)=>DISH[`${day?day+'.':''}${h}.${meal}.${si}.${di}`]), st)){ FAMNAME[f.key]=f.name;
+    for(const x of f.vars){ FAM.set(x.d.id,{f,x}); VARN.set(x.d.n, f.name+', '+x.v); }
+    const d0=f.vars[0].d; if(day<2) (SERV[f.key] ||= []).push(d0);   // where a family is served: its default's servings
+    if(day) continue;
+    // Search groups a family once, under its key, with each variant's own refs (a variant's + adds that variant)
+    const B=isCafe(h)?CBYK:BYK, g=(B[meal][f.key] ||= {k:f.key, n:f.name, refs:{}, vars:[], words:norm(f.name)});
+    g.refs[h] ||= d0;
+    for(const x of f.vars){ let v=g.vars.find(y=>y.v===x.v); if(!v){ v={v:x.v, chip:x.chip, k:x.d.k, refs:{}}; g.vars.push(v); g.words+=' '+x.d.k; } v.refs[h] ||= x.d;
+      const o=B[meal][x.d.k]; if(o){ delete o.refs[h]; if(!Object.keys(o.refs).length) delete B[meal][x.d.k]; } }
+    if(f.axis==='size') g.vars.sort((a,b)=>parseInt(a.v)-parseInt(b.v)); }
+}))));
+const famOf = d => d && FAM.get(d.id)?.f;
+// round 12b (owner, 2026-10-16): a family's row stands for the variant last added to the plate, and counts it. find(x) is
+// that variant's plain plate item (a built one, with add-ins, is its own item and isn't the row's); with none, the first variant ok(x) allows
+function standing(vars, find, ok){ let best=null; for(const x of vars){ if(!ok(x)) continue; const f=find(x); if(f && (!best || f.it.at>best.f.it.at)) best={x,f}; } return best ? best.x : vars.find(ok); }
+const shown = d => { const e=d && FAM.get(d.id); return e ? e.f.name+', '+e.x.v : d.n; };   // how an item reads on the sheet and the plate
+const shownName = n => VARN.get(n) || n;
+const favKey = d => famOf(d)?.key || d.k;
+const ALWAYS = d => d.k==='fountain drink';   // round 12: served at every hall at every meal, so there is nothing to spot: no star, no alert   // a family is starred as one
+const VARK = new Set([...FAM.values()].map(e=>e.x.d.k));   // the members' own keys (Search lists their family instead)
+// every family on every day, for the vectors and the test: {day, place, meal, station, name, axis, variants:[[token, dish, cal]]}
+function variantFamilies(){ const out=[], seen=new Set();
+  for(const {f} of FAM.values()){ if(seen.has(f)) continue; seen.add(f); const d=f.vars[0].d;
+    out.push({day:DAYS[d.day], place:PN(d.h), meal:d.meal, station:d.st, name:f.name, axis:f.axis, variants:f.vars.map(x=>[x.v, x.d.n, x.d.cal])}); }
+  return out; }
 // Meal windows (round 9): WIN, from build.py, which follows shared/src/hours.ts (the standard windows clamped to each
 // place's general hours; Grab 'N Go its own hours). Every day uses the Oct 8 snapshot (the halls' hours were the same on
 // Sunday Oct 11).
@@ -915,7 +973,7 @@ function findItem(meal,k,ctxHall){
   return null;
 }
 function wouldSplit(meal, hs){ return S.plates.length>0 && !S.plates.some(pl=>canJoin(pl,meal,hs)); }
-let PID=0;
+let PID=0, SEQ=0;   // SEQ stamps a plate item each time it is added, stepped up or updated: a family's row follows the latest (round 12b)
 function addDish(meal, k, refs, n, custom){
   if(!S.track) return null;   // tracking off: nothing records
   if(barMode!=='plate'){ clearTimeout(barT); barMode='plate'; S.lastLog=null; $('#bar .in').innerHTML=''; }
@@ -927,19 +985,23 @@ function addDish(meal, k, refs, n, custom){
   let it = pl.items.find(x=>x.k===k);
   if(it){ it.qty = it.qty===.5?1:it.qty+1; if(!custom) for(const h in it.refs) if(!refs[h]) delete it.refs[h]; }
   else { it={k,n,refs:{...refs},qty:1,custom}; pl.items.push(it); }
+  it.at=++SEQ;
   buzz(8); refresh();
   return it;
 }
 function stepItem(pl,it,dir){
-  if(dir>0) it.qty = it.qty===.5?1:it.qty+1;
+  if(dir>0){ it.qty = it.qty===.5?1:it.qty+1; it.at=++SEQ; }
   else if(it.qty>1) it.qty--; else if(it.qty===1) it.qty=.5;
   else { pl.items.splice(pl.items.indexOf(it),1); buzz(14);
     if(!pl.items.length){ S.plates.splice(S.plates.indexOf(pl),1); S.front=Math.max(0,Math.min(S.front,S.plates.length-1)); } }
   if(dir>0) buzz(8); refresh();
 }
 function macroOf(it, hall){ if(it.custom) return it.custom; return it.refs[hall] || Object.values(it.refs)[0]; }
-function totals(pl, hall){ hall ||= (plateHalls(pl)||[])[0]; const t={cal:0,p:0,c:0,f:0,n:0};
-  for(const it of pl.items){ const m=macroOf(it,hall); t.cal+=m.cal*it.qty; t.p+=m.p*it.qty; t.c+=m.c*it.qty; t.f+=m.f*it.qty; t.n+=it.qty; } return t; }
+// round 12c: a total is the sum of what is known, and null (drawn "–") only when every contributor is unknown
+const MK=['cal','p','c','f'];
+function tally(xs){ const t={cal:0,p:0,c:0,f:0}, k={}; for(const [m,q] of xs) for(const x of MK) if(m[x]!=null){ k[x]=1; t[x]+=m[x]*q; }
+  if(xs.length) for(const x of MK) if(!k[x]) t[x]=null; return t; }
+function totals(pl, hall){ hall ||= (plateHalls(pl)||[])[0]; const t=tally(pl.items.map(it=>[macroOf(it,hall), it.qty])); t.n=pl.items.reduce((a,it)=>a+it.qty,0); return t; }
 function hallLabel(hs){ if(!hs) return ''; const n=hs.map(PN); return n.length===1?n[0]: n.length===4&&!hs.some(isCafe)?'Any hall': n.slice(0,-1).join(', ')+' or '+n[n.length-1]; }
 function plateLabel(pl){ const hs=plateHalls(pl); return hs? `${hallLabel(hs)} ${ML[pl.meal].toLowerCase()}` : ML[pl.meal]; }
 /* ---------- the log (round 10) ----------
@@ -950,8 +1012,8 @@ const TODAY = '2026-10-08', ROLLOVER = 2;   // shared/src/date.ts DEFAULT_ROLLOV
 const logicalDay = at => { const d=new Date(at+':00Z'); if(d.getUTCHours()<ROLLOVER) d.setUTCDate(d.getUTCDate()-1); return d.toISOString().slice(0,10); };
 const fmtClock = at => { const [h,m]=at.slice(11).split(':').map(Number); return `${(h+11)%12+1}:${String(m).padStart(2,'0')} ${h<12?'AM':'PM'}`; };
 const isoFull = iso => new Date(iso+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'long',month:'long',day:'numeric'});
-const mealTotal = m => m.items.reduce((a,i)=>{ a.cal+=i.cal*i.qty; a.p+=i.p*i.qty; a.c+=i.c*i.qty; a.f+=i.f*i.qty; return a; },{cal:0,p:0,c:0,f:0});
-const dayTotal = (day=TODAY) => S.log.filter(m=>m.day===day).reduce((a,m)=>{ const t=mealTotal(m); for(const k in a) a[k]+=t[k]; return a; },{cal:0,p:0,c:0,f:0});
+const mealTotal = m => tally(m.items.map(i=>[i,i.qty]));
+const dayTotal = (day=TODAY) => tally(S.log.filter(m=>m.day===day).flatMap(m=>m.items.map(i=>[i,i.qty])));
 const logDays = () => [...new Set(S.log.map(m=>m.day))].sort().reverse();   // only days with something logged
 let MID=0;
 const snapItem = (d, qty, parts) => ({id:d.id||null, n:d.n, qty, cal:d.cal, p:d.p, c:d.c, f:d.f, nut:d.nut||null, price:d.price||null, ...(parts?{parts}:{})});
@@ -983,7 +1045,7 @@ const HNAME = OS==='ios' ? 'Apple Health' : 'Health Connect';
 const HEALTH = {answer: OSQ.get('health')||'allow', granted:null, denied:false, records:[]};   // granted: null = never asked
 HEALTH.granted = S.health ? HEALTH.answer==='allow' : null;   // on with the OS no longer allowing it: revoked in system settings
 const healthLive = () => S.track && S.health && HEALTH.granted===true;
-function healthRecord(m){ const t=mealTotal(m); return {mealId:m.id, name:mealLabel(m), at:m.at, energyKcal:Math.round(t.cal), proteinG:+t.p.toFixed(1), carbsG:+t.c.toFixed(1), fatG:+t.f.toFixed(1)}; }
+function healthRecord(m){ const t=mealTotal(m); return {mealId:m.id, name:mealLabel(m), at:m.at, ...(t.cal==null?{}:{energyKcal:Math.round(t.cal)}), ...(t.p==null?{}:{proteinG:+t.p.toFixed(1)}), ...(t.c==null?{}:{carbsG:+t.c.toFixed(1)}), ...(t.f==null?{}:{fatG:+t.f.toFixed(1)})}; }   // round 12c: an unknown field is left out, never written as 0
 function healthWrite(m){ if(!healthLive()) return; const i=HEALTH.records.findIndex(r=>r.mealId===m.id), r=healthRecord(m); if(i>=0) HEALTH.records[i]=r; else HEALTH.records.push(r); }
 function healthDelete(m){ if(!healthLive()) return; HEALTH.records=HEALTH.records.filter(r=>r.mealId!==m.id); }
 
@@ -1022,8 +1084,19 @@ function phoOf(day,h,meal,si,ds){ const y={label:'Noodle Bowl', head:'Noodle Bow
   const bar = br.length>=2 ? {...y, choices:br, parts:[...br, ...ds.filter(d=>!isBroth(d))]} : null;
   if(!isCafe(h)) return baseOf(day,h,meal,si) ? null : bar;
   // a café's add-ons first: Whitmore's "Beef Pho w/Spicy Green Curry Broth" names a broth but is a whole pho
-  const ss=MD[day][h][meal], add=ss.map((s2,j)=>[s2[0].trim(),j]).filter(([n])=>/^(Add-ons|Toppings)$/.test(n)), tops=add.flatMap(([,j])=>stDishes(day,h,meal,j).filter(x=>x.cal>0));
-  return tops.length ? {...y, choices:ds, parts:[...ds, ...tops], topHead:[...new Set(add.map(([n])=>n))].join(' and ')} : bar; }
+  const ss=MD[day][h][meal], add=ss.map((s2,j)=>[s2[0].trim(),j]).filter(([n])=>/^(Add-ons|Toppings)$/.test(n)), tops=add.flatMap(([,j])=>stDishes(day,h,meal,j).filter(x=>x.cal==null||x.cal>0));
+  return tops.length ? {...y, choices:ds, axes:phoAxes(ds), parts:[...ds, ...tops], topHead:[...new Set(add.map(([n])=>n))].join(' and ')} : bar; }
+// round 12b (owner, 2026-10-16): a café's phos that are a whole protein x broth grid ("Beef Pho w/Vegetable Broth": Star Ginger 3 x 3,
+// Whitmore 3 x 2) are picked by protein, then broth. The grid must be complete, or the station keeps one picker of whole dishes.
+const PHONAME = /^(.+?) Pho w\/(.+) Broth$/;
+function phoAxes(ds){ const g=new Map(), P=[], B=[];
+  for(const d of ds){ const m=d.n.match(PHONAME); if(!m) return null; if(!P.includes(m[1])) P.push(m[1]); if(!B.includes(m[2])) B.push(m[2]); g.set(m[1]+'|'+m[2], d); }
+  return P.length>=2 && B.length>=2 && g.size===P.length*B.length && g.size===ds.length ? {p:P.map(v=>[v,v+' Pho']), b:B.map(v=>[v,v+' Broth']), grid:g} : null; }
+// what is chosen on a two-picker pho: kept on the builder, and read from the pho already chosen when a plate item reopens
+function phoPicks(B){ if(!B.pk){ const c=B.syn.choices.find(x=>B.sel.has(x.id)), m=c&&c.n.match(PHONAME); B.pk=m ? {p:m[1], b:m[2]} : {p:null, b:null}; } return B.pk; }
+const phoPickHTML = B => { const y=B.syn;
+  if(!y.axes) return vpickHTML(y.choices.map(x=>[x.id, x.n]), y.choices.find(x=>B.sel.has(x.id))?.id, y.label);
+  const pk=phoPicks(B); return vpickHTML(y.axes.p.map(([v,l])=>['ax:p:'+v, l]), pk.p&&'ax:p:'+pk.p, 'Protein')+vpickHTML(y.axes.b.map(([v,l])=>['ax:b:'+v, l]), pk.b&&'ax:b:'+pk.b, 'Broth'); };
 // a synthetic bowl from what's chosen: a pho takes its chosen base's name; a bar has none
 function synBowl(y, sel, h){ const c=y.pho && sel.find(([x])=>y.choices.includes(x)); return bowlDish(c?c[0]:null, sel.filter(e=>e!==c), y, h); }
 function synOf(day,h,meal,si){ const st=MD[day][h][meal][si][0], nm=stName(st), ds=stDishes(day,h,meal,si);
@@ -1038,7 +1111,7 @@ function buildOf(d){ if(!d || d.id.startsWith('bowl:')) return null; const ss=(M
     if(!isBaseAt(st,d)) return null;
     const parts=stDishes(d.day,d.h,d.meal,d.si).filter(x=>x!==d && !isBaseAt(st,x)); return parts.length ? {head:st, parts, base:d, h:d.h, meal:d.meal} : null; }
   if(/^(Add-ons|Toppings)$/.test(ss[d.si][0].trim())) return null;
-  const parts=ss.flatMap((s2,si)=>/^(Add-ons|Toppings)$/.test(s2[0].trim()) ? stDishes(d.day,d.h,d.meal,si) : []).filter(x=>x.cal>0);
+  const parts=ss.flatMap((s2,si)=>/^(Add-ons|Toppings)$/.test(s2[0].trim()) ? stDishes(d.day,d.h,d.meal,si) : []).filter(x=>x.cal==null||x.cal>0);
   const heads=[...new Set(ss.filter(s2=>/^(Add-ons|Toppings)$/.test(s2[0].trim())).map(s2=>s2[0].trim()))];
   return parts.length ? {head:heads.join(' and '), parts, base:d, h:d.h, meal:d.meal} : null; }
 // every hall Noodle Bowl station-day, Oct 8-22, with its base and how many bases the UI offers (round 11's check; vectors)
@@ -1051,10 +1124,10 @@ const cents = s => s ? +s.replace(/[^\d.]/g,'') : 0;
 function bowlDish(base, parts, syn, h){
   const all=[...(base?[[base,1]]:[]), ...parts], nut=Array(16).fill(null);
   for(const [x,q] of all) (x.nut||[]).forEach((v,i)=>{ if(NK[i].endsWith('Dv')||v==null) return; nut[i]=(nut[i]||0)+v*q; });
-  const sum=k=>all.reduce((a,[x,q])=>a+x[k]*q,0), pr=all.reduce((a,[x,q])=>a+cents(x.price)*q,0), algs=[...new Set(all.flatMap(([x])=>x.algs||[]))].sort((a,b)=>ALG.indexOf(a)-ALG.indexOf(b));
+  const sum=k=>all.reduce((a,[x,q])=>a+x[k]*q,0), sk=k=>all.length&&all.every(([x])=>x[k]==null)?null:sum(k), pr=all.reduce((a,[x,q])=>a+cents(x.price)*q,0), algs=[...new Set(all.flatMap(([x])=>x.algs||[]))].sort((a,b)=>ALG.indexOf(a)-ALG.indexOf(b));
   const key=(base?base.k:'syn:'+syn.label+':'+h)+'+'+parts.map(([x,q])=>x.k+'*'+q).sort().join('+');
   const src=base||syn;
-  return {id:'bowl:'+key, k:'bowl:'+key, n:base?base.n:syn.label, cal:Math.round(sum('cal')), p:sum('p'), c:sum('c'), f:sum('f'), nut, d:base?base.d:0, h, meal:src.meal, day:0,
+  return {id:'bowl:'+key, k:'bowl:'+key, n:base?base.n:syn.label, cal:sk('cal')==null?null:Math.round(sum('cal')), p:sk('p'), c:sk('c'), f:sk('f'), nut, d:base?base.d:0, h, meal:src.meal, day:0,
     srv:base?base.srv:'', price:pr?money(pr):null, alg:algs.join(', '), algs, hf:base?base.hf:null, cr:base?base.cr:null, ing:base?base.ing:'', base, syn, parts}; }
 const withLine = parts => parts.length ? 'with '+parts.map(([x,q])=>(q!==1?fq(q)+' × ':'')+x.n).join(', ') : '';
 
@@ -1098,7 +1171,8 @@ const IC = {
 function ctl(q, ghost){ return q ? `<div class="step" data-q="${q}"><button class="dec" aria-label="Less">${IC.minus}</button><span class="q">${fq(q)}</span><button class="inc" aria-label="More">${IC.plus}</button></div>`
   : `<button class="add${ghost?' ghost':''}" aria-label="Add">${IC.plus}</button>`; }
 // The meta line is groups that wrap whole: the numbers, then the scores (opt-in, You tab), then where. A wrapped line starts flush.
-const meta = d => `<span class="mg"><b>${fc(d.cal)}</b> cal<span class="gap"></span><b>${f1(d.p)}g</b> protein</span>${scoresHTML(d)}`;
+const meta = d => `<span class="mg"><b>${fc(d.cal)}</b> cal<span class="gap"></span><b>${fg(d.p)}</b> protein</span>${scoresHTML(d)}`;
+const varMeta = v => `<span class="mg vt">${esc(v)}</span>`;   // round 12: a family's row leads with the variant it stands for, in its chip's word ("16 oz", "Almond"): a whole milk name ("Almond Milk") pushed the numbers to their own line at 360, beside the stepper-wide lane
 // Mark set. Glyphs are drawn, never emoji. Round 8: plant based is a sprout (stem, two leaves), vegetarian a single leaf:
 // two silhouettes, not one leaf filled or outlined. Those two are the only marks shown inline on rows.
 const GL = {
@@ -1159,7 +1233,7 @@ function labelHTML(N, cal, serving){
 }
 function letterSVG(L){ return `<text class="felt" x="${LX[L]}" y="186">${L}</text><text class="gold" x="${LX[L]}" y="186">${L}</text>`; }
 function factsHTML(t, big='Calories'){ return `<div class="facts"><div class="cal"><span>${big}</span><b class="num">${fc(t.cal)}</b></div>
-  <div class="nr"><span>Protein</span><b>${f1(t.p)}g</b></div><div class="nr"><span>Carbs</span><b>${f1(t.c)}g</b></div><div class="nr"><span>Fat</span><b>${f1(t.f)}g</b></div></div>`; }
+  <div class="nr"><span>Protein</span><b>${fg(t.p)}</b></div><div class="nr"><span>Carbs</span><b>${fg(t.c)}</b></div><div class="nr"><span>Fat</span><b>${fg(t.f)}</b></div></div>`; }
 const dietOK = d => (!S.diet.veg || d.d&3) && (!S.diet.plant || d.d&2) && (!S.diet.halal || d.d&4);
 const dietOn = () => S.diet.veg||S.diet.plant||S.diet.halal;
 const dietWords = () => [S.diet.plant&&'plant based',S.diet.veg&&!S.diet.plant&&'vegetarian',S.diet.halal&&'halal'].filter(Boolean).join(', ');
@@ -1242,7 +1316,7 @@ function alertsTap(){
   if(ALERTS.on && !ALERTS.denied){ ALERTS.on=false; rerenderPage(); buzz(4); return; }
   if(ALQ==='blocked' || ALERTS.granted===false){ ALERTS.denied=true; rerenderPage(); return; }   // the OS won't ask again
   osSheet(ok=>{ ALERTS.granted=ok; ALERTS.denied=!ok; ALERTS.on=ok; rerenderPage(); buzz(ok?6:4); }, 'notify'); }
-const dishName = k => (SERV[k]||[])[0]?.n || k;
+const dishName = k => FAMNAME[k] || (SERV[k]||[])[0]?.n || k;
 function alertRun(now){ if(!(ALERTS.on && ALERTS.granted===true) || ALQ==='bgoff' || now<7*60) return [];
   const out=[]; for(const k of S.fav){ const key=k+'|'+TODAY; if(ALERTS.seen.has(key)) continue;
     const A=whereAnswer(k, now); if(!A.length || A[0].day) continue;   // nothing left today: not posted (and not spent)
@@ -1367,13 +1441,15 @@ function renderMenuList(){
     const all=MM[meal].flatMap((s,si)=>s[1].map((x,di)=>DISH[did(day,k,meal,si,di)]));
     html += prefNote(all, S.reveal);
     MM[meal].forEach((s,si)=>{
-      const rows = s[1].map((x,di)=>DISH[did(day,k,meal,si,di)]).filter(d=>S.reveal||prefOK(d));
+      // round 12: a family is one row, where its first member was, standing for its first variant your preferences allow
+      const seen=new Set(), rows = s[1].map((x,di)=>DISH[did(day,k,meal,si,di)]).flatMap(d=>{ const f=famOf(d); if(!f) return S.reveal||prefOK(d) ? [d] : [];
+        if(seen.has(f)) return []; seen.add(f); const x=standing(f.vars, x=>!day&&findItem(plateMeal(x.d),x.d.k,k), x=>S.reveal||prefOK(x.d)); return x ? [x.d] : []; });
       if(!rows.length) return;
       // another day's dishes can't go on today's plate: their rows open the sheet and carry no control
       const sy = !day && S.track && synOf(0,k,meal,si);
       html += `<h3 class="sth" data-st="${si}">${esc(s[0])}</h3>` + (sy ? `<button class="row syn" data-syn="${si}"><div class="tx"><div class="n">${esc(sy.label)}</div></div>${IC.rchev}</button>` : '') + rows.map(d=>{
-        const pm=plateMeal(d), f=!day&&findItem(pm,d.k,k);
-        return `<div class="row" data-id="${d.id}"><div class="tx"><div class="n">${nameHTML(d.n, dietMark(d)+(S.fav.has(d.k)?'<span class="star" aria-label="Favorite">★</span>':''))}</div><div class="m">${S.reveal?contHTML(d):''}${meta(d)}</div></div>${day?'':ctl(f&&f.it.qty, !f && wouldSplit(pm,[k]))}</div>`;}).join('');
+        const pm=plateMeal(d), f=!day&&findItem(pm,d.k,k), F=FAM.get(d.id);
+        return `<div class="row" data-id="${d.id}"${F?` data-vars="${F.f.vars.map(x=>x.d.id).join(' ')}"`:''}><div class="tx"><div class="n">${nameHTML(F?F.f.name:d.n, dietMark(d)+(S.fav.has(favKey(d))?'<span class="star" aria-label="Favorite">★</span>':''))}</div><div class="m">${S.reveal?contHTML(d):''}${F?varMeta(F.x.chip):''}${meta(d)}</div></div>${day?'':ctl(f&&f.it.qty, !f && wouldSplit(pm,[k]))}</div>`;}).join('');
     });
   }
   $('#mlist').innerHTML = html + '<div class="pad-b"></div>';
@@ -1535,7 +1611,7 @@ function snapMenu(){ const m=$('#menu'), y=$('#mscroll').scrollTop, host=documen
   return {ghost:host, h:S.hall, cafe:S.cafe, day:S.mday, meal:S.mmeal, reveal:S.reveal, y, src:S.hallSrc, z:m.style.zIndex, here:$('#mlist .row.here')?.dataset.id}; }
 // back to the hall underneath: the live screen becomes it again, at its scroll (then the copy goes)
 function restoreMenu(pv){ S.hall=pv.h; S.cafe=pv.cafe; S.mday=pv.day; S.mmeal=pv.meal; S.reveal=pv.reveal; S.hallSrc=pv.src; renderMenu(); fitName(); measureXF(pv.src);
-  if(pv.here) $(`#mlist .row[data-id="${pv.here}"]`)?.classList.add('here');
+  if(pv.here) rowOf(pv.here)?.classList.add('here');
   XP=1; $('#mscroll').scrollTop=pv.y; paint(1,pv.y); updSwitch(true); $('#menu').style.zIndex=pv.z; }
 function hideHall(){ cancelAnimationFrame(xfRaf); xfOn=false; for(const n of NAV.filter(n=>n.kind==='menu')) navDrop(n); NAV=NAV.filter(n=>n.kind!=='menu');
   const m=$('#menu'); m.classList.add('hide'); m.style.zIndex=''; if(S.hallSrc) S.hallSrc.style.visibility=''; S.hallSrc=null; S.hall=null; S.cafe=null; S.reveal=false; XP=1; resetHalls(); }
@@ -1620,7 +1696,8 @@ function jump(si){
   buzz(5);
 }
 // a serving opened from "where and when": the hall shows that day and meal, scrolled so the dish sits under the header
-function toDish(id, instant){ const row=$(`#mlist .row[data-id="${id}"]`); if(!row) return; $$('#mlist .row.here').forEach(r=>r.classList.remove('here')); row.classList.add('here');
+const rowOf = id => $(`#mlist .row[data-id="${id}"]`) || $$('#mlist .row[data-vars]').find(r=>r.dataset.vars.split(' ').includes(id));
+function toDish(id, instant){ const row=rowOf(id); if(!row) return; $$('#mlist .row.here').forEach(r=>r.classList.remove('here')); row.classList.add('here');
   const sc=$('#mscroll'), y=Math.min(row.offsetTop-PIN()-8, sc.scrollHeight-sc.clientHeight);
   if(instant){ sc.scrollTop=y; paint(1,sc.scrollTop); updSwitch(true); return; }   // a swapped-in hall arrives already at the dish
   scrollToY(sc, y, ()=>updSwitch()); }
@@ -1635,6 +1712,13 @@ function renderLenses(){
   const sc = S.scope? `<button class="chip" aria-pressed="true" data-act="unscope">At ${HN[S.scope]}${S.smeal!=='lunch'?' '+ML[S.smeal].toLowerCase():''}<span class="x" aria-hidden="true">×</span></button>`:'';
   $('#lenses').innerHTML = sc + LENSES.map(([k,l])=>`<button class="chip" data-lens="${k}" aria-pressed="${S.lenses.has(k)}">${LGL[k]||''}${l}</button>`).join('');
 }
+// round 12: the variant a family's row stands for: the first whose own name has every word typed, else the default (the first);
+// Dietary preferences skip a variant they hide
+// round 12b: among the variants the typed words fit, the one last added to the plate, else the first
+function varFor(g, toks){ const ok=v=>S.sreveal||prefOK(rep(v)), hit=v=>toks.every(t=>v.k.split(' ').some(w=>w.startsWith(t))||v.k.includes(t));
+  const vs=g.vars.filter(v=>hit(v)&&ok(v)), pool=vs.length ? vs : g.vars.filter(ok);
+  const v=standing(pool, v=>{ const hs=Object.keys(v.refs).sort((a,b)=>PORD(a)-PORD(b)); return findItem(S.smeal, v.k, hs.some(isCafe)?hs[0]:null); }, ()=>true);
+  return Math.max(0, g.vars.indexOf(v)); }
 function rep(g){ const pl=S.plates[S.front]; const ph=pl&&pl.meal===S.smeal&&plateHalls(pl);
   const h=(S.scope&&g.refs[S.scope]&&S.scope) || (ph&&ph.find(x=>g.refs[x])) || Object.keys(g.refs).sort((a,b)=>PORD(a)-PORD(b))[0]; return g.refs[h]; }
 const qToks = () => norm(S.q).split(' ').filter(Boolean);
@@ -1643,7 +1727,8 @@ const qToks = () => norm(S.q).split(' ').filter(Boolean);
 let CG={};
 function cafeResults(){ const toks=qToks(); if((!toks.length && !S.lenses.size) || S.scope) return [];
   CG={}; for(const m of [S.smeal,'all','grab']) for(const g of Object.values(CBYK[m]||{})){ const hs=Object.keys(g.refs).filter(h=>placeOn(h) && savedMenu(h,0)); if(!hs.length) continue;
-    const G=(CG[g.k] ||= {k:g.k,n:g.n,refs:{}}); for(const h of hs) G.refs[h] ||= g.refs[h]; }
+    const G=(CG[g.k] ||= {k:g.k,n:g.n,refs:{},...(g.vars?{vars:[],words:g.words}:{})}); for(const h of hs) G.refs[h] ||= g.refs[h];
+    for(const v of g.vars||[]){ let V=G.vars.find(y=>y.v===v.v); if(!V){ V={v:v.v,chip:v.chip,k:v.k,refs:{}}; G.vars.push(V); } for(const h of hs) if(v.refs[h]) V.refs[h] ||= v.refs[h]; } }
   return results(Object.values(CG)); }
 const sGroup = row => (row.dataset.cg ? CG : BYK[S.smeal])[row.dataset.k];
 function results(groups=Object.values(BYK[S.smeal]||{})){
@@ -1651,8 +1736,8 @@ function results(groups=Object.values(BYK[S.smeal]||{})){
   let out=[];
   for(const g of groups){
     if(S.scope && !g.refs[S.scope]) continue;
-    if(toks.length && !toks.every(t=>g.k.split(' ').some(w=>w.startsWith(t)) || g.k.includes(t))) continue;
-    const d=rep(g); if(!d) continue;
+    const hay=g.words||g.k; if(toks.length && !toks.every(t=>hay.split(' ').some(w=>w.startsWith(t)) || hay.includes(t))) continue;
+    const vi=g.vars ? varFor(g, toks) : -1, d=vi>=0 ? rep(g.vars[vi]) : rep(g); if(!d) continue;
     if(!toks.length && !S.lenses.size && d.cal<40) continue;
     if(S.lenses.has('protein') && d.p<15) continue;
     if(S.lenses.has('light') && !(d.cal<=250 && d.cal>=40)) continue;
@@ -1663,7 +1748,7 @@ function results(groups=Object.values(BYK[S.smeal]||{})){
     if(S.lenses.has('lowc') && !(d.cr==='A'||d.cr==='B')) continue;
     const t0=toks[0]||''; const rank = !t0?0 : g.k.startsWith(t0)?0 : g.k.split(' ').some(w=>w.startsWith(t0))?1:2;
     const join = wouldSplit(S.smeal,Object.keys(g.refs))?1:0;
-    out.push({g,d,rank,join});
+    out.push({g,d,rank,join,vi});
   }
   out.sort((a,b)=>a.join-b.join || a.rank-b.rank || (S.lenses.has('light')? a.d.cal-b.d.cal : b.d.p-a.d.p) || a.g.n.localeCompare(b.g.n));
   return out;
@@ -1689,7 +1774,8 @@ const hallCard = h => `<button class="band hcard" data-h="${h}" aria-label="${[H
   <div class="lgrad"></div><div class="press"></div><div class="bt"><div class="nm">${HN[h]}</div><div class="st">${hoursKnown()?HOURS[h]:''}${liveKnown()?`<span class="meter" aria-hidden="true">${[0,1,2,3,4].map(i=>`<i class="${i<lamps(BUSY[h].pct)?'on':''}"></i>`).join('')}</span>`:''}</div></div></button>`;
 // dishes that match but aren't served at this meal now: later today or tomorrow. They open their detail (where and when).
 function laterHits(){ const toks=norm(S.q).split(' ').filter(Boolean); if(!toks.length||S.scope) return [];
-  const out=[]; for(const k in SERV){ if(BYK[S.smeal]&&BYK[S.smeal][k] || CG[k]) continue; if(!toks.every(t=>k.split(' ').some(w=>w.startsWith(t))||k.includes(t))) continue;
+  const out=[]; for(const k in SERV){ if(BYK[S.smeal]&&BYK[S.smeal][k] || CG[k] || VARK.has(k)) continue; const hay=k[0]==='f'&&k[1]===':' ? k.slice(2)+' '+SERV[k].map(d=>famOf(d).vars.map(x=>x.d.k).join(' ')).join(' ') : k;
+    if(!toks.every(t=>hay.split(' ').some(w=>w.startsWith(t))||hay.includes(t))) continue;
     const g=wherePlan(k).map(g=>({...g, hs:g.hs.filter(h=>savedMenu(h,g.day))})).find(g=>g.st!=='now' && g.hs.length); if(g) out.push({g,d:DISH[g.ids[g.hs[0]]]}); }
   const R={later:0,tomorrow:1};
   return out.sort((a,b)=>R[a.g.st]-R[b.g.st]||a.g.w[0]-b.g.w[0]||a.d.n.localeCompare(b.d.n)).slice(0,8); }
@@ -1717,13 +1803,13 @@ function renderSearch(){
   let html = pl2.length ? `<div class="sgrp" data-key="g-places">Places</div>${pl2.join('')}` : '';
   html += prefNote([...r0,...c0,...l0].map(x=>x.d), S.sreveal);
   if(r.length && (pl2.length||lt.length||cr.length||(!S.q&&!S.lenses.size))) html+=`<div class="sgrp" data-key="g-now">${ML[S.smeal]} now</div>`;
-  const nowRow = ({g,d}, cg) => { const hs=Object.keys(g.refs).sort((a,b)=>PORD(a)-PORD(b)), f=findItem(S.smeal,g.k,cg?hs[0]:null);
-    return `<div class="row" data-k="${esc(g.k)}"${cg?' data-cg="1"':''} data-src="s"><div class="tx"><div class="n">${nameHTML(g.n, dietMark(d)+(S.fav.has(g.k)?'<span class="star" aria-label="Favorite">★</span>':''))}</div><div class="m">${rv(d)}${meta(d)}</div></div><div class="lane">${ctl(f&&f.it.qty, !f&&wouldSplit(S.smeal,hs))}${hallGlyph(hs, 'Served now')}</div></div>`; };
+  const nowRow = ({g,d,vi}, cg) => { const V=vi>=0?g.vars[vi]:g, hs=Object.keys(V.refs).sort((a,b)=>PORD(a)-PORD(b)), f=findItem(S.smeal,V.k,cg?hs[0]:null);
+    return `<div class="row" data-k="${esc(g.k)}"${cg?' data-cg="1"':''}${vi>=0?` data-v="${vi}"`:''} data-src="s"><div class="tx"><div class="n">${nameHTML(g.n, dietMark(d)+(S.fav.has(g.k)?'<span class="star" aria-label="Favorite">★</span>':''))}</div><div class="m">${rv(d)}${vi>=0?varMeta(V.chip):''}${meta(d)}</div></div><div class="lane">${ctl(f&&f.it.qty, !f&&wouldSplit(S.smeal,hs))}${hallGlyph(hs, 'Served now')}</div></div>`; };
   html += r.map(x=>nowRow(x)).join('');
   if(cr.length) html += `<div class="sgrp" data-key="g-cafes">At cafés</div>` + cr.map(x=>nowRow(x,1)).join('');
   // not served now: when it's next served, in words, then the places serving it then
   if(lt.length) html += `<div class="sgrp" data-key="g-later">Later today and tomorrow</div>` + lt.map(({g,d})=>{ const said = g.meal==='all' ? (g.day?'Tomorrow':'Later') : g.day?'Tomorrow '+mealWord(g.meal):MEALN(g.meal);
-    return `<div class="row later" data-id="${d.id}" data-k="${esc(d.k)}"><div class="tx"><div class="n">${nameHTML(d.n, dietMark(d))}</div><div class="m">${rv(d)}${meta(d)}<span class="mg w"><span class="lnext" aria-hidden="true">${said}</span>${hallGlyph(g.hs, said)}</span></div></div></div>`; }).join('');
+    return `<div class="row later" data-id="${d.id}" data-k="${esc(d.k)}"><div class="tx"><div class="n">${nameHTML(famOf(d)?.name||d.n, dietMark(d))}</div><div class="m">${rv(d)}${FAM.get(d.id)?varMeta(FAM.get(d.id).x.chip):''}${meta(d)}<span class="mg w"><span class="lnext" aria-hidden="true">${said}</span>${hallGlyph(g.hs, said)}</span></div></div></div>`; }).join('');
   // round 11: past the menus, what isn't served anywhere: your foods, packaged foods, and Search UMass Dining, by hand
   let more='';
   if(yours.length) more += `<div class="sgrp" data-key="g-yours">Your foods</div>` + yours.map(foodRow).join('');
@@ -1833,7 +1919,7 @@ let MS=null;   // {m, gone:[[item, index]]}
 function openMeal(id){ const m=S.log.find(x=>x.id===+id); if(!m) return; MS={m, gone:null}; renderMeal(); IS.mid=null; $('#isbody').scrollTop=0; isheet.to('mid'); }
 function renderMeal(){ const m=MS.m, t=mealTotal(m);
   $('#bfoot').classList.add('hide'); $('#isbody').innerHTML=`<div class="dish lmeal"><div class="sh1"><h2 style="font-size:28px">${esc(mealLabel(m))}</h2><span>${esc(m.time)}</span></div>
-    ${m.items.map((it,i)=>`<div class="prow" data-li="${i}"><div class="tx"><div class="n">${esc(it.n)}</div>${it.parts&&it.parts.length?`<div class="pw">${esc('with '+it.parts.map(([n,q])=>(q!==1?fq(q)+' × ':'')+n).join(', '))}</div>`:''}<div class="m"><b>${fc(it.cal)}</b> cal each</div></div>${ctl(it.qty)}</div>`).join('')}
+    ${m.items.map((it,i)=>`<div class="prow" data-li="${i}"><div class="tx"><div class="n">${esc(shownName(it.n))}</div>${it.parts&&it.parts.length?`<div class="pw">${esc('with '+it.parts.map(([n,q])=>(q!==1?fq(q)+' × ':'')+n).join(', '))}</div>`:''}<div class="m"><b>${fc(it.cal)}</b> cal each</div></div>${ctl(it.qty)}</div>`).join('')}
     ${MS.gone?`<div class="lgone"><div class="tx"><div class="n">Removed ${esc(MS.gone[0].n)}</div></div><button class="tbtn" data-act="ungone">Undo</button></div>`:''}
     ${factsHTML(t)}<div class="twob"><button class="tbtn" data-act="mlabel">Full label</button><button class="tbtn" data-act="mdelete">Delete meal</button></div></div>`; }
 function stepLogged(i, dir){ const m=MS.m, it=m.items[i];
@@ -1906,7 +1992,7 @@ function closeAllPages(){ const i=NAV.findIndex(n=>n.kind==='page'); if(i<0) ret
 })();
 function placeRow(i){ const x=P.places[i], o=isOpen([x[3],x[4]]);
   return `<button class="lrow" data-act="cafe" data-c="${i}"><div class="lt">${thumb(x[0])}<div><div class="a">${esc(x[0])}</div><div class="b">${esc(x[2])}</div></div></div><span class="r${o?'':' off'}">${status([x[3],x[4]])}</span></button>`; }
-function servedNow(k){ const g=BYK.lunch[k]; return g? HALLS.filter(h=>g.refs[h]) : []; }
+function servedNow(k){ const g=BYK.lunch[k]; return g? HALLS.filter(h=>g.refs[h]) : [...new Set(wherePlan(k).filter(x=>x.st==='now').flatMap(x=>x.hs))]; }   // round 12: a café dish or family too
 function rankPool(){ const s=new Map(); for(const m of S.log) for(const i of m.items) s.set(norm(i.n),i.n); return [...s.entries()]; }
 function pageContent(p, x){
   if(p==='cafes'){ const by=a=>P.places.map((x,i)=>[x,i]).filter(([x])=>x[1]===a && (!S.openNow||isOpen([x[3],x[4]]))).sort((A,B)=>(isOpen([B[0][3],B[0][4]])-isOpen([A[0][3],A[0][4]]))||A[0][0].localeCompare(B[0][0]));
@@ -1920,7 +2006,7 @@ function pageContent(p, x){
     return ['Your foods', fs.length ? fs.map(f=>`<button class="lrow" data-food="${esc(f.id)}"><div><div class="a">${esc(f.n)}</div><div class="b">${fc(f.cal)} cal, ${esc(f.srv)}</div></div>${IC.rchev}</button>`).join('') : `<p class="empty" style="padding-left:0">Foods you add that aren't on a menu are kept here.</p>`]; }
   if(p==='pdf'){ const [ci,j,ph]=x.split('|'); return [PDFS[P.places[+ci][0]][+j][0]+' menu', pdfBody(+ci, +j, ph)]; }
   if(p==='favs'){ const f=[...S.fav]; return ['Favorites', alertRows() + (f.length? f.map(k=>{ const g=BYK.lunch[k]||Object.values(BYK).map(b=>b[k]).find(Boolean); const s=servedNow(k);
-      return `<div class="lrow"><div><div class="a">${esc(g?g.n:k)}</div><div class="b">${s.length?'At lunch now at '+hallLabel(s):'Not on lunch today'}</div></div></div>`; }).join('')
+      return `<div class="lrow"><div><div class="a">${esc(g?g.n:dishName(k))}</div><div class="b">${s.length?'At lunch now at '+(g?hallLabel(s):andList(s.map(PN))):'Not on lunch today'}</div></div></div>`; }).join('')
       : `<p class="empty" style="padding-left:0">Star a dish from its details and it shows up here, with where it's served today.</p>`)]; }
   if(p==='day'){ return [isoFull(x), dayBlock(x)]; }
   if(p==='diet') return ['Dietary preferences', `<h2 class="h3 dh">Only show</h2>${[['veg','Vegetarian'],['plant','Plant based'],['halal','Halal']].map(([k,l])=>`<button class="check" role="checkbox" aria-checked="${S.diet[k]}" data-diet="${k}">${l}<i></i></button>`).join('')}
@@ -1937,7 +2023,7 @@ function exportData(fmt){ const body=exportBody(fmt);
   toast('Exported udine-2026-10-08.'+fmt);
 }
 function exportBody(fmt){
-  const rows=[]; for(const m of S.log) for(const i of m.items) rows.push({date:'2026-10-08',time:m.time,meal:m.meal,hall:m.hall?PN(m.hall):'',dish:i.n,servings:i.qty,cal:i.cal*i.qty,protein:+(i.p*i.qty).toFixed(1),carbs:+(i.c*i.qty).toFixed(1),fat:+(i.f*i.qty).toFixed(1)});
+  const rows=[]; for(const m of S.log) for(const i of m.items) rows.push({date:'2026-10-08',time:m.time,meal:m.meal,hall:m.hall?PN(m.hall):'',dish:i.n,servings:i.qty,cal:i.cal==null?null:i.cal*i.qty,protein:i.p==null?null:+(i.p*i.qty).toFixed(1),carbs:i.c==null?null:+(i.c*i.qty).toFixed(1),fat:i.f==null?null:+(i.f*i.qty).toFixed(1)});
   const foods=S.foods.map(f=>({name:f.n, serving:f.srv, cal:f.cal, protein:f.p, carbs:f.c, fat:f.f, source:{custom:'custom',pack:'packaged',umass:'UMass Dining'}[f.src]}));   // round 11: saved foods (device only) export too
   return fmt==='json' ? JSON.stringify({log:rows,favorites:[...S.fav],rankings:S.wins,foods},null,2)
     : [rows, foods].filter(t=>t.length).map(t=>[Object.keys(t[0]).join(','), ...t.map(r=>Object.values(r).map(v=>/[",]/.test(v)?`"${String(v).replace(/"/g,'""')}"`:v).join(','))].join('\n')).join('\n\n');   // the log, then your foods
@@ -2038,9 +2124,9 @@ function renderPSheet(){
    backdrop, puts it away. refs: the halls an Add counts for (every hall serving it from Search, the hall from a menu,
    the plate item's own from the plate). */
 let DS=null;
-function openDish(d, src, refs, edit, plain){
+function openDish(d, src, refs, edit, plain, from){
   const B = S.track && !d.day && !plain && (edit ? edit.build : buildOf(d));   // plain: a dish already on the plate opens as itself ("Add another")
-  DS={d, refs: refs || {[d.h]:d}, build: B ? {...B, sel:new Map(edit?edit.sel:[]), edit:edit&&edit.ref} : null};
+  DS={d, refs: refs || {[d.h]:d}, build: B ? {...B, sel:new Map(edit?edit.sel:[]), edit:edit&&edit.ref} : null, from: famOf(d) ? from : null};
   $('#q').blur(); renderDish(); $('#isbody').scrollTop=0; IS.mid=DS.build ? buildMid() : dishMid(); isheet.to('mid'); }
 // a bowl on the plate reopens its builder with its parts chosen; the foot reads Update
 function openBowl(m, pl, it){ const B = m.syn ? {head:m.syn.head, parts:m.syn.parts, base:null, syn:m.syn, h:m.h, meal:m.syn.meal} : buildOf(m.base);
@@ -2048,11 +2134,15 @@ function openBowl(m, pl, it){ const B = m.syn ? {head:m.syn.head, parts:m.syn.pa
   openDish(d, null, it.refs, {build:B, sel:[...(m.syn&&m.base?[[m.base.id,1]]:[]), ...m.parts.map(([x,q])=>[x.id,q])], ref:{pl,it}}); }
 // a synthetic base ("Your salad from the Salad Bar"): its sheet is only the builder
 function openSyn(y){ openDish({id:'syn', n:y.label, k:'syn', h:y.h, meal:y.meal, day:0, d:0, srv:'', algs:[], alg:'', nut:null, cal:0,p:0,c:0,f:0}, null, null, {build:{head:y.head, parts:y.parts, base:null, syn:y, h:y.h, meal:y.meal}, sel:[]}); }
+// round 12: a pick-one is a chip group under the name, the same wherever exactly one is chosen (a size, a milk, a pho's broth).
+// opts: [[dish id, label]]; cur: the chosen id, or none yet (a pho before its broth)
+const vpickHTML = (opts, cur, label) => `<div class="vpick" role="radiogroup" aria-label="${esc(label)}">${opts.map(([id,l])=>`<button class="chip" role="radio" aria-checked="${id===cur}" data-var="${id}">${esc(l)}</button>`).join('')}</div>`;
+const famPick = d => { const f=famOf(d); return f ? vpickHTML(f.vars.map(x=>[x.d.id, x.chip]), d.id, f.name) : ''; };
 // price (round 9): the serving's, so only a café serving has one, wherever the sheet was opened from. It leads the serving line.
 function renderDish(){ if(DS.build) return renderBuild(); const d=DS.d, N=nutObj(d.nut), on=!d.day && findItem(plateMeal(d),d.k), mk=marksHTML(d)+scoresHTML(d,'mks-s'), pr=isCafe(d.h)&&d.price ? `<b class="pr">${esc(d.price)}</b>` : '';
-  $('#bfoot').classList.add('hide'); $('#isbody').innerHTML=`<div class="dish"><div class="dhd"><h2 class="dn">${esc(d.n)}</h2><button class="icon favb" data-act="fav" data-k="${esc(d.k)}" aria-pressed="${S.fav.has(d.k)}" aria-label="Favorite">${IC.star}</button></div>
-    ${pr||d.srv?`<p class="dsv">${pr}${esc(d.srv)}</p>`:''}${mk?`<div class="mks">${mk}</div>`:''}${d.alg?`<p class="dal"><b>Contains</b>${d.algs.map(a=>S.avoid[a]?`<span class="av">${esc(a)}</span>`:esc(a)).join(', ')}</p>`:''}
-    ${d.day||!S.track?'':`<button class="btn dadd" data-act="dadd">${on?'Add another':'Add to plate'}</button>`}
+  $('#bfoot').classList.add('hide'); $('#isbody').innerHTML=`<div class="dish"><div class="dhd"><h2 class="dn">${esc(shown(d))}</h2>${ALWAYS(d)?'':`<button class="icon favb" data-act="fav" data-k="${esc(favKey(d))}" aria-pressed="${S.fav.has(favKey(d))}" aria-label="Favorite">${IC.star}</button>`}</div>
+    ${famPick(d)}${pr||d.srv?`<p class="dsv">${pr}${esc(d.srv)}</p>`:''}${mk?`<div class="mks">${mk}</div>`:''}${d.alg?`<p class="dal"><b>Contains</b>${d.algs.map(a=>S.avoid[a]?`<span class="av">${esc(a)}</span>`:esc(a)).join(', ')}</p>`:''}
+    ${d.day||!S.track?'':DS.from?`<button class="btn dadd" data-act="vupd">Update</button>`:`<button class="btn dadd" data-act="dadd">${on?'Add another':'Add to plate'}</button>`}
     ${whereHTML(d.k)}${labelHTML(N, d.cal, d.srv)}${gradesHTML(d.hf, d.cr)}
     ${d.ing?`<h3 class="ingh">Ingredients</h3><div class="ing" id="ing"><p>${esc(d.ing)}</p></div><button class="tbtn ingmore" data-act="ing" aria-expanded="false">Show all</button>`:''}</div>`;
   const ing=$('#ing'); if(ing && ing.scrollHeight<=ing.clientHeight+1){ ing.classList.add('open'); ing.nextElementSibling.remove(); }   // measured, not counted: "Show all" only when it is cut
@@ -2060,27 +2150,40 @@ function renderDish(){ if(DS.build) return renderBuild(); const d=DS.d, N=nutObj
 // the builder (round 10): the dish's identity, its station's add-ins with the row's stepper, then where, the label and the
 // ratings, all summed live; the action is pinned to the sheet's foot in the plate bar's material
 const bowlNow = () => { const B=DS.build, sel=[...B.sel].filter(([,q])=>q>0).map(([id,q])=>[DISH[id],q]); return B.syn ? synBowl(B.syn, sel, B.h) : bowlDish(B.base, sel, null, B.h); };
-function renderBuild(){ const B=DS.build, bd=bowlNow(), base=B.base, mk=base?marksHTML(base)+scoresHTML(base,'mks-s'):'';
-  $('#isbody').innerHTML=`<div class="dish build"><div class="dhd"><h2 class="dn">${esc(bd.n)}</h2>${base?`<button class="icon favb" data-act="fav" data-k="${esc(base.k)}" aria-pressed="${S.fav.has(base.k)}" aria-label="Favorite">${IC.star}</button>`:''}</div>
-    <p class="dsv bsv">${bd.price&&isCafe(B.h)?`<b class="pr">${esc(bd.price)}</b>`:''}${esc(base?base.srv:'')}</p>${mk?`<div class="mks">${mk}</div>`:''}<p class="dal bal"${bd.algs.length?'':' hidden'}><b>Contains</b>${bd.algs.map(a=>S.avoid[a]?`<span class="av">${esc(a)}</span>`:esc(a)).join(', ')}</p>
-    ${B.syn?'':`<h3 class="bh">${esc(B.head)}</h3>`}<div class="bparts${B.syn?' syn':''}">${B.parts.map((x,i)=>`${B.syn&&B.syn.topHead&&i===B.syn.choices.length?`<h3 class="bh">${esc(B.syn.topHead)}</h3>`:''}<div class="brow" data-bp="${x.id}"><div class="tx"><div class="n">${nameHTML(x.n, dietMark(x))}</div><div class="m"><span class="mg"><b>${fc(x.cal)}</b> cal${isCafe(B.h)&&x.price?`<span class="gap"></span><b>${esc(x.price)}</b>`:''}</span></div></div>${ctl(B.sel.get(x.id)||0)}</div>`).join('')}</div>
+const nameOf = m => m.parts && m.base && !m.syn ? shown(m.base) : shown(m);   // a built family member reads as its variant
+function renderBuild(){ const B=DS.build, bd=bowlNow(), base=B.base, mk=base?marksHTML(base)+scoresHTML(base,'mks-s'):'', ch=B.syn&&B.syn.pho ? B.syn.choices : null, parts=ch ? B.parts.filter(x=>!ch.includes(x)) : B.parts;
+  $('#isbody').innerHTML=`<div class="dish build"><div class="dhd"><h2 class="dn">${esc(nameOf(bd))}</h2>${base?`<button class="icon favb" data-act="fav" data-k="${esc(favKey(base))}" aria-pressed="${S.fav.has(favKey(base))}" aria-label="Favorite">${IC.star}</button>`:''}</div>
+    ${ch ? phoPickHTML(B) : base ? famPick(base) : ''}<p class="dsv bsv">${bd.price&&isCafe(B.h)?`<b class="pr">${esc(bd.price)}</b>`:''}${esc(base?base.srv:'')}</p>${mk?`<div class="mks">${mk}</div>`:''}<p class="dal bal"${bd.algs.length?'':' hidden'}><b>Contains</b>${bd.algs.map(a=>S.avoid[a]?`<span class="av">${esc(a)}</span>`:esc(a)).join(', ')}</p>
+    ${B.syn?'':`<h3 class="bh">${esc(B.head)}</h3>`}<div class="bparts${B.syn?' syn':''}">${parts.map((x,i)=>`${B.syn&&B.syn.topHead&&i===(ch?0:B.syn.choices.length)?`<h3 class="bh">${esc(B.syn.topHead)}</h3>`:''}<div class="brow" data-bp="${x.id}"><div class="tx"><div class="n">${nameHTML(x.n, dietMark(x))}</div><div class="m"><span class="mg"><b>${fc(x.cal)}</b> cal${isCafe(B.h)&&x.price?`<span class="gap"></span><b>${esc(x.price)}</b>`:''}</span></div></div>${ctl(B.sel.get(x.id)||0)}</div>`).join('')}</div>
     ${base?whereHTML(base.k):''}<div class="blab">${labelHTML(nutObj(bd.nut), bd.cal, '')}</div>${base?gradesHTML(base.hf, base.cr):''}
     ${base&&base.ing?`<h3 class="ingh">Ingredients</h3><div class="ing" id="ing"><p>${esc(base.ing)}</p></div><button class="tbtn ingmore" data-act="ing" aria-expanded="false">Show all</button>`:''}</div>`;
   const ing=$('#ing'); if(ing && ing.scrollHeight<=ing.clientHeight+1){ ing.classList.add('open'); ing.nextElementSibling.remove(); }
   footHTML(bd); }
 function footHTML(bd){ const f=$('#bfoot'), B=DS.build, none = B.syn&&B.syn.pho ? !bd.base : !B.base && !bd.parts.length;   // a pho waits for its base
-  f.innerHTML=`<div class="txt"><div class="l2"><b class="num">${fc(bd.cal)}</b><span>cal</span><b class="num">${f1(bd.p)}g</b><span>protein</span></div></div><button class="gbtn" data-act="badd"${none?' disabled':''}>${B.edit?'Update':'Add'}</button>`;
+  f.innerHTML=`<div class="txt"><div class="l2"><b class="num">${fc(bd.cal)}</b><span>cal</span><b class="num">${fg(bd.p)}</b><span>protein</span></div></div><button class="gbtn" data-act="badd"${none?' disabled':''}>${B.edit?'Update':'Add'}</button>`;
   f.classList.remove('hide'); isheet.onSet(isheet.y); }
 // a part's stepper changes the bowl in place: its control, the foot, the price, Contains and the label
-function stepPart(id, dir){ const B=DS.build, q=B.sel.get(id)||0, ch=B.syn&&B.syn.pho&&B.syn.choices.includes(DISH[id]);
-  // a pho's base is one of its choices, one at a time: + picks it (and puts the last one back), − puts it back
-  const n = ch ? (dir>0 ? 1 : 0) : dir>0 ? (q===.5?1:q+1) : q>1 ? q-1 : q===1 ? .5 : 0;
-  if(ch && n) for(const x of B.syn.choices) if(x.id!==id && B.sel.has(x.id)){ B.sel.delete(x.id); setCtl($(`#isbody .brow[data-bp="${x.id}"]`), 0); }
+function stepPart(id, dir){ const B=DS.build, q=B.sel.get(id)||0;
+  const n = dir>0 ? (q===.5?1:q+1) : q>1 ? q-1 : q===1 ? .5 : 0;
   if(n) B.sel.set(id,n); else B.sel.delete(id); const row=$(`#isbody .brow[data-bp="${id}"]`); setCtl(row, n);
-  const bd=bowlNow(); footHTML(bd); if(ch) $('#isbody .dn').textContent=bd.n; $('#isbody .blab').innerHTML=labelHTML(nutObj(bd.nut), bd.cal, '');
+  const bd=bowlNow(); footHTML(bd); $('#isbody .blab').innerHTML=labelHTML(nutObj(bd.nut), bd.cal, '');
   const pr=$('#isbody .bsv .pr'); if(pr) pr.textContent=bd.price||''; else if(bd.price&&isCafe(B.h)) $('#isbody .bsv').insertAdjacentHTML('afterbegin',`<b class="pr">${esc(bd.price)}</b>`);
   const al=$('#isbody .bal'); al.hidden=!bd.algs.length; al.innerHTML=`<b>Contains</b>${bd.algs.map(a=>S.avoid[a]?`<span class="av">${esc(a)}</span>`:esc(a)).join(', ')}`;
   A($('#bfoot .l2'),[{opacity:.4},{opacity:1}],'settle'); buzz(dir>0?6:4); }
+// round 12: a chip picks one. A family's sheet becomes that variant's (a builder keeps its add-ins); a pho's choice names it.
+// Everything under the chips is redrawn in place: the chip fills, the rest crossfades from .4, and the sheet stays where it is.
+const sameVar = (d, x) => { const f=famOf(d), e=FAM.get(x.id); return f && e && f.vars.find(y=>y.v===e.x.v)?.d || d; };
+function pickVar(id){ const x=DISH[id], B=DS.build;
+  if(B && B.syn && B.syn.axes && id.startsWith('ax:')){ const a=id[3], v=id.slice(5), pk=phoPicks(B); if(pk[a]===v) return; pk[a]=v;
+    for(const c of B.syn.choices) B.sel.delete(c.id); const d=pk.p&&pk.b&&B.syn.axes.grid.get(pk.p+'|'+pk.b); if(d) B.sel.set(d.id,1); }
+  else if(!x) return;
+  else if(B && B.syn && B.syn.pho){ if(B.sel.has(id)) return; for(const c of B.syn.choices) B.sel.delete(c.id); B.sel.set(id,1); }
+  else { if(DS.d.id===id) return; DS.d=x; DS.refs=Object.fromEntries(Object.entries(DS.refs).map(([h,d])=>[h, sameVar(d,x)]));
+    if(B){ const nb=buildOf(x); DS.build=nb ? {...nb, sel:new Map([...B.sel].filter(([p])=>nb.parts.some(y=>y.id===p))), edit:B.edit} : null; } }
+  const b=$('#isbody'), y=b.scrollTop; renderDish(); b.scrollTop=y; b.querySelector('.dish').classList.toggle('stuck', y>4);
+  const c=[...b.querySelectorAll('.vpick [role=radio]')].find(e=>e.dataset.var===id); if(c){ c.setAttribute('aria-checked','false'); void c.offsetWidth; c.setAttribute('aria-checked','true'); }   // the chip fills (its own transition)
+  for(let e=[...b.querySelectorAll('.vpick')].at(-1)?.nextElementSibling; e; e=e.nextElementSibling) A(e,[{opacity:.4},{opacity:1}],'settle');
+  if(DS.build) A($('#bfoot .l2'),[{opacity:.4},{opacity:1}],'settle'); buzz(6); }
 // the bowl's resting height: its name and identity, the add-ins heading and four of them, above the foot
 function buildMid(){ const b=$('#isbody'), rows=b.querySelectorAll('.brow'), last=rows[Math.min(3,rows.length-1)], top=b.getBoundingClientRect().top-b.scrollTop;
   const need=GRAB_H+(last?last.getBoundingClientRect().bottom-top:200)+($('#bfoot').offsetHeight||68)+8; return Math.max(ST+8, H-need); }
@@ -2092,9 +2195,10 @@ function dishMid(){ const b=$('#isbody'), cal=b.querySelector('.label .cal'), to
   return Math.max(ST+8, H-need); }
 function openPlateLabel(src){
   const pl=S.plates[S.front]; if(!pl) return; const hall=(plateHalls(pl)||[])[0], sum=Object.fromEntries(NK.map(k=>[k,k.endsWith('Dv')?null:0]));
-  let cal=0; for(const it of pl.items){ const m=macroOf(it,hall); cal+=m.cal*it.qty;
+  const cal=totals(pl,hall).cal; for(const it of pl.items){ const m=macroOf(it,hall);
     if(it.custom && !it.custom.nut){ sum.fat+=m.f*it.qty; sum.carb+=m.c*it.qty; sum.pro+=m.p*it.qty; continue; }
     const N=nutObj(m.nut); for(const k of NK) if(!k.endsWith('Dv') && N[k]!=null) sum[k]+=N[k]*it.qty; }
+  if(!pl.items.some(it=>{ const m=macroOf(it,hall); return it.custom || (m.nut||[]).some(v=>v!=null); })) for(const k of NK) if(!k.endsWith('Dv')) sum[k]=null;   // nothing known: "–", not 0
   $('#bfoot').classList.add('hide'); $('#isbody').innerHTML=`<div class="dish"><div class="sh1"><h2 style="font-size:28px">Your plate</h2><span>${esc(plateLabel(pl))}</span></div>
     <p class="kv" style="margin:0">${pl.items.map(it=>`${it.qty!==1?fq(it.qty)+' × ':''}${esc(it.n)}`).join(', ')}</p>${labelHTML(sum, cal, '')}</div>`;
   $('#isbody').scrollTop=0; IS.mid=null; isheet.to('top');
@@ -2219,11 +2323,11 @@ function renderBar(){
   barMode='plate';
   const nItems = t.n===1?'1 item':`${fq(t.n)} items`;
   // while a calorie tag is in the air the numbers wait for it to land
-  if(existing && inn.querySelector('.l1')){ inn.querySelector('#barL').textContent=plateLabel(pl); inn.querySelector('#barN').textContent=nItems; existing.textContent=fc(t.cal); inn.querySelector('#barP').textContent=f1(t.p)+'g'; return; }
+  if(existing && inn.querySelector('.l1')){ inn.querySelector('#barL').textContent=plateLabel(pl); inn.querySelector('#barN').textContent=nItems; existing.textContent=fc(t.cal); inn.querySelector('#barP').textContent=fg(t.p); return; }
   inn.innerHTML=plateBarHTML(pl);
 }
 function plateBarHTML(pl){ const t=totals(pl), nItems = t.n===1?'1 item':`${fq(t.n)} items`;
-  return `<div class="txt"><div class="l1"><span id="barL">${esc(plateLabel(pl))}</span>, <span class="num2" id="barN">${nItems}</span></div><div class="l2"><b class="num" id="barCal">${fc(t.cal)}</b><span>cal</span><b class="num" id="barP">${f1(t.p)}g</b><span>protein</span></div></div>
+  return `<div class="txt"><div class="l1"><span id="barL">${esc(plateLabel(pl))}</span>, <span class="num2" id="barN">${nItems}</span></div><div class="l2"><b class="num" id="barCal">${fc(t.cal)}</b><span>cal</span><b class="num" id="barP">${fg(t.p)}</b><span>protein</span></div></div>
     <div class="acts"><button class="gbtn" data-act="barlog">Log</button></div>`; }
 function showLogged(){ const L=S.lastLog;
   receipt(`Logged ${L.entry.hall?PN(L.entry.hall)+' ':''}${ML[L.entry.meal].toLowerCase()}`, `<div class="l2">Today <b class="num" id="dayN">${fc(dayTotal().cal)}</b><span>cal</span></div>`); }
@@ -2263,7 +2367,7 @@ function receipt(text, l2=''){
 function rowState(row){
   if(row.dataset.food){ const f=findItem(foodMeal(),'food:'+row.dataset.food); return [f?f.it.qty:0, false]; }
   if(row.dataset.id){ const d=DISH[row.dataset.id], m=plateMeal(d), f=findItem(m,d.k,d.h); return [f?f.it.qty:0, !f && wouldSplit(m,[d.h])]; }
-  const g=sGroup(row), hs=Object.keys(g.refs), f=findItem(S.smeal,g.k,row.dataset.cg?hs[0]:null); return [f?f.it.qty:0, !f && wouldSplit(S.smeal,hs)]; }
+  const g0=sGroup(row), g=row.dataset.v ? g0.vars[+row.dataset.v] : g0, hs=Object.keys(g.refs), f=findItem(S.smeal,g.k,row.dataset.cg?hs[0]:null); return [f?f.it.qty:0, !f && wouldSplit(S.smeal,hs)]; }
 function setCtl(row, q, ghost){
   const st=row.querySelector('.step'), ad=row.querySelector('.add'), old=st?+st.dataset.q:0;
   if(q===old){ if(ad) ad.classList.toggle('ghost',!!ghost); return; }
@@ -2278,13 +2382,27 @@ function setCtl(row, q, ghost){
   st.replaceWith(n); done(A(gh,[{transform:'none',opacity:1},{transform:'scaleX(.4)',opacity:0}],'exit')).then(()=>gh.remove());
   A(n,[{opacity:0},{opacity:1}],'settle');
 }
+// round 12b: when the plate changes, a family's row takes the name marks, token and numbers of the variant it now stands for,
+// in place (the content crossfades from .4, settle)
+function restand(row){
+  if(row.dataset.vars){ const d0=DISH[row.dataset.id], f=famOf(d0); if(!f) return;
+    const x=standing(f.vars, x=>findItem(plateMeal(x.d),x.d.k,x.d.h), x=>S.reveal||prefOK(x.d)); if(!x || x.d.id===d0.id) return;
+    const d=x.d; row.dataset.id=d.id;
+    row.querySelector('.n').innerHTML=nameHTML(f.name, dietMark(d)+(S.fav.has(favKey(d))?'<span class="star" aria-label="Favorite">★</span>':''));
+    row.querySelector('.m').innerHTML=`${S.reveal?contHTML(d):''}${varMeta(x.chip)}${meta(d)}`; A(row.querySelector('.tx'),[{opacity:.4},{opacity:1}],'settle'); return; }
+  if(row.dataset.v!=null && row.dataset.k){ const g0=sGroup(row); if(!g0||!g0.vars) return; const vi=varFor(g0, qToks()); if(vi===+row.dataset.v) return;
+    const V=g0.vars[vi], d=rep(V), hs=Object.keys(V.refs).sort((a,b)=>PORD(a)-PORD(b)); row.dataset.v=vi;
+    row.querySelector('.n').innerHTML=nameHTML(g0.n, dietMark(d)+(S.fav.has(g0.k)?'<span class="star" aria-label="Favorite">★</span>':''));
+    row.querySelector('.m').innerHTML=`${S.sreveal?contHTML(d):''}${varMeta(V.chip)}${meta(d)}`;
+    const tg=row.querySelector('.lane .tags'); if(tg) tg.outerHTML=hallGlyph(hs,'Served now');
+    A(row.querySelector('.tx'),[{opacity:.4},{opacity:1}],'settle'); } }
 function refreshLists(){
-  for(const box of [S.hall&&!S.mday&&$('#mlist'), $('#sres')]) if(box) for(const row of box.querySelectorAll('.row:not(.later):not(.syn)')){ const [q,g]=rowState(row); setCtl(row,q,g); }
+  for(const box of [S.hall&&!S.mday&&$('#mlist'), $('#sres')]) if(box) for(const row of box.querySelectorAll('.row:not(.later):not(.syn)')){ restand(row); const [q,g]=rowState(row); setCtl(row,q,g); }
 }
 function refreshSheet(){ if(psheet.state==='closed') return; const pl=S.plates[S.front], b=$('#psbody');
   if(!pl || b.dataset.pid!=String(pl.id) || +b.dataset.n!==pl.items.length){ renderPSheet(); return; }
   const hs=plateHalls(pl), t=totals(pl); $$('#psbody .prow').forEach((r,i)=>setCtl(r, pl.items[i].qty));
-  const fb=$$('#psbody .facts b'); [fc(t.cal),f1(t.p)+'g',f1(t.c)+'g',f1(t.f)+'g'].forEach((v,i)=>{ if(fb[i]) fb[i].textContent=v; }); }
+  const fb=$$('#psbody .facts b'); [fc(t.cal),fg(t.p),fg(t.c),fg(t.f)].forEach((v,i)=>{ if(fb[i]) fb[i].textContent=v; }); }
 function refresh(){ refreshLists(); renderBar(); refreshSheet(); if(!S.plates.length && psheet.state!=='closed') psheet.to('closed'); }
 
 /* ---------- input ---------- */
@@ -2313,6 +2431,7 @@ document.addEventListener('click',e=>{
   const av=t.closest('[data-avoid]'); if(av){ const k=av.dataset.avoid; S.avoid[k]=!S.avoid[k]; if(!S.avoid[k]) delete S.avoid[k]; av.setAttribute('aria-checked',!!S.avoid[k]); buzz(4); save(); return; }
   const wn=t.closest('[data-win]'); if(wn){ S.wins[wn.dataset.key]=wn.dataset.win; buzz(6); rerenderPage(); return; }
   // round 10: a bowl's parts step in place; the synthetic base opens its builder
+  const vc=t.closest('#isbody [data-var]'); if(vc){ pickVar(vc.dataset.var); return; }
   const br=t.closest('.brow'); if(br){ if(t.closest('.add,.inc')) stepPart(br.dataset.bp,1); else if(t.closest('.dec')) stepPart(br.dataset.bp,-1); return; }
   const sy=t.closest('[data-syn]'); if(sy){ openSyn(synOf(0,PK(),S.mmeal,+sy.dataset.syn)); return; }
   // round 11: a food (yours, packaged, a lookup): + saves it and adds it; the row opens its sheet; a You row opens it too
@@ -2326,8 +2445,8 @@ document.addEventListener('click',e=>{
   const row=t.closest('.row');
   if(row){
     let meal, k, refs, n, ctxHall=null, d=null;
-    if(row.dataset.id){ d=DISH[row.dataset.id]; meal=plateMeal(d); k=d.k; n=d.n; refs={[d.h]:d}; ctxHall=d.h; }
-    else { meal=S.smeal; const g=sGroup(row); k=g.k; n=g.n; refs=g.refs; d=rep(g); }
+    if(row.dataset.id){ d=DISH[row.dataset.id]; meal=plateMeal(d); k=d.k; n=shown(d); refs={[d.h]:d}; ctxHall=d.h; }
+    else { meal=S.smeal; const g0=sGroup(row), g=row.dataset.v ? g0.vars[+row.dataset.v] : g0; k=g.k; refs=g.refs; d=rep(g); n=g0.vars ? shown(d) : g.n; }
     if(t.closest('.add')){ addDish(meal,k,refs,n); afterPick(row); return; }
     const f=findItem(meal,k,ctxHall);
     if(t.closest('.inc')&&f){ stepItem(f.pl,f.it,1); afterPick(row); return; }
@@ -2339,7 +2458,7 @@ document.addEventListener('click',e=>{
   const mr=t.closest('[data-meal-id]'); if(mr){ openMeal(mr.dataset.mealId); return; }
   const prow=t.closest('.prow'); if(prow){ const pl=S.plates[S.front], it=pl.items[+prow.dataset.pi];
     if(!t.closest('button')){ if(it.custom && foodById(it.k.slice(5))){ openFood(foodById(it.k.slice(5))); return; } if(!it.custom){ const m=macroOf(it,(plateHalls(pl)||[])[0]);
-      if(m.parts) openBowl(m, pl, it); else openDish(m, prow, it.refs, null, true); } return; }   // a plate row opens its dish (a bowl, its builder), over the plate
+      if(m.parts) openBowl(m, pl, it); else openDish(m, prow, it.refs, null, true, {pl,it}); } return; }   // a plate row opens its dish (a bowl, its builder), over the plate
     if(t.closest('.inc')) stepItem(pl,it,1); else if(t.closest('.dec')){
     // the last half leaves the plate: its row closes up (nothing to travel to; the plate is where it was)
     if(it.qty===.5) done(A(prow,[{height:prow.offsetHeight+'px',opacity:1},{height:'0px',opacity:0}],'exit',{fill:'forwards'})).then(()=>stepItem(pl,it,-1)); else stepItem(pl,it,-1); } return; }
@@ -2383,12 +2502,15 @@ document.addEventListener('click',e=>{
     if(inS){ S.sreveal=on; renderSearch(); } else { S.reveal=on; const y=$('#mscroll').scrollTop; renderMenuList(); $('#mscroll').scrollTop=y; A($('#mlist'),[{opacity:.4},{opacity:1}],'settle'); } buzz(4); }
   else if(act==='badd'){ const B=DS.build, bd=bowlNow(), plain=B.base && !bd.parts.length, meal=plateMeal(B.base||{h:B.h,meal:B.meal}), ed=B.edit;
     // the sheet goes down; the bowl lands on the plate (or replaces the one being edited) where the bar can show it
-    isheet.away(()=>{ if(ed){ const {pl,it}=ed, twin=pl.items.find(x=>x!==it && x.k===bd.k); if(twin){ twin.qty+=it.qty; pl.items.splice(pl.items.indexOf(it),1); } else { it.k=bd.k; it.n=bd.n; it.refs={[B.h]:bd}; } buzz(8); refresh(); }
-      else if(plain) addDish(meal, B.base.k, {[B.h]:B.base}, B.base.n); else addDish(meal, bd.k, {[B.h]:bd}, bd.n); }); }
+    isheet.away(()=>{ if(ed){ const {pl,it}=ed, twin=pl.items.find(x=>x!==it && x.k===bd.k); if(twin){ twin.qty+=it.qty; twin.at=++SEQ; pl.items.splice(pl.items.indexOf(it),1); } else { it.k=bd.k; it.n=nameOf(bd); it.refs={[B.h]:bd}; it.at=++SEQ; } buzz(8); refresh(); }
+      else if(plain) addDish(meal, B.base.k, {[B.h]:B.base}, shown(B.base)); else addDish(meal, bd.k, {[B.h]:bd}, nameOf(bd)); }); }
   else if(act==='dadd' && DS.food){ const f=DS.food; isheet.away(()=>addFood(f)); }
   else if(act==='dadd'){ const {d,refs}=DS;
     // the sheet goes down; the row's + becomes its stepper and the bar updates in place, where you can see them
-    isheet.away(()=>addDish(plateMeal(d),d.k,refs,d.n)); }
+    isheet.away(()=>addDish(plateMeal(d),d.k,refs,shown(d))); }
+  // round 12: a family member opened from the plate: Update makes the item the variant chosen, keeping its quantity (the bowl's twin rule)
+  else if(act==='vupd'){ const {d,refs,from:{pl,it}}=DS;
+    isheet.away(()=>{ const twin=pl.items.find(x=>x!==it && x.k===d.k); if(twin){ twin.qty+=it.qty; twin.at=++SEQ; pl.items.splice(pl.items.indexOf(it),1); } else { it.k=d.k; it.n=shown(d); it.refs={...refs}; it.at=++SEQ; } buzz(8); refresh(); }); }
   else if(act==='fav'){ const k=a.dataset.k; S.fav.has(k)?S.fav.delete(k):S.fav.add(k); save(); a.setAttribute('aria-pressed',S.fav.has(k)); buzz(6);
     // the lists under the sheet show the star where they are
     relist(); }
