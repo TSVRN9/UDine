@@ -183,15 +183,17 @@ merged; the badge part also by `flutter-port-alert-push` — PR:
 ### 7. A late busy reading doesn't move the title (M2 R13 §4 last bullet, `arriveBusy()` / `lateSetup()`)
 - A header opened with its reading is M2's measured layout: Worcester, Hampshire, Berkshire titles at one height, Franklin's 22 dp lower
   (Franklin has no "Calmer around" line). **Do not reserve the block.**
-- A header opened before the reading has no busy block and no chart and is shorter by the block's height D; the title (anchored by the
-  header's foot) is already where it will stay. When the reading lands, the block grows in below the status line (height, spacing,
-  opacity, `settle`), the header grows by D, and the meal tabs and the list ride down by D with it; **the title and the letter do not
-  move at any frame**. D = 47 dp (39 of block + 8 of spacing) for Worcester, Hampshire and Berkshire; 25 dp (17 + 8) for Franklin.
-  Replace the `AnimatedSize` that pushed the title 22 dp. A header that never gets a reading stays short. The hall card on Halls is
-  top-stacked in a fixed band and has no shift: no change.
+- A header opened before the reading has no busy block and no chart (the hour chart is part of the reading, drawn only for a live hall) and is
+  shorter by the block's height D; the title (anchored by the header's foot) is already where it will stay. When the reading lands:
+  **the block's box grows first** below the status line (height and spacing, over the first 60% of `settle`, its text not drawn, so no glyph is
+  ever cut by a growing box or the header edge), the header grows by D and the meal tabs and the list ride down by D with it; **then, once the
+  box is whole, the line and the chart fade in together** (the last 40%). The title and the letter do not move at any frame. The chart sits in the
+  header's foot band (10 dp from the bottom, 30 tall), already inside the header, so D is the busy lines only: 47 dp (39 of lines + 8 of spacing) for
+  Worcester, Hampshire and Berkshire; 25 dp (17 + 8) for Franklin. Replace the `AnimatedSize` that pushed the title 22 dp. A header that never
+  gets a reading stays short. The hall card on Halls is top-stacked in a fixed band and has no shift: no change.
 States: `?busy=late` opening, mid-arrival frames (12 at 390 and 360: `lateW390`, `lateF390`), and loaded Worcester and Franklin.
 Measurement: M2 `test.js` "a busy reading that lands late": the title and letter rects unchanged across the arrival, the tabs and list down by
-D, and the end state equal to a header opened with the reading. Files: `app/lib/screens/hall/hall_header.dart`, `busy.dart`,
+D, the end state equal to a header opened with the reading, while the line has any opacity it is whole and inside the header, and the chart is not drawn at k 0. Files: `app/lib/screens/hall/hall_header.dart`, `busy.dart`,
 `hall_menu.dart` — lanes: common + the frame strip — blocked by: #612 merged — PR:
 
 ### 8. Write to Health Connect, not installed: the row opens its Play listing (M2 R10 §5, R13)
