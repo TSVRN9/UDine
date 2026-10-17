@@ -562,12 +562,15 @@ Everything else follows from treating a meal as a plate:
     Health Connect** (or **Open Settings**) button, the round-9 Try again control.
   - **Revoked in system settings:** checked when You is shown or the app resumes. It's the denied state, with "Not
     allowed in Health Connect any more". Nothing is lost on our side.
+- **Health Connect not installed** (round 13, Android before 14, where it is a separate app). The row still shows, as above. A tap opens
+  Health Connect's Play listing (the OS's, drawn as a neutral store page with Install), not a permission sheet; back closes it and leaves
+  the check empty. Once installed, the first tap raises the permission sheet as before. Sim: `?health=missing&os=android`.
 - **What's written:** the meal's time and its nutrients, mapped to whatever the platform's nutrition record supports.
   The label has calories, fat, saturated and trans fat, cholesterol, sodium, carbohydrate, fibre, sugars and protein;
   which of these each platform accepts is to be verified at build time.
 - **The prototype simulates the OS.**
   - `?os=ios|android` picks the platform's name.
-  - `?health=allow|deny|revoked` picks the outcome. The permission sheet is drawn as a neutral system sheet, clearly not
+  - `?health=allow|deny|revoked|missing` picks the outcome (missing: round 13, Android only). The permission sheet is drawn as a neutral system sheet, clearly not
     UDine's.
 
 ```
@@ -716,13 +719,12 @@ state says what happened and what to do, in the place where it happened.**
 │ Notify me                          [ ] │ │ When a favorite is on today's    │ │ Beef Brisket Noodle Bowl         │
 │ When a favorite is on today's menu     │ │ menu                             │ │ Lunch from 11 AM at Worcester    │
 │ Beef Brisket Noodle Bowl               │ └──────────────────────────────────┘ └──────────────────────────────────┘
-│ At lunch now at Worcester              │  Denied (or blocked)                    Background work off
-│ Golden BBQ Chicken Thigh               │ ┌──────────────────────────────────┐ ┌──────────────────────────────────┐
-│ At lunch now at Worcester              │ │ Notify me                    [ ] │ │ Notify me                    [x] │
-└────────────────────────────────────────┘ │ Notifications are off for UDine  │ │ Background App Refresh is off,   │
-                                           │ [ Open Settings ]                │ │ so UDine can't check menus       │
-                                           └──────────────────────────────────┘ │ [ Open Settings ]                │
-                                                                                └──────────────────────────────────┘
+│ At lunch now at Worcester              │  Denied (or blocked)
+│ Golden BBQ Chicken Thigh               │ ┌──────────────────────────────────┐
+│ At lunch now at Worcester              │ │ Notify me                    [ ] │
+└────────────────────────────────────────┘ │ Notifications are off for UDine  │
+                                           │ [ Open Settings ]                │
+                                           └──────────────────────────────────┘
 ```
 
 - **Where alerts are turned on.** A check row at the top of the Favorites page: "Notify me", with the line "When a
@@ -736,38 +738,46 @@ state says what happened and what to do, in the place where it happened.**
   - **Blocked:** the OS won't ask again (Android after two denials; iOS after one). The tap goes straight to the denied
     state, with no sheet.
   - **Revoked in system settings:** checked when You is shown or the app resumes. It's the denied state.
-  - **Background work off:** notifications are allowed, but the OS won't run UDine in the background. On iOS that's
-    Background App Refresh; on Android, a "Restricted" battery setting. The check stays on, because the wish is
-    kept. The line reads "Background App Refresh is off, so UDine can't check menus" (Android: "Battery use is
-    restricted, so UDine can't check menus"), with **Open Settings**.
+  - *Background work off* was a state until round 13: alerts are now server pushes (below), which don't need the app to run, so there is
+    nothing for it to say.
 - **What the notification says.** The title is the dish's name. The body is M2's "where" sentence, as the dish sheet
   says it, from the moment it's posted:
   - "Lunch from 11 AM at Worcester";
   - "Lunch now, until 4:30 PM, at Worcester and Berkshire";
   - "Dinner from 4:30 PM at Franklin".
   - It doesn't repeat itself, and it doesn't say "a favorite of yours": the student starred it.
-- **Tapping it** opens the app on Halls and pushes the hall at that meal, scrolled to the dish and marked. That's the
-  sheet's "where it's served" target, the first place in the answer. Several places are named in the body, and the
-  hall's own row then shows the rest.
-- **One notification per dish per day.** This differs from RN, which posts once per dish, hall and date. Two halls are
-  one notification that names both.
-  - The key is (dish name, the logical day after the 2 AM rollover), kept on the phone. Residency: device only, as RN's
-    `food_sighting_dedup`.
-  - A later run the same day posts nothing more, even if a third hall adds it.
-- **When it posts:**
-  - from 7 AM;
-  - the first time a background run finds the dish on that day's saved menus;
-  - never once the dish's last serving that day has ended. A lunch-only dish first seen at 5 PM is not posted.
-- **Limits, written as limits.** They aren't shown in the UI; the concept states them.
-  - On Android, background work runs at most every 15 minutes (WorkManager's floor), and Doze can delay it further.
-  - On iOS, background fetch is best-effort: the OS chooses when, and a force-quit app may not run at all until it is
-    opened.
-  - So an alert can arrive late, or not at all. The dish sheet, the Favorites page and the Favorites lens stay the
-    reliable answer.
+- **Tapping it** (round 13, owner, 2026-10-17) lands on the Halls home, the tab's root, not the hall pushed to the dish. Every
+  sheet closes (dish, plate) except an undismissed first run, which stays; anything pushed (a hall, a page) goes. An old
+  notification does the same: the body names where, and the hall's own card on Halls carries a star (Round 13). Search's
+  Favorites lens is the list of where each favorite is, one tap away. (Round 11 pushed the hall at that meal, scrolled to the dish.)
+- **One notification per dish per day, a server push** (round 13, owner, 2026-10-17). Alerts are visible pushes the server sends to a
+  per-dish topic, one per dish per day at about 7 AM Eastern, naming where it is served at that moment. The server never learns
+  favorites (a phone subscribes to the topics of its own favorites); the app need not be running. This differs from RN, which posts
+  once per dish, hall and date from a background job.
+  - Two halls are one notification that names both.
+  - **A dish added to a menu later that day isn't alerted.** Nothing sends after the 7 AM push, so a dish first on a menu at noon, or at
+    5 PM, gets nothing. (Round 11 posted from 7 AM, the first time a background run saw the dish, never after its last serving ended.)
+  - The phone dedups nothing: the server sends each dish once a day.
+- **The icon badge** (round 13) works without the app: **iOS**, a number on the icon, the count of favorite notifications delivered since the
+  app was last opened (each push adds 1; a notification service extension keeps it); **Android**, the launcher dot while a posted
+  notification is unread. **Both clear when the app is opened or a notification is tapped.** The in-app star on a hall card and the
+  Favorites lens are the persistent answer; the badge is a nudge.
+- **Limits, written as limits.** They aren't shown in the UI; the concept states them (round 13 rewrite).
+  - The 7 AM push is one server message a day. The OS delivers it when it chooses: Doze or Low Power can delay it by minutes, and a phone
+    that is off or offline gets it late or, past the push's time-to-live, not at all.
+  - A force-quit app on iOS still shows a visible push, but the badge number comes from the notification service extension, which the
+    OS may skip under pressure. The badge can therefore be low or stale; opening the app resets it.
+  - The topic list is the phone's own: favoriting or unfavoriting subscribes or unsubscribes when the phone is online, so a change made
+    offline reaches the server on the next connection and takes effect from the next day's push.
+  - So an alert can arrive late, or not at all, and a dish that was added after 7 AM never arrives. The dish sheet, the hall card's star,
+    the Favorites page and the Favorites lens stay the reliable answer.
+  - **Open (owner): the exact schedule.** "About 7 AM Eastern" is the working time; whether the push is a fixed hour, tied to when the
+    menus are published, or per-meal is not decided.
 - The prototype simulates the OS as round 10 does:
-  - `?alerts=allow|deny|blocked|bgoff`;
+  - `?alerts=allow|deny|blocked`;
   - `?os=ios|android`;
-  - `?notify=1` posts the 7:15 AM run's notification for the seeded favourite, drawn as a neutral system banner.
+  - `?notify=1` posts the 7:15 AM push's notification for the seeded favourite, drawn as a neutral system banner over the app;
+  - `?launcher=1` (round 13) draws the OS home screen instead: the notification(s) and the UDine icon with its iOS number or Android dot (`?os=ios|android`).
 
 ### 3. Café PDF menus: a café's menus are rows, and a menu is a page
 
@@ -1234,4 +1244,96 @@ The owner: every hall has fountain drinks. The feed lists none for a hall, so M2
 - **The café add-on** (Star Ginger's, Green Fields', and the others) is unchanged.
 - **Dietary preferences** treat it as any dish the feed doesn't mark: a Vegetarian or Plant based preference hides it (Show all
   brings it back). Open (NOTES).
+
+## Round 13: landing, favorites on Halls, the icon badge, tracking as a layer (owner, 2026-10-17)
+NOTES "Round 13" has the tests, shots and decisions.
+
+### 1. A notification lands on Halls
+Rewritten in R11 §2 above. The landing is the Halls home; it closes every sheet but an undismissed first run, and drops anything pushed.
+
+### 2. Favorites are visible on Halls
+```
+ A hall card                                    Springboard (iOS)                Launcher (Android)
+┌──────────────────────────────────────┐ ┌──────────────────────────────┐ ┌──────────────────────────────┐
+│ Worcester ★                      ┌W┐ │ │ UDine  Beef Brisket…   7 AM  │ │ UDine  Beef Brisket…   7 AM  │
+│ Open until midnight              │ │ │ │ UDine  Golden BBQ…     7 AM  │ │ UDine  Golden BBQ…     7 AM  │
+│ ▮▮▮▮▮ Busy                       └─┘ │ │  [ ] [ ] [ ] [ ]             │ │  [ ] [ ] [ ] [ ]             │
+└──────────────────────────────────────┘ │  (U)2  [ ] [ ] [ ]           │ │  (U)•  [ ] [ ] [ ]           │
+                                          └──────────────────────────────┘ └──────────────────────────────┘
+```
+- **(a) The star.** A 22 px gold star (the letters' dashed-edge gold) follows the hall's name, 8 px after it, on the name line; the status line
+  and the busy meter don't move. It means a favorite is served at that hall in **the meal on now, or, between meals, the next meal still
+  ahead today**; after the hall's last meal today there is none. (A hall serving a favorite at dinner, with lunch on, has no star until
+  lunch is over: the star answers "can I eat my favorite here now or next".) It is on the Halls bands and on a hall's card in Search.
+  It carries an aria-label ("Serves a favorite") and no caption. At 360 the longest name (Hampshire) and the star share the line.
+  It follows the Favorites star at once.
+- **(b) The icon badge.** Decided above (R11 §2): the number or dot is for favorite notifications delivered while the app was shut.
+  The simulated OS home screen (`?launcher=1`) shows both; tapping the icon opens the app and clears it, tapping a notification lands
+  on Halls and clears it.
+- Search's Favorites lens stays the list of where each favorite is: from a notification's landing, tapping Search and the lens shows
+  each favorite once with its halls ("W F B"), which reads right on its own.
+
+### 3. Tracking is a layer that lifts away (owner: "more substantial, a meaningful transition instead of disappearing elements")
+**The idea.** Tracking is a layer lying over the menu: the plate bar at the foot, the Today and Earlier blocks on You, the Health row and the two
+tracking-only rows (Your foods, Which was better?). Turning it off lifts the layer away in one motion; turning it on lays it back. The menu
+underneath never changes: it is a menu with or without the layer, so the screen reads as something taken off, not as things deleted.
+```
+ Off, on You (390)                                                       On (the reverse)
+ 0 ms     bar leaves down; figures fade                                  0 ms    blocks open from nothing (top-down in one fold)
+ ~150 ms  Today, Meals, Earlier, Health row, the two rows                ~250 ms the figures fade in
+          fold up (height, padding, fade); everything below rides up     ~250 ms the bar rises from below, last
+ 400 ms   the Track switch has not moved; only the choices are left      500 ms  Today and its figures are back as they were
+```
+- **What leaves, in order:** (1) the plate bar leaves **downward** (`exit`, 150 ms), the way a bar is put away; with it the figures in the
+  Today and Earlier blocks fade (`settle`), so **the numbers go before the rows tighten**; (2) after 150 ms the blocks fold up (`fold`, 250 ms:
+  height, padding and the rule under a row go to nothing while the content fades), and the sections below ride up with them as they close.
+- **The Track switch is the anchor:** its check answers at once and it never moves relative to the header; only what was above it closes.
+- **On:** the exact reverse, as one timeline: the blocks open first, the figures fade in after they have room, the bar rises last.
+- **Halls on arrival:** the lists are hidden while this plays, so they are already in their off state: rows with their name, calories and
+  protein as menu facts, with no `+` lane, so the names take the width and re-wrap wider; no plate bar. Calories and protein on a row stay: they
+  are the menu's facts (the label still prints), not the ledger. (Open: the owner's list names "the cal and protein figures on rows" among
+  the things that vanish; as built they stay, the controls go. Say if the figures should go too.)
+- **Motion:** one new token, `fold` (250 ms, standard easing, M3 medium1: a block closing or opening). The bar uses `exit` going and `fold`
+  coming back; the fades are `settle`. Reduced motion: opacity crossfades only, no movement.
+- **Frames:** `build/r12/p7/off.png` and `on.png`: twelve frames at 390 per transition, evenly spaced in animation time.
+
+### 4. A hall opens as one continuous card (owner: "one of the most important animations in the app"; coordinator review of round 7's container transform)
+**The defect it replaces.** Round 7's container transform faded the card's copy out over p 0 to .3 and the page in over .3 to 1. At p of about .3
+neither was drawn: the card went hollow and translucent, the letter patch and the title dipped to nothing (the card's letter and the header's letter
+never overlapped, so they could only fade), and a slow predictive-back swipe sat in that hollow. In the band's own ground the photo layer faded 1-p
+under the colour layer's p, which at p .5 covers only 75%.
+**The concept.** The card does not dissolve into the page: the card IS the page's header, held at the card's rectangle and then opened up.
+- **Shared elements travel; they are never faded.** The hall letter, the title, the status line and the busy meter each carry one transform from
+  where the card drew them to where the header draws them, at full opacity for the whole way (position and, for the letter and the title, size).
+  There is no copy of them on the card side any more, so there is no second letter. The card's photo, tint and gradient are the header's own
+  ground (identical at p 0), so the card needs no ghost either.
+- **The ground never thins.** The duotone photo stays opaque under the colour as it develops; the gradient fades with the collapse, as before.
+  A card with no photo (photos off) is the band's own stack, a maroon ground under the same gradient, so a close ends on the band's gradient and
+  does not snap from a flat maroon.
+- **Only what differs crossfades, on top of the travelling element.** What the header adds to a shared element: the status line's chevron, and the
+  busy line's "Calmer around 1:30 PM" (the busy chart is the page's). Those fade in over p .2 to .8 (`fin`) on top of the status and the meter,
+  which are already there. The title's weight (600), face and size are the same on the card and in the header (a long café name is set smaller
+  to fit; the scale covers it), so nothing about the title crossfades.
+- **What has no counterpart on the card** (the back button, the pin, the meal tabs, the station row, the list, the scrim) fades in over p .2 to .8 and
+  out over the same window going back: one overlapped window instead of the old 0 to .3 / .3 to 1 pair, so at no p are both absent.
+- **Text that changes size scales; it does not interpolate font size.** The title and the letter are drawn once at their header size and scaled
+  about their top-left (a transform): no re-layout per frame and no reflow of the glyphs. Scaling Oswald down from the header size is sharp;
+  scaling it up can soften, but here the card draws the same 32 px as the header's expanded title (and the same 200 px letter), so the scale is
+  about 1 at both ends and only a long café name set smaller in the header makes it differ. Flutter: a `Transform` on a paragraph laid out once at the
+  target size; do not animate `fontSize`.
+- **Motion:** `cont` / `contBack` (500 / 400 ms emphasized) are unchanged; the frames show them right.
+- **Layer budget for the A53:** at most three offscreen layers per frame while it runs (one group for the no-counterpart content under one
+  opacity, one for the colour photo over the duotone, one for the scrim); the shared elements are transforms and need none. The old design used
+  about 28 (every element carried its own opacity).
+- **Predictive back** is the same function run backwards by the finger: at p .1, .3 and .5 the card is whole (no hollow), the letter and the title
+  are where the line between the header and the card puts them, and the content that has no counterpart is partway faded.
+- **Frames:** `build/r12/p7/open390.png`, `close390.png`, `scrub390.png` (and 360): twelve frames each way, evenly spaced in eased progress.
+- **A late busy reading doesn't move the title (decided: always reserve the row).** The header's title stack is anchored from the bottom, so a busy row
+  that lands after the open (Flutter's `AnimatedSize` pushed the title 22 dp) moves everything above it. Decision: the whole busy block is reserved from the first
+  frame: the meter line (17 dp) and the extra line ("Calmer around…", "Busier than usual", 17 dp of text + 5 dp row gap = 22 dp), whether or not the hall has an extra
+  line. The reading then fades into the reserved space (`settle`), and a hall with no extra line draws its title **22 dp higher than M2 measured it**
+  (Franklin: "Usual", no extra line; Worcester, Hampshire and Berkshire are unchanged). The other two ways were worse: reserving only the meter line leaves the
+  22 dp shift for three halls of four when the extra line lands, and growing the late row downward needs a title anchored from the top, which moves all four halls.
+  M2 itself now reserves the extra line the same way (its ghost row already reserved the meter line). The **hall card on Halls** doesn't have the shift: its title,
+  status and meter are stacked from the top of a fixed-height band, so a late meter grows downward under the status line and nothing above it moves; no change.
 

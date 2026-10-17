@@ -967,7 +967,8 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       assert.deepEqual(await run(6 * 60 + 50), [], 'nothing before 7 AM');
       assert.deepEqual(await run(7 * 60 + 15), [['Beef Brisket Noodle Bowl', 'Lunch from 11 AM at Worcester and Berkshire'], ['Golden BBQ Chicken Thigh', 'Lunch from 11 AM at Worcester']], 'one per dish, every place named');
       assert.deepEqual(await run(7 * 60 + 30), [], 'one per dish per day');
-      await ev(() => { ALERTS.seen.clear(); }); assert(!(await run(17 * 60)).some(x => x[0] === 'Beef Brisket Noodle Bowl'), 'never once its last serving that day has ended (the brisket is lunch only)');
+      await ev(() => { ALERTS.seen.clear(); }); assert.deepEqual(await run(12 * 60 + 41), [], 'the server pushes once, at about 7 AM: nothing later posts, so a dish added to a menu after 7 AM is not alerted (round 13)');
+      assert.deepEqual(await run(8 * 60), [], 'and the window closes at 8');
       r = await favs('&alerts=deny'); await r.tap(); await page.waitForTimeout(300); await page.locator('.ossheet [data-os="1"]').tap(); await page.waitForTimeout(300);
       assert.deepEqual(await ev(() => { const a = document.querySelector('.page[data-p=favs] [data-act=alerts]'); return [a.getAttribute('aria-checked'), a.querySelector('.cb').textContent, document.querySelector('.page[data-p=favs] [data-act=asettings]').textContent]; }), ['false', 'Notifications are off for UDine', 'Open Settings'], 'denied');
       assert((await page.locator('.page[data-p=favs] [data-act=asettings]').boundingBox()).height >= 44);
@@ -977,13 +978,11 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       r = await favs('&alerts=blocked'); await r.tap(); await page.waitForTimeout(300);
       assert.equal(await page.locator('.ossheet').count(), 0, 'blocked: the OS will not ask again');
       assert.equal(await page.locator('.page[data-p=favs] [data-act=alerts] .cb').textContent(), 'Notifications are off for UDine');
-      for (const [os, line] of [['android', 'Battery use is restricted, so UDine can\'t check menus'], ['ios', 'Background App Refresh is off, so UDine can\'t check menus']]) {
-        r = await favs('&alerts=bgoff&os=' + os); await r.tap(); await page.waitForTimeout(300); await page.locator('.ossheet [data-os="1"]').tap(); await page.waitForTimeout(300);
-        assert.deepEqual(await ev(() => { const a = document.querySelector('.page[data-p=favs] [data-act=alerts]'); return [a.getAttribute('aria-checked'), a.querySelector('.cb').textContent]; }), ['true', line], os + ': background work off keeps the wish and says why'); }
       await go('?notify=1'); await page.waitForTimeout(400);
       assert.deepEqual(await ev(() => [...document.querySelectorAll('.osnote b, .osnote span.t')].map(e => e.textContent)), ['Beef Brisket Noodle Bowl', 'Lunch from 11 AM at Worcester and Berkshire'], 'the notification: the dish, then where and when');
-      await page.locator('.osnote').tap(); await page.waitForTimeout(1500);
-      assert.deepEqual(await ev(() => [S.hall, S.mmeal, document.querySelector('#mlist .row.here .n')?.textContent.replace('★', '')]), ['W', 'lunch', 'Beef Brisket Noodle Bowl'], 'tapping it opens the hall at that meal, at the dish');
+      await ev(() => { openHall('W', false, null, { day: 0, meal: 'lunch' }); }); await page.waitForTimeout(1200);
+      await page.locator('.osnote').tap(); await page.waitForTimeout(1200);
+      assert.deepEqual(await ev(() => [S.tab, S.hall, !document.querySelector('#tab-halls').classList.contains('hide'), document.querySelector('#menu').classList.contains('hide')]), ['halls', null, true, true], 'tapping it lands on the Halls home (the tab root), not the hall (round 13: the pushed hall is gone)');
     });
     // ---- round 11b (owner, 2026-10-14): pho is named after its broth; cafés' pho builders; pinned cafés saved; row gaps
     await scen('pho: named after the broth picked; Add waits for one; one broth at a time; Whitmore and Star Ginger build one pho', async () => {
@@ -1054,7 +1053,7 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       const gap = async q => { await go('?state=you' + q); await page.locator('#you [data-p=favs]').tap(); await page.waitForTimeout(800);
         await page.locator('.page[data-p=favs] [data-act=alerts]').tap(); await page.waitForTimeout(300); if (await page.locator('.ossheet').count()) { await page.locator('.ossheet [data-os="1"]').tap(); await page.waitForTimeout(300); }
         return ev(() => { const cb = document.querySelector('.page[data-p=favs] [data-act=alerts] .cb').getBoundingClientRect(), b = document.querySelector('.page[data-p=favs] [data-act=asettings]').getBoundingClientRect(); return Math.round(b.top - cb.bottom); }); };
-      for (const q of ['&alerts=deny', '&alerts=bgoff&os=ios', '&alerts=bgoff']) assert.equal(await gap(q), 12, q + ': 12 px from the line to Open Settings');
+      for (const q of ['&alerts=deny']) assert.equal(await gap(q), 12, q + ': 12 px from the line to Open Settings');
       await go('?state=you&health=deny'); await page.locator('#you [data-act=health]').tap(); await page.waitForTimeout(300); await page.locator('.ossheet [data-os="1"]').tap(); await page.waitForTimeout(300);
       assert.equal(await ev(() => Math.round(document.querySelector('#you [data-act=hsettings]').getBoundingClientRect().top - document.querySelector('#you [data-act=health] .cb').getBoundingClientRect().bottom)), 12, "Health's denied row reads the same");
     });
@@ -1334,7 +1333,93 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       assert.deepEqual([new Set(f.map(x => [x.place, x.station, x.name].join('|'))).size, new Set(f.map(x => [x.day, x.place, x.station, x.name].join('|'))).size, f.length], [59, 325, 392], '59 families on 325 station-days (392 with each meal counted), Oct 8-22: the 52 sizes and milks and the 7 smoothies');
     });
   };
-  if (process.env.RED) { await ({ 8: round8, 9: round9, 10: round10, 11: round11, 12: round12 }[process.env.RED] || round7)(); console.log(results.join('\n')); console.log(`${NCHK} checks`); await browser.close(); return; }
+  // Round 13 (owner, 2026-10-17): a notification lands on Halls home; a star on a hall card that serves a favorite; the icon badge; the
+  // tracking layer lifting away; Health Connect missing. RED=13 runs only this block.
+  const round13 = async () => {
+    const scen = async (name, fn) => { if (!process.env.RED) return fn(); try { await fn(); results.push('green  ' + name); } catch (e) { results.push('RED    ' + name + ': ' + e.message.split('\n')[0].slice(0, 240)); } };
+    const go = async q => { await page.goto(URL + (q || '')); await page.evaluate(() => localStorage.removeItem('udine-m2')); await page.goto(URL + (q || '')); await page.waitForTimeout(500); };
+    const ev = (f, a) => page.evaluate(f, a);
+    await scen('a notification tap lands on Halls home: every sheet closes, a first run stays, a pushed hall and pages go', async () => {
+      await go('?state=menu&hall=W'); await ev(() => { ALERTS.on = true; ALERTS.granted = true; S.fav.add('beef brisket noodle bowl'); showNote(alertRun(7 * 60 + 15)[0]); });
+      await page.locator('#mlist .row').first().locator('.tx').tap(); await page.waitForTimeout(900);
+      assert.notEqual(await ev(() => isheet.state), 'closed', 'a dish sheet is open');
+      await page.locator('.osnote').tap(); await page.waitForTimeout(1200);
+      assert.deepEqual(await ev(() => [S.tab, S.hall, isheet.state, psheet.state, document.querySelector('#menu').classList.contains('hide')]), ['halls', null, 'closed', 'closed', true], 'Halls home, every sheet closed');
+      await go('?first=1'); await page.waitForTimeout(900); await ev(() => { ALERTS.on = true; ALERTS.granted = true; S.fav.add('beef brisket noodle bowl'); showNote(alertRun(7 * 60 + 15)[0]); });
+      assert.notEqual(await ev(() => obsheet.state), 'closed', 'the first run is up');
+      await page.locator('.osnote').tap(); await page.waitForTimeout(1000);
+      assert.deepEqual(await ev(() => [S.tab, obsheet.state !== 'closed']), ['halls', true], 'an undismissed first run stays');
+    });
+    await scen('a hall card shows a star when a favorite is served there in its meal now, or the next ahead', async () => {
+      await go(); const stars = () => ev(() => [...document.querySelectorAll('#bands .band')].filter(b => b.querySelector('.bstar')).map(b => b.dataset.h));
+      assert.deepEqual(await stars(), [], 'no favorites: no star');
+      await ev(() => { S.fav.add('golden bbq chicken thigh'); relist(); }); await page.waitForTimeout(300);
+      assert.deepEqual(await stars(), ['W'], 'Golden BBQ Chicken Thigh is on at Worcester at lunch, now');
+      assert.equal(await ev(() => document.querySelector('#bands .band[data-h=W]').getAttribute('aria-label')).then(x => /serves a favorite/.test(x)), true, 'named for a screen reader');
+      await ev(() => { S.fav.clear(); S.fav.add('korean bbq chicken'); relist(); }); await page.waitForTimeout(300);
+      assert.deepEqual(await stars(), [], 'a dinner-only dish does not star a hall whose meal now is lunch');
+      assert.deepEqual(await ev(() => [hallStar('B', 17 * 60), hallStar('B', 12 * 60 + 41), hallMeal('W', 6 * 60), hallMeal('F', 22 * 60), hallMeal('W', 22 * 60)]), [true, false, 'breakfast', null, 'late'], 'by the clock: the meal now, else the next one ahead, else none after the last');
+      await ev(() => { S.fav.clear(); S.fav.add('golden bbq chicken thigh'); relist(); }); await page.waitForTimeout(300);
+      for (const w of [390, 360]) { await page.setViewportSize({ width: w, height: 844 }); await page.waitForTimeout(300);
+        assert.equal(await ev(() => { const b = document.querySelector('#bands .band[data-h=W]'), s = b.querySelector('.bstar').getBoundingClientRect(), n = b.querySelector('.nm').getBoundingClientRect(), l = b.getBoundingClientRect(); return s.right <= l.right && s.top >= n.top - 6 && s.bottom <= n.bottom + 6 && s.left >= n.left; }), true, w + ': the star sits on the name line, inside the card'); }
+      await page.setViewportSize({ width: 390, height: 844 });
+    });
+    await scen('the icon badge: iOS shows the number delivered since the app was last opened, Android the dot; opening clears it; the notification lands on Halls', async () => {
+      await go('?launcher=1&os=ios'); assert.deepEqual(await ev(() => [document.querySelector('.oshome .bdg')?.textContent, document.querySelectorAll('.oshome .osn').length, !!document.querySelector('.oshome .dot')]), ['2', 2, false], 'iOS: the number is the notifications delivered');
+      await page.locator('.oshome [data-ic]').tap(); await page.waitForTimeout(300);
+      assert.deepEqual(await ev(() => [!!document.querySelector('.oshome'), ALERTS.unread]), [false, 0], 'opening the app clears it');
+      await go('?launcher=1&os=android'); assert.deepEqual(await ev(() => [!!document.querySelector('.oshome .bdg'), !!document.querySelector('.oshome .dot')]), [false, true], 'Android: the launcher dot');
+      await page.locator('.oshome .osn').first().tap(); await page.waitForTimeout(900);
+      assert.deepEqual(await ev(() => [!!document.querySelector('.oshome'), ALERTS.unread, S.tab, S.hall]), [false, 0, 'halls', null], 'tapping a notification clears it and lands on Halls');
+    });
+    await scen('turning tracking off lifts a layer away: the bar leaves first, figures fade, then Today folds; on is the reverse', async () => {
+      await go('?state=you'); await ev(() => { addDish('lunch', 'golden bbq chicken thigh', { W: Object.values(DISH).find(d => d.n === 'Golden BBQ Chicken Thigh' && d.h === 'W' && !d.day) }, 'Golden BBQ Chicken Thigh'); });
+      await page.waitForTimeout(500);
+      const probe = () => ev(() => { const y = document.querySelector('#you'), td = [...y.querySelectorAll(':scope > .sec')].find(e => e.querySelector('h2')?.textContent === 'Today'); return { bar: getComputedStyle(document.querySelector('#bar')).transform, today: td ? td.getBoundingClientRect().height : null, check: y.querySelector('[data-act=track]').getAttribute('aria-checked') }; });
+      const p0 = await probe(); assert(p0.today > 100, 'Today is open');
+      await ev(() => { window.__p = setTrack(false); }); await page.waitForTimeout(60);
+      const p1 = await probe(); assert.equal(p1.check, 'false', 'the switch answers at once');
+      if (!process.env.RM) assert.notEqual(p1.bar, 'none', 'the bar is on its way down');   // reduced motion: it fades instead
+      assert(p1.today === p0.today || p1.today > p0.today * .9, 'Today has not started to fold while the bar leaves');
+      await page.waitForTimeout(300);
+      const p2 = await probe(); assert(p2.today < p0.today, 'then it folds');
+      await ev(() => window.__p); await page.waitForTimeout(100);
+      assert.deepEqual(await ev(() => [document.querySelector('#frame').classList.contains('notrack'), !![...document.querySelectorAll('#you > .sec')].find(e => e.querySelector('h2')?.textContent === 'Today')]), [true, false], 'off: the layer is gone');
+      await ev(() => { window.__p = setTrack(true); }); await page.waitForTimeout(40);
+      const q1 = await probe(); if (!process.env.RM) assert(q1.today < p0.today, 'on: Today opens from nothing');   // reduced motion: a crossfade, no height
+      await ev(() => window.__p); await page.waitForTimeout(100);
+      assert.equal((await probe()).today, p0.today, 'and arrives at its full height');
+    });
+    await scen('Health Connect not installed: the row shows, and a tap opens its Play listing', async () => {
+      await go('?state=you&health=missing&os=android');
+      assert.equal(await page.locator('#you [data-act=health]').count(), 1, 'the row shows');
+      await page.locator('#you [data-act=health]').tap(); await page.waitForTimeout(400);
+      assert.equal(await ev(() => document.querySelector('.osplay h3')?.textContent), 'Health Connect', 'its Play listing opens');
+      await page.locator('.osplay button').first().tap(); await page.waitForTimeout(300);
+      assert.equal(await ev(() => !!document.querySelector('.osplay') || S.health), false, 'back closes it, nothing turned on');
+    });
+    await scen('a hall opens as one continuous card: the letter, title, status and meter travel at full opacity, the ground never thins, only the differences crossfade', async () => {
+      await go(); await page.waitForTimeout(300);
+      const src = await ev(() => { const b = document.querySelector('#bands .band[data-h=W]'), r = e => { const q = b.querySelector(e).getBoundingClientRect(); return [q.left, q.top, q.width]; }; window.__src = { let: r('.let') }; openHall('W', false, b); cancelAnimationFrame(xfRaf); return window.__src; });
+      const at = p => ev(p => { XP = p; paint(p, 0); const o = e => +getComputedStyle(document.getElementById(e)).opacity, g = document.getElementById('mghost');
+        const L = document.getElementById('mlet').getBoundingClientRect(); return { let: o('mlet'), nm: o('mtn'), st: o('mts'), bz: o('mbz'), duo: o('mduo'), ghostKids: g.children.length, ghost: +getComputedStyle(g).opacity, bzx: +getComputedStyle(document.querySelector('#mbz .bzx')).opacity, sch: +getComputedStyle(document.querySelector('#mts .sch')).opacity, rect: [L.left, L.top, L.width] }; }, p);
+      for (const p of [0, .1, .3, .5, .8]) { const r = await at(p);
+        assert.deepEqual([r.let, r.nm, r.st, r.bz, r.duo, r.ghostKids, r.ghost], [1, 1, 1, 1, 1, 0, 0], 'p ' + p + ': the shared elements and the ground are fully drawn, and there is no ghost copy of a band'); }
+      const f = await at(1), s0 = await at(0), m = await at(.3);
+      const lerp = (a, b, k) => a + (b - a) * k;
+      assert(Math.abs(s0.rect[0] - src.let[0]) < 1.5 && Math.abs(s0.rect[1] - src.let[1]) < 1.5 && Math.abs(s0.rect[2] - src.let[2]) < 1.5, 'p 0: the header\'s letter is exactly where the card drew it');
+      assert(Math.abs(m.rect[0] - lerp(src.let[0], f.rect[0], .3)) < 1.5 && Math.abs(m.rect[1] - lerp(src.let[1], f.rect[1], .3)) < 1.5 && Math.abs(m.rect[2] - lerp(src.let[2], f.rect[2], .3)) < 1.5, 'p .3: it is on the straight line between the two (position and size)');
+      const x1 = await at(.1), x5 = await at(.5);
+      assert(x1.bzx < .01 && x1.sch < .01 && x5.bzx > .3 && x5.bzx < 1 && f.bzx === 1, 'what the header adds (the "Calmer around" line, the chevron) crossfades in on top of the travelling element');
+    });
+    await scen('the hall header reserves its busy row: the title never moves when a reading lands, and every hall has it at the same place', async () => {
+      await go(); const tops = await ev(() => HALLS.map(h => { openHall(h, true); const n = document.querySelector('#mtn'), bz = document.querySelector('#mbz'), a = Math.round(n.getBoundingClientRect().top);
+        bz.classList.add('ghost'); const g = Math.round(n.getBoundingClientRect().top); bz.classList.remove('ghost'); return [h, a, g]; }));
+      assert.deepEqual(tops.map(x => x[1]), [tops[0][1], tops[0][1], tops[0][1], tops[0][1]], 'the four halls: the title at one height, with or without an extra line (' + JSON.stringify(tops) + ')');
+      assert(tops.every(x => x[1] === x[2]), 'a reading landing (ghost off) does not move it');
+    });
+  };
+  if (process.env.RED) { await ({ 8: round8, 9: round9, 10: round10, 11: round11, 12: round12, 13: round13 }[process.env.RED] || round7)(); console.log(results.join('\n')); console.log(`${NCHK} checks`); await browser.close(); return; }
 
   // Round 5: the rack has one seam colour. Every seam between the Halls header, the hall bands and the pinned cafés is
   // deep maroon (the stack's own container), never the chalk of #halls behind it. Checked at three widths, at rest, after a
@@ -1683,7 +1768,7 @@ d=im.get_flattened_data(); print(sum(1 for v in d if v>236)/len(d))"`, { input: 
   await round9();
   await round10();
   await round11();
-  await round12();
+  await round12(); await round13();
 
   // pins: device-local, survive a reload, open with the container transform, unpin from the same control
   await page.goto(URL); await page.evaluate(() => localStorage.removeItem('udine-m2')); await page.reload(); await page.waitForTimeout(300);
