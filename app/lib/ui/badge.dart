@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import '../theme/tokens.dart';
 import 'boxes.dart';
 import 'felt.dart';
+import 'hall_letter.dart';
 import 'mark_glyph.dart';
 
 /// The diet patch (`.tg`): gold felt, maroon stitch, a 12 dp glyph. Plant based is a sprout, vegetarian a leaf.
@@ -75,7 +76,7 @@ class HallChip extends StatelessWidget {
         decoration: const BoxDecoration(color: M2Color.dm, borderRadius: BorderRadius.all(Radius.circular(M2Radius.button))),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           if (letter != null) ...[
-            Felt(width: M2Layout.hl, height: M2Layout.hl, child: Text(letter!, style: M2Text.letter.style(M2Color.dm))),
+            Felt(width: M2Layout.hl, height: M2Layout.hl, child: PatchLetter(letter!, size: M2Layout.hl, font: M2Text.letter.size, color: M2Color.dm)),
             const SizedBox(width: M2Layout.hchipGap),
           ],
           Text(name, style: M2Text.chip.style(M2Color.white)),

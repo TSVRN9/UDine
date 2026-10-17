@@ -39,7 +39,7 @@ abstract final class M2Layout {
   // `.meter`
   static const lampW = 5.0, lampH = 12.0, lampGap = 2.0, lampRadius = 1.0;
   // the chenille letter (`.let`, `.felt`, `.gold`)
-  static const letterBox = 200.0, letterFont = 210.0, letterBaseline = 0.93;
+  static const letterBox = 200.0, letterFont = 210.0;
   static const feltStroke = 12.0, stitchStroke = 1.5, stitchOn = 5.0, stitchOff = 4.0;
   static const letterBandTop = -6.0; // `.band .let`
   // the tab bar (`.tbar`)
