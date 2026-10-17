@@ -165,9 +165,9 @@ void main() {
       await t.pump(const Duration(milliseconds: 1700));
       await until(t, () => find.byType(DishRow).evaluate().isNotEmpty, frame: const Duration(milliseconds: 40));
       expect(find.byType(Spinner), findsNothing);
-      expect(t.widget<Opacity>(find.byKey(const ValueKey('fade-list'))).opacity, lessThan(1)); // arriving
+      expect(t.widget<ChalkFade>(find.byKey(const ValueKey('fade-list'))).opacity, lessThan(1)); // arriving
       await t.pumpAndSettle();
-      expect(t.widget<Opacity>(find.byKey(const ValueKey('fade-list'))).opacity, 1);
+      expect(t.widget<ChalkFade>(find.byKey(const ValueKey('fade-list'))).opacity, 1);
       for (var i = 0; i < 6; i++) {
         await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30)));
         await t.pump(const Duration(seconds: 2)); // the slow busy calls still to come

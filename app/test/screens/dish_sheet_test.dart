@@ -20,6 +20,7 @@ Future<void> tapRow(WidgetTester t, int i) async {
 }
 
 void main() {
+  whereTiming();
   setUpAll(loadFonts);
 
   testWidgets('a row tap opens the dish sheet over the list, which stays where it was', (t) async {
@@ -139,6 +140,21 @@ void main() {
     for (final s in spans.skip(1)) {
       expect(s.style, isNull);
     }
+    await drain(t);
+  });
+}
+
+void whereTiming() {
+  testWidgets('the sheet slides in before "where it is served" starts: WhereBook is not started in its first 400 ms', (t) async {
+    await openHall(t, await bootRecorded(t), base);
+    await t.tap(find.byType(DishRow).first, warnIfMissed: false);
+    for (var i = 0; i < 25; i++) {
+      await t.pump(const Duration(milliseconds: 16)); // 400 ms of the slide
+    }
+    final book = t.widget<DishSheet>(find.byType(DishSheet)).book;
+    expect(book.started, isFalse, reason: 'every hall and café menu is prefetched on the UI isolate while the sheet is still sliding in');
+    await sheetUp(t); // it does start once the sheet has settled
+    expect(book.started, isTrue);
     await drain(t);
   });
 }
