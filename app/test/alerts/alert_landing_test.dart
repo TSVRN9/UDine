@@ -1,6 +1,10 @@
 // A tap on a favourite's notification (M2 R11 §2): the app opens on Halls and pushes the hall at that meal, scrolled to the dish and marked,
 // the way a where-served tap does. The Shell around it is never rebuilt, and no dish sheet opens.
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:udine/screens/halls/first_run.dart';
+import 'package:udine/screens/hall/dish_row.dart';
+import 'package:udine/ui/ui.dart' show M2Sheet;
 import 'package:udine/alerts/alerts.dart';
 import 'package:udine/screens/dish/dish_sheet.dart';
 import 'package:udine/screens/halls/halls_screen.dart';
@@ -68,6 +72,51 @@ void main() {
     expect(here(t)?.dish.dishName, 'Pork Adobada (Chicken)');
     expect(find.byType(DishSheet), findsNothing);
     expect(takeHeldTap(), isNull, reason: 'taken once');
+    await drain(t);
+  });
+
+  Widget stub(handle, done) => M2Sheet(handle: handle, top: 20, onClosed: done, slivers: const [SliverToBoxAdapter(child: SizedBox(key: Key('stub'), height: 100))]);
+
+  testWidgets('a dish sheet open: a tap closes it, and the hall lands and is marked', (t) async {
+    await openHall(t, await bootRecorded(t), '/hall/berkshire?meal=lunch');
+    await t.tap(find.byType(DishRow).first, warnIfMissed: false);
+    await sheetUp(t);
+    debugTapForTest(_route);
+    await until(t, () => here(t) != null && find.byType(DishSheet).evaluate().isEmpty);
+    await t.pumpAndSettle();
+    expect(find.byType(DishSheet), findsNothing);
+    expect(top(t).place, 'W');
+    expect(here(t)?.dish.dishName, 'Pork Adobada (Chicken)');
+    await drain(t);
+  });
+
+  testWidgets('two stacked sheets: both close', (t) async {
+    await openHall(t, await bootRecorded(t), '/hall/berkshire?meal=lunch');
+    await t.tap(find.byType(DishRow).first, warnIfMissed: false);
+    await sheetUp(t);
+    t.state<ShellState>(find.byType(Shell)).pushSheet(stub);
+    await t.pumpAndSettle();
+    expect(find.byKey(const Key('stub')), findsOneWidget);
+    debugTapForTest(_route);
+    await until(t, () => here(t) != null && find.byType(DishSheet).evaluate().isEmpty && find.byKey(const Key('stub')).evaluate().isEmpty);
+    await t.pumpAndSettle();
+    expect(find.byType(DishSheet), findsNothing);
+    expect(find.byKey(const Key('stub')), findsNothing);
+    expect(top(t).place, 'W');
+    await drain(t);
+  });
+
+  testWidgets('first run present: it stays over the landed hall (onboarding is not ours to close)', (t) async {
+    final b = await bootRecorded(t, firstRun: true);
+    await openApp(t, b, route: '/halls?data=recorded&firstRun=1');
+    await until(t, () => find.byType(FirstRunSheet).evaluate().isNotEmpty);
+    await t.pumpAndSettle();
+    debugTapForTest(_route);
+    await until(t, () => here(t) != null);
+    await t.pumpAndSettle();
+    expect(find.byType(FirstRunSheet), findsOneWidget);
+    expect(top(t).place, 'W');
+    expect(here(t)?.dish.dishName, 'Pork Adobada (Chicken)');
     await drain(t);
   });
 }

@@ -41,7 +41,8 @@ class Shell extends StatefulWidget {
 }
 
 class _Sheet {
-  _Sheet(this.build);
+  _Sheet(this.build, {this.onboarding = false});
+  final bool onboarding;
   final SheetHandle handle = SheetHandle();
   final Widget Function(SheetHandle, VoidCallback) build;
 }
@@ -79,6 +80,12 @@ class ShellState extends State<Shell> with WidgetsBindingObserver implements She
   void _landAlert(String route) {
     final l = mounted ? alertLanding(route, AppScope.of(context).repo.today) : null;
     if (l == null) return;
+    // Every sheet closes the normal way, or it would stay over the landed hall. Not first run: that is onboarding the user has not
+    // finished, so it stays over the hall, and dismissing it reveals the dish.
+    for (final s in [..._sheets]) {
+      if (!s.onboarding) s.handle.close();
+    }
+    _plateBack?.call()?.close();
     navigator.currentState?.popUntil((r) => r.isFirst);
     _tab.value = 0;
     openPlace(l.place, meal: l.meal, day: l.day, dish: l.dish);
@@ -87,8 +94,8 @@ class ShellState extends State<Shell> with WidgetsBindingObserver implements She
   final _sheets = <_Sheet>[];
 
   @override
-  SheetHandle pushSheet(Widget Function(SheetHandle handle, VoidCallback done) build) {
-    final s = _Sheet(build);
+  SheetHandle pushSheet(Widget Function(SheetHandle handle, VoidCallback done) build, {bool onboarding = false}) {
+    final s = _Sheet(build, onboarding: onboarding);
     setState(() => _sheets.add(s));
     return s.handle;
   }

@@ -22,7 +22,7 @@ const alertTask = 'com.udinetogether.udine.favoriteAlerts';
 const _channel = AndroidNotificationDetails('favorite_alerts', 'Favorites on the menu');
 final _notifications = FlutterLocalNotificationsPlugin();
 
-/// A tap on a notification while the app is running; the app (see app.dart) opens the route.
+/// A tap on a notification while the app is running; Shell (shell.dart) lands the route.
 final alertTaps = StreamController<String>.broadcast();
 String? _heldTap;
 
