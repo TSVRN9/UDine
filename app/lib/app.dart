@@ -45,7 +45,7 @@ class _UdineAppState extends State<UdineApp> {
 
   @override
   Widget build(BuildContext context) {
-    final b = widget.boot, initialRoute = widget.initialRoute;
+    final b = widget.boot, initialRoute = widget.initialRoute, release = widget.release;
     return WidgetsApp(
       navigatorKey: _nav,
       debugShowCheckedModeBanner: false,
