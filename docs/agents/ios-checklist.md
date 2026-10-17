@@ -76,6 +76,12 @@ Open the plate sheet and tap Log. Then tap Undo straight away.
 - Correct: logging empties the plate and shows an Undo. Tapping Undo puts exactly the same dishes back.
 - Report: a recording, and tell me if the plate came back different.
 
+## 11. Write meals to Apple Health
+
+On You, with Track what I eat on, tap Write to Apple Health. Allow it in the sheet iOS shows. Then log a plate, change a quantity in that meal in the log, delete the meal, and tap Undo on the delete. After each step open the Health app, Browse, Nutrition (Dietary Energy, Protein, Carbohydrates, Total Fat, Sodium).
+- Correct: logging adds one entry per nutrient at the meal's time; changing a quantity replaces those entries with the new amounts (never two copies); deleting removes them; Undo brings them back. Turning the row off leaves the entries already there alone and adds none after. Denying the sheet leaves the check empty. Switching UDine's access off in Settings, Health, Data Access, then reopening UDine, shows the row as not allowed.
+- Report: a screenshot of Health after each step, and whether any entry stayed behind or doubled after an edit or a delete.
+
 ## Finally
 
 Tell me anything else that felt less smooth than the apps you use every day, even if it is not in this list.
