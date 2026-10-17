@@ -231,8 +231,7 @@ int _min(String t) {
 
 /// The serving that names a group: its first place's dish on the group's day and meal.
 MenuItem? _serving(Board fx, WhereGroup g, String key) {
-  final iso = dayIsos(fx)[g.day];
-  for (final s in fx.days[iso]?[g.halls.first]?[g.meal] ?? const <Station>[]) {
+  for (final s in fx.days[g.iso]?[g.halls.first]?[g.meal] ?? const <Station>[]) {
     for (final d in s.dishes) {
       if (d.key == key) return d;
     }

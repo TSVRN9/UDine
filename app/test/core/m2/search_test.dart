@@ -167,4 +167,46 @@ void main() {
       });
     }
   });
+
+// After midnight the board still leads with yesterday (the rollover is 2 AM), while wherePlan counts from the calendar date.
+group('later rows between midnight and the rollover', () {
+  final isos = board.days.keys.toList();
+  // the board as the app builds it at `lead`: its first day is `lead`, then the next
+  Board boardLeading(int lead) => Board(clock: board.clock, places: board.places, hours: board.hours, grab: board.grab,
+      days: {isos[lead]: board.days[isos[lead]]!, isos[lead + 1]: board.days[isos[lead + 1]]!}, events: board.events);
+  // 2026-10-09 is the calendar date; at 00:40 and 01:30 the board still leads with the 8th
+  DateTime at(String hhmm) => DateTime.parse('2026-10-09T$hhmm:00-04:00');
+  final calendarToday = isos[1];
+
+  LaterRow? laterFor(Board b, DateTime t, String name) =>
+      runSearch(SearchIndex(b, t), query: name, lenses: const {}, favorites: const {}, plate: emptyPlates).later.where((r) => r.d.dishName == name).firstOrNull;
+
+  // a dish on the 9th's breakfast menu and not on the 8th's late menu, so it is a "later" row at 00:40
+  String? breakfastOnlyOn(String iso, String other) {
+    final on = {for (final p in board.days[iso]!.values) for (final s in p['breakfast'] ?? const <Station>[]) for (final d in s.dishes) d.dishName};
+    final off = {for (final p in board.days[other]!.values) for (final ss in p.values) for (final s in ss) for (final d in s.dishes) d.dishName};
+    return on.difference(off).firstOrNull;
+  }
+
+  for (final hhmm in ['00:40', '01:30']) {
+    test('$hhmm: a later row names the calendar day\'s menu and opens on its board index', () {
+      final b = boardLeading(0);
+      final name = breakfastOnlyOn(calendarToday, isos[0])!;
+      final r = laterFor(b, at(hhmm), name);
+      expect(r, isNotNull);
+      expect(r!.g.st, 'later');
+      expect(r.d.date, calendarToday);
+      expect(boardDay(b, r.g), 1);
+    });
+  }
+
+  test('2:00: the board leads with the calendar day and a later row is unchanged', () {
+    final b = boardLeading(1);
+    final name = breakfastOnlyOn(isos[1], isos[0])!;
+    final r = laterFor(b, at('02:00'), name);
+    expect(r, isNotNull);
+    expect(r!.d.date, isos[1]);
+    expect(boardDay(b, r.g), 0);
+  });
+});
 }
