@@ -11,6 +11,7 @@ import '../../shell/app_scope.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import '../plate/plate_sheet.dart' show plateBoard;
+import 'favorites_notify.dart';
 import 'you_parts.dart';
 
 /// A pushed page of You (`.page`): the maroon bar with its title, then the body on chalk.
@@ -85,6 +86,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
   @override
   void initState() {
     super.initState();
+    AppScope.of(context).alerts.refresh();
     final repo = AppScope.of(context).repo, day = repo.today;
     repo.prefetchMenus([for (var t = 1; t <= halls.length; t++) (t, day)]).then((got) {
       final at = <String, List<String>>{};
@@ -107,13 +109,13 @@ class _FavoritesPageState extends State<FavoritesPage> {
         listenable: prefs,
         builder: (context, _) {
           final f = prefs.favorites.toList();
-          if (f.isEmpty) return const _Empty("Star a dish from its details and it shows up here, with where it's served today.");
+          if (f.isEmpty) return const Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [NotifyRow(), _Empty("Star a dish from its details and it shows up here, with where it's served today.")]);
           String? line(String n) {
             final at = _lunch?[dishKey(n)];
             return _lunch == null ? null : at == null ? 'Not on lunch today' : 'At lunch now at ${hallLabel(fx, at)}';
           }
 
-          return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [for (final (i, n) in f.indexed) LRow(title: n, subtitle: line(n), chevron: false, last: i == f.length - 1)]);
+          return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [const NotifyRow(), for (final (i, n) in f.indexed) LRow(title: n, subtitle: line(n), chevron: false, last: i == f.length - 1)]);
         },
       ),
     );
