@@ -40,6 +40,7 @@ const STATES = [
   ['r-whit-picked', '', seq(open('Whitmore Café'), wait(500), tap('#mlist .row.syn:has-text("Noodle Bowl")'), chip('Beef Pho'), chip('Vegetable Broth'))],
   ['r-pho-plate', '', seq(star, chip('Chicken Pho'), chip('Vegetable Broth'), tap('#bfoot [data-act=badd]', 1000), plate)],
   ['r-pho-update', '', seq(star, chip('Chicken Pho'), chip('Vegetable Broth'), tap('#bfoot [data-act=badd]', 1000), plate, tap('#psbody .prow .n', 900), chip('Beef Pho'))],
+  ['r-whit-addons', '', seq(open('Whitmore Café'), wait(500), tap('#mlist .row.syn:has-text("Noodle Bowl")'), ev(() => isheet.to('top')), wait(700), ev(() => { const b = document.querySelector('#isbody'); const r = [...b.querySelectorAll('.brow')].find(r => r.querySelector('.n').textContent === 'Add Crispy Chicken'); b.scrollTop = r.offsetTop - 220; }), wait(400))],
   ['r-chai-row', '', seq(wcap, addVia('Chai', '20 oz'))],
   ['r-chai-sheet', '', seq(wcap, openRow('Chai'), chip('20 oz'), ev(() => isheet.to('top')), wait(700), ev(() => { document.querySelector('#isbody').scrollTop = 560; }), wait(400))],
   ['r-chai-plate', '', seq(wcap, addVia('Chai', '20 oz'), plate)],

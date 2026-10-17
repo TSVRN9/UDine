@@ -761,7 +761,7 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       assert.equal(await page.locator('#isbody .bh').textContent(), 'Add-ons');
       for (const n of ['Add Fresh Avocado', 'Grilled Diced Chicken']) await ev(n => [...document.querySelectorAll('#isbody .brow')].find(r => r.querySelector('.n').textContent.startsWith(n)).querySelector('.add').click(), n);
       assert.deepEqual(await ev(() => [document.querySelector('#bfoot .l2 b').textContent, document.querySelector('#isbody .bsv .pr').textContent]), ['628', '$19.00'], '487 + 55 + 86 cal; $12.25 + $2.50 + $4.25');
-      assert.equal(await page.locator('#isbody .brow .n', { hasText: 'Fountain Drink' }).count(), 0, 'add-ons with no nutrition are left out');
+      assert.equal(await page.locator('#isbody .brow .n', { hasText: 'Fountain Drink' }).count(), 1, 'an add-on with no calories recorded is offered, with – (round 12c; round 10 left it out)');
       await page.locator('#bfoot [data-act=badd]').tap(); await page.waitForTimeout(1000);
       assert.deepEqual(await ev(() => [plateLabel(S.plates[0]), macroOf(S.plates[0].items[0]).price]), ['Green Fields lunch', '$19.00']);
       // the synthetic Salad Bar base totals only what was chosen
@@ -1262,6 +1262,9 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       assert.equal(await ev(() => +document.querySelector('#bfoot .l2 b').textContent), 145, 'its own calories');
       await chip('Beef Pho'); s = await sheet(); assert.deepEqual([s.n, s.chips.filter(c => c.endsWith('*'))], ['Beef Pho w/Vegetable Broth', ['Beef Pho*', 'Vegetable Broth*']], 'one protein at a time; the broth stays');
       assert.equal(await ev(() => { const w = document.querySelector('#isbody .vpick').getBoundingClientRect().right; return [...document.querySelectorAll('#isbody .vpick [role=radio]')].filter(x => x.getBoundingClientRect().right > w + .5).length; }), 0, 'every chip fits the line');
+      for (const w of [390, 360]) { await page.setViewportSize({ width: w, height: 844 }); await page.waitForTimeout(300);
+        assert.equal(await ev(() => { const g = [...document.querySelectorAll('#isbody .vpick')].map(x => x.getBoundingClientRect()); return Math.round(g[1].top - g[0].bottom); }), 24, w + ': the groups sit a section gap (24 px, the add-ons heading\'s) apart, not a chip gap'); }
+      await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(300);
       await page.locator('#bfoot [data-act=badd]').tap(); await page.waitForTimeout(1000);
       assert.deepEqual(await ev(() => S.plates[0].items.map(i => [i.n, macroOf(i).base.n])), [['Beef Pho w/Vegetable Broth', 'Beef Pho w/Vegetable Broth']], 'the plate names the feed\'s pho');
       await ev(() => { if (plateOpen()) psheet.to('mid'); }); await page.waitForTimeout(800);
@@ -1277,16 +1280,22 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       await cafe('Worcester Café');
       assert.match(await meta('Cappuccino'), /^16 oz 0 cal/, 'a recorded 0 is 0');
       await addVia('Chai', '20 oz');
-      assert.match(await meta('Chai'), /^20 oz – cal/, 'blank calories: the row says –');
+      assert.match(await meta('Chai'), /^20 oz – cal\s*– protein/, 'blank calories and protein: the row says – for both (round 12c)');
       assert.equal(await ev(() => document.querySelector('#barCal').textContent), '–', 'a plate of only unknowns has no total');
+      assert.equal(await ev(() => document.querySelector('#barP').textContent), '–', 'nor a protein total (round 12c)');
       await ev(() => { if (plateOpen()) psheet.to('mid'); }); await page.waitForTimeout(800);
       assert.equal(await ev(() => document.querySelector('#psbody .prow .m').textContent.trim()), '– cal each', 'the plate row');
+      assert.deepEqual(await ev(() => [...document.querySelectorAll('#psbody .facts b')].map(b => b.textContent)), ['–', '–', '–', '–'], 'the plate\'s totals: calories, protein, carbs and fat are all unknown (round 12c)');
       await ev(() => psheet.to('closed')); await page.waitForTimeout(500);
       await openRow('Chai'); assert.equal((await sheet()).cal, '–', 'the label\'s Calories');
       await chip('16 oz'); assert.equal((await sheet()).cal, '211', 'the 16 oz has its 211');
       await page.locator('#isbody .dadd, #bfoot [data-act=badd]').first().tap(); await page.waitForTimeout(1000);
-      assert.equal(await ev(() => document.querySelector('#barCal').textContent), '211', 'with a known item the total is the known');
+      assert.deepEqual(await ev(() => [document.querySelector('#barCal').textContent, document.querySelector('#barP').textContent]), ['211', '0g'], 'with a known item the total is the known (a recorded 0g is 0g)');
       assert.equal(await ev(() => { logPlate(S.plates[0]); return JSON.stringify(S.log.at(-1).items.map(i => i.cal)); }), '[null,211]', 'the log keeps the unknown as null');
+      assert.equal(await ev(() => JSON.stringify(S.log.at(-1).items.map(i => [i.p, i.c, i.f]))), '[[null,null,null],[0,52.7,0]]', 'protein, carbs and fat too (round 12c)');
+      assert.deepEqual(await ev(() => Object.keys(healthRecord({ id: 0, at: '2026-10-08T12:41', day: '2026-10-08', time: '12:41 PM', meal: 'lunch', hall: 'c12', items: [{ n: 'x', qty: 1, cal: null, p: null, c: null, f: null }] })).filter(k => /Kcal|G$/.test(k))), [], 'Health writes leave an unknown field out, never 0 (round 12c)');
+      await cafe('Whitmore Café'); await page.locator('#mlist .row.syn', { hasText: /^Noodle Bowl$/ }).tap(); await page.waitForTimeout(800);
+      assert.match(await ev(() => [...document.querySelectorAll('#isbody .brow')].find(r => r.querySelector('.n').textContent === 'Add Crispy Chicken')?.querySelector('.m').textContent.trim().replace(/\s+/g, ' ') || 'missing'), /^– cal/, 'a blank-calorie add-on is offered, with – (round 12c)');
     });
     await scen('near-misses stay rows: lone sizes, a different word, add-ons, a milk with no name left; the rule finds 59 families on 325 station-days', async () => {
       await cafe('Worcester Café'); const ns = await names();

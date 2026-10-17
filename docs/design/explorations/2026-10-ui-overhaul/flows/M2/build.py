@@ -59,8 +59,8 @@ def dish(x):
     hc = [int(c[1]) for c in g('recipe-webcode').split() if re.fullmatch(r'H[0-7]', c)]
     cr = g('carbon-list')
     return [g('dish-name').strip(), None if num(g('calories')) is None else round(num(g('calories'))),   # blank is unknown (None, drawn "–"); a recorded 0 stays 0
-            round(num(g('protein')) or 0, 1), round(num(g('total-carb')) or 0, 1),
-            round(num(g('total-fat')) or 0, 1), diet(g('clean-diet-str'), g('recipe-webcode')), g('serving-size').strip().lower(),
+            None if num(g('protein')) is None else round(num(g('protein')), 1), None if num(g('total-carb')) is None else round(num(g('total-carb')), 1),
+            None if num(g('total-fat')) is None else round(num(g('total-fat')), 1), diet(g('clean-diet-str'), g('recipe-webcode')), g('serving-size').strip().lower(),
             n, re.sub(r'\s+', ' ', g('ingredient-list')).strip(), allergens(g('allergens')),
             hc[0] if hc else None, cr if cr in ('A', 'B', 'C', 'D', 'E') else None, x.get('price') or None,
             # the feed's raw data-healthfulness, kept only for vectors.js (a number with no H code is unscored and never drawn)

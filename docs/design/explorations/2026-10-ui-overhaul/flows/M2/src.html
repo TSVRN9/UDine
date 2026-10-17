@@ -566,6 +566,7 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .vpick .chip{height:auto;min-height:44px;max-width:100%;padding:10px 14px;white-space:normal;text-align:left;line-height:1.25}
 .vpick .chip[aria-checked=true]{font-weight:500}   /* chosen is the tonal fill and edge alone: no check, no bolder text, so a chip never changes width and the group never reflows */
 .dish .vpick+.dsv{margin-top:8px}
+.dish .vpick+.vpick{margin-top:24px}   /* round 12c: a pho's two groups (protein, broth) are two blocks a section gap apart (the add-ons heading's 24 px), not one run of chips */
 .mks-s{display:inline-flex;align-items:center;gap:8px;height:30px}
 .mks-s .tile{width:24px;height:30px}
 .dish .dal{margin:8px 0 0;font-size:15px;line-height:1.4;color:var(--ink)}
@@ -847,6 +848,7 @@ const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const norm = s => s.toLowerCase().replace(/[’']/g,'').replace(/[^a-z0-9]+/g,' ').trim();
 const fq = q => q===.5?'½':(q%1? Math.floor(q)+'½' : String(q));
 const f1 = x => (Math.round(x*10)/10).toFixed(1).replace(/\.0$/,'');
+const fg = x => x==null ? '–' : f1(x)+'g';   // round 12c: a missing protein, carbs or fat is "–", never 0g
 const fc = x => x==null ? '–' : Math.round(x).toLocaleString('en-US');   // round 12b: a blank is unknown, drawn "–" (a recorded 0 is 0)
 const clamp = (x,a=0,b=1)=>Math.min(b,Math.max(a,x));
 
@@ -994,10 +996,11 @@ function stepItem(pl,it,dir){
   if(dir>0) buzz(8); refresh();
 }
 function macroOf(it, hall){ if(it.custom) return it.custom; return it.refs[hall] || Object.values(it.refs)[0]; }
-function totals(pl, hall){ hall ||= (plateHalls(pl)||[])[0]; const t={cal:0,p:0,c:0,f:0,n:0}; let known=false;
-  for(const it of pl.items){ const m=macroOf(it,hall); known ||= m.cal!=null; t.cal+=m.cal*it.qty; t.p+=m.p*it.qty; t.c+=m.c*it.qty; t.f+=m.f*it.qty; t.n+=it.qty; }
-  if(pl.items.length && !known) t.cal=null;   // every calorie is unknown: no total (one known item makes it the known sum)
-  return t; }
+// round 12c: a total is the sum of what is known, and null (drawn "–") only when every contributor is unknown
+const MK=['cal','p','c','f'];
+function tally(xs){ const t={cal:0,p:0,c:0,f:0}, k={}; for(const [m,q] of xs) for(const x of MK) if(m[x]!=null){ k[x]=1; t[x]+=m[x]*q; }
+  if(xs.length) for(const x of MK) if(!k[x]) t[x]=null; return t; }
+function totals(pl, hall){ hall ||= (plateHalls(pl)||[])[0]; const t=tally(pl.items.map(it=>[macroOf(it,hall), it.qty])); t.n=pl.items.reduce((a,it)=>a+it.qty,0); return t; }
 function hallLabel(hs){ if(!hs) return ''; const n=hs.map(PN); return n.length===1?n[0]: n.length===4&&!hs.some(isCafe)?'Any hall': n.slice(0,-1).join(', ')+' or '+n[n.length-1]; }
 function plateLabel(pl){ const hs=plateHalls(pl); return hs? `${hallLabel(hs)} ${ML[pl.meal].toLowerCase()}` : ML[pl.meal]; }
 /* ---------- the log (round 10) ----------
@@ -1008,8 +1011,8 @@ const TODAY = '2026-10-08', ROLLOVER = 2;   // shared/src/date.ts DEFAULT_ROLLOV
 const logicalDay = at => { const d=new Date(at+':00Z'); if(d.getUTCHours()<ROLLOVER) d.setUTCDate(d.getUTCDate()-1); return d.toISOString().slice(0,10); };
 const fmtClock = at => { const [h,m]=at.slice(11).split(':').map(Number); return `${(h+11)%12+1}:${String(m).padStart(2,'0')} ${h<12?'AM':'PM'}`; };
 const isoFull = iso => new Date(iso+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'long',month:'long',day:'numeric'});
-const mealTotal = m => m.items.reduce((a,i)=>{ a.cal+=i.cal*i.qty; a.p+=i.p*i.qty; a.c+=i.c*i.qty; a.f+=i.f*i.qty; return a; },{cal:0,p:0,c:0,f:0});
-const dayTotal = (day=TODAY) => S.log.filter(m=>m.day===day).reduce((a,m)=>{ const t=mealTotal(m); for(const k in a) a[k]+=t[k]; return a; },{cal:0,p:0,c:0,f:0});
+const mealTotal = m => tally(m.items.map(i=>[i,i.qty]));
+const dayTotal = (day=TODAY) => tally(S.log.filter(m=>m.day===day).flatMap(m=>m.items.map(i=>[i,i.qty])));
 const logDays = () => [...new Set(S.log.map(m=>m.day))].sort().reverse();   // only days with something logged
 let MID=0;
 const snapItem = (d, qty, parts) => ({id:d.id||null, n:d.n, qty, cal:d.cal, p:d.p, c:d.c, f:d.f, nut:d.nut||null, price:d.price||null, ...(parts?{parts}:{})});
@@ -1041,7 +1044,7 @@ const HNAME = OS==='ios' ? 'Apple Health' : 'Health Connect';
 const HEALTH = {answer: OSQ.get('health')||'allow', granted:null, denied:false, records:[]};   // granted: null = never asked
 HEALTH.granted = S.health ? HEALTH.answer==='allow' : null;   // on with the OS no longer allowing it: revoked in system settings
 const healthLive = () => S.track && S.health && HEALTH.granted===true;
-function healthRecord(m){ const t=mealTotal(m); return {mealId:m.id, name:mealLabel(m), at:m.at, energyKcal:Math.round(t.cal), proteinG:+t.p.toFixed(1), carbsG:+t.c.toFixed(1), fatG:+t.f.toFixed(1)}; }
+function healthRecord(m){ const t=mealTotal(m); return {mealId:m.id, name:mealLabel(m), at:m.at, ...(t.cal==null?{}:{energyKcal:Math.round(t.cal)}), ...(t.p==null?{}:{proteinG:+t.p.toFixed(1)}), ...(t.c==null?{}:{carbsG:+t.c.toFixed(1)}), ...(t.f==null?{}:{fatG:+t.f.toFixed(1)})}; }   // round 12c: an unknown field is left out, never written as 0
 function healthWrite(m){ if(!healthLive()) return; const i=HEALTH.records.findIndex(r=>r.mealId===m.id), r=healthRecord(m); if(i>=0) HEALTH.records[i]=r; else HEALTH.records.push(r); }
 function healthDelete(m){ if(!healthLive()) return; HEALTH.records=HEALTH.records.filter(r=>r.mealId!==m.id); }
 
@@ -1080,7 +1083,7 @@ function phoOf(day,h,meal,si,ds){ const y={label:'Noodle Bowl', head:'Noodle Bow
   const bar = br.length>=2 ? {...y, choices:br, parts:[...br, ...ds.filter(d=>!isBroth(d))]} : null;
   if(!isCafe(h)) return baseOf(day,h,meal,si) ? null : bar;
   // a café's add-ons first: Whitmore's "Beef Pho w/Spicy Green Curry Broth" names a broth but is a whole pho
-  const ss=MD[day][h][meal], add=ss.map((s2,j)=>[s2[0].trim(),j]).filter(([n])=>/^(Add-ons|Toppings)$/.test(n)), tops=add.flatMap(([,j])=>stDishes(day,h,meal,j).filter(x=>x.cal>0));
+  const ss=MD[day][h][meal], add=ss.map((s2,j)=>[s2[0].trim(),j]).filter(([n])=>/^(Add-ons|Toppings)$/.test(n)), tops=add.flatMap(([,j])=>stDishes(day,h,meal,j).filter(x=>x.cal==null||x.cal>0));
   return tops.length ? {...y, choices:ds, axes:phoAxes(ds), parts:[...ds, ...tops], topHead:[...new Set(add.map(([n])=>n))].join(' and ')} : bar; }
 // round 12b (owner, 2026-10-16): a café's phos that are a whole protein x broth grid ("Beef Pho w/Vegetable Broth": Star Ginger 3 x 3,
 // Whitmore 3 x 2) are picked by protein, then broth. The grid must be complete, or the station keeps one picker of whole dishes.
@@ -1107,7 +1110,7 @@ function buildOf(d){ if(!d || d.id.startsWith('bowl:')) return null; const ss=(M
     if(!isBaseAt(st,d)) return null;
     const parts=stDishes(d.day,d.h,d.meal,d.si).filter(x=>x!==d && !isBaseAt(st,x)); return parts.length ? {head:st, parts, base:d, h:d.h, meal:d.meal} : null; }
   if(/^(Add-ons|Toppings)$/.test(ss[d.si][0].trim())) return null;
-  const parts=ss.flatMap((s2,si)=>/^(Add-ons|Toppings)$/.test(s2[0].trim()) ? stDishes(d.day,d.h,d.meal,si) : []).filter(x=>x.cal>0);
+  const parts=ss.flatMap((s2,si)=>/^(Add-ons|Toppings)$/.test(s2[0].trim()) ? stDishes(d.day,d.h,d.meal,si) : []).filter(x=>x.cal==null||x.cal>0);
   const heads=[...new Set(ss.filter(s2=>/^(Add-ons|Toppings)$/.test(s2[0].trim())).map(s2=>s2[0].trim()))];
   return parts.length ? {head:heads.join(' and '), parts, base:d, h:d.h, meal:d.meal} : null; }
 // every hall Noodle Bowl station-day, Oct 8-22, with its base and how many bases the UI offers (round 11's check; vectors)
@@ -1120,10 +1123,10 @@ const cents = s => s ? +s.replace(/[^\d.]/g,'') : 0;
 function bowlDish(base, parts, syn, h){
   const all=[...(base?[[base,1]]:[]), ...parts], nut=Array(16).fill(null);
   for(const [x,q] of all) (x.nut||[]).forEach((v,i)=>{ if(NK[i].endsWith('Dv')||v==null) return; nut[i]=(nut[i]||0)+v*q; });
-  const sum=k=>all.reduce((a,[x,q])=>a+x[k]*q,0), pr=all.reduce((a,[x,q])=>a+cents(x.price)*q,0), algs=[...new Set(all.flatMap(([x])=>x.algs||[]))].sort((a,b)=>ALG.indexOf(a)-ALG.indexOf(b));
+  const sum=k=>all.reduce((a,[x,q])=>a+x[k]*q,0), sk=k=>all.length&&all.every(([x])=>x[k]==null)?null:sum(k), pr=all.reduce((a,[x,q])=>a+cents(x.price)*q,0), algs=[...new Set(all.flatMap(([x])=>x.algs||[]))].sort((a,b)=>ALG.indexOf(a)-ALG.indexOf(b));
   const key=(base?base.k:'syn:'+syn.label+':'+h)+'+'+parts.map(([x,q])=>x.k+'*'+q).sort().join('+');
   const src=base||syn;
-  return {id:'bowl:'+key, k:'bowl:'+key, n:base?base.n:syn.label, cal:all.length&&all.every(([x])=>x.cal==null)?null:Math.round(sum('cal')), p:sum('p'), c:sum('c'), f:sum('f'), nut, d:base?base.d:0, h, meal:src.meal, day:0,
+  return {id:'bowl:'+key, k:'bowl:'+key, n:base?base.n:syn.label, cal:sk('cal')==null?null:Math.round(sum('cal')), p:sk('p'), c:sk('c'), f:sk('f'), nut, d:base?base.d:0, h, meal:src.meal, day:0,
     srv:base?base.srv:'', price:pr?money(pr):null, alg:algs.join(', '), algs, hf:base?base.hf:null, cr:base?base.cr:null, ing:base?base.ing:'', base, syn, parts}; }
 const withLine = parts => parts.length ? 'with '+parts.map(([x,q])=>(q!==1?fq(q)+' × ':'')+x.n).join(', ') : '';
 
@@ -1167,7 +1170,7 @@ const IC = {
 function ctl(q, ghost){ return q ? `<div class="step" data-q="${q}"><button class="dec" aria-label="Less">${IC.minus}</button><span class="q">${fq(q)}</span><button class="inc" aria-label="More">${IC.plus}</button></div>`
   : `<button class="add${ghost?' ghost':''}" aria-label="Add">${IC.plus}</button>`; }
 // The meta line is groups that wrap whole: the numbers, then the scores (opt-in, You tab), then where. A wrapped line starts flush.
-const meta = d => `<span class="mg"><b>${fc(d.cal)}</b> cal<span class="gap"></span><b>${f1(d.p)}g</b> protein</span>${scoresHTML(d)}`;
+const meta = d => `<span class="mg"><b>${fc(d.cal)}</b> cal<span class="gap"></span><b>${fg(d.p)}</b> protein</span>${scoresHTML(d)}`;
 const varMeta = v => `<span class="mg vt">${esc(v)}</span>`;   // round 12: a family's row leads with the variant it stands for, in its chip's word ("16 oz", "Almond"): a whole milk name ("Almond Milk") pushed the numbers to their own line at 360, beside the stepper-wide lane
 // Mark set. Glyphs are drawn, never emoji. Round 8: plant based is a sprout (stem, two leaves), vegetarian a single leaf:
 // two silhouettes, not one leaf filled or outlined. Those two are the only marks shown inline on rows.
@@ -1229,7 +1232,7 @@ function labelHTML(N, cal, serving){
 }
 function letterSVG(L){ return `<text class="felt" x="${LX[L]}" y="186">${L}</text><text class="gold" x="${LX[L]}" y="186">${L}</text>`; }
 function factsHTML(t, big='Calories'){ return `<div class="facts"><div class="cal"><span>${big}</span><b class="num">${fc(t.cal)}</b></div>
-  <div class="nr"><span>Protein</span><b>${f1(t.p)}g</b></div><div class="nr"><span>Carbs</span><b>${f1(t.c)}g</b></div><div class="nr"><span>Fat</span><b>${f1(t.f)}g</b></div></div>`; }
+  <div class="nr"><span>Protein</span><b>${fg(t.p)}</b></div><div class="nr"><span>Carbs</span><b>${fg(t.c)}</b></div><div class="nr"><span>Fat</span><b>${fg(t.f)}</b></div></div>`; }
 const dietOK = d => (!S.diet.veg || d.d&3) && (!S.diet.plant || d.d&2) && (!S.diet.halal || d.d&4);
 const dietOn = () => S.diet.veg||S.diet.plant||S.diet.halal;
 const dietWords = () => [S.diet.plant&&'plant based',S.diet.veg&&!S.diet.plant&&'vegetarian',S.diet.halal&&'halal'].filter(Boolean).join(', ');
@@ -1882,7 +1885,7 @@ function setTab(t){
 }
 // You (round 10): with tracking on, Today (its totals and meals), then Earlier, one row per logged day; then the choices.
 // With tracking off, only the choices, under "You"; Export stays while there is history.
-const mealRow = m => `<button class="lrow mealr" data-meal-id="${m.id}"><div><div class="a">${esc(mealLabel(m))}</div><div class="b">${esc(m.time)}</div></div><span class="mc"><b class="num">${fc(m.items.every(i=>i.cal==null)?null:mealTotal(m).cal)}</b> cal${IC.rchev}</span></button>`;
+const mealRow = m => `<button class="lrow mealr" data-meal-id="${m.id}"><div><div class="a">${esc(mealLabel(m))}</div><div class="b">${esc(m.time)}</div></div><span class="mc"><b class="num">${fc(mealTotal(m).cal)}</b> cal${IC.rchev}</span></button>`;
 const dayBlock = (day, title='') => { const ms=S.log.filter(m=>m.day===day).sort((a,b)=>a.at<b.at?-1:1); return `<div class="sec" style="padding-top:20px">${title?`<h2>${title}</h2>`:''}${factsHTML(dayTotal(day))}</div>
   <section class="sec"><h2>Meals</h2>${ms.length?ms.map(mealRow).join(''):'<p class="kv">Nothing logged yet today.</p>'}</section>`; };
 const checkRow = (attrs, on, label, line, lead='') => `<button class="check" role="checkbox" aria-checked="${on}" ${attrs}><span class="cl">${lead}<span>${label}${line?`<span class="cb">${line}</span>`:''}</span></span><i></i></button>`;
@@ -2019,7 +2022,7 @@ function exportData(fmt){ const body=exportBody(fmt);
   toast('Exported udine-2026-10-08.'+fmt);
 }
 function exportBody(fmt){
-  const rows=[]; for(const m of S.log) for(const i of m.items) rows.push({date:'2026-10-08',time:m.time,meal:m.meal,hall:m.hall?PN(m.hall):'',dish:i.n,servings:i.qty,cal:i.cal==null?null:i.cal*i.qty,protein:+(i.p*i.qty).toFixed(1),carbs:+(i.c*i.qty).toFixed(1),fat:+(i.f*i.qty).toFixed(1)});
+  const rows=[]; for(const m of S.log) for(const i of m.items) rows.push({date:'2026-10-08',time:m.time,meal:m.meal,hall:m.hall?PN(m.hall):'',dish:i.n,servings:i.qty,cal:i.cal==null?null:i.cal*i.qty,protein:i.p==null?null:+(i.p*i.qty).toFixed(1),carbs:i.c==null?null:+(i.c*i.qty).toFixed(1),fat:i.f==null?null:+(i.f*i.qty).toFixed(1)});
   const foods=S.foods.map(f=>({name:f.n, serving:f.srv, cal:f.cal, protein:f.p, carbs:f.c, fat:f.f, source:{custom:'custom',pack:'packaged',umass:'UMass Dining'}[f.src]}));   // round 11: saved foods (device only) export too
   return fmt==='json' ? JSON.stringify({log:rows,favorites:[...S.fav],rankings:S.wins,foods},null,2)
     : [rows, foods].filter(t=>t.length).map(t=>[Object.keys(t[0]).join(','), ...t.map(r=>Object.values(r).map(v=>/[",]/.test(v)?`"${String(v).replace(/"/g,'""')}"`:v).join(','))].join('\n')).join('\n\n');   // the log, then your foods
@@ -2156,7 +2159,7 @@ function renderBuild(){ const B=DS.build, bd=bowlNow(), base=B.base, mk=base?mar
   const ing=$('#ing'); if(ing && ing.scrollHeight<=ing.clientHeight+1){ ing.classList.add('open'); ing.nextElementSibling.remove(); }
   footHTML(bd); }
 function footHTML(bd){ const f=$('#bfoot'), B=DS.build, none = B.syn&&B.syn.pho ? !bd.base : !B.base && !bd.parts.length;   // a pho waits for its base
-  f.innerHTML=`<div class="txt"><div class="l2"><b class="num">${fc(bd.cal)}</b><span>cal</span><b class="num">${f1(bd.p)}g</b><span>protein</span></div></div><button class="gbtn" data-act="badd"${none?' disabled':''}>${B.edit?'Update':'Add'}</button>`;
+  f.innerHTML=`<div class="txt"><div class="l2"><b class="num">${fc(bd.cal)}</b><span>cal</span><b class="num">${fg(bd.p)}</b><span>protein</span></div></div><button class="gbtn" data-act="badd"${none?' disabled':''}>${B.edit?'Update':'Add'}</button>`;
   f.classList.remove('hide'); isheet.onSet(isheet.y); }
 // a part's stepper changes the bowl in place: its control, the foot, the price, Contains and the label
 function stepPart(id, dir){ const B=DS.build, q=B.sel.get(id)||0;
@@ -2191,9 +2194,10 @@ function dishMid(){ const b=$('#isbody'), cal=b.querySelector('.label .cal'), to
   return Math.max(ST+8, H-need); }
 function openPlateLabel(src){
   const pl=S.plates[S.front]; if(!pl) return; const hall=(plateHalls(pl)||[])[0], sum=Object.fromEntries(NK.map(k=>[k,k.endsWith('Dv')?null:0]));
-  let cal=0; for(const it of pl.items){ const m=macroOf(it,hall); cal+=m.cal*it.qty;
+  const cal=totals(pl,hall).cal; for(const it of pl.items){ const m=macroOf(it,hall);
     if(it.custom && !it.custom.nut){ sum.fat+=m.f*it.qty; sum.carb+=m.c*it.qty; sum.pro+=m.p*it.qty; continue; }
     const N=nutObj(m.nut); for(const k of NK) if(!k.endsWith('Dv') && N[k]!=null) sum[k]+=N[k]*it.qty; }
+  if(!pl.items.some(it=>{ const m=macroOf(it,hall); return it.custom || (m.nut||[]).some(v=>v!=null); })) for(const k of NK) if(!k.endsWith('Dv')) sum[k]=null;   // nothing known: "–", not 0
   $('#bfoot').classList.add('hide'); $('#isbody').innerHTML=`<div class="dish"><div class="sh1"><h2 style="font-size:28px">Your plate</h2><span>${esc(plateLabel(pl))}</span></div>
     <p class="kv" style="margin:0">${pl.items.map(it=>`${it.qty!==1?fq(it.qty)+' × ':''}${esc(it.n)}`).join(', ')}</p>${labelHTML(sum, cal, '')}</div>`;
   $('#isbody').scrollTop=0; IS.mid=null; isheet.to('top');
@@ -2318,11 +2322,11 @@ function renderBar(){
   barMode='plate';
   const nItems = t.n===1?'1 item':`${fq(t.n)} items`;
   // while a calorie tag is in the air the numbers wait for it to land
-  if(existing && inn.querySelector('.l1')){ inn.querySelector('#barL').textContent=plateLabel(pl); inn.querySelector('#barN').textContent=nItems; existing.textContent=fc(t.cal); inn.querySelector('#barP').textContent=f1(t.p)+'g'; return; }
+  if(existing && inn.querySelector('.l1')){ inn.querySelector('#barL').textContent=plateLabel(pl); inn.querySelector('#barN').textContent=nItems; existing.textContent=fc(t.cal); inn.querySelector('#barP').textContent=fg(t.p); return; }
   inn.innerHTML=plateBarHTML(pl);
 }
 function plateBarHTML(pl){ const t=totals(pl), nItems = t.n===1?'1 item':`${fq(t.n)} items`;
-  return `<div class="txt"><div class="l1"><span id="barL">${esc(plateLabel(pl))}</span>, <span class="num2" id="barN">${nItems}</span></div><div class="l2"><b class="num" id="barCal">${fc(t.cal)}</b><span>cal</span><b class="num" id="barP">${f1(t.p)}g</b><span>protein</span></div></div>
+  return `<div class="txt"><div class="l1"><span id="barL">${esc(plateLabel(pl))}</span>, <span class="num2" id="barN">${nItems}</span></div><div class="l2"><b class="num" id="barCal">${fc(t.cal)}</b><span>cal</span><b class="num" id="barP">${fg(t.p)}</b><span>protein</span></div></div>
     <div class="acts"><button class="gbtn" data-act="barlog">Log</button></div>`; }
 function showLogged(){ const L=S.lastLog;
   receipt(`Logged ${L.entry.hall?PN(L.entry.hall)+' ':''}${ML[L.entry.meal].toLowerCase()}`, `<div class="l2">Today <b class="num" id="dayN">${fc(dayTotal().cal)}</b><span>cal</span></div>`); }
@@ -2397,7 +2401,7 @@ function refreshLists(){
 function refreshSheet(){ if(psheet.state==='closed') return; const pl=S.plates[S.front], b=$('#psbody');
   if(!pl || b.dataset.pid!=String(pl.id) || +b.dataset.n!==pl.items.length){ renderPSheet(); return; }
   const hs=plateHalls(pl), t=totals(pl); $$('#psbody .prow').forEach((r,i)=>setCtl(r, pl.items[i].qty));
-  const fb=$$('#psbody .facts b'); [fc(t.cal),f1(t.p)+'g',f1(t.c)+'g',f1(t.f)+'g'].forEach((v,i)=>{ if(fb[i]) fb[i].textContent=v; }); }
+  const fb=$$('#psbody .facts b'); [fc(t.cal),fg(t.p),fg(t.c),fg(t.f)].forEach((v,i)=>{ if(fb[i]) fb[i].textContent=v; }); }
 function refresh(){ refreshLists(); renderBar(); refreshSheet(); if(!S.plates.length && psheet.state!=='closed') psheet.to('closed'); }
 
 /* ---------- input ---------- */

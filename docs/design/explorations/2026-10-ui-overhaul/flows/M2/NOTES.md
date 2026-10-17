@@ -2451,7 +2451,7 @@ ramen days keep one picker of whole dishes). Decided:
 20 oz Iced Tea, Add Crispy Chicken, Fountain Drink); the 31 records the feed gives as 0 stay 0. `fc(null)` draws "–", so the row
 meta, the label's Calories, plate rows and meal rows all read "–". Totals are the sum of what is known: `totals(plate)` and
 a bowl's foot are `null` ("–") only when every contributor is unknown. `snapItem` keeps `cal: null` in the log and the export
-writes `null`. Health's `energyKcal` still adds unknowns as 0 (Open).
+writes `null`. Health's `energyKcal` added unknowns as 0 until round 12c, which leaves an unknown field out.
 
 **6. Add-ons at every dish of a meal (round 10).** Unchanged.
 
@@ -2507,13 +2507,39 @@ files named `r-*`, contact sheets `r12b-sheet1.png` to `r12b-sheet4.png` (390 le
 - Seen, not changed: "0g protein" beside "– cal" (Open).
 
 ### Open (for the owner)
-- **Protein, carbs and fat are blank on the same records.** "20 oz Chai" now reads "– cal" next to "0g protein". Make them "–"
-  as well (the label already prints "–" for a missing nutrient)? This round did calories only, as asked.
-- **"Add Crispy Chicken" has blank calories** and a builder lists only parts with calories above 0, so it is not offered at
-  Whitmore (it wasn't before: it read 0). Offer it with "–"?
-- **Health write for an unknown.** A logged meal of only unknown calories writes `energyKcal` 0 to Health. Skip the write for
-  that meal, or write what is known?
-- **A built variant is not the row's.** Most café families open as builders, so a 20 oz Cappuccino with oat milk is its own bowl
-  item and the row stays on the plain variant. Should the row follow it, counting built items that share the base?
-- **A protein x broth grid that is incomplete** would fall back to one picker. None occurs in the fifteen days; a disabled chip
-  would be the alternative if one ever does.
+None from this round; round 12c settled the earlier five (below).
+
+## Round 12c: the coordinator's review of 12b (2026-10-17)
+Concept: `CONCEPT.md`, "Round 12c". Each of the 12b open questions was answered:
+- **Protein, carbs and fat.** Blank is `None` in `build.py` and "–" everywhere it is drawn: row meta (`fg()`), the foot, the bar, the
+  plate's totals, the label. `tally()` sums what is known and gives null only when every item is unknown (plate, meal, day, bowl).
+  The log keeps null; the export writes null; "Full label" on the plate shows "–" when no item knows any nutrient.
+- **Blank-calorie add-ons** are offered: the `cal>0` filter of the builders now lets `cal==null` through ("Add Crispy Chicken").
+- **Health.** `healthRecord` leaves an unknown field out (no `energyKcal`, `proteinG`, `carbsG`, `fatG` key). For the Flutter build:
+  write only the fields that are known, never 0. M2 only simulates the store.
+- **The two pho groups** are separated by `.vpick+.vpick{margin-top:24px}`.
+- **Decided, unchanged:** the row does not follow built variants; an incomplete protein x broth grid falls back to one picker.
+
+### Tests (`round12`, still 11 scenarios; `RED=12 node test.js`)
+Red first against `build/r12/before-r12c-index.html` (12b as pushed), `build/r12/red-r12c.txt`:
+```
+RED    café phos have two pickers: …: 390: the groups sit a section gap (24 px, the add-ons heading's) apart, not a chip gap
+RED    blank calories draw "–", not 0; …: blank calories and protein: the row says – for both (round 12c)
+```
+The blank scenario also now asserts the bar's protein, the plate's four totals, `[null,null,null]` in the log, a Health record without
+the unknown fields and "Add Crispy Chicken" offered with "–". Those asserts come after the first red, so the same two checks on the
+12b build (a `healthRecord` call and a look at the Whitmore builder's parts) gave `energyKcal, proteinG, carbsG, fatG` written and
+the add-on missing.
+- **Older test changed:** round 10's "add-ons with no nutrition are left out" (Green Fields' Fountain Drink, blank calories) now expects it offered with "–".
+- **Now:** `RED=12 node test.js` gives 11 green scenarios, 141 checks; `node test.js` gives 5,397 checks and `RM=1 node test.js` 3,743, all green.
+- Vectors: plate totals are null for each unknown (`blank calories (20 oz Chai)`: all four null; beside "16 oz Chai": 211, 0, 52.7, 0).
+  Nothing else in `vectors.json` changed.
+
+### Review passes
+`build/r12/p5`, sheets `r12c-sheet1.png` to `r12c-sheet2.png`: nine states at 390 and 360, every frame looked at.
+- The two pho groups read as two blocks at both widths (Star Ginger's 3 + 3 and Whitmore's 3 + 2), the broth group starting a section gap
+  below the proteins; no flaw at 360.
+- "Add Crispy Chicken – cal $4.25" shows under Whitmore's Add-ons. A side effect of the same filter: "Fountain Drink – cal $1.50" is
+  now offered at Star Ginger and Green Fields (blank calories, as the add-on).
+- "20 oz – cal – protein" on the row, the bar and the foot read "– cal – protein"; the plate's Calories, Protein, Carbs and Fat boxes read "–";
+  the label's every nutrient was already "–".

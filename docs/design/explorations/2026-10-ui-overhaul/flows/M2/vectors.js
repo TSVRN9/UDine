@@ -23,7 +23,7 @@
 //              // round 10: a bowl is one plate item, base + parts summed. A null base is a synthetic one (round 11: "Salad Bar", named for
 //              // its station) that carries no nutrition of its own; station names its bar. Another bowl of the same base and
 //              // parts adds to that item's qty; the plain base dish (an "add") is always a separate item.
-//     "plates": [ {"meal", "halls": [place keys] | null, "label", "items": [[dish, qty]], "totals": {"cal","p","c","f"}} ],   // cal is null when every item's calories are blank (round 12b)
+//     "plates": [ {"meal", "halls": [place keys] | null, "label", "items": [[dish, qty]], "totals": {"cal","p","c","f"}} ],   // a total is null when every item's value is blank (calories round 12b; protein, carbs, fat round 12c)
 //     "front": index } ],
 //   "scores": [ {"dish", "health": 0..7 | null, "carbon": "A".."E" | null, "rawHealthfulness": number | null} ],
 //              // every distinct (dish, scores, raw) in the 15 days. health is the H0..H7 code; a raw number without
@@ -148,8 +148,8 @@ const PRICE = [['Harissa Chicken', 'Terrace'], ['Caesar Salad w/Chicken', 'Green
           addDish(meal, bd.k, { [h]: bd }, bd.n); resolved.push(['bowl', meal, h, base, st, parts]); continue; }
         resolved.push(op);
       }
-      const r1 = x => Math.round(x * 10) / 10;
-      return { ops: resolved, plates: S.plates.map(pl => { const t = totals(pl); return { meal: pl.meal, halls: plateHalls(pl), label: plateLabel(pl), items: pl.items.map(i => { const m = macroOf(i); return m.parts ? [i.n, i.qty, { parts: m.parts.map(([x, q]) => [x.n, q]), cal: m.cal, price: m.price }] : [i.n, i.qty]; }), totals: { cal: t.cal == null ? null : r1(t.cal), p: r1(t.p), c: r1(t.c), f: r1(t.f) } }; }), front: S.front };
+      const r1 = x => x == null ? null : Math.round(x * 10) / 10, n1 = r1;
+      return { ops: resolved, plates: S.plates.map(pl => { const t = totals(pl); return { meal: pl.meal, halls: plateHalls(pl), label: plateLabel(pl), items: pl.items.map(i => { const m = macroOf(i); return m.parts ? [i.n, i.qty, { parts: m.parts.map(([x, q]) => [x.n, q]), cal: m.cal, price: m.price }] : [i.n, i.qty]; }), totals: { cal: n1(t.cal), p: n1(t.p), c: n1(t.c), f: n1(t.f) } }; }), front: S.front };
     }, seq.ops);
     // the ops as written to the file carry place keys only (names and 'hall' / 'café' are resolved above)
     if (r.ops.some(o => (o[0] === 'add' && o[3].some(h => !(h in out.places))) || (o[0] === 'bowl' && !(o[2] in out.places)))) throw new Error('unresolved place in ' + seq.name);

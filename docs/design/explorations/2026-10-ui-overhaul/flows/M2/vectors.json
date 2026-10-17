@@ -2344,9 +2344,9 @@
      ],
      "totals": {
       "cal": null,
-      "p": 0,
-      "c": 0,
-      "f": 0
+      "p": null,
+      "c": null,
+      "f": null
      }
     }
    ],

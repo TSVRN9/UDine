@@ -1179,7 +1179,7 @@ Chicken, Fountain Drink; nine records) is unknown, not zero, so wherever calorie
 cal", the sheet's Calories line on the label, a plate row ("– cal each"), a logged item. A recorded 0 stays 0
 (the 31 records the feed gives as 0). Totals are the sum of what is known: a plate, meal or foot of only unknowns reads "–", and a
 plate with a known item beside one reads that item's number. The log stores the unknown as null, and an export writes null.
-Protein, carbs and fat on the same records are blank too and still read 0 (NOTES "Open").
+Round 12c (below) extends this to protein, carbs and fat.
 
 **6. A café's add-ons apply to every dish at that meal: unchanged** (round 10's rule). Roots Café's lunch boba still builds
 with "Add Bacon Quesadilla".
@@ -1189,4 +1189,32 @@ with "Add Bacon Quesadilla".
 |---|---|
 | A row stands for another variant | In place: the content crossfades from .4 (`settle`); the row doesn't move |
 | A protein or broth chip chosen | The same as any chip: the fill (`settle`), the content under the chips crossfades from .4 |
+
+### Round 12c: the coordinator's review of 12b (2026-10-17)
+```
+ Star Ginger, none chosen (390)               Chai, 20 oz on the plate
+┌──────────────────────────────────┐ ┌──────────────────────────────────┐
+│ Noodle Bowl                      │ │ Chai, 20 oz         [− 1 +]      │
+│ (Beef Pho)(Chicken Pho)          │ │ – cal each                       │
+│ (Pulmuone Tofu Pho)              │ │ ┌──────────────────────────────┐ │
+│                                  │ │ │ Calories                   – │ │
+│ (Chicken Broth)                  │ │ │ Protein                    – │ │
+│ (Spicy Green Curry Broth)        │ │ │ Carbs                      – │ │
+│ (Vegetable Broth)                │ │ │ Fat                        – │ │
+│ Add-ons                          │ │ └──────────────────────────────┘ │
+│ Add Crispy Chicken  – cal     +  │ └──────────────────────────────────┘
+```
+1. **A missing nutrient is "–", not only calories.** Protein, carbs and fat that the feed leaves blank are unknown too (owner's
+   rule for missing data, packaged foods, 2026-10-16). "20 oz Chai" reads "– cal – protein" on its row; the plate's Protein, Carbs
+   and Fat, the bar and the foot read "–". A recorded 0 is 0g. Totals sum what is known and are "–" only when every item is
+   unknown. The log stores null; an export writes null.
+2. **A blank-calorie add-on is offered, with "–".** The builders' filter keeps parts with calories above 0 (water, mustard) and
+   now also those with none recorded: "Add Crispy Chicken" at Whitmore.
+3. **Health writes omit an unknown field, never 0.** If every value of a field is unknown the field is not written (for the
+   Flutter build; M2 only simulates the store).
+4. **The pho's two groups are two blocks.** The broth chips used to wrap straight on after the proteins and the six read as one list. The
+   second group now starts a section gap below the first, 24 px, the add-ons heading's own top margin; chips inside a group stay 8 px
+   apart. No heading or caption.
+5. **Decided, unchanged:** the row does not follow built variants (a variant with add-ins is its own item); and a protein x broth grid
+   that is incomplete falls back to one picker of whole dishes (none occurs in the fifteen days).
 
