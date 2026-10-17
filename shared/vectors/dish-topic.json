@@ -1,5 +1,5 @@
 {
-  "format": "FCM topic for a favourited dish (dishTopic). kind=topic: input {name} -> 'dish-' + the first 16 hex of the SHA-256 of the UTF-8 normalized name. Normalization: NFC, lowercase, drop U+2019 and U+0027, every run of characters outside [a-z0-9] (all non-ASCII letters included: Café -> 'caf', Jalapeño -> 'jalape o', never folded to e/n) becomes one space, trim. Every case is {kind, name, input, expected}; expected is what shared/src (TypeScript) returns for input. JSON null = a value that is present and null. An ABSENT key = undefined / not set: implementations must treat a missing key and an unset field as the same thing, and must not emit null for it. Regenerate with `pnpm --filter @udine/shared vectors`; never hand-edit expected.",
+  "format": "FCM topic for a favourited dish (dishTopic). kind=topic: input {name} -> 'dish-' + the first 16 hex of the SHA-256 of the UTF-8 normalized name. Inputs are feed strings as given, not Unicode-normalized. Normalization: lowercase, drop U+2019 and U+0027, every run of characters outside [a-z0-9] (all non-ASCII letters included: Café -> 'caf', Jalapeño -> 'jalape o', never folded to e/n; a decomposed n + U+0303 keeps the n) becomes one space, trim. Every case is {kind, name, input, expected}; expected is what shared/src (TypeScript) returns for input. JSON null = a value that is present and null. An ABSENT key = undefined / not set: implementations must treat a missing key and an unset field as the same thing, and must not emit null for it. Regenerate with `pnpm --filter @udine/shared vectors`; never hand-edit expected.",
   "cases": [
     {
       "kind": "topic",
@@ -75,11 +75,11 @@
     },
     {
       "kind": "topic",
-      "name": "decomposed accent equals precomposed",
+      "name": "decomposed accent keeps the n and drops the mark, so it differs from precomposed",
       "input": {
         "name": "Jalapeño Poppers"
       },
-      "expected": "dish-56a894c2f1760d6e"
+      "expected": "dish-d4d296b1d2cd556f"
     },
     {
       "kind": "topic",

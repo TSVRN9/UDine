@@ -487,7 +487,7 @@ const dishTopicCases: Case[] = [
   topic("ampersand without spaces", "Mac&Cheese"),
   topic("punctuation runs", "Mac -- (Cheese)!"),
   topic("precomposed accent", "Jalape\u00f1o Poppers"),
-  topic("decomposed accent equals precomposed", "Jalapen\u0303o Poppers"),
+  topic("decomposed accent keeps the n and drops the mark, so it differs from precomposed", "Jalapen\u0303o Poppers"),
   topic("accented letter at the end is dropped, not folded", "Caf\u00e9"),
   topic("accented e", "Cr\u00e8me Br\u00fbl\u00e9e"),
   topic("digits kept", "2% Milk 8oz"),
@@ -499,7 +499,7 @@ const FILES: Record<string, { about: string }> = {
   "dish-topic.json": {
     about:
       "FCM topic for a favourited dish (dishTopic). kind=topic: input {name} -> 'dish-' + the first 16 hex of the SHA-256 of the UTF-8 normalized name. " +
-      "Normalization: NFC, lowercase, drop U+2019 and U+0027, every run of characters outside [a-z0-9] (all non-ASCII letters included: Caf\u00e9 -> 'caf', Jalape\u00f1o -> 'jalape o', never folded to e/n) becomes one space, trim.",
+      "Inputs are feed strings as given, not Unicode-normalized. Normalization: lowercase, drop U+2019 and U+0027, every run of characters outside [a-z0-9] (all non-ASCII letters included: Caf\u00e9 -> 'caf', Jalape\u00f1o -> 'jalape o', never folded to e/n; a decomposed n + U+0303 keeps the n) becomes one space, trim.",
   },
   "packaged.json": {
     about:
