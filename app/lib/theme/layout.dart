@@ -12,6 +12,7 @@ abstract final class M2Layout {
   static const secTitleGap = 4.0; // `.sec h2` margin-bottom
   static const secTop = 22.0; // `.sec` padding-top (m2.json's sectionTop says 26, drawn by RN; M2's DOM measures 22 from the last band)
   static const areaRowMin = 56.0; // `.lrow` min-height
+  static const hrowTop = 10.0, hrowBoxTop = 5.0, hrowBtnTop = 12.0, hrowBtnBottom = 14.0; // `.hrow:has(.obtn) .check` padding-top and its box's margin, `.check+.obtn.dk` margin-top, `.obtn.dk` margin-bottom
   static const areaNameLine = 19.2; // `.lrow .a` inherits the body's line-height 1.2 (m2.json's rowName says 20: that is `.row .n`)
   static const areaMetaGap = 2.0; // `.lrow .b` margin-top
   static const areaCount = 4; // Newton is off in this build

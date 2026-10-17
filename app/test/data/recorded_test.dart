@@ -62,6 +62,14 @@ void main() {
       expect(f.onlyShow, ['Halal']);
       expect(recordedFlags('/?data=recorded')!.avoid, isEmpty);
     });
+    test('os and health are M2\'s flags; device is the real store; anything else is allow on android', () {
+      final f = recordedFlags('/you?data=recorded&os=ios&health=revoked')!;
+      expect((f.os, f.health), ('ios', 'revoked'));
+      expect(recordedFlags('/you?data=recorded&health=device')!.health, 'device');
+      final d = recordedFlags('/you?data=recorded&os=x&health=nope')!;
+      expect((d.os, d.health), ('android', 'allow'));
+    });
+
     test('no data flag, no switch', () => expect(recordedFlags('/hall/worcester?net=fail'), isNull));
   });
 

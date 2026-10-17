@@ -7,7 +7,9 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
+import 'core/health/health_client.dart';
 import 'core/hours.dart';
+import 'core/m2/history.dart' show mealTitle;
 import 'core/m2/bowl.dart' show Bowl;
 import 'core/m2/bowl_builder.dart' show BowlSpec, bowlNow;
 import 'core/m2/board.dart' show Macro, dishKey, halls, MenuItem, M2MenuItem;
@@ -17,6 +19,7 @@ import 'core/store/log_book.dart';
 import 'core/store/store.dart';
 import 'data/flyer.dart';
 import 'data/recorded/recorded.dart';
+import 'data/recorded/simulated_health.dart';
 import 'dev/log_seed.dart';
 import 'data/packaged.dart';
 import 'data/pdf_cache.dart';
@@ -26,9 +29,11 @@ import 'data/source.dart';
 import 'data/supabase_source.dart';
 import 'motion/routes.dart';
 import 'screens/hall/hall_controller.dart' show mealsOfItems;
+import 'screens/plate/plate_sheet.dart' show plateBoard;
 import 'core/saved_food.dart';
 import 'shell/app_scope.dart';
 import 'shell/food_book.dart';
+import 'shell/health_book.dart';
 import 'shell/plate_model.dart';
 import 'shell/prefs.dart';
 import 'shell/share.dart';
@@ -61,6 +66,8 @@ class Boot {
   late final LogBook? log = store == null ? null : LogBook(store!, now: repo.now);
   /// Your foods (null with no store). Read once at launch and again after anything writes to it.
   late final FoodBook? foods = store == null ? null : FoodBook(store!, now: repo.now);
+  /// Write to Health Connect / Apple Health (null with no store). Opened last, once the log is read, so what was logged before it is never written.
+  HealthBook? health;
   late final plate = PlateModel(tracking: () => prefs.track, write: store?.addEntries, readDay: store?.entriesForDay, now: repo.now, changed: log?.reload);
 
   /// The user's database was saved by a newer build (they installed an older one): the file is never opened for writing, tracking
@@ -105,7 +112,23 @@ class Boot {
     await boot.foods?.reload();
     if (flags != null) await boot.seedLog(route);
     if (flags != null) await boot.seedPlate(route); // (recorded data only: a live menu might never arrive)
+    await boot.openHealth(flags);
     return boot;
+  }
+
+  /// `?os=` and `?health=` (M2's own flags) stand in for the device's health store on a recorded route; live, the channel to Health Connect / HealthKit.
+  Future<void> openHealth(RecordedFlags? flags) async {
+    final s = store, l = log;
+    if (s == null || l == null) return;
+    final HealthClient client;
+    if (flags == null || flags.health == 'device') {
+      client = ChannelHealthClient();
+    } else {
+      client = SimulatedHealth(platform: flags.os, allows: flags.health != 'deny', status: switch (flags.health) { 'unsupported' => HealthAccess.unsupported, 'notinstalled' => HealthAccess.notInstalled, _ => HealthAccess.denied });
+      await s.setHealthOn(flags.health == 'revoked'); // revoked: the switch is on and the OS no longer allows it
+    }
+    final fx = plateBoard(repo.now());
+    health = await HealthBook.open(client: client, store: s, log: l, titleOf: (m) => mealTitle(m, fx, l.cafeIds), tracking: () => prefs.track, prefs: prefs, now: flags == null || flags.health == 'device' ? null : repo.now);
   }
 
   /// The database the repository caches in, and the user store over it (null when a newer build owns the file).
@@ -172,5 +195,5 @@ class Boot {
     }
   }
 
-  Widget wrap(Widget child) => AppScope(repo: repo, store: store, log: log, foods: foods, packaged: packaged, lookup: lookup, prefs: prefs, hider: hider, plate: plate, pdfOpen: pdfOpen, share: share, shareFlyer: shareFlyer, child: child);
+  Widget wrap(Widget child) => AppScope(repo: repo, store: store, log: log, foods: foods, health: health, packaged: packaged, lookup: lookup, prefs: prefs, hider: hider, plate: plate, pdfOpen: pdfOpen, share: share, shareFlyer: shareFlyer, child: child);
 }

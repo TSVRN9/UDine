@@ -24,7 +24,7 @@ class Meal {
 }
 
 /// M2 tracking/score/campus/first-run settings: new preferences_kv keys, prefixed so they never meet RN's.
-const kTrackKey = 'm2:track', kScoresKey = 'm2:scores', kCharlesRiverKey = 'm2:charles_river', kFirstRunSeenKey = 'm2:first_run_seen', kPinsKey = 'm2:pins', kAlertsKey = 'm2:alerts';
+const kTrackKey = 'm2:track', kScoresKey = 'm2:scores', kCharlesRiverKey = 'm2:charles_river', kFirstRunSeenKey = 'm2:first_run_seen', kPinsKey = 'm2:pins', kAlertsKey = 'm2:alerts', kHealthKey = 'm2:health';
 
 /// Repositories over an opened db, reading and writing RN's exact rows and JSON shapes.
 class UdineStore {
@@ -243,22 +243,32 @@ class UdineStore {
   Future<List<({String dishName, String day})>> alertsSent() async =>
       [for (final r in await db.rawQuery('SELECT dish_name, day FROM alert_sent ORDER BY rowid')) (dishName: r['dish_name']! as String, day: r['day']! as String)];
 
-  // ---- Health Connect / Apple Health: the record ids written for a meal (never read back from Health) ----
+  // ---- Health Connect / Apple Health: the You switch, then the record ids written for a meal (never read back from Health) ----
+
+  Future<bool> healthOn() async => await _kv(kHealthKey) as bool? ?? false;
+  Future<void> setHealthOn(bool v) => _setKv(kHealthKey, v);
 
   Future<List<String>> healthIds(String mealId, String platform) async {
     final r = await db.query('health_writes', columns: ['record_ids_json'], where: 'meal_id = ? AND platform = ?', whereArgs: [mealId, platform]);
     return r.isEmpty ? const [] : List<String>.from(jsonDecode(r.single['record_ids_json']! as String) as List);
   }
 
-  Future<void> setHealthIds(String mealId, String platform, List<String> ids) =>
-      db.insert('health_writes', {'meal_id': mealId, 'platform': platform, 'record_ids_json': jsonEncode(ids)}, conflictAlgorithm: ConflictAlgorithm.replace);
+  /// [sig] is the digest of what was written ([HealthMeal.signature]); null when unknown.
+  Future<void> setHealthIds(String mealId, String platform, List<String> ids, [String? sig]) => db.insert(
+      'health_writes', {'meal_id': mealId, 'platform': platform, 'record_ids_json': jsonEncode(ids), 'content_sig': sig},
+      conflictAlgorithm: ConflictAlgorithm.replace);
+
+  /// Every meal written to [platform] and the digest of what was written (null: written before digests were kept).
+  Future<Map<String, String?>> healthSigs(String platform) async => {
+        for (final r in await db.query('health_writes', columns: ['meal_id', 'content_sig'], where: 'platform = ?', whereArgs: [platform])) r['meal_id']! as String: r['content_sig'] as String?,
+      };
 
   Future<void> removeHealthIds(String mealId, String platform) =>
       db.delete('health_writes', where: 'meal_id = ? AND platform = ?', whereArgs: [mealId, platform]);
 
   Future<List<HealthWrite>> healthWrites() async => [
-        for (final r in await db.rawQuery('SELECT meal_id, platform, record_ids_json FROM health_writes ORDER BY rowid'))
-          (mealId: r['meal_id']! as String, platform: r['platform']! as String, recordIds: List<String>.from(jsonDecode(r['record_ids_json']! as String) as List)),
+        for (final r in await db.rawQuery('SELECT meal_id, platform, record_ids_json, content_sig FROM health_writes ORDER BY rowid'))
+          (mealId: r['meal_id']! as String, platform: r['platform']! as String, recordIds: List<String>.from(jsonDecode(r['record_ids_json']! as String) as List), contentSig: r['content_sig'] as String?),
       ];
 
   // ---- export: every device-local user table, through core/export.dart ----

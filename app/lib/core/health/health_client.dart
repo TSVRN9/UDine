@@ -14,11 +14,14 @@ abstract class HealthClient {
   /// Raises the OS permission sheet; true when write is allowed afterwards.
   Future<bool> requestWrite();
 
-  /// Writes [meal] as one record, first removing [replacing] (the ids a past write returned) where the store can't upsert. Returns the
-  /// new ids, or null when nothing was written.
-  Future<List<String>?> write(HealthMeal meal, {List<String> replacing = const []});
+  /// Writes [meal] as one record, replacing the one an earlier write of the same meal left (the client id is the meal's, on both
+  /// platforms). Returns the ids to delete it by, or null when nothing was written.
+  Future<List<String>?> write(HealthMeal meal);
 
   Future<bool> delete(List<String> ids);
+
+  /// Health Connect's permission page for UDine (Android) or UDine's page in Settings (iOS).
+  Future<void> openSettings();
 }
 
 /// Native side: `MainActivity.kt` (Health Connect, clientRecordId upsert) and `AppDelegate.swift` (HealthKit food correlation).
@@ -42,7 +45,7 @@ class ChannelHealthClient implements HealthClient {
   Future<bool> requestWrite() async => await _c.invokeMethod<bool>('requestWrite', {'permissions': kHealthWritePermissions[platform]}) ?? false;
 
   @override
-  Future<List<String>?> write(HealthMeal meal, {List<String> replacing = const []}) async {
+  Future<List<String>?> write(HealthMeal meal) async {
     final r = await _c.invokeListMethod<String>('write', {
       'clientId': 'udine-${meal.mealId}',
       'name': meal.name,
@@ -50,11 +53,13 @@ class ChannelHealthClient implements HealthClient {
       'endMs': meal.end.millisecondsSinceEpoch,
       'zoneOffsetSeconds': meal.start.timeZoneOffset.inSeconds,
       'fields': meal.fieldsFor(platform),
-      'replacing': replacing,
     });
     return r;
   }
 
   @override
   Future<bool> delete(List<String> ids) async => await _c.invokeMethod<bool>('delete', {'ids': ids}) ?? false;
+
+  @override
+  Future<void> openSettings() => _c.invokeMethod<void>('openSettings');
 }

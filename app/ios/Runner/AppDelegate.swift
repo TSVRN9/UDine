@@ -58,6 +58,11 @@ final class HealthChannel {
   static func register(_ messenger: FlutterBinaryMessenger) {
     FlutterMethodChannel(name: "udine/health", binaryMessenger: messenger).setMethodCallHandler { call, result in
       let args = call.arguments as? [String: Any] ?? [:]
+      if call.method == "openSettings" {
+        if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+        result(nil)
+        return
+      }
       guard HKHealthStore.isHealthDataAvailable() else {
         switch call.method {
         case "access": result("unsupported")
