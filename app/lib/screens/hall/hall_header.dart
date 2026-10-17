@@ -63,7 +63,6 @@ class HallHeaderState extends State<HallHeader> {
   double _drop = 0; // NB: how far the collapsed name falls into the compact bar
   double? _madeFor;
   late Widget? _photo;
-  late Widget _grades, _title, _bandGrade;
   Widget? _letter;
   late M2Type _nameStyle;
 
@@ -108,16 +107,7 @@ class HallHeaderState extends State<HallHeader> {
     _photo = path == null
         ? null
         : IgnorePointer(child: Photo(path: path, pos: compact ? 0.5 : photoPos[place]!, duo: w.band != null ? _Reverse(w.progress) : const AlwaysStoppedAnimation(0.0)));
-    LinearGradient g(({List<Color> colors, List<double> stops}) x) => LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: x.colors, stops: x.stops);
-    _grades = IgnorePointer(
-      child: Stack(children: [
-        Positioned(left: 0, right: 0, top: 0, height: top + M2Layout.topGradH, child: DecoratedBox(decoration: BoxDecoration(gradient: g(M2Gradient.headTop)))),
-        Positioned(left: 0, right: 0, bottom: 0, height: M2Layout.bottomGradH, child: DecoratedBox(decoration: BoxDecoration(gradient: g(M2Gradient.headBottom)))),
-      ]),
-    );
     _letter = compact ? null : IgnorePointer(child: Stack(children: [HallLetter(letter: place, x: hallLx[place]!, top: top + M2Layout.letterTop)]));
-    _bandGrade = const IgnorePointer(child: BandGrade());
-    _title = Semantics(header: true, child: Text(name, style: nameStyle.style(M2Color.white), maxLines: 1));
   }
 
   @override
@@ -151,8 +141,23 @@ class HallHeaderState extends State<HallHeader> {
               builder: (_, ch) => Positioned(left: 0, right: 0, top: w.scroll.value.clamp(0.0, r) * M2Collapse.parallax, height: hh, child: ch!),
             ),
           // the header's grades develop with the photo (dev = p from a band, whole from a push)
+          // (the grades fade by their colours' alpha: the same pixels as an Opacity, with no offscreen layer)
           Positioned.fill(
-            child: AnimatedBuilder(animation: p, child: _grades, builder: (_, ch) => Opacity(key: const ValueKey('fade-headerGrade'), opacity: band != null ? p.value : 1, child: ch)),
+            child: AnimatedBuilder(
+              animation: p,
+              builder: (_, _) {
+                final o = band != null ? p.value : 1.0;
+                LinearGradient g(({List<Color> colors, List<double> stops}) x) =>
+                    LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [for (final c in x.colors) c.withValues(alpha: c.a * o)], stops: x.stops);
+                return IgnorePointer(
+                  key: const ValueKey('fade-headerGrade'),
+                  child: Stack(children: [
+                    Positioned(left: 0, right: 0, top: 0, height: widget.top + M2Layout.topGradH, child: DecoratedBox(decoration: BoxDecoration(gradient: g(M2Gradient.headTop)))),
+                    Positioned(left: 0, right: 0, bottom: 0, height: M2Layout.bottomGradH, child: DecoratedBox(decoration: BoxDecoration(gradient: g(M2Gradient.headBottom)))),
+                  ]),
+                );
+              },
+            ),
           ),
           Positioned.fill(
             child: AnimatedBuilder(
@@ -171,7 +176,7 @@ class HallHeaderState extends State<HallHeader> {
           if (band != null && w.ghost != null) ...[
             Positioned(
               left: 0, right: 0, top: band.off, height: band.height,
-              child: AnimatedBuilder(animation: p, child: _bandGrade, builder: (_, ch) => Opacity(key: const ValueKey('fade-bandGrade'), opacity: _clamp(1 - p.value), child: ch)),
+              child: AnimatedBuilder(animation: p, builder: (_, _) => BandGrade(key: const ValueKey('fade-bandGrade'), opacity: _clamp(1 - p.value))),
             ),
             Positioned(
               left: 0, right: 0, top: band.off, height: band.height,
@@ -191,42 +196,44 @@ class HallHeaderState extends State<HallHeader> {
             left: M2Space.gutter, bottom: compact ? M2Layout.titleBottomCafe : M2Layout.titleBottom,
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
               AnimatedBuilder(
-                animation: Listenable.merge([p, w.scroll, w.dayFade]), child: _title,
-                builder: (_, ch) {
+                animation: Listenable.merge([p, w.scroll, w.dayFade]),
+                builder: (_, _) {
                   final cc = c();
+                  // the name fades by its colour's alpha (one run of text: the same pixels as an Opacity, no offscreen layer)
+                  final o = (incomingOpacity(p.value) * w.dayFade.value).clamp(0.0, 1.0);
                   return IgnorePointer(
-                    child: Opacity(
-                      key: const ValueKey('fade-title'), opacity: (incomingOpacity(p.value) * w.dayFade.value).clamp(0.0, 1.0),
-                      child: Transform(
-                        key: _name, // measured on the Transform's own box, which its transform does not move
-                        alignment: Alignment.bottomLeft,
-                        transform: Matrix4.translationValues(M2Collapse.nameDx * cc, _drop * cc, 0)..scaleByDouble(1 - (1 - ns) * cc, 1 - (1 - ns) * cc, 1, 1),
-                        child: ch,
-                      ),
+                    child: Transform(
+                      key: _name, // measured on the Transform's own box, which its transform does not move
+                      alignment: Alignment.bottomLeft,
+                      transform: Matrix4.translationValues(M2Collapse.nameDx * cc, _drop * cc, 0)..scaleByDouble(1 - (1 - ns) * cc, 1 - (1 - ns) * cc, 1, 1),
+                      child: Semantics(header: true, child: Text(w.name, key: const ValueKey('fade-title'), style: _nameStyle.style(M2Color.white.withValues(alpha: o)), maxLines: 1)),
                     ),
                   );
                 },
               ),
-              // the status text is the only part of this row a day change touches
-              faded(ValueListenableBuilder<String>(
-                valueListenable: w.status,
-                builder: (_, text, _) => _StatusLine(text: text, onTap: w.onStatus),
-              )),
-              // a café has no busy row, but the empty one keeps its margin (M2 `#mbz`, 0 tall, 8 under the status)
-              if (compact) const SizedBox(height: M2Layout.busyTopHeader),
-              if (!compact)
-                // the row takes its own height as it lands: the name settles over `settle` (at once under reduced motion) and the row fades in
-                faded(ValueListenableBuilder<HallBusyView?>(
-                  valueListenable: busy,
-                  builder: (_, v, _) {
-                    final row = v == null ? room : Arrive(key: const ValueKey('busy-live'), child: BusyRow(lamps: v.lamps, word: v.word, extra: v.extra, header: true));
-                    if (reducedMotion(context)) {
-                      _remeasure(); // (AnimatedSize cannot run for no time)
-                      return row;
-                    }
-                    return AnimatedSize(alignment: Alignment.topLeft, duration: M2Motion.settle.duration, curve: M2Motion.settle.curve, onEnd: _remeasure, child: row);
-                  },
-                )),
+              // the status line and the busy row take one fade between them (one layer, not one each)
+              faded(Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                  // the status text is the only part of this row a day change touches
+                  ValueListenableBuilder<String>(
+                    valueListenable: w.status,
+                    builder: (_, text, _) => _StatusLine(text: text, onTap: w.onStatus),
+                  ),
+                  // a café has no busy row, but the empty one keeps its margin (M2 `#mbz`, 0 tall, 8 under the status)
+                  if (compact) const SizedBox(height: M2Layout.busyTopHeader),
+                  if (!compact)
+                    // the row takes its own height as it lands: the name settles over `settle` (at once under reduced motion) and the row fades in
+                    ValueListenableBuilder<HallBusyView?>(
+                      valueListenable: busy,
+                      builder: (_, v, _) {
+                        final row = v == null ? room : Arrive(key: const ValueKey('busy-live'), child: BusyRow(lamps: v.lamps, word: v.word, extra: v.extra, header: true));
+                        if (reducedMotion(context)) {
+                          _remeasure(); // (AnimatedSize cannot run for no time)
+                          return row;
+                        }
+                        return AnimatedSize(alignment: Alignment.topLeft, duration: M2Motion.settle.duration, curve: M2Motion.settle.curve, onEnd: _remeasure, child: row);
+                      },
+                    ),
+              ])),
             ]),
           ),
         ]),
