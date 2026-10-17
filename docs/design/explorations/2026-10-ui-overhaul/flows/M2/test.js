@@ -686,8 +686,8 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       const hts = () => ev(() => [...document.querySelectorAll('#mlist .row')].slice(0, 12).map(r => Math.round(r.getBoundingClientRect().height)).join());
       const h0 = await hts(), days0 = await ev(() => logDays().length);
       await ev(() => setTrack(false)); await page.waitForTimeout(400);
-      assert.equal(await ev(() => [...document.querySelectorAll('#mlist .row .add, #mlist .row .step')].filter(e => getComputedStyle(e).visibility !== 'hidden').length), 0, 'no + or stepper on a hall row');
-      assert.equal(await hts(), h0, 'hall rows keep their height');
+      assert.equal(await ev(() => [...document.querySelectorAll('#mlist .row .add, #mlist .row .step')].filter(e => getComputedStyle(e).visibility !== 'hidden' && getComputedStyle(e).display !== 'none').length), 0, 'no + or stepper on a hall row');
+      assert(await ev(() => [...document.querySelectorAll('#mlist .row')].slice(0, 12).every(r => r.getBoundingClientRect().height >= 47.5 && r.getBoundingClientRect().height <= 90)) && (await hts()) !== h0, 'hall rows close up to name-only (round 13): ' + h0 + ' -> ' + await hts());
       assert.equal(await ev(() => getComputedStyle(document.querySelector('#bar')).display), 'none', 'no plate bar');
       assert.equal(await ev(() => [addDish('lunch', 'x', { W: {} }, 'x'), plateOpen()].join()), ',false', 'nothing records and the plate cannot open');
       await page.locator('#mlist .row', { hasText: 'Golden BBQ Chicken Thigh' }).locator('.n').tap(); await page.waitForTimeout(800);
@@ -1192,7 +1192,7 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       assert.equal(await ev(() => [...document.querySelectorAll('.page[data-p=favs] .lrow .a')].map(a => a.textContent).join()), 'Boba', 'You → Favorites lists the family by its name');
       await go('?state=search'); await ev(() => setTrack(false)); await type('boba'); await openRow('Boba');
       let s = await sheet(); assert.deepEqual([s.chips.length, s.add], [5, null], 'tracking off: the picker stays, Add goes');
-      await chip('Oat'); assert.equal((await sheet()).cal, '262', 'and it picks the label you read');
+      await chip('Oat'); assert.equal((await sheet()).n, 'Boba, Oat Milk', 'and it picks the variant whose name you read (the label is gone with tracking)');
     });
     // ---- round 12b (owner's answers, 2026-10-16) ----
     const rowQ = n => ev(n => [...document.querySelectorAll('#mlist .row:not(.syn), #sres .row')].find(r => r.querySelector('.n').textContent.replace('★', '') === n)?.querySelector('.step .q')?.textContent || null, n);
@@ -1440,6 +1440,25 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
         assert(r.right <= r.edge + .6, r.n + ' tile(s): the right edge never passes the content edge'); }
       assert([1, 2, 3].every(n => seen.has(n)), 'rows with 1, 2 and 3 tiles were measured: ' + [...seen]);
       await page.setViewportSize({ width: 390, height: 844 });
+    });
+    await scen('tracking off hides the calorie and protein figures everywhere: they fade with the rest, then the rows close to name-only; on is the reverse', async () => {
+      await go('?state=search'); await page.locator('#q').fill('chicken'); await page.waitForTimeout(900);
+      const snap = () => ev(() => { const r = [...document.querySelectorAll('#sres .row:not(.later)')].slice(0, 6); return { h: r.map(x => Math.round(x.getBoundingClientRect().height)), fig: r.map(x => { const f = x.querySelector('.fig'); return f ? [getComputedStyle(f).display, +getComputedStyle(f).opacity] : null; }) }; });
+      const a0 = await snap(); assert(a0.fig.every(f => f && f[0] !== 'none' && f[1] === 1), 'tracking on: the figures are there');
+      await ev(() => { window.__p = setTrack(false); }); await page.waitForTimeout(70);
+      const a1 = await snap(); assert(a1.fig.every(f => f && f[1] < 1 && f[1] > 0) && a1.h.join() === a0.h.join(), 'at 70 ms the figures are fading and no row has moved: ' + JSON.stringify(a1));
+      await page.waitForTimeout(220);
+      const a2 = await snap(); assert(a2.fig.every(f => f[1] === 0) && a2.h.some((h, i) => h < a0.h[i]), 'mid-close: the figures are gone and the rows are closing: ' + JSON.stringify(a2));
+      await ev(() => window.__p); await page.waitForTimeout(100);
+      const a3 = await snap(); assert(a3.fig.every(f => f === null || f[0] === 'none') && a3.h.every((h, i) => h < a0.h[i]), 'off: no figures, every row shorter: ' + JSON.stringify([a0.h, a3.h]));
+      assert(await ev(() => [...document.querySelectorAll('#sres .row:not(.later)')].slice(0, 6).every(r => r.getBoundingClientRect().height >= 48)), 'a row is never shorter than 48');
+      await go('?state=menu&hall=W'); await ev(() => setTrack(false)); await page.waitForTimeout(600);
+      assert.equal(await ev(() => [...document.querySelectorAll('#mlist .row .fig')].filter(f => f.getBoundingClientRect().width > 0).length), 0, 'hall menus: no figures');
+      await page.locator('#mlist .row:not(.syn) .tx').first().tap(); await page.waitForTimeout(900);
+      assert.deepEqual(await ev(() => [!!document.querySelector('#isbody .dn'), !!document.querySelector('#isbody .label') && getComputedStyle(document.querySelector('#isbody .label')).display !== 'none', !!document.querySelector('#isbody .ing, #isbody .where, #isbody .dal, #isbody .dsv')]), [true, false, true], 'the sheet: the name, serving and marks stay, the label goes');
+      await ev(() => isheet.to('closed')); await page.waitForTimeout(400);
+      await go('?state=search'); await ev(() => setTrack(false)); await page.waitForTimeout(500); await ev(() => { window.__p = setTrack(true); }); await page.waitForTimeout(700); await page.locator('#q').fill('chicken'); await page.waitForTimeout(800);
+      assert(await ev(() => [...document.querySelectorAll('#sres .row:not(.later)')].slice(0, 4).every(r => { const f = r.querySelector('.fig'); return f && getComputedStyle(f).display !== 'none'; })), 'tracking back on: the figures return');
     });
   };
   if (process.env.RED) { await ({ 8: round8, 9: round9, 10: round10, 11: round11, 12: round12, 13: round13 }[process.env.RED] || round7)(); console.log(results.join('\n')); console.log(`${NCHK} checks`); await browser.close(); return; }

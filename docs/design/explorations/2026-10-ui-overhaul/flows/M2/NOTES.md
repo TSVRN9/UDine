@@ -2596,7 +2596,7 @@ RED    Health Connect not installed: the row shows, and a tap opens its Play lis
 ```
 Changed older tests (round 11's alerts): "never once its last serving has ended" is now "nothing later than the push posts" (12:41 PM empty, 8:00 AM empty);
 the two background-off assertions and the `bgoff` gap check are removed; the notification's tap lands on Halls home.
-- **Now:** `RED=13 node test.js` gives 8 green scenarios, 79 checks (the five above, the hall open, the busy-row reserve, Search tiles); `RED=12` 12 scenarios, 165 checks; `node test.js` 5,356 checks and `RM=1 node test.js` 3,687, all green (final tree). (A full run once failed in round 9 on a pinned-café count, 'its pin is kept but not drawn'; a rerun and `RED=9` alone were green, so it is a timing flake under load, not this round's change.)
+- **Now:** `RED=13 node test.js` gives 8 green scenarios, 79 checks (the five above, the hall open, the busy-row reserve, Search tiles); `RED=12` 12 scenarios, 165 checks; `node test.js` 5,354 checks (final tree; the `RM=1` full run was 3,687 on the tree before the figures change and wasn't repeated after the host's memory kill; `RED=13` 87 checks). (A full run once failed in round 9 on a pinned-café count, 'its pin is kept but not drawn'; a rerun and `RED=9` alone were green, so it is a timing flake under load, not this round's change.)
 - **Vectors:** `stars` (six cases: favorites, clock, the halls with a star, the meal per hall); `alerts` sequences changed to the push window; `fountain` from round 12d.
 
 ### Shots (`build/r12/p7`)
@@ -2646,4 +2646,16 @@ blocks fold at the same time (their content has faded by then); not staggered.
 - **Fountain Drink** is marked Vegetarian and Plant based (round 12d, closed).
 - **Titles moved by the busy-block reservation, against M2-r12 (the pushed round 12c tree):** Franklin's header title 104 dp to 82 dp (22 dp higher); Worcester, Hampshire and Berkshire unchanged at 82 dp.
   Nothing else in a header moves.
+
+### Round 13: tracking off hides the figures (owner, 2026-10-17)
+- **What.** The cal and protein group of a row is `.mg.fig` (`meta()` and a packaged food's row); `#frame.notrack .fig{display:none}`, the meta line closes when only figures were on it, `.row{min-height:48px}` (64 on), the
+  lane's min-height is 0 and its tiles centre, the control column is `display:none` (it was `visibility:hidden`, so names now take the width), and a dish sheet's `.label` is hidden. `dishMid()` rests the sheet at
+  the end of `.where` when there is no label (it first used the whole content height and the sheet's chips fell off-screen at y 1748).
+- **Transition.** `rowEls()` collects the visible rows: figures and controls fade 0-150 (`exit`), then the meta line (`mFold`), the control column (`ctlFold`), the row and lane minimum heights (`minFold`) and the tiles
+  (`tagY`, from `--ty` to the row's centre) close 150-400 (`fold`); on reverses it, the figures and controls fading in 250-450 (`settle`). Strips: `p7/rowsoff.png`, `rowson.png` (+360) beside `off.png`/`on.png`.
+- **Judgement call:** the label goes from the sheet too (see CONCEPT). **Seen:** the row's text re-wraps at the end of the close (when the control column leaves layout), not during it.
+- **Tests:** "tracking off hides the calorie and protein figures everywhere" (red on the old build: "tracking on: the figures are there": no `.fig`; at 70 ms the figures are fading and no row has moved; mid-close the rows are closing;
+  off: every row shorter and never under 48; hall menus no figures; the sheet keeps name/serving/marks and drops the label; back on the figures return). Round 10's "no + or stepper" check counts `display:none` as gone;
+  "hall rows keep their height" became "hall rows close up to name-only"; round 12's "tracking off keeps the picker" reads the variant from the sheet's name (the label is hidden), not the label's number.
+- **Vectors:** top-level `tracking`: the windows in ms, the row minimum heights, what is hidden and what is kept.
 

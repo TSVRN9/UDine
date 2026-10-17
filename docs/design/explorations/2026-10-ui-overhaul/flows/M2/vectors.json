@@ -18574,6 +18574,49 @@
    }
   }
  ],
+ "tracking": {
+  "off": {
+   "fade": [
+    0,
+    150
+   ],
+   "close": [
+    150,
+    400
+   ]
+  },
+  "on": {
+   "open": [
+    0,
+    250
+   ],
+   "fade": [
+    250,
+    450
+   ],
+   "bar": [
+    250,
+    500
+   ]
+  },
+  "rowMinHeight": {
+   "on": 64,
+   "off": 48
+  },
+  "hidden": [
+   "row calories and protein (menus, Search, Favorites lens, foods)",
+   "plate bar",
+   "dish sheet's Nutrition Facts label",
+   "Today and Earlier on You",
+   "Health row",
+   "Your foods",
+   "Which was better?"
+  ],
+  "kept": [
+   "row name, diet marks, scores, token",
+   "dish sheet's name, serving, marks, Contains, where, ingredients"
+  ]
+ },
  "packaged": {
   "query": "clif",
   "yours": [

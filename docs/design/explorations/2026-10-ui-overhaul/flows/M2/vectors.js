@@ -40,6 +40,7 @@
 //   // round 13 (owner, 2026-10-17): the server sends one visible push per dish per day at about 7 AM Eastern (the sim's window: 7:00 to 7:59), so
 //   // alerts' runs after the window post nothing, and the iOS icon badge is the number of notifications delivered since the app was last opened
 //   // (the length of the 7 AM run's "posted"; Android: the launcher dot while one is unread; opening the app or tapping one clears it).
+//   "tracking": {"off": {"fade": [ms, ms], "close": [ms, ms]}, "on": {"open", "fade", "bar"}, "rowMinHeight": {"on", "off"}, "hidden": [...], "kept": [...]},   // round 13: the layer lift's windows and what tracking off hides
 //   "stars": [ {"favorites": [dish], "clock", "halls": [hall keys with a star], "meals": {hall: the meal now, else the next ahead today, else null}} ],
 //              // a hall card's star: a favorite is served at that hall in that meal
 //   "packaged": {"query", "yours": [name], "shown": [[name, calPer100g]]},   // the recorded OFF answer as the Packaged group
@@ -187,6 +188,9 @@ const PRICE = [['Harissa Chicken', 'Terrace'], ['Caesar Salad w/Chicken', 'Green
     const f = m => `${(Math.floor(m / 60) + 11) % 12 + 1}:${String(m % 60).padStart(2, '0')} ${m < 720 ? 'AM' : 'PM'}`;
     const r = { favorites: fav, ...(opt && opt.restricted ? { restricted: true } : {}), runs: runs.map(m => ({ clock: f(m), posted: alertRun(m).map(n => [n.title, n.body]) })) }; ALQ = q0; S.fav = new Set(); return r; }, [fav, runs, opt]));
   out.stars = await p.evaluate(cases => cases.map(([fav, now]) => { S.fav = new Set(fav.map(norm)); const r = { favorites: fav, clock: `${(Math.floor(now / 60) + 11) % 12 + 1}:${String(now % 60).padStart(2, '0')} ${now < 720 || now >= 1440 ? 'AM' : 'PM'}`, halls: HALLS.filter(h => hallStar(h, now)), meals: Object.fromEntries(HALLS.map(h => [h, hallMeal(h, now)])) }; S.fav = new Set(); return r; }), STARCASES);
+  // round 13: the tracking layer lifting away (timings from the motion tokens, ms) and what a row keeps with tracking off
+  out.tracking = await p.evaluate(() => ({ off: { fade: [0, MO.exit.d], close: [MO.exit.d, MO.exit.d + MO.fold.d] }, on: { open: [0, MO.fold.d], fade: [MO.fold.d, MO.fold.d + MO.settle.d], bar: [MO.fold.d, 2 * MO.fold.d] },
+    rowMinHeight: { on: 64, off: 48 }, hidden: ['row calories and protein (menus, Search, Favorites lens, foods)', 'plate bar', "dish sheet's Nutrition Facts label", 'Today and Earlier on You', 'Health row', 'Your foods', 'Which was better?'], kept: ['row name, diet marks, scores, token', "dish sheet's name, serving, marks, Contains, where, ingredients"] }));
   out.packaged = await p.evaluate(() => { S.q = 'clif'; const r = { query: S.q, yours: S.foods.map(f => f.n), shown: packHits().map(f => [f.n, f.cal]) }; S.q = ''; return r; });
   out.saved = await p.evaluate(cases => cases.map(([net, cafes, place, day]) => { const n0 = NET, s0 = new Set(SAVED); NET = net; SAVED.clear(); cafes.forEach(c => SAVED.add(c));
     const k = HALLS.includes(place) ? place : 'c' + P.places.findIndex(x => x[0] === place), v = savedMenu(k, day); NET = n0; SAVED.clear(); s0.forEach(c => SAVED.add(c));

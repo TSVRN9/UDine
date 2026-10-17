@@ -6,12 +6,13 @@ const D = __dirname, OUT = D + '/build/r12/' + (process.argv[2] || 'p7'); requir
 const N = 12;
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.HOME + '/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome' });
-  for (const [dir, W] of [['off', 390], ['on', 390], ['off', 360], ['on', 360]]) {
-    const nm = dir + (W === 390 ? '' : W);
+  for (const [dir0, W] of [['off', 390], ['on', 390], ['off', 360], ['on', 360], ['rowsoff', 390], ['rowson', 390], ['rowsoff', 360], ['rowson', 360]]) {
+    const rows = dir0.startsWith('rows'), dir = dir0.replace('rows', ''), nm = dir0 + (W === 390 ? '' : W);
     const ctx = await b.newContext({ viewport: { width: W, height: 844 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
     await ctx.addInitScript(() => { try { localStorage.setItem('udine-m2-first', 'done'); } catch (e) {} });
-    const p = await ctx.newPage(); await p.goto('file://' + D + '/index.html?state=you'); await p.evaluate(() => document.fonts.ready); await p.waitForTimeout(500);
-    await p.evaluate(() => { const W = Object.values(DISH).find(d => d.n === 'Golden BBQ Chicken Thigh' && d.h === 'W' && !d.day); addDish('lunch', W.k, { W }, W.n); }); await p.waitForTimeout(700);
+    const p = await ctx.newPage(); await p.goto('file://' + D + '/index.html?state=' + (rows ? 'search' : 'you')); await p.evaluate(() => document.fonts.ready); await p.waitForTimeout(500);
+    if (rows) { await p.locator('#q').fill('chicken'); await p.waitForTimeout(900); await p.evaluate(() => document.querySelector('#q').blur()); await p.waitForTimeout(300); }
+    if (!rows) await p.evaluate(() => { const W = Object.values(DISH).find(d => d.n === 'Golden BBQ Chicken Thigh' && d.h === 'W' && !d.day); addDish('lunch', W.k, { W }, W.n); }); await p.waitForTimeout(700);
     if (dir === 'on') { await p.evaluate(() => setTrack(false)); await p.waitForTimeout(900); }
     await p.evaluate(d => { window.__p = setTrack(d === 'on'); document.getAnimations().forEach(a => a.pause()); }, dir);
     const T = await p.evaluate(() => Math.max(...document.getAnimations().map(a => a.effect.getComputedTiming().endTime)));

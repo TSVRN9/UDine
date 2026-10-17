@@ -549,9 +549,15 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .row.syn{width:100%;text-align:left}
 /* round 10: tracking off. The menu keeps its shape: hall rows keep their lane (empty), Search's letters rise into the + slot,
    the bar and every way to record are gone, and "where" takes the sheet's action slot */
-#frame.notrack .row>.add,#frame.notrack .row>.step{visibility:hidden}
+#frame.notrack .row>.add,#frame.notrack .row>.step{display:none}   /* round 13: gone, not hidden: the name takes the width */
 #frame.notrack .lane>.add,#frame.notrack .lane>.step{display:none}
-#frame.notrack .lane{justify-content:flex-start;padding-top:10px}
+#frame.notrack .lane{justify-content:center;min-height:0}
+/* round 13 (owner, 2026-10-17): with tracking off a dish row shows its name and marks only: the calorie and protein figures go everywhere (hall menus, Search, the Favorites
+   lens, a food), the meta line closes when nothing else is on it, the row is a name-only 48, and a dish's sheet drops its label (name, serving, marks, Contains, ingredients, where stay) */
+#frame.notrack .fig{display:none}
+#frame.notrack .row{min-height:48px}
+#frame.notrack .row .m:not(:has(> :not(.fig))){display:none}
+#frame.notrack .dish .label{display:none}
 #frame.notrack #bar,#frame.notrack [data-act=custom],#frame.notrack .custom{display:none!important}
 #frame.notrack .dish .where{margin-top:16px}
 /* You (round 10) */
@@ -1196,7 +1202,7 @@ const IC = {
 function ctl(q, ghost){ return q ? `<div class="step" data-q="${q}"><button class="dec" aria-label="Less">${IC.minus}</button><span class="q">${fq(q)}</span><button class="inc" aria-label="More">${IC.plus}</button></div>`
   : `<button class="add${ghost?' ghost':''}" aria-label="Add">${IC.plus}</button>`; }
 // The meta line is groups that wrap whole: the numbers, then the scores (opt-in, You tab), then where. A wrapped line starts flush.
-const meta = d => `<span class="mg"><b>${fc(d.cal)}</b> cal<span class="gap"></span><b>${fg(d.p)}</b> protein</span>${scoresHTML(d)}`;
+const meta = d => `<span class="mg fig"><b>${fc(d.cal)}</b> cal<span class="gap"></span><b>${fg(d.p)}</b> protein</span>${scoresHTML(d)}`;
 const varMeta = v => `<span class="mg vt">${esc(v)}</span>`;   // round 12: a family's row leads with the variant it stands for, in its chip's word ("16 oz", "Almond"): a whole milk name ("Almond Milk") pushed the numbers to their own line at 360, beside the stepper-wide lane
 // Mark set. Glyphs are drawn, never emoji. Round 8: plant based is a sprout (stem, two leaves), vegetarian a single leaf:
 // two silhouettes, not one leaf filled or outlined. Those two are the only marks shown inline on rows.
@@ -1333,15 +1339,30 @@ function foldKF(el, open){ const cs=getComputedStyle(el), full={height:el.offset
   el.style.overflow='hidden'; return open ? [gone,full] : [full,gone]; }   // opacity 0 throughout: a fold only ever opens or closes empty space
 // Off: everything leaving reaches opacity 0 first (0 to 150 ms, `exit`), THEN its block closes (150 to 400 ms, `fold`), so no frame shows cut or overlapping text.
 // On: the space opens first (0 to 250 ms, `fold`, empty), THEN the content fades in (250 to 450 ms, `settle`).
-async function liftOff(){ const onYou=S.tab==='you' && !NAV.some(n=>n.kind==='page'), E=trkEls(), an=[];
+// The dish rows on screen (a list behind a sheet, or Search): the figures fade with everything else that leaves, then the meta line and the row close to name-only.
+function rowEls(){ const rows=$$('#mlist .row:not(.syn):not(.later), #sres .row:not(.later)').filter(r=>r.offsetParent && r.querySelector('.fig'));
+  return { figs:rows.flatMap(r=>[...r.querySelectorAll('.fig')]), ctl:rows.flatMap(r=>[...r.querySelectorAll('.lane > .add, .lane > .step, :scope > .add, :scope > .step')]),
+    ms:rows.map(r=>r.querySelector('.m')).filter(m=>m && [...m.children].every(c=>c.classList.contains('fig'))), rows, lanes:rows.map(r=>r.querySelector('.lane')).filter(Boolean), tags:rows.map(r=>r.querySelector('.lane > .tags')).filter(Boolean) }; }
+// the hall tiles ride the row's meta line (--ty); with the meta gone they settle to the row's centre
+const tagY = (t, to0) => { const y=getComputedStyle(t).getPropertyValue('--ty').trim()||'0px', a={transform:`translateY(${y})`}, b={transform:'translateY(0px)'}; return to0 ? [a,b] : [b,a]; };
+const mFold = (m, open) => { const cs=getComputedStyle(m), full={height:m.offsetHeight+'px', marginTop:cs.marginTop}, gone={height:'0px', marginTop:'0px'}; m.style.overflow='hidden'; return open ? [gone,full] : [full,gone]; };
+const ctlFold = (el, open) => { const h=el.offsetHeight+'px', full={height:h, minHeight:h, opacity:0}, gone={height:'0px', minHeight:'0px', opacity:0}; el.style.overflow='hidden'; return open ? [gone,full] : [full,gone]; };
+const minFold = (el, open) => { const cs=getComputedStyle(el), a=cs.minHeight, b=el.classList.contains('row') ? '48px' : '0px'; return open ? [{minHeight:b},{minHeight:a}] : [{minHeight:a},{minHeight:b}]; };
+async function liftOff(){ const onYou=S.tab==='you' && !NAV.some(n=>n.kind==='page'), E=trkEls(), an=[], R=rowEls();
+  R.figs.concat(R.ctl).forEach(e=>an.push(A(e,[{opacity:1},{opacity:0}],'exit',{fill:'both'})));
+  R.ctl.forEach(e=>an.push(A(e,ctlFold(e,false),'fold',{fill:'forwards', delay:MO.exit.d}))); R.tags.forEach(t=>an.push(A(t,tagY(t,true),'fold',{fill:'forwards', delay:MO.exit.d})));
+  R.ms.forEach(m=>an.push(A(m,mFold(m,false),'fold',{fill:'forwards', delay:MO.exit.d}))); R.rows.concat(R.lanes).forEach(e=>an.push(A(e,minFold(e,false),'fold',{fill:'forwards', delay:MO.exit.d})));
   if(barUp()) an.push(A(E.bar,[{transform:'none',opacity:1},{transform:'translateY(120%)',opacity:0}],'exit',{fill:'both'}));
   if(onYou) E.blocks.forEach(e=>{ an.push(A(e,[{opacity:1},{opacity:0}],'exit',{fill:'both'})); an.push(A(e,foldKF(e,false),'fold',{fill:'forwards', delay:MO.exit.d})); });
-  TRK.an=an; await Promise.all(an.map(done)); an.forEach(a=>a&&a.cancel()); E.blocks.forEach(e=>e.style.overflow=''); }
-async function liftOn(){ const onYou=S.tab==='you' && !NAV.some(n=>n.kind==='page'), E=trkEls(), an=[], fd=MO.fold.d;
+  TRK.an=an; await Promise.all(an.map(done)); an.forEach(a=>a&&a.cancel()); E.blocks.concat(R.ms,R.ctl).forEach(e=>e.style.overflow=''); }
+async function liftOn(){ const onYou=S.tab==='you' && !NAV.some(n=>n.kind==='page'), E=trkEls(), an=[], fd=MO.fold.d, R=rowEls();
+  R.ctl.forEach(e=>{ an.push(A(e,ctlFold(e,true),'fold',{fill:'both'})); }); R.tags.forEach(t=>an.push(A(t,tagY(t,false),'fold',{fill:'both'})));
+  R.ms.forEach(m=>{ an.push(A(m,mFold(m,true),'fold',{fill:'both'})); }); R.rows.concat(R.lanes).forEach(e=>an.push(A(e,minFold(e,true),'fold',{fill:'both'})));
+  R.figs.concat(R.ctl).forEach(e=>an.push(A(e,[{opacity:0},{opacity:1}],'settle',{fill:'both', delay:fd})));   // (the figures, and the + lane, fade in once the space is open)
   if(onYou){ E.blocks.forEach(e=>{ an.push(A(e,foldKF(e,true),'fold',{fill:'both'})); an.push(A(e,[{opacity:0},{opacity:1}],'settle',{fill:'both', delay:fd})); });
     if(barUp()) an.push(A(E.bar,[{transform:'translateY(120%)',opacity:0},{transform:'none',opacity:1}],'fold',{fill:'both', delay:fd})); }
   else if(barUp()) an.push(A(E.bar,[{transform:'translateY(120%)',opacity:0},{transform:'none',opacity:1}],'fold',{fill:'both'}));
-  TRK.an=an; await Promise.all(an.map(done)); an.forEach(a=>a&&a.cancel()); E.blocks.forEach(e=>e.style.overflow=''); }
+  TRK.an=an; await Promise.all(an.map(done)); an.forEach(a=>a&&a.cancel()); E.blocks.concat(R.ms,R.ctl).forEach(e=>e.style.overflow=''); }
 async function setTrack(on){ if(TRK.busy || S.track===on) return; TRK.busy=true; S.track=on; save();
   document.querySelector('#you [data-act=track]')?.setAttribute('aria-checked',on);
   if(!on){ if(psheet.state!=='closed') psheet.to('closed'); await liftOff(); }
@@ -1938,7 +1959,7 @@ function renderSearch(){
   alignTiles(box);
 }
 // round 13: a Search row's hall tiles sit on the row's meta line (the cal and protein group, its last line), whatever the name's lines: --ty is the gap between the two centres
-function alignTiles(box){ for(const r of box.querySelectorAll('.row')){ const t=r.querySelector('.lane > .tags'), m=[...r.querySelectorAll('.m .mg:not(.vt)')].at(-1); if(!t||!m) continue;
+function alignTiles(box){ for(const r of box.querySelectorAll('.row')){ const t=r.querySelector('.lane > .tags'), m=[...r.querySelectorAll('.m .mg:not(.vt):not(.fig)')].at(-1) || [...r.querySelectorAll('.m .mg:not(.vt)')].at(-1); if(!t||!m||(frame.classList.contains('notrack')&&m.classList.contains('fig'))){ if(t) t.style.setProperty('--ty','0px'); continue; }
     t.style.setProperty('--ty','0px'); const a=t.getBoundingClientRect(), b=m.getBoundingClientRect(); t.style.setProperty('--ty',((b.top+b.height/2)-(a.top+a.height/2)).toFixed(2)+'px'); } }
 addEventListener('resize',()=>{ const b=$('#sres'); if(b) alignTiles(b); });
 // Search's idle state (nothing typed, no lens, no scope) is the "what's on" hub: the fixture list on maroon, under the lens chips.
@@ -2291,7 +2312,7 @@ function buildMid(){ const b=$('#isbody'), rows=b.querySelectorAll('.brow'), las
 const GRAB_H=22;
 $('#isbody').addEventListener('scroll',()=>{ const b=$('#isbody'), d=b.querySelector('.dish'); if(!d) return; d.classList.toggle('stuck',b.scrollTop>4);
   if(b.scrollTop>0 && isheet.state==='mid' && IS.mid!=null) isheet.to('top'); },{passive:true});   // scrolled (wheel, trackpad, keys) at rest: it expands, as a drag up does
-function dishMid(){ const b=$('#isbody'), cal=b.querySelector('.label .cal'), top=b.getBoundingClientRect().top-b.scrollTop;
+function dishMid(){ const b=$('#isbody'), cl=b.querySelector('.label .cal'), cal=cl&&cl.offsetParent ? cl : b.querySelector('.where'), top=b.getBoundingClientRect().top-b.scrollTop;   // round 13: with tracking off there is no label: the sheet rests at the end of where
   const need=GRAB_H+(cal ? cal.getBoundingClientRect().bottom-top+6 : b.firstElementChild.offsetHeight+24+SB);   // the label's rule under Calories, then a sliver of the box: never half a line
   return Math.max(ST+8, H-need); }
 function openPlateLabel(src){
@@ -2362,7 +2383,7 @@ function lookupHits(){ const seen=new Set(), out=[];
     const f={id:'u:'+d.k, n:d.n, srv:d.srv, cal:d.cal, p:d.p, c:d.c, f:d.f, nut:d.nut, algs:d.algs, ing:d.ing, d:d.d, src:'umass'}; FX[f.id]=f; out.push(f); }
   return out.slice(0,10); }
 const foodRow = f => { const fi=findItem(foodMeal(),'food:'+f.id);
-  return `<div class="row" data-food="${esc(f.id)}" data-src="s"><div class="tx"><div class="n">${nameHTML(f.n, dietMark(f))}</div><div class="m">${f.per100?`<span class="mg"><b>${fc(f.cal)}</b> cal per 100 g</span>`:meta(f)}</div></div><div class="lane">${ctl(fi&&fi.it.qty)}</div></div>`; };
+  return `<div class="row" data-food="${esc(f.id)}" data-src="s"><div class="tx"><div class="n">${nameHTML(f.n, dietMark(f))}</div><div class="m">${f.per100?`<span class="mg fig"><b>${fc(f.cal)}</b> cal per 100 g</span>`:meta(f)}</div></div><div class="lane">${ctl(fi&&fi.it.qty)}</div></div>`; };
 // a food's sheet: the dish sheet's identity group, Add to plate, the label and ingredients. No where, grades or star: it isn't
 // served anywhere. A saved food has Edit in the star's slot.
 let FS=null;

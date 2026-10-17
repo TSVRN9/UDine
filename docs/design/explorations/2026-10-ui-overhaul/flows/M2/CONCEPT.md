@@ -1026,7 +1026,7 @@ ratings, the ingredients) is the picked variant's own, so what you read is what 
   The chip fills (`settle`) and the content under it crossfades from .4 (`settle`), as a plate tab does.
 - **In a builder** (most families, critique #10) the picker chooses the base. Chosen add-ins stay chosen across a
   size change, so a 16 oz with oat milk becomes a 20 oz with oat milk. The foot sums the new base.
-- **Tracking off** keeps the picker. It chooses which label you read; only Add is gone (round 10).
+- **Tracking off** keeps the picker. It chooses which variant's name, serving and marks you read (the label is gone with tracking, round 13); only Add is gone (round 10).
 
 ### 4. Pick-one everywhere: the pho's broth
 - **The pho bar's broths move out of the add-in rows into the same chips**, under the name. Their labels are the feed's
@@ -1294,10 +1294,15 @@ underneath never changes: it is a menu with or without the layer, so the screen 
   Which was better?) fade out with it; (2) at 150 ms the blocks, now empty, close (`fold`, 250 ms) and the sections below ride up as they close.
 - **The Track switch is the anchor:** its check answers at once and it never moves relative to the header; only what was above it closes.
 - **On:** the exact reverse, as one timeline: the space opens first, the content fades in after it has room, the bar rises with it.
-- **Halls on arrival:** the lists are hidden while this plays, so they are already in their off state: rows with their name, calories and
-  protein as menu facts, with no `+` lane, so the names take the width and re-wrap wider; no plate bar. Calories and protein on a row stay: they
-  are the menu's facts (the label still prints), not the ledger. (Open: the owner's list names "the cal and protein figures on rows" among
-  the things that vanish; as built they stay, the controls go. Say if the figures should go too.)
+- **The figures leave too (owner, 2026-10-17).** With tracking off a dish row shows its name and marks only: the calorie and protein figures go everywhere they
+  appear (hall menus, Search, the Favorites lens, a food), and the dish sheet drops its Nutrition Facts label (judgement: calories and protein are the label's
+  headline, so a label that kept them would contradict the rule). The sheet keeps the name, serving, diet marks, Contains, the ratings, where and the ingredients;
+  it rests at the end of "where" instead of under Calories. The Favorites page (You) never had figures.
+- **On a list that is on screen** (Search, or a hall's menu behind a sheet) the same layer-lift runs: **0 to 150 ms** the figures and the `+` and steppers fade
+  (`exit`) with the bar and the You blocks; **150 to 400 ms** the meta line (when nothing but figures were on it), the control column and the row's
+  minimum height close (`fold`, 64 to a name-only 48), and the hall tiles settle from the meta line to the row's centre. The row's text re-wraps
+  at the end, when the control column leaves the layout. **On** is the reverse: the rows open (0 to 250 ms), then the figures and the controls fade in (250 to 450 ms).
+  The Halls and Search lists are usually hidden behind You while this plays, so on arrival they are already name-only, with no plate bar.
 - **Motion:** one new token, `fold` (250 ms, standard easing, M3 medium1: a block closing or opening). The bar uses `exit` going and `fold`
   coming back; the fades are `settle`. Reduced motion: opacity crossfades only, no movement.
 - **Frames:** `build/r12/p7/off.png` and `on.png`: twelve frames at 390 per transition, evenly spaced in animation time.
