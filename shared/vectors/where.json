@@ -1,0 +1,3644 @@
+{
+  "format": "The \"where\" sentence a notification carries. kind=where: input {now, dish, newton, places [{key, area}], hours {place: DiningHallHours}, grab? {place: window}, days {isoDate: {place: {meal: [dish names]}}}} -> expected {groups, sentences}. now is an absolute instant (ISO 8601 with offset), read as Eastern wall time. groups is wherePlan (app/lib/core/m2/where.dart) as WhereGroup.toJson, soonest first; sentences[k] is whenText(groups[k], groups[k-1]). newton is always false: the server never answers for the Charles River places (area 4). The source is Dart: regenerate with `cd app && dart run tool/where_vectors.dart`; never hand-edit expected.",
+  "cases": [
+    {
+      "kind": "where",
+      "name": "now, until: lunch at one hall, mid-lunch",
+      "input": {
+        "now": "2026-10-08T12:41:00-04:00",
+        "dish": "Chicken Tenders",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "F": {
+            "hallTid": 2,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "H": {
+            "hallTid": 3,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "B": {
+            "hallTid": 4,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "lunch": [
+                "Chicken Tenders"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "now",
+            "meal": "lunch",
+            "day": 0,
+            "open": "11:00 AM",
+            "close": "4:00 PM",
+            "halls": [
+              "W"
+            ]
+          }
+        ],
+        "sentences": [
+          "Lunch now, until 4 PM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "from: dinner is later today",
+      "input": {
+        "now": "2026-10-08T08:00:00-04:00",
+        "dish": "Chicken Tenders",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "F": {
+            "hallTid": 2,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "H": {
+            "hallTid": 3,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "B": {
+            "hallTid": 4,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "dinner": [
+                "Chicken Tenders"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "later",
+            "meal": "dinner",
+            "day": 0,
+            "open": "4:30 PM",
+            "close": "9:00 PM",
+            "halls": [
+              "W"
+            ]
+          }
+        ],
+        "sentences": [
+          "Dinner from 4:30 PM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "two halls in the same meal share one group, halls in W F H B order",
+      "input": {
+        "now": "2026-10-08T12:00:00-04:00",
+        "dish": "Chicken Tenders",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "F": {
+            "hallTid": 2,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "H": {
+            "hallTid": 3,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "B": {
+            "hallTid": 4,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "H": {
+              "lunch": [
+                "Chicken Tenders"
+              ]
+            },
+            "W": {
+              "lunch": [
+                "Chicken Tenders"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "now",
+            "meal": "lunch",
+            "day": 0,
+            "open": "11:00 AM",
+            "close": "4:00 PM",
+            "halls": [
+              "W",
+              "H"
+            ]
+          }
+        ],
+        "sentences": [
+          "Lunch now, until 4 PM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "several groups: lunch now at W, F closes earlier (Until), dinner from, tomorrow",
+      "input": {
+        "now": "2026-10-08T12:00:00-04:00",
+        "dish": "Chicken Tenders",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "F": {
+            "hallTid": 2,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "3:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "H": {
+            "hallTid": 3,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "B": {
+            "hallTid": 4,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "lunch": [
+                "Chicken Tenders"
+              ],
+              "dinner": [
+                "Chicken Tenders"
+              ]
+            },
+            "F": {
+              "lunch": [
+                "Chicken Tenders"
+              ]
+            }
+          },
+          "2026-10-09": {
+            "W": {
+              "lunch": [
+                "Chicken Tenders"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "now",
+            "meal": "lunch",
+            "day": 0,
+            "open": "11:00 AM",
+            "close": "3:00 PM",
+            "halls": [
+              "F"
+            ]
+          },
+          {
+            "st": "now",
+            "meal": "lunch",
+            "day": 0,
+            "open": "11:00 AM",
+            "close": "4:00 PM",
+            "halls": [
+              "W"
+            ]
+          },
+          {
+            "st": "later",
+            "meal": "dinner",
+            "day": 0,
+            "open": "4:30 PM",
+            "close": "9:00 PM",
+            "halls": [
+              "W"
+            ]
+          },
+          {
+            "st": "tomorrow",
+            "meal": "lunch",
+            "day": 1,
+            "open": "11:00 AM",
+            "close": "4:00 PM",
+            "halls": [
+              "W"
+            ]
+          }
+        ],
+        "sentences": [
+          "Lunch now, until 3 PM",
+          "Until 4 PM",
+          "Dinner from 4:30 PM",
+          "Tomorrow, lunch from 11 AM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "several groups: breakfast and lunch later, same state different meal",
+      "input": {
+        "now": "2026-10-08T06:00:00-04:00",
+        "dish": "Scrambled Eggs",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "F": {
+            "hallTid": 2,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "H": {
+            "hallTid": 3,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "B": {
+            "hallTid": 4,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "breakfast": [
+                "Scrambled Eggs"
+              ],
+              "lunch": [
+                "Scrambled Eggs"
+              ]
+            },
+            "F": {
+              "lunch": [
+                "Scrambled Eggs"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "later",
+            "meal": "breakfast",
+            "day": 0,
+            "open": "7:00 AM",
+            "close": "10:00 AM",
+            "halls": [
+              "W"
+            ]
+          },
+          {
+            "st": "later",
+            "meal": "lunch",
+            "day": 0,
+            "open": "11:00 AM",
+            "close": "4:00 PM",
+            "halls": [
+              "W",
+              "F"
+            ]
+          }
+        ],
+        "sentences": [
+          "Breakfast from 7 AM",
+          "Lunch from 11 AM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "last serving ended: no group, no sentence",
+      "input": {
+        "now": "2026-10-08T16:30:00-04:00",
+        "dish": "Chicken Tenders",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "F": {
+            "hallTid": 2,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "H": {
+            "hallTid": 3,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "B": {
+            "hallTid": 4,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "lunch": [
+                "Chicken Tenders"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [],
+        "sentences": []
+      }
+    },
+    {
+      "kind": "where",
+      "name": "window is half-open at close: 4:00 PM is past",
+      "input": {
+        "now": "2026-10-08T16:00:00-04:00",
+        "dish": "Chicken Tenders",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "F": {
+            "hallTid": 2,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "H": {
+            "hallTid": 3,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "B": {
+            "hallTid": 4,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "lunch": [
+                "Chicken Tenders"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [],
+        "sentences": []
+      }
+    },
+    {
+      "kind": "where",
+      "name": "only tomorrow is left",
+      "input": {
+        "now": "2026-10-08T21:30:00-04:00",
+        "dish": "Chicken Tenders",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "F": {
+            "hallTid": 2,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "H": {
+            "hallTid": 3,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "B": {
+            "hallTid": 4,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-09": {
+            "W": {
+              "lunch": [
+                "Chicken Tenders"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "tomorrow",
+            "meal": "lunch",
+            "day": 1,
+            "open": "11:00 AM",
+            "close": "4:00 PM",
+            "halls": [
+              "W"
+            ]
+          }
+        ],
+        "sentences": [
+          "Tomorrow, lunch from 11 AM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "dish key: case, curly apostrophe and & fold",
+      "input": {
+        "now": "2026-10-08T12:00:00-04:00",
+        "dish": "chef's mac & cheese",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "F": {
+            "hallTid": 2,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "H": {
+            "hallTid": 3,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "B": {
+            "hallTid": 4,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "lunch": [
+                "Chef’s Mac & Cheese"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "now",
+            "meal": "lunch",
+            "day": 0,
+            "open": "11:00 AM",
+            "close": "4:00 PM",
+            "halls": [
+              "W"
+            ]
+          }
+        ],
+        "sentences": [
+          "Lunch now, until 4 PM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "a dish not on the menu",
+      "input": {
+        "now": "2026-10-08T12:00:00-04:00",
+        "dish": "Nothing",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "F": {
+            "hallTid": 2,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "H": {
+            "hallTid": 3,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "B": {
+            "hallTid": 4,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "lunch": [
+                "Chicken Tenders"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [],
+        "sentences": []
+      }
+    },
+    {
+      "kind": "where",
+      "name": "late night, own window 9 PM to 2 AM: 8 PM reads from 9 PM",
+      "input": {
+        "now": "2026-10-08T20:00:00-04:00",
+        "dish": "Pizza",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            },
+            "latenight": {
+              "openTime": "9:00 PM",
+              "closeTime": "2:00 AM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "late": [
+                "Pizza"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "later",
+            "meal": "late",
+            "day": 0,
+            "open": "9:00 PM",
+            "close": "2:00 AM",
+            "halls": [
+              "W"
+            ]
+          }
+        ],
+        "sentences": [
+          "Late night from 9 PM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "late night, own window: 9:30 PM is now, until 2 AM",
+      "input": {
+        "now": "2026-10-08T21:30:00-04:00",
+        "dish": "Pizza",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            },
+            "latenight": {
+              "openTime": "9:00 PM",
+              "closeTime": "2:00 AM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "late": [
+                "Pizza"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "now",
+            "meal": "late",
+            "day": 0,
+            "open": "9:00 PM",
+            "close": "2:00 AM",
+            "halls": [
+              "W"
+            ]
+          }
+        ],
+        "sentences": [
+          "Late night now, until 2 AM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "late night, own window: 11 PM is now, until 2 AM",
+      "input": {
+        "now": "2026-10-08T23:00:00-04:00",
+        "dish": "Pizza",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            },
+            "latenight": {
+              "openTime": "9:00 PM",
+              "closeTime": "2:00 AM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "late": [
+                "Pizza"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "now",
+            "meal": "late",
+            "day": 0,
+            "open": "9:00 PM",
+            "close": "2:00 AM",
+            "halls": [
+              "W"
+            ]
+          }
+        ],
+        "sentences": [
+          "Late night now, until 2 AM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "late night, own window: 12:30 AM, yesterday's late menu is still open until 2 AM",
+      "input": {
+        "now": "2026-10-09T00:30:00-04:00",
+        "dish": "Pizza",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            },
+            "latenight": {
+              "openTime": "9:00 PM",
+              "closeTime": "2:00 AM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "late": [
+                "Pizza"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "now",
+            "meal": "late",
+            "day": 0,
+            "open": "9:00 PM",
+            "close": "2:00 AM",
+            "halls": [
+              "W"
+            ]
+          }
+        ],
+        "sentences": [
+          "Late night now, until 2 AM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "late night, own window: 1:30 AM, tonight's late menu is from 9 PM",
+      "input": {
+        "now": "2026-10-09T01:30:00-04:00",
+        "dish": "Pizza",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            },
+            "latenight": {
+              "openTime": "9:00 PM",
+              "closeTime": "2:00 AM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-09": {
+            "W": {
+              "late": [
+                "Pizza"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "later",
+            "meal": "late",
+            "day": 0,
+            "open": "9:00 PM",
+            "close": "2:00 AM",
+            "halls": [
+              "W"
+            ]
+          }
+        ],
+        "sentences": [
+          "Late night from 9 PM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "late night, own window: 1:30 AM with yesterday's and today's menus, now first then from",
+      "input": {
+        "now": "2026-10-09T01:30:00-04:00",
+        "dish": "Pizza",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            },
+            "latenight": {
+              "openTime": "9:00 PM",
+              "closeTime": "2:00 AM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "late": [
+                "Pizza"
+              ]
+            }
+          },
+          "2026-10-09": {
+            "W": {
+              "late": [
+                "Pizza"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "now",
+            "meal": "late",
+            "day": 0,
+            "open": "9:00 PM",
+            "close": "2:00 AM",
+            "halls": [
+              "W"
+            ]
+          },
+          {
+            "st": "later",
+            "meal": "late",
+            "day": 0,
+            "open": "9:00 PM",
+            "close": "2:00 AM",
+            "halls": [
+              "W"
+            ]
+          }
+        ],
+        "sentences": [
+          "Late night now, until 2 AM",
+          "Late night from 9 PM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "late night, own window: 2:30 AM, yesterday's late menu has closed",
+      "input": {
+        "now": "2026-10-09T02:30:00-04:00",
+        "dish": "Pizza",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            },
+            "latenight": {
+              "openTime": "9:00 PM",
+              "closeTime": "2:00 AM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "late": [
+                "Pizza"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [],
+        "sentences": []
+      }
+    },
+    {
+      "kind": "where",
+      "name": "late night, own window: 9:30 PM with tonight's and tomorrow's menus",
+      "input": {
+        "now": "2026-10-08T21:30:00-04:00",
+        "dish": "Pizza",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            },
+            "latenight": {
+              "openTime": "9:00 PM",
+              "closeTime": "2:00 AM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "late": [
+                "Pizza"
+              ]
+            }
+          },
+          "2026-10-09": {
+            "W": {
+              "late": [
+                "Pizza"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "now",
+            "meal": "late",
+            "day": 0,
+            "open": "9:00 PM",
+            "close": "2:00 AM",
+            "halls": [
+              "W"
+            ]
+          },
+          {
+            "st": "tomorrow",
+            "meal": "late",
+            "day": 1,
+            "open": "9:00 PM",
+            "close": "2:00 AM",
+            "halls": [
+              "W"
+            ]
+          }
+        ],
+        "sentences": [
+          "Late night now, until 2 AM",
+          "Tomorrow, late night from 9 PM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "late night synthesized from the standard clock and general to 2 AM: 11 PM is now, until 2 AM",
+      "input": {
+        "now": "2026-10-08T23:00:00-04:00",
+        "dish": "Pizza",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "2:00 AM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "late": [
+                "Pizza"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "now",
+            "meal": "late",
+            "day": 0,
+            "open": "9:00 PM",
+            "close": "2:00 AM",
+            "halls": [
+              "W"
+            ]
+          }
+        ],
+        "sentences": [
+          "Late night now, until 2 AM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "late night synthesized: 12:30 AM, yesterday's late menu is still open",
+      "input": {
+        "now": "2026-10-09T00:30:00-04:00",
+        "dish": "Pizza",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "2:00 AM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "late": [
+                "Pizza"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "now",
+            "meal": "late",
+            "day": 0,
+            "open": "9:00 PM",
+            "close": "2:00 AM",
+            "halls": [
+              "W"
+            ]
+          }
+        ],
+        "sentences": [
+          "Late night now, until 2 AM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "late night synthesized: 1:30 AM, tonight's menu is from 9 PM",
+      "input": {
+        "now": "2026-10-09T01:30:00-04:00",
+        "dish": "Pizza",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "2:00 AM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-09": {
+            "W": {
+              "late": [
+                "Pizza"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "later",
+            "meal": "late",
+            "day": 0,
+            "open": "9:00 PM",
+            "close": "2:00 AM",
+            "halls": [
+              "W"
+            ]
+          }
+        ],
+        "sentences": [
+          "Late night from 9 PM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "noon and midnight read as words",
+      "input": {
+        "now": "2026-10-08T10:00:00-04:00",
+        "dish": "Chicken Tenders",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "12:00 PM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "5:00 PM",
+              "closeTime": "11:59 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "lunch": [
+                "Chicken Tenders"
+              ],
+              "dinner": [
+                "Chicken Tenders"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "later",
+            "meal": "lunch",
+            "day": 0,
+            "open": "12:00 PM",
+            "close": "4:00 PM",
+            "halls": [
+              "W"
+            ]
+          },
+          {
+            "st": "later",
+            "meal": "dinner",
+            "day": 0,
+            "open": "5:00 PM",
+            "close": "11:59 PM",
+            "halls": [
+              "W"
+            ]
+          }
+        ],
+        "sentences": [
+          "Lunch from noon",
+          "Dinner from 5 PM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "hours not known for a hall: it serves nothing",
+      "input": {
+        "now": "2026-10-08T12:00:00-04:00",
+        "dish": "Chicken Tenders",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "F": {
+            "hallTid": 2,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "lunch": [
+                "Chicken Tenders"
+              ]
+            },
+            "F": {
+              "lunch": [
+                "Chicken Tenders"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "now",
+            "meal": "lunch",
+            "day": 0,
+            "open": "11:00 AM",
+            "close": "4:00 PM",
+            "halls": [
+              "F"
+            ]
+          }
+        ],
+        "sentences": [
+          "Lunch now, until 4 PM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "a hall with no general hours has no synthesized meal",
+      "input": {
+        "now": "2026-10-08T12:00:00-04:00",
+        "dish": "Pizza",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": null
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "late": [
+                "Pizza"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [],
+        "sentences": []
+      }
+    },
+    {
+      "kind": "where",
+      "name": "newton false: a Charles River place is left out",
+      "input": {
+        "now": "2026-10-08T12:00:00-04:00",
+        "dish": "Quesadilla",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "c28": {
+            "hallTid": 0,
+            "general": {
+              "openTime": "8:00 AM",
+              "closeTime": "4:00 PM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "c28": {
+              "all": [
+                "Quesadilla"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [],
+        "sentences": []
+      }
+    },
+    {
+      "kind": "where",
+      "name": "newton false: the halls still answer when a Charles River place serves it too",
+      "input": {
+        "now": "2026-10-08T12:00:00-04:00",
+        "dish": "Quesadilla",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "c28": {
+            "hallTid": 0,
+            "general": {
+              "openTime": "8:00 AM",
+              "closeTime": "4:00 PM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "c28": {
+              "all": [
+                "Quesadilla"
+              ]
+            },
+            "W": {
+              "lunch": [
+                "Quesadilla"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "now",
+            "meal": "lunch",
+            "day": 0,
+            "open": "11:00 AM",
+            "close": "4:00 PM",
+            "halls": [
+              "W"
+            ]
+          }
+        ],
+        "sentences": [
+          "Lunch now, until 4 PM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "a cafe all-day menu",
+      "input": {
+        "now": "2026-10-08T12:00:00-04:00",
+        "dish": "Latte",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "c12": {
+            "hallTid": 0,
+            "general": {
+              "openTime": "8:00 AM",
+              "closeTime": "4:00 PM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "c12": {
+              "all": [
+                "Latte"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "now",
+            "meal": "all",
+            "day": 0,
+            "open": "8:00 AM",
+            "close": "4:00 PM",
+            "halls": [
+              "c12"
+            ]
+          }
+        ],
+        "sentences": [
+          "Now, until 4 PM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "a hall Grab N Go window",
+      "input": {
+        "now": "2026-10-08T12:00:00-04:00",
+        "dish": "Wrap",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "F": {
+            "hallTid": 2,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "H": {
+            "hallTid": 3,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "B": {
+            "hallTid": 4,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          }
+        },
+        "grab": {
+          "W": {
+            "openTime": "10:00 AM",
+            "closeTime": "3:00 PM"
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "grab": [
+                "Wrap"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "now",
+            "meal": "grab",
+            "day": 0,
+            "open": "10:00 AM",
+            "close": "3:00 PM",
+            "halls": [
+              "W"
+            ]
+          }
+        ],
+        "sentences": [
+          "Grab 'N Go now, until 3 PM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "now == open: 11:00 AM lunch is now",
+      "input": {
+        "now": "2026-10-08T11:00:00-04:00",
+        "dish": "Chicken Tenders",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "F": {
+            "hallTid": 2,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "H": {
+            "hallTid": 3,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "B": {
+            "hallTid": 4,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "lunch": [
+                "Chicken Tenders"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "now",
+            "meal": "lunch",
+            "day": 0,
+            "open": "11:00 AM",
+            "close": "4:00 PM",
+            "halls": [
+              "W"
+            ]
+          }
+        ],
+        "sentences": [
+          "Lunch now, until 4 PM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "until midnight is printed: a dinner closing 11:59 PM",
+      "input": {
+        "now": "2026-10-08T20:00:00-04:00",
+        "dish": "Chicken Tenders",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "5:00 PM",
+              "closeTime": "11:59 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "dinner": [
+                "Chicken Tenders"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "now",
+            "meal": "dinner",
+            "day": 0,
+            "open": "5:00 PM",
+            "close": "11:59 PM",
+            "halls": [
+              "W"
+            ]
+          }
+        ],
+        "sentences": [
+          "Dinner now, until midnight"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "general with close == open: no window, no synthesized meal",
+      "input": {
+        "now": "2026-10-08T12:00:00-04:00",
+        "dish": "Chicken Tenders",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": null,
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "8:00 AM",
+              "closeTime": "8:00 AM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "W": {
+              "lunch": [
+                "Chicken Tenders"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [],
+        "sentences": []
+      }
+    },
+    {
+      "kind": "where",
+      "name": "all-day cafe, later: From",
+      "input": {
+        "now": "2026-10-08T06:00:00-04:00",
+        "dish": "Latte",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "c12": {
+            "hallTid": 0,
+            "general": {
+              "openTime": "8:00 AM",
+              "closeTime": "4:00 PM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "c12": {
+              "all": [
+                "Latte"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "later",
+            "meal": "all",
+            "day": 0,
+            "open": "8:00 AM",
+            "close": "4:00 PM",
+            "halls": [
+              "c12"
+            ]
+          }
+        ],
+        "sentences": [
+          "From 8 AM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "all-day cafe, tomorrow: Tomorrow, from",
+      "input": {
+        "now": "2026-10-08T18:00:00-04:00",
+        "dish": "Latte",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "c12": {
+            "hallTid": 0,
+            "general": {
+              "openTime": "8:00 AM",
+              "closeTime": "4:00 PM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-09": {
+            "c12": {
+              "all": [
+                "Latte"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "tomorrow",
+            "meal": "all",
+            "day": 1,
+            "open": "8:00 AM",
+            "close": "4:00 PM",
+            "halls": [
+              "c12"
+            ]
+          }
+        ],
+        "sentences": [
+          "Tomorrow, from 8 AM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "a cafe Grab N Go menu uses general",
+      "input": {
+        "now": "2026-10-08T12:00:00-04:00",
+        "dish": "Wrap",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "c12": {
+            "hallTid": 0,
+            "general": {
+              "openTime": "8:00 AM",
+              "closeTime": "4:00 PM"
+            }
+          }
+        },
+        "days": {
+          "2026-10-08": {
+            "c12": {
+              "grab": [
+                "Wrap"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "now",
+            "meal": "grab",
+            "day": 0,
+            "open": "8:00 AM",
+            "close": "4:00 PM",
+            "halls": [
+              "c12"
+            ]
+          }
+        ],
+        "sentences": [
+          "Grab 'N Go now, until 4 PM"
+        ]
+      }
+    },
+    {
+      "kind": "where",
+      "name": "a hall Grab N Go, tomorrow",
+      "input": {
+        "now": "2026-10-08T12:00:00-04:00",
+        "dish": "Wrap",
+        "newton": false,
+        "places": [
+          {
+            "key": "W",
+            "area": 1
+          },
+          {
+            "key": "F",
+            "area": 1
+          },
+          {
+            "key": "H",
+            "area": 1
+          },
+          {
+            "key": "B",
+            "area": 1
+          },
+          {
+            "key": "c12",
+            "area": 2
+          },
+          {
+            "key": "c28",
+            "area": 4
+          }
+        ],
+        "hours": {
+          "W": {
+            "hallTid": 1,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "F": {
+            "hallTid": 2,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "H": {
+            "hallTid": 3,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          },
+          "B": {
+            "hallTid": 4,
+            "breakfast": {
+              "openTime": "7:00 AM",
+              "closeTime": "10:00 AM"
+            },
+            "lunch": {
+              "openTime": "11:00 AM",
+              "closeTime": "4:00 PM"
+            },
+            "dinner": {
+              "openTime": "4:30 PM",
+              "closeTime": "9:00 PM"
+            },
+            "general": {
+              "openTime": "7:00 AM",
+              "closeTime": "9:00 PM"
+            }
+          }
+        },
+        "grab": {
+          "W": {
+            "openTime": "10:00 AM",
+            "closeTime": "3:00 PM"
+          }
+        },
+        "days": {
+          "2026-10-09": {
+            "W": {
+              "grab": [
+                "Wrap"
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "groups": [
+          {
+            "st": "tomorrow",
+            "meal": "grab",
+            "day": 1,
+            "open": "10:00 AM",
+            "close": "3:00 PM",
+            "halls": [
+              "W"
+            ]
+          }
+        ],
+        "sentences": [
+          "Tomorrow, Grab 'N Go from 10 AM"
+        ]
+      }
+    }
+  ]
+}

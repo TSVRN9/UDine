@@ -86,7 +86,7 @@ export function mapHallHours(data: InfoV2Location[]): Map<number, HallHours> {
 }
 
 /** "H:MM AM/PM" -> minutes since midnight, or null if unparseable. */
-function parseTimeOfDay(time: string): number | null {
+export function parseTimeOfDay(time: string): number | null {
   const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(time.trim());
   if (!m) return null;
   let hour = Number(m[1]) % 12;
@@ -96,7 +96,7 @@ function parseTimeOfDay(time: string): number | null {
 
 /** minutes since midnight -> "H:MM AM/PM", no leading zero -- normalizes get_infov2's inconsistent
  * raw formatting ("07:00 AM" in some responses, "7:00 AM" in others) to one display form. */
-function minutesToLabel(totalMinutes: number): string {
+export function minutesToLabel(totalMinutes: number): string {
   const hour24 = Math.floor(totalMinutes / 60) % 24;
   const minute = totalMinutes % 60;
   const period = hour24 >= 12 ? "PM" : "AM";
