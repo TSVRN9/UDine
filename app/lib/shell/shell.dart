@@ -66,7 +66,7 @@ class ShellState extends State<Shell> with WidgetsBindingObserver implements She
         if (f != null) openFoodSheet(navigator.currentContext!, food: f, meal: 'lunch', startEdit: q['edit'] == '1');
       });
     }
-    // A tap on a favourite-alert notification: Halls, with the hall pushed at that meal, at the dish. One launched by it was held until now.
+    // A tap on a favourite-alert notification: Halls home. One launched by it was held until now.
     _taps = alertTaps.stream.listen(_landAlert);
     if (takeHeldTap() case final route?) WidgetsBinding.instance.addPostFrameCallback((_) => _landAlert(route));
     if (u.path == '/custom') {
@@ -77,18 +77,16 @@ class ShellState extends State<Shell> with WidgetsBindingObserver implements She
   }
   StreamSubscription<String>? _taps;
 
-  void _landAlert(String route) {
-    final l = mounted ? alertLanding(route, AppScope.of(context).repo.today) : null;
-    if (l == null) return;
-    // Every sheet closes the normal way, or it would stay over the landed hall. Not first run: that is onboarding the user has not
-    // finished, so it stays over the hall, and dismissing it reveals the dish.
+  /// A notification tap lands on Halls home, with nothing pushed: favourites show there themselves. Every sheet closes the normal way, except
+  /// first run: onboarding the user has not finished stays over Halls, and dismissing it is theirs to do.
+  void _landAlert(String _) {
+    if (!mounted) return;
     for (final s in [..._sheets]) {
       if (!s.onboarding) s.handle.close();
     }
     _plateBack?.call()?.close();
     navigator.currentState?.popUntil((r) => r.isFirst);
     _tab.value = 0;
-    openPlace(l.place, meal: l.meal, day: l.day, dish: l.dish);
   }
 
   final _sheets = <_Sheet>[];

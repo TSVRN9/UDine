@@ -19,7 +19,6 @@ import 'alerts_os.dart';
 /// which Info.plist lists and AppDelegate registers; iOS decides when it runs, if at all.
 const alertTask = 'com.udinetogether.udine.favoriteAlerts';
 
-const _channel = AndroidNotificationDetails('favorite_alerts', 'Favorites on the menu');
 final _notifications = FlutterLocalNotificationsPlugin();
 
 /// A tap on a notification while the app is running; Shell (shell.dart) lands the route.
@@ -61,7 +60,8 @@ Future<void> _post(AlertNotice n) async {
       id: n.dishName.hashCode & 0x7fffffff,
       title: n.dishName,
       body: n.body,
-      notificationDetails: const NotificationDetails(android: _channel, iOS: DarwinNotificationDetails()),
+      // BigText: a body naming several places expands instead of being cut off at two lines
+      notificationDetails: NotificationDetails(android: AndroidNotificationDetails('favorite_alerts', 'Favorites on the menu', styleInformation: BigTextStyleInformation(n.body)), iOS: const DarwinNotificationDetails()),
       payload: n.route,
     );
 }
