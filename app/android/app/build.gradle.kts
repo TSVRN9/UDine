@@ -16,6 +16,7 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true // flutter_local_notifications 10+
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -69,6 +70,10 @@ androidComponents {
     onVariants(selector().withFlavor("channel" to "internal")) { v ->
         if (internalKey != null) v.signingConfig.setConfig(android.signingConfigs.getByName("internal"))
     }
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
 kotlin {
