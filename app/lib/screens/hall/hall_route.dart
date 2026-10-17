@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../core/types.dart' show diningHalls;
-import '../../core/m2/board.dart' show halls;
+import '../../core/m2/board.dart' show dishKey, halls;
 import '../../core/m2/places.dart' show cafeTable;
 import '../../motion/routes.dart';
 import '../../shell/app_scope.dart';
@@ -49,9 +49,18 @@ Route<void>? hallLaunchRoute(String route, double top) {
   return BaseRoute<void>(
     settings: RouteSettings(name: route),
     builder: (context) {
-      final iso = u.queryParameters['day'], today = AppScope.of(context).repo.today;
-      final day = iso == null ? 0 : (DateTime.parse(iso).difference(DateTime.parse(today)).inDays).clamp(0, 14);
-      return HallMenuPage(place: place, top: top, day: day, meal: u.queryParameters['meal'], dish: u.queryParameters['dish']);
+      return HallMenuPage(place: place, top: top, day: _dayOffset(u.queryParameters['day'], AppScope.of(context).repo.today), meal: u.queryParameters['meal'], dish: u.queryParameters['dish']);
     },
   );
+}
+
+int _dayOffset(String? iso, String today) => iso == null ? 0 : (DateTime.parse(iso).difference(DateTime.parse(today)).inDays).clamp(0, 14);
+
+/// A favourite-alert notification's route (`/hall/<slug>?meal=&day=&dish=`) as where Shell sends it: the place, M2's meal key, the day as an
+/// offset from [today], and the dish's key. Null for any other route, an unknown hall, or no dish.
+({String place, String meal, int day, String dish})? alertLanding(String route, String today) {
+  final u = Uri.parse(route), q = u.queryParameters, name = q['dish'];
+  if (u.pathSegments.length != 2 || u.pathSegments[0] != 'hall' || name == null) return null;
+  final i = diningHalls.indexWhere((h) => h.slug == u.pathSegments[1]);
+  return i < 0 ? null : (place: halls[i], meal: q['meal'] ?? 'lunch', day: _dayOffset(q['day'], today), dish: dishKey(name));
 }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import '../alerts/alerts.dart' show alertTaps, takeHeldTap;
 import '../core/m2/history.dart' show cafeIdsOf;
 import '../core/store/log_book.dart';
 import '../data/repository.dart' show DataState, HoursData, Loaded, LoadedOffline;
@@ -64,12 +65,25 @@ class ShellState extends State<Shell> with WidgetsBindingObserver implements She
         if (f != null) openFoodSheet(navigator.currentContext!, food: f, meal: 'lunch', startEdit: q['edit'] == '1');
       });
     }
+    // A tap on a favourite-alert notification: Halls, with the hall pushed at that meal, at the dish. One launched by it was held until now.
+    _taps = alertTaps.stream.listen(_landAlert);
+    if (takeHeldTap() case final route?) WidgetsBinding.instance.addPostFrameCallback((_) => _landAlert(route));
     if (u.path == '/custom') {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) openCustomFood(navigator.currentContext!, name: q['name'] ?? '', meal: q['meal'] ?? 'lunch', cal: q['cal'] ?? '', p: q['p'] ?? '', c: q['c'] ?? '', f: q['f'] ?? '');
       });
     }
   }
+  StreamSubscription<String>? _taps;
+
+  void _landAlert(String route) {
+    final l = mounted ? alertLanding(route, AppScope.of(context).repo.today) : null;
+    if (l == null) return;
+    navigator.currentState?.popUntil((r) => r.isFirst);
+    _tab.value = 0;
+    openPlace(l.place, meal: l.meal, day: l.day, dish: l.dish);
+  }
+
   final _sheets = <_Sheet>[];
 
   @override
@@ -122,6 +136,7 @@ class ShellState extends State<Shell> with WidgetsBindingObserver implements She
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _taps?.cancel();
     _hours?.cancel();
     _book?.removeListener(_wantCafeIds);
     _tab.dispose();
@@ -148,8 +163,15 @@ class ShellState extends State<Shell> with WidgetsBindingObserver implements She
     return page == null ? null : BaseRoute<void>(settings: RouteSettings(name: route), builder: (_) => page);
   }
 
+  /// Back in the app: Notify me's permission is read again, as it may have been revoked in system settings.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) AppScope.of(context).alerts.refresh();
+  }
+
   void _select(int i) {
     Haptics.selection();
+    if (i == 2) AppScope.of(context).alerts.refresh();
     navigator.currentState?.popUntil((r) => r.isFirst);
     _tab.value = i;
   }
