@@ -41,7 +41,22 @@ class DishRow extends StatelessWidget {
             )
       : tags == null
       ? control
-      : Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [control, Padding(padding: const EdgeInsets.only(right: M2Layout.tagRight), child: tags)]);
+      : Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [control, const SizedBox(height: M2Layout.tagSize)]);
+
+  /// Search's tiles ride the meta line, not the lane's bottom (flutter-motion-fixes Task 2, owner 2026-10-17): a zero-width slot at the line's
+  /// right edge, its tiles centred on the line and, as one group, on the control (a café's name keeps the lane's right edge, as it was).
+  Widget? get _tagSlot {
+    if (!track || tags == null) return null;
+    final cafe = tags is HallTags && (tags as HallTags).cafe != null;
+    final x = M2Layout.rowGap + M2Layout.lane - (cafe ? M2Layout.tagRight : M2Layout.addSize / 2);
+    return SizedBox(
+      width: 0, height: M2Layout.tagSize,
+      child: OverflowBox(
+        minWidth: 0, maxWidth: x + (cafe ? M2Layout.tagCafeMax : 200), alignment: Alignment.centerLeft,
+        child: Padding(padding: EdgeInsets.only(left: x), child: FractionalTranslation(translation: Offset(cafe ? -1 : -0.5, 0), child: tags)),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +85,7 @@ class DishRow extends StatelessWidget {
       label: '${d.dishName}, ${fc(d.nutrition.calories)} calories, ${f1(d.nutrition.proteinG)} grams protein',
       here: here, onTap: onOpen,
       name: Badge.name(d.dishName, M2Text.rowName.style(M2Color.ink), badge: badge, star: favorite ? const StarMark() : null),
-      meta: meta,
+      meta: meta, metaEnd: _tagSlot,
       control: code == null ? null : _lane(RowControl(qty: code! > 0 ? code! : 0, ghost: code! < 0, onAdd: onAdd, onInc: onInc, onDec: onDec)),
     );
   }
