@@ -1309,9 +1309,10 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       }
       await go('?state=menu&hall=W'); await page.locator('#mtabs .mts button[data-meal=lunch]').tap(); await page.waitForTimeout(500);
       assert.match(await ev(() => { const r = [...document.querySelectorAll('#mlist .row')].find(r => r.querySelector('.n').textContent === 'Fountain Drink'); return r.querySelector('.m').textContent.trim().replace(/\s+/g, ' '); }), /^– cal\s*– protein$/, 'its row: – cal – protein');
-      await ev(() => { S.diet.veg = true; S.diet.plant = true; relist(); }); await page.waitForTimeout(300);
-      assert.equal(await ev(() => [...document.querySelectorAll('#mlist .row .n')].some(n => n.textContent === 'Fountain Drink')), true, 'marked Vegetarian and Plant based, so those preferences never hide it');
-      await ev(() => { S.diet.veg = false; S.diet.plant = false; relist(); }); await page.waitForTimeout(300);
+      assert.equal(await ev(() => document.querySelectorAll('#mlist .row:has(.n:not(:empty)) .tg').length >= 0 && [...document.querySelectorAll('#mlist .row')].find(r => r.querySelector('.n').textContent === 'Fountain Drink').querySelectorAll('.tg').length), 0, 'a drink, not food: no diet marks');
+      await ev(() => { S.diet.veg = true; S.diet.plant = true; S.diet.halal = true; relist(); }); await page.waitForTimeout(300);
+      assert.equal(await ev(() => [...document.querySelectorAll('#mlist .row .n')].some(n => n.textContent === 'Fountain Drink')), true, 'Vegetarian, Plant based and Halal: no diet preference hides it');
+      await ev(() => { S.diet.veg = false; S.diet.plant = false; S.diet.halal = false; relist(); }); await page.waitForTimeout(300);
       await openRow('Fountain Drink'); const s = await sheet();
       assert.deepEqual([s.n, s.star, s.cal], ['Fountain Drink', null, '–'], 'its sheet: no star, Calories –');
       await ev(() => isheet.to('closed')); await page.waitForTimeout(500);

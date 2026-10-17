@@ -1234,7 +1234,7 @@ function labelHTML(N, cal, serving){
 function letterSVG(L){ return `<text class="felt" x="${LX[L]}" y="186">${L}</text><text class="gold" x="${LX[L]}" y="186">${L}</text>`; }
 function factsHTML(t, big='Calories'){ return `<div class="facts"><div class="cal"><span>${big}</span><b class="num">${fc(t.cal)}</b></div>
   <div class="nr"><span>Protein</span><b>${fg(t.p)}</b></div><div class="nr"><span>Carbs</span><b>${fg(t.c)}</b></div><div class="nr"><span>Fat</span><b>${fg(t.f)}</b></div></div>`; }
-const dietOK = d => (!S.diet.veg || d.d&3) && (!S.diet.plant || d.d&2) && (!S.diet.halal || d.d&4);
+const dietOK = d => ALWAYS(d) || ((!S.diet.veg || d.d&3) && (!S.diet.plant || d.d&2) && (!S.diet.halal || d.d&4));   // round 12d: a drink that is served everywhere is not food: no preference hides it
 const dietOn = () => S.diet.veg||S.diet.plant||S.diet.halal;
 const dietWords = () => [S.diet.plant&&'plant based',S.diet.veg&&!S.diet.plant&&'vegetarian',S.diet.halal&&'halal'].filter(Boolean).join(', ');
 // Allergens (round 9). A dish is hidden when its listed allergens include one you avoid. A blank list is "not listed", not
