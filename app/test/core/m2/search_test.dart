@@ -139,7 +139,7 @@ void main() {
       final lenses = {for (final l in (v['lens'] as List? ?? const [])) Lens.values.byName(l)};
       test('${v['q'].isEmpty ? '(idle)' : v['q']}${lenses.isEmpty ? '' : ' ${lenses.map((l) => l.name).join('+')}'}${v['newton'] == true ? ' (Charles River on)' : ''}', () {
         final e = searchEntries(
-          raw: run(v['q'], lenses: lenses, newton: v['newton'] == true), query: v['q'], lenses: lenses, meal: 'lunch', prefs: noPrefs, reveal: false, track: false, hasExtras: false);
+          raw: run(v['q'], lenses: lenses, newton: v['newton'] == true), query: v['q'], lenses: lenses, meal: 'lunch', prefs: noPrefs, reveal: false, track: false);
         final groups = <Map<String, Object?>>[];
         Map<String, Object?> cur = {'title': null, 'rows': <String>[]};
         for (final x in e) {
@@ -158,7 +158,7 @@ void main() {
               rows.add('later:${row.d.key}');
             case EmptyEntry(:final text):
               rows.add('empty:$text');
-            case DietLine() || ExtrasSlot() || CustomEntry():
+            case DietLine() || CustomEntry() || FoodEntry() || PackWaitEntry() || PackFailEntry() || LookupButtonEntry() || LookupStateEntry():
               break;
           }
         }

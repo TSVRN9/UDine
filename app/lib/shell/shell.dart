@@ -11,6 +11,7 @@ import 'app_scope.dart';
 import '../motion/routes.dart';
 import '../screens/hall/hall_route.dart';
 import '../screens/halls/hall_page.dart';
+import '../screens/dish/food_sheet.dart';
 import '../screens/plate/custom_food.dart';
 import '../screens/halls/halls_screen.dart';
 import '../screens/you/day_page.dart';
@@ -44,16 +45,25 @@ class _Sheet {
   final Widget Function(SheetHandle, VoidCallback) build;
 }
 
-class ShellState extends State<Shell> implements ShellApi {
+class ShellState extends State<Shell> with WidgetsBindingObserver implements ShellApi {
   late final _tab = ValueNotifier<int>(searchLaunch(widget.initialRoute) != null ? 1 : Uri.parse(widget.initialRoute).path.startsWith('/you') ? 2 : 0);
-  bool Function()? _plateBack;
+  SheetHandle? Function()? _plateBack;
   final navigator = GlobalKey<NavigatorState>();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // `/custom?name=&meal=` (a screenshot route): the custom food form over Halls; `cal`, `p`, `c` and `f` fill the macros
     final u = Uri.parse(widget.initialRoute), q = u.queryParameters;
+    // `/food?name=Chobani[&edit=1]` (a screenshot route): that saved food's sheet over Halls, in Edit with `edit=1`
+    if (u.path == '/food') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final scope = AppScope.of(context), f = scope.foods?.foods.where((x) => x.name == q['name']).firstOrNull;
+        if (f != null) openFoodSheet(navigator.currentContext!, food: f, meal: 'lunch', startEdit: q['edit'] == '1');
+      });
+    }
     if (u.path == '/custom') {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) openCustomFood(navigator.currentContext!, name: q['name'] ?? '', meal: q['meal'] ?? 'lunch', cal: q['cal'] ?? '', p: q['p'] ?? '', c: q['c'] ?? '', f: q['f'] ?? '');
@@ -74,7 +84,7 @@ class ShellState extends State<Shell> implements ShellApi {
       Nav.push<void>(navigator.currentContext!, (_) => HallMenuPage(place: place, top: safeTop(context), day: day, meal: meal, landOn: dish));
 
   @override
-  void handleBack(bool Function()? handler) => _plateBack = handler;
+  void handleBack(SheetHandle? Function()? openSheet) => _plateBack = openSheet;
 
   @override
   void openSearch({required String meal}) => _select(1);
@@ -111,6 +121,7 @@ class ShellState extends State<Shell> implements ShellApi {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _hours?.cancel();
     _book?.removeListener(_wantCafeIds);
     _tab.dispose();
@@ -129,11 +140,11 @@ class ShellState extends State<Shell> implements ShellApi {
         ),
       );
 
-  /// `/you/day/2026-10-07`, `/you/diet`, `/you/rank`, `/you/export` and `/you/favs` open that page over You at launch (screenshot routes).
+  /// `/you/day/2026-10-07`, `/you/diet`, `/you/rank`, `/you/export`, `/you/favs` and `/you/foods` open that page over You at launch (screenshot routes).
   Route<void>? _youLaunch(String route, double top) {
     final s = Uri.parse(route).pathSegments;
     if (s.isEmpty || s[0] != 'you') return null;
-    final page = switch (s) { [_, 'day', final d] => DayPage(top: top, day: d), [_, 'diet'] => DietPage(top: top), [_, 'rank'] => RankPage(top: top), [_, 'export'] => ExportPage(top: top), [_, 'favs'] => FavoritesPage(top: top), _ => null };
+    final page = switch (s) { [_, 'day', final d] => DayPage(top: top, day: d), [_, 'diet'] => DietPage(top: top), [_, 'rank'] => RankPage(top: top), [_, 'export'] => ExportPage(top: top), [_, 'favs'] => FavoritesPage(top: top), [_, 'foods'] => FoodsPage(top: top), _ => null };
     return page == null ? null : BaseRoute<void>(settings: RouteSettings(name: route), builder: (_) => page);
   }
 
@@ -143,12 +154,68 @@ class ShellState extends State<Shell> implements ShellApi {
     _tab.value = i;
   }
 
+  /// The sheet back closes first: the last one pushed, else the plate while it is up.
+  SheetHandle? _backSheet() => _sheets.isNotEmpty ? _sheets.last.handle : _plateBack?.call();
+
+  /// The page back pops, when there is one over the tab that moves.
+  StackRoute<dynamic>? _backPage() {
+    final n = navigator.currentState;
+    if (n == null || !n.canPop()) return null;
+    Route<dynamic>? top;
+    n.popUntil((r) {
+      top = r; // (only reads the top: the first route asked says stop)
+      return true;
+    });
+    // (a page opened at launch is a BaseRoute: it never moves, so Android's plain back closes it)
+    return top is StackRoute<dynamic> && top is! BaseRoute<dynamic> ? top as StackRoute<dynamic> : null;
+  }
+
+  // ---- Android's predictive back: the system gesture drives what `_back` would close, with the frames of its own drag-back ----
+
+  ({void Function(double dist) move, void Function(bool commit) end})? _gesture;
+  double _gestureX = 0;
+
+  @override
+  bool handleStartBackGesture(PredictiveBackEvent backEvent) {
+    final at = backEvent.touchOffset;
+    if (at == null) return false; // a back button: `_back`, at once
+    final w = MediaQuery.sizeOf(context).width;
+    if (_backSheet() case final s?) {
+      s.backStart();
+      _gesture = (move: s.backMove, end: (c) => s.backEnd(commit: c));
+    } else if (_backPage() case final r?) {
+      r.backStart();
+      _gesture = (move: (d) => r.backMove(d, w), end: (c) => r.backEnd(commit: c));
+    } else {
+      return false; // nothing to close: Android's own back (`_back` leaves the app)
+    }
+    _gestureX = at.dx;
+    return true;
+  }
+
+  // Android sends the touch in physical px.
+  @override
+  void handleUpdateBackGestureProgress(PredictiveBackEvent backEvent) {
+    final at = backEvent.touchOffset;
+    if (at != null) _gesture?.move((at.dx - _gestureX).abs() / View.of(context).devicePixelRatio);
+  }
+
+  @override
+  void handleCommitBackGesture() => _endGesture(true);
+
+  @override
+  void handleCancelBackGesture() => _endGesture(false);
+
+  void _endGesture(bool commit) {
+    final g = _gesture;
+    _gesture = null;
+    g?.end(commit);
+  }
+
   void _back() {
     final n = navigator.currentState;
-    if (_sheets.isNotEmpty) {
-      _sheets.last.handle.close();
-    } else if (_plateBack?.call() ?? false) {
-      return;
+    if (_backSheet() case final s?) {
+      s.close();
     } else if (n != null && n.canPop()) {
       n.pop();
     } else {

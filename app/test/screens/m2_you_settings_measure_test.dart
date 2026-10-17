@@ -50,9 +50,12 @@ void main() {
       for (var i = 0; i < 3; i++) {
         _near('row $i', ours[i], [theirs[i][0], ours[i].top, theirs[i][2], theirs[i][3]], w);
       }
-      // M2's Track/Health section (secs[3]) sits between Earlier and the choices; with it absent, its end is where Earlier's list ends
-      final earlierEnd = t.getRect(find.widgetWithText(LRow, 'Tuesday, October 6')).bottom, secs = y['secs'] as List;
-      expect(ours[0].top - earlierEnd, closeTo(_n(lr, nl - 5, 1) - (_n(secs, 3, 1) + _n(secs, 3, 3)), 1.0), reason: 'the choices under Earlier');
+      // M2's Track/Health section (secs[3]) sits between Earlier and the choices. Ours is the Track row alone (Health is its own brief), so
+      // the section's start under Earlier and the choices' start under its last row are each compared, not its height.
+      final earlierEnd = t.getRect(find.widgetWithText(LRow, 'Tuesday, October 6')).bottom, secs = y['secs'] as List, track = t.getRect(find.widgetWithText(CheckRow, 'Track what I eat'));
+      expect(track.top - earlierEnd, closeTo(_n(y['checks'], 0, 1) - (_n(secs, 2, 1) + _n(secs, 2, 3)), 1.0), reason: 'Track what I eat under Earlier');
+      _near('Track what I eat', track, [(y['checks'] as List)[0][0], track.top, (y['checks'] as List)[0][2], (y['checks'] as List)[0][3]], w);
+      expect(ours[0].top - track.bottom, closeTo(_n(lr, nl - 5, 1) - (_n(secs, 3, 1) + _n(secs, 3, 3)), 1.0), reason: 'the choices under the Track section');
       expect(ours[2].top - ours[1].top, closeTo(_n(lr, nl - 2, 1) - _n(lr, nl - 3, 1), 1.0));
       final h2 = y['h2'] as List, ck = y['checks'] as List;
       final campus = t.getRect(find.text('Campus')), show = t.getRect(find.text('Show on dishes'));

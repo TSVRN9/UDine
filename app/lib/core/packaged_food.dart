@@ -9,6 +9,8 @@ class PackagedFood {
     this.ingredients,
     this.allergens,
     this.brand,
+    this.diet = 0,
+    this.savedAt,
   });
   final LogSource source; // OffSource or UsdaSource
   final String productName;
@@ -16,6 +18,25 @@ class PackagedFood {
   final String? ingredients;
   final List<String>? allergens;
   final String? brand;
+
+  /// M2's diet bits (1 veg, 2 plant, 4 halal, 8 local, 16 sustainable): a UMass Dining lookup carries them, OFF and USDA do not.
+  final int diet;
+
+  /// When it was saved to Your foods (epoch ms): newest first across both tables. Additive key inside `food_json`, absent until saved.
+  final int? savedAt;
+
+  PackagedFood copyWith({String? productName, String? brand, bool noBrand = false, NutritionFacts? nutrition}) => PackagedFood(
+        source: source,
+        productName: productName ?? this.productName,
+        brand: noBrand ? null : brand ?? this.brand,
+        nutrition: nutrition ?? this.nutrition,
+        ingredients: ingredients,
+        allergens: allergens,
+        diet: diet,
+        savedAt: savedAt,
+      );
+
+  PackagedFood savedNow(int ms) => PackagedFood(source: source, productName: productName, brand: brand, nutrition: nutrition, ingredients: ingredients, allergens: allergens, diet: diet, savedAt: ms);
 
   /// The saved_foods key: stable per source, so saving the same food twice is one row.
   String get id => switch (source) {
@@ -32,15 +53,20 @@ class PackagedFood {
         'nutrition': nutrition.toJson(),
         if (ingredients != null) 'ingredients': ingredients,
         if (allergens != null) 'allergens': allergens,
+        if (nutrition.blank.isNotEmpty) 'blank': nutrition.blank.toList()..sort(),
+        if (diet != 0) 'diet': diet,
+        if (savedAt != null) 'savedAt': savedAt,
       };
 
   factory PackagedFood.fromJson(Map<String, dynamic> j) => PackagedFood(
         source: LogSource.fromJson(j['source'] as Map<String, dynamic>),
         productName: j['productName'] as String,
         brand: j['brand'] as String?,
-        nutrition: NutritionFacts.fromJson(j['nutrition'] as Map<String, dynamic>),
+        nutrition: NutritionFacts.fromJson(j['nutrition'] as Map<String, dynamic>).withBlank({...?(j['blank'] as List?)?.cast<String>()}),
         ingredients: j['ingredients'] as String?,
         allergens: (j['allergens'] as List?)?.cast<String>(),
+        diet: j['diet'] as int? ?? 0,
+        savedAt: j['savedAt'] as int?,
       );
 
   String get displayName {

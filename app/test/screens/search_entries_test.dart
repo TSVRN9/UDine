@@ -1,6 +1,9 @@
 // The ordered groups Search draws, from M2's `renderSearch`: Places, the preferences line, "<Meal> now", At cafés, Later, the extras
 // slot (packaged foods), then the custom-food button.
 import 'package:flutter_test/flutter_test.dart';
+import 'package:udine/data/packaged_search.dart' show LookupPhase, PackPhase;
+import 'package:udine/core/types.dart';
+import 'package:udine/core/packaged_food.dart';
 import 'package:udine/core/m2/menu_view.dart';
 import 'package:udine/core/m2/search.dart';
 import 'package:udine/screens/halls/halls_model.dart' show NetLine;
@@ -10,8 +13,8 @@ import '../core/m2/support.dart';
 final now = DateTime.parse('2026-10-08T12:41:00-04:00');
 final ix = SearchIndex(board, now);
 List<SearchEntry> entries(String q, {Set<Lens> lenses = const {}, Prefs prefs = noPrefs, bool reveal = false, bool track = true, bool extras = false, NetLine net = NetLine.none}) =>
-    searchEntries(net: net, raw: runSearch(ix, query: q, lenses: lenses), query: q, lenses: lenses, meal: 'lunch', prefs: prefs, reveal: reveal, track: track, hasExtras: extras);
-List<String> shape(List<SearchEntry> e) => [for (final x in e) switch (x) { GroupHead(:final title) => title, HallCardsEntry() => 'cards', PlaceEntry() => 'place', NowEntry(:final cafe) => cafe ? 'cafe' : 'now', LaterEntry() => 'later', DietLine() => 'diet', EmptyEntry() => 'empty', ExtrasSlot() => 'extras', CustomEntry(:final solid) => solid ? 'custom!' : 'custom'}];
+    searchEntries(net: net, raw: runSearch(ix, query: q, lenses: lenses), query: q, lenses: lenses, meal: 'lunch', prefs: prefs, reveal: reveal, track: track, extras: extras ? const [LookupButtonEntry('x')] : const []);
+List<String> shape(List<SearchEntry> e) => [for (final x in e) switch (x) { GroupHead(:final title) => title, HallCardsEntry() => 'cards', PlaceEntry() => 'place', NowEntry(:final cafe) => cafe ? 'cafe' : 'now', LaterEntry() => 'later', DietLine() => 'diet', EmptyEntry() => 'empty', LookupButtonEntry() => 'extras', FoodEntry() => 'food', PackWaitEntry() => 'pack-wait', PackFailEntry() => 'pack-fail', LookupStateEntry() => 'lookup', CustomEntry(:final solid) => solid ? 'custom!' : 'custom'}];
 
 void main() {
   test('idle: the halls\' lunch under its title, no places, cafés or later rows', () {
@@ -29,7 +32,7 @@ void main() {
   });
   test('only now-results under a query: no title', () {
     final r = runSearch(ix, query: 'brisket');
-    final e = searchEntries(raw: SearchResult(now: r.now), query: 'brisket', lenses: const {}, meal: 'lunch', prefs: noPrefs, reveal: false, track: true, hasExtras: false);
+    final e = searchEntries(raw: SearchResult(now: r.now), query: 'brisket', lenses: const {}, meal: 'lunch', prefs: noPrefs, reveal: false, track: true);
     expect(shape(e).first, 'now');
   });
   test('Places lead with the hall cards as one block, then the rows', () {
@@ -44,7 +47,7 @@ void main() {
     expect(shape(entries('', lenses: {Lens.fav})), ['empty']);
     final t = (entries('', lenses: {Lens.fav}).single as EmptyEntry).text;
     expect(t, "Star a dish from its details and it shows up here whenever it's served.");
-    final u = (searchEntries(raw: const SearchResult(), query: '', lenses: {Lens.protein}, meal: 'lunch', prefs: noPrefs, reveal: false, track: true, hasExtras: false).single as EmptyEntry).text;
+    final u = (searchEntries(raw: const SearchResult(), query: '', lenses: {Lens.protein}, meal: 'lunch', prefs: noPrefs, reveal: false, track: true).single as EmptyEntry).text;
     expect(u, 'No dishes match these filters at lunch.');
   });
   test('the empty line names the query', () {
@@ -71,5 +74,25 @@ void main() {
   test('failed: no empty line, only the custom button (solid) and the extras', () {
     expect(shape(entries('zzzq', net: NetLine.failed)), ['custom!']);
     expect(shape(entries('zzzq', net: NetLine.failed, extras: true)), ['extras', 'custom']);
+  });
+
+  group('extraEntries', () {
+    PackagedFood hit(int i) => PackagedFood(
+          source: OffSource(barcode: '$i', productName: 'Bar $i'), productName: 'Bar $i',
+          nutrition: NutritionFacts(servingSize: 'per 100g', calories: 100, caloriesFromFat: 0, totalFatG: 1, satFatG: 0, transFatG: 0, cholesterolMg: 0, sodiumMg: 0, totalCarbG: 1, dietaryFiberG: 0, sugarsG: 0, proteinG: 1),
+        );
+    List<SearchEntry> run(List<PackagedFood> hits) => extraEntries(
+        track: true, online: true, query: 'bar', foods: const [], pack: PackPhase.ok, packHits: hits, lookup: LookupPhase.idle, lookupFoods: const []);
+
+    test('the Packaged group is about 20 in total: the merged, deduped list is cut at 20', () {
+      final e = run([for (var i = 0; i < 35; i++) hit(i)]);
+      expect(e.whereType<FoodEntry>(), hasLength(20));
+      expect((e.whereType<FoodEntry>().last.food.name), 'Bar 19');
+    });
+
+    test('a name repeated by another source is cut before the 20 are counted', () {
+      final e = run([for (var i = 0; i < 40; i++) hit(i % 25)]);
+      expect(e.whereType<FoodEntry>(), hasLength(20));
+    });
   });
 }

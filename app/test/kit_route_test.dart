@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/app.dart';
+import 'package:udine/dev/kit_gallery.dart';
 import 'package:udine/ui/ui.dart';
 import 'fonts.dart';
 
@@ -26,6 +27,12 @@ void main() {
       await expectLater(find.byType(UdineApp), matchesGoldenFile('goldens/kit_${w.toInt()}.png'));
     });
   }
+
+  testWidgets('a release build has no /kit', (t) async {
+    await t.pumpWidget(const UdineApp(initialRoute: '/kit', release: true));
+    await t.pump(const Duration(seconds: 1));
+    expect(find.byType(KitGallery), findsNothing);
+  });
 
   test('every widget the kit exports is on the gallery', () {
     final exported = RegExp(r'^(?:class|abstract class) ([A-Z]\w*) extends (?:StatelessWidget|StatefulWidget)', multiLine: true);

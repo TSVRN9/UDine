@@ -18,14 +18,18 @@ root="${root:-$(pwd)}"
 
 # Match only at a command position (line start or after ; && ||), not inside a quoted string.
 at_cmd() { grep -Eq "(^|[;&|])[[:space:]]*$1" <<<"$cmd"; }
+# gh-pages is the published privacy policy (owenwang.dev/UDine/): no shared history with main and no app code, so the gate has nothing to judge.
+base_flag() { grep -Eo '(--base|-B)[= ] *[^ ;&|]+' <<<"$cmd" | head -1 | sed -E "s/^(--base|-B)[= ] *//; s/^[\"']//; s/[\"']\$//" || true; }
 if at_cmd 'gh pr merge\b'; then
   pr="$(grep -Eo 'gh pr merge +[0-9]+' <<<"$cmd" | grep -Eo '[0-9]+$' || true)"
+  [[ -n "$pr" && "$(cd "$root" && gh pr view "$pr" --json baseRefName --jq .baseRefName 2>/dev/null)" == gh-pages ]] && exit 0
   out="$(cd "$root" && "$root/scripts/pr-gate.sh" $pr 2>&1)"; rc=$?
   if [[ $rc -ne 0 ]]; then echo "pr-gate failed -- fix before merging:"$'\n'"$out" >&2; exit 2; fi
   if grep -q 'OWNER-GATED' <<<"$out"; then echo "OWNER-GATED: this PR touches supabase/auth/sync/residency. Post the verdict; the owner merges." >&2; exit 2; fi
 elif at_cmd 'gh pr create\b'; then
   # Stacked PR: judge the branch against the base it will open against (--base X, --base=X, -B X, -B=X; default main).
-  base="$(grep -Eo '(--base|-B)[= ] *[^ ;&|]+' <<<"$cmd" | head -1 | sed -E "s/^(--base|-B)[= ] *//; s/^[\"']//; s/[\"']\$//" || true)"
+  base="$(base_flag)"
+  [[ "$base" == gh-pages ]] && exit 0
   out="$(cd "$root" && "$root/scripts/pr-gate.sh" ${base:+--base "$base"} 2>&1)"; rc=$?
   if [[ $rc -ne 0 ]]; then echo "pr-gate failed -- fix before opening the PR:"$'\n'"$out" >&2; exit 2; fi
 fi

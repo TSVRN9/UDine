@@ -117,7 +117,7 @@ abstract final class M2Layout {
   static const ratingPad = 10.0, gradeNoteTop = 6.0, gradeNoteH = 18.0;
   // the dish sheet (`.dish`)
   static const dishHeadTop = 4.0, dishHeadBottom = 4.0; // `.dhd` padding 0 20 4, `.dn` margin 4 0 0
-  static const dsvTop = 4.0, dalTop = 8.0, dadd = 16.0, whereTop = 24.0, wlGap = 16.0, wtBottom = 8.0, labelTop = 24.0, gradesTop = 12.0; // `.dsv`, `.dal`, `.dadd`, `.where`, `.wl+.wl`, `.wt`, `.facts`, `.facts.grades`
+  static const dsvTop = 4.0, dalTop = 8.0, dadd = 16.0, whereTop = 24.0, whereTopOff = 16.0, wlGap = 16.0, wtBottom = 8.0, labelTop = 24.0, gradesTop = 12.0; // `.dsv`, `.dal`, `.dadd`, `.where`, `.wl+.wl`, `.wt`, `.facts`, `.facts.grades`
   static const ingTop = 24.0, ingBottom = 8.0, ingLines = 3.0, ingMore = 44.0, ingMoreTop = 2.0; // `.ingh`, `.ing`, `.ingmore` (40 in M2: 44 here, a touch target)
   static const dishMidGuess = 0.55; // the resting height before the label is measured (a fraction of the frame)
   static const plateLabelGap = 12.0; // `.sh1` gap
@@ -212,6 +212,10 @@ abstract final class M2Layout {
   static const cardH = 76.0, cardTextTop = 13.0, cardMeterGap = 10.0; // `.band.hcard`, `.hcard .bt`, `.st` gap
   static const cardsTop = 4.0, cardsBottom = 8.0; // `.hcards` margin
   static const laneMin = 66.0; // `.lane` min-height
+  static const obTitle = M2Type(34.0, 37.4, 'Oswald', FontWeight.w600); // `.obh h2` (first run's title): 600 34px/1.1
+  static const obBleed = 8.0; // `.obh{margin:0 -8px 0 0}`: Done's padding hangs past the gutter
+  static const obShadow = BoxShadow(color: Color.fromRGBO(36, 10, 14, 0.22), blurRadius: 24, offset: Offset(0, -6)); // `#obsheet` box-shadow
+  static const laneOffTop = 10.0; // `#frame.notrack .lane{padding-top:10px}`
   static const tagSize = 18.0, tagGap = 2.0, tagRight = 14.0, tagRightCafe = 4.0, tagCafeMax = 110.0, tagCafeLeft = 4.0; // `.row .tags .ht`, `.tags`, `.lane .tags`
   static const tagLetter = M2Type(12.0, 12.0, 'Oswald', FontWeight.w600); // `.row .tags .ht`: 12 dp
   static const tagCafe = M2Type(13.0, 16.9, 'LibreFranklin', FontWeight.w400); // `.tags .cnm`: 13 dp at 1.3
@@ -234,4 +238,12 @@ abstract final class M2Layout {
   static const evTag = M2Type(15.0, 19.5, 'Oswald', FontWeight.w600, tabular: true); // `.evtag` 600 15/1.3
   static const evTitleColor = Color.fromRGBO(255, 255, 255, 0.92); // `.evtt`
   static const clear = Color(0x00000000);
+  // Round 11's foods: Search UMass Dining (`.lkb`, `.lkst`), a food's sheet (`.fedit`, `.fdel`)
+  static const lkbTop = 8.0; // `.lkb` margin-top (44 tall, 20 in)
+  static const lkstTop = 14.0, lkstBottom = 4.0, kvBottom = 10.0, lkstSpinTop = 6.0, lkstSpinBottom = 10.0; // `.lkst` padding 14 20 4, `.kv` margin 0 0 10, `.spin` margin 6 auto 10
+  static const lkstLoadH = 52.0, lkstLoadTop = 12.0; // `.lkst.ld`: a 52 slot the size of the button, the indicator 12 under its top
+  static const kv = M2Type(15.0, 22.5, 'LibreFranklin', FontWeight.w400); // `.kv` 15/1.5
+  static const feditTop = -3.0, feditRight = -12.0, feditBottom = -8.0; // `.dish .fedit` margin -3 -12 -8 auto: centred on the name's first line
+  static const editFadeFrom = 0.4; // a sheet's content becoming another in place: opacity .4 to 1 on `settle`
+  static const fdelTop = 10.0; // `.fdel` margin 10 auto 0
 }

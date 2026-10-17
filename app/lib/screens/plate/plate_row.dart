@@ -96,7 +96,7 @@ class _PlateRowState extends State<PlateRow>
                                 text: fc(widget.cal),
                                 style: M2Text.metaNum.style(M2Color.ink),
                               ),
-                              const TextSpan(text: ' cal each'),
+                              TextSpan(text: it.food?.per100g ?? false ? ' cal per 100 g' : ' cal each'),
                             ],
                           ),
                         ),

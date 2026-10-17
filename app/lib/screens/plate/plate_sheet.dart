@@ -14,6 +14,7 @@ import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import '../../data/repository.dart' show HoursData, Loaded, LoadedOffline;
 import '../dish/dish_sheet.dart';
+import '../dish/food_sheet.dart';
 import '../hall/hall_controller.dart';
 import '../dish/full_label.dart';
 import 'plate_bar.dart';
@@ -58,6 +59,7 @@ class _PlateSheetState extends State<PlateSheet>
   PlateModel get _m => _scope.plate;
   bool get _visible =>
       _m.write != null &&
+      _scope.prefs.track &&
       (_m.state.plates.isNotEmpty || _m.receipt != null || _m.deleted != null);
   Plate? get _front => _m.state.front < _m.state.plates.length
       ? _m.state.plates[_m.state.front]
@@ -67,21 +69,19 @@ class _PlateSheetState extends State<PlateSheet>
   void initState() {
     super.initState();
     _m.addListener(_onModel);
+    _scope.prefs.addListener(_onModel);
     _shell = ShellScope.of(context)..handleBack(_back);
   }
 
   late final ShellApi _shell;
 
-  /// Android back: an open sheet goes back into the bar, and nothing else moves.
-  bool _back() {
-    if (!_handle.attached || _handle.px <= M2Layout.barMin + 1) return false;
-    _handle.to(M2Layout.barMin);
-    return true;
-  }
+  /// Android back: an open sheet goes back into the bar (its lowest height), and nothing else moves.
+  SheetHandle? _back() => _handle.attached && _handle.px > M2Layout.barMin + 1 ? _handle : null;
 
   @override
   void dispose() {
     _m.removeListener(_onModel);
+    _scope.prefs.removeListener(_onModel);
     _shell.handleBack(null);
     _in.dispose();
     _px.dispose();
@@ -104,7 +104,7 @@ class _PlateSheetState extends State<PlateSheet>
       _in.animateBack(0, duration: a.duration, curve: a.curve);
     }
     // M2 refresh(): no plate left, the sheet closes
-    if (p == null && _handle.attached && _handle.px > M2Layout.barMin) {
+    if ((p == null || !_scope.prefs.track) && _handle.attached && _handle.px > M2Layout.barMin) {
       _handle.to(M2Layout.barMin);
     }
   }
@@ -181,6 +181,12 @@ class _PlateSheetState extends State<PlateSheet>
     );
   }
 
+  /// A saved food's row opens the food as it is kept now (M2 `foodById`); one that has since been deleted opens nothing.
+  void _openFood(Plate p, PlateItem it) {
+    final f = _scope.foods?.byKey(it.key);
+    if (f != null) openFoodSheet(context, food: f, meal: p.meal);
+  }
+
   void _fullLabel(Plate p, Board fx) =>
       openPlateLabel(context, plate: p, fx: fx);
 
@@ -247,7 +253,7 @@ class _PlateSheetState extends State<PlateSheet>
                 item: it,
                 cal: macroOf(it, hs?.firstOrNull).cal,
                 withText: it.bowl == null ? null : withLine(it.bowl!.bowl.parts),
-                onOpen: it.custom == null ? () => _openDish(p, it) : null,
+                onOpen: it.custom == null ? () => _openDish(p, it) : it.food == null ? null : () => _openFood(p, it),
                 onInc: () {
                   m.step(p.id, it.key, 1);
                   Haptics.add();

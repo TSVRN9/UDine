@@ -1,4 +1,5 @@
 import 'dart:async' show scheduleMicrotask;
+import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
@@ -30,6 +31,12 @@ class SheetHandle {
   void close() => _s?._away(null);
   /// Springs to a height in dp (a detent).
   void to(double px, {double v0 = 0}) => _s?._springTo(px, v0: v0);
+
+  /// Android's predictive back: the sheet lowers by the gesture's distance from where it was, then closes (to its lowest height) or
+  /// springs back up as Android decides.
+  void backStart() => _s?._backStart();
+  void backMove(double dist) => _s?._backMove(dist);
+  void backEnd({required bool commit}) => _s?._backEnd(commit);
 }
 
 /// M2's `rubber(x, d)`: how far a drag `x` past the top detent moves the sheet, for a frame `d` tall; it approaches `d` and never reaches it.
@@ -90,9 +97,11 @@ class M2Sheet extends StatefulWidget {
   final double? Function(SheetMetrics m, double mid)? landing;
   /// the ground of the sheet
   final Color color;
+  /// the sheet's own shadow (a sheet that sits over a live screen rather than over a scrim)
+  final List<BoxShadow>? shadow;
   const M2Sheet({
     super.key, required this.handle, required this.top, required this.slivers, this.mid, this.min = 0, this.startOpen = true, this.onClosed, this.onSize,
-    this.radius = M2Radius.sheet, this.scrim = true, this.header, this.physics, this.landing, this.bottomPad, this.color = M2Color.chalk,
+    this.radius = M2Radius.sheet, this.scrim = true, this.header, this.physics, this.landing, this.bottomPad, this.color = M2Color.chalk, this.shadow,
   });
   @override
   State<M2Sheet> createState() => _M2SheetState();
@@ -211,6 +220,27 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
       f?.call();
     }
     _springTo(widget.min, v0: _spring.running ? _spring.v : 0);
+  }
+
+  double? _back0;
+
+  void _backStart() {
+    if (_closed) return; // (already leaving: the gesture leaves it be)
+    _spring.stop();
+    _back0 = _px;
+  }
+
+  // (1 dp short of a shut sheet: Android may still cancel, and at 0 the sheet would count itself closed)
+  void _backMove(double dist) {
+    final b = _back0;
+    if (b != null) _jump((b - dist).clamp(math.min(b, widget.min + 1), b));
+  }
+
+  void _backEnd(bool commit) {
+    final b = _back0;
+    _back0 = null;
+    if (b == null) return;
+    commit ? _away(null) : _springTo(b);
   }
 
   void _finishClose() {
@@ -341,7 +371,7 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
             return NotificationListener<ScrollNotification>(
               onNotification: _onScroll,
               child: DecoratedBox(
-                decoration: BoxDecoration(color: widget.color, borderRadius: BorderRadius.vertical(top: Radius.circular(widget.radius))),
+                decoration: BoxDecoration(color: widget.color, borderRadius: BorderRadius.vertical(top: Radius.circular(widget.radius)), boxShadow: widget.shadow),
                 child: widget.radius == 0
                     ? _scroll(sc)
                     : ClipRRect(borderRadius: BorderRadius.vertical(top: Radius.circular(widget.radius)), child: _scroll(sc)),
