@@ -86,10 +86,9 @@ Rationale:
   `authenticated` can't read it (CLAUDE.md: explicit GRANTs + RLS on every new table; TRUNCATE not granted).
   Any SQL function pins `search_path`.
 - **Cron.** pg_cron is UTC and doesn't follow DST (the caveat at
-  `20260818120000_schedule_check_favorited_foods.sql:60-72`). So the job fires on a UTC hour range wide
-  enough for both EDT and EST, and the function reads Eastern time itself (`Intl`, as
-  `check-favorited-foods/index.ts:31-36` does) and returns early before 7 AM or after the last possible
-  serving. Cadence in "Open questions".
+  `20260818120000_schedule_check_favorited_foods.sql:60-72`). So the job fires at 11:00 and 12:00 UTC, and
+  the function reads Eastern time itself (`Intl`, as `check-favorited-foods/index.ts:31-36` does) and sends
+  only between 7:00 and 9:00 AM Eastern (owner answer 2).
 - **Android message shape:** `notification: {title, body}`, `android: {priority: "HIGH", notification:
   {channel_id: "favorite_alerts", tag: "dish-<hash>-<day>"}}`, `data: {route: "/halls"}`. The channel id is
   the one #596 already creates (`alerts.dart:23` on `origin/flutter/favorite-alerts-ui`). **iOS:**
@@ -259,19 +258,13 @@ of the owner-only list, once the release brief's TestFlight build exists; the sa
    owenwang.dev/UDine; PRs into gh-pages skip `pr-gate`, #599) — lanes: none (docs) — blocked by: none, but the
    policy PR merges before the store build that carries Task 6 — PR:
 
-## Open questions for the owner
+## Owner answers (2026-10-17)
 
-1. **Drop WorkManager (Task 7) or keep it as a fallback?** Recommend drop after the A53 run: iOS gets two
-   banners either way, Android re-alerts when the local post replaces the push, and the only gain is phones
-   without Play services.
-2. **Cron cadence and times.** Recommend every 30 minutes from 06:00 to 22:00 Eastern (the function
-   enforces the Eastern window, so the UTC range can stay wide for DST). Cheaper: every hour from 07:00,
-   which delays a dish added late by up to an hour.
-3. **Topic key.** Recommend the existing `dishKey` normalization with a 16-hex (64-bit) hash. A collision
-   (about 1 in 10^15 for a few hundred dishes) would at worst notify for the wrong dish. Alternative: the
-   verbatim name, matching `favorite_match.dart`'s exact rule, at the cost of a new alert for every
-   capitalization or punctuation tweak UMass makes.
-4. **Variant families.** M2 round 12 is deciding how a favourited variant family matches. Recommend one
-   topic per base dish name until round 12 lands; say if you want one topic per variant.
-5. **iOS row.** Recommend removing "Background App Refresh is off…" with this change since APNs doesn't need
-   it. Say if you'd rather keep it until a TestFlight tester confirms.
+1. **WorkManager is dropped** (Task 7) once Task 6 is verified on the A53.
+2. **Once a day.** Menus update daily, so the job fires at 11:00 and 12:00 UTC (7 AM Eastern in EDT and in
+   EST). The function only sends between 7:00 and 9:00 AM Eastern, so the second firing is a no-op in EST,
+   and in EDT it retries claims a failed send released. A dish that appears on the menu after the morning
+   run isn't alerted that day.
+3. **Topic key:** the existing `dishKey` normalization, 16 hex (64 bits).
+4. **Variant families:** one topic per base dish name until round 12 lands.
+5. **iOS row:** "Background App Refresh is off…" is removed with Task 6.
