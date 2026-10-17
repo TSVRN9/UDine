@@ -109,6 +109,20 @@ void main() {
       expect(k, contains('Build.VERSION.SDK_INT < 26'));
     });
 
+    test('Health Connect\'s "privacy policy" link opens the published policy, not the app', () {
+      final m = File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+      String block(String open, String close) => m.substring(m.indexOf(open), m.indexOf(close, m.indexOf(open)));
+      final main = block('android:name=".MainActivity"', '</activity>'), privacy = block('android:name=".PrivacyActivity"', '</activity>');
+      expect(main, isNot(contains('PERMISSIONS_RATIONALE')));
+      expect(privacy, contains('androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE'));
+      expect(m, contains('android:targetActivity=".PrivacyActivity"'));
+      expect(m, isNot(contains('android:targetActivity=".MainActivity"')));
+      final k = File('android/app/src/main/kotlin/com/udinetogether/udine/PrivacyActivity.kt').readAsStringSync();
+      expect(k, contains('"https://owenwang.dev/UDine/"'));
+      expect(k, contains('Intent.ACTION_VIEW'));
+      expect(k.indexOf('startActivity'), lessThan(k.indexOf('finish()')));
+    });
+
     test('iOS: HealthKit entitlement and the update string, no share (read) string', () {
       final plist = File('ios/Runner/Info.plist').readAsStringSync();
       expect(plist, contains('NSHealthUpdateUsageDescription'));
