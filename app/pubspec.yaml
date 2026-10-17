@@ -28,6 +28,7 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  crypto: ^3.0.7
   flutter:
     sdk: flutter
   http: ^1.6.0
@@ -36,6 +37,7 @@ dependencies:
   pdfx: ^2.11.0
   share_plus: ^13.3.1
   sqflite: ^2.4.4+2
+  unorm_dart: ^0.3.3
   url_launcher: ^6.3.2
 
   # The following adds the Cupertino Icons font to your application.

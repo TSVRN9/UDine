@@ -1,0 +1,117 @@
+{
+  "format": "FCM topic for a favourited dish (dishTopic). kind=topic: input {name} -> 'dish-' + the first 16 hex of the SHA-256 of the UTF-8 normalized name. Normalization: NFC, lowercase, drop U+2019 and U+0027, every run of characters outside [a-z0-9] (all non-ASCII letters included: Café -> 'caf', Jalapeño -> 'jalape o', never folded to e/n) becomes one space, trim. Every case is {kind, name, input, expected}; expected is what shared/src (TypeScript) returns for input. JSON null = a value that is present and null. An ABSENT key = undefined / not set: implementations must treat a missing key and an unset field as the same thing, and must not emit null for it. Regenerate with `pnpm --filter @udine/shared vectors`; never hand-edit expected.",
+  "cases": [
+    {
+      "kind": "topic",
+      "name": "plain",
+      "input": {
+        "name": "Chicken Parm"
+      },
+      "expected": "dish-59e9567deb2e52d8"
+    },
+    {
+      "kind": "topic",
+      "name": "case",
+      "input": {
+        "name": "CHICKEN parm"
+      },
+      "expected": "dish-59e9567deb2e52d8"
+    },
+    {
+      "kind": "topic",
+      "name": "whitespace runs and ends",
+      "input": {
+        "name": "  Chicken \t  Parm\n"
+      },
+      "expected": "dish-59e9567deb2e52d8"
+    },
+    {
+      "kind": "topic",
+      "name": "straight apostrophe dropped",
+      "input": {
+        "name": "Mom's Mac"
+      },
+      "expected": "dish-ef5f7d1f4aba9bc4"
+    },
+    {
+      "kind": "topic",
+      "name": "curly apostrophe dropped",
+      "input": {
+        "name": "Mom’s Mac"
+      },
+      "expected": "dish-ef5f7d1f4aba9bc4"
+    },
+    {
+      "kind": "topic",
+      "name": "ampersand is a separator",
+      "input": {
+        "name": "Mac & Cheese"
+      },
+      "expected": "dish-19ab9a2338ac8a8f"
+    },
+    {
+      "kind": "topic",
+      "name": "ampersand without spaces",
+      "input": {
+        "name": "Mac&Cheese"
+      },
+      "expected": "dish-19ab9a2338ac8a8f"
+    },
+    {
+      "kind": "topic",
+      "name": "punctuation runs",
+      "input": {
+        "name": "Mac -- (Cheese)!"
+      },
+      "expected": "dish-19ab9a2338ac8a8f"
+    },
+    {
+      "kind": "topic",
+      "name": "precomposed accent",
+      "input": {
+        "name": "Jalapeño Poppers"
+      },
+      "expected": "dish-56a894c2f1760d6e"
+    },
+    {
+      "kind": "topic",
+      "name": "decomposed accent equals precomposed",
+      "input": {
+        "name": "Jalapeño Poppers"
+      },
+      "expected": "dish-56a894c2f1760d6e"
+    },
+    {
+      "kind": "topic",
+      "name": "accented letter at the end is dropped, not folded",
+      "input": {
+        "name": "Café"
+      },
+      "expected": "dish-0fb91c7693196ba9"
+    },
+    {
+      "kind": "topic",
+      "name": "accented e",
+      "input": {
+        "name": "Crème Brûlée"
+      },
+      "expected": "dish-90d27f601c43cbdb"
+    },
+    {
+      "kind": "topic",
+      "name": "digits kept",
+      "input": {
+        "name": "2% Milk 8oz"
+      },
+      "expected": "dish-2bc5f4bcb5d16ddc"
+    },
+    {
+      "kind": "topic",
+      "name": "empty after normalizing",
+      "input": {
+        "name": "’ & ’"
+      },
+      "expected": "dish-e3b0c44298fc1c14"
+    }
+  ]
+}
