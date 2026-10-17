@@ -16,7 +16,7 @@ are unchanged. The tap landing and the favourites cue (hall-card stars and the a
 round 13, which is being designed; this brief points at it and designs nothing.
 - **The notification:** title is the dish's name, body is the dish sheet's "where" sentence, built on the
   server ("Lunch from 11 AM at Worcester"; "Lunch now, until 4:30 PM, at Worcester and Berkshire"). Several
-  groups are joined with a newline, as `dueAlerts` does (`app/lib/alerts/alert_check.dart:30` on
+  groups are joined with a newline, as `dueAlerts` does (`app/lib/alerts/alert_check.dart:33`, `dueAlerts` at `:24`, on
   `origin/flutter/favorite-alerts-ui`).
 - **Posting rules** (M2 R11 §2, unchanged): not before 7 AM Eastern; the first run that sees the dish on that
   day's menus; never once the dish's last serving that day has ended; one per dish per day across halls;
@@ -56,9 +56,9 @@ Rationale:
 - **Existing server pieces to reuse:**
   - Menus: `fetchHallMenu` / `fetchAllHallMenus`, `extractDishMealMap`
     (`supabase/functions/check-favorited-foods/index.ts:62,93,117`), the `foodpro-menu-ajax` feed. Hall
-    hours: `fetchHallHours` / `mapHallHours` (`supabase/functions/_shared/hours.ts:72,195`, from
+    hours: `mapHallHours` / `fetchHallHours` (`supabase/functions/_shared/hours.ts:72,195`, from
     `get_infov2`).
-  - Cron gate: `requireCronSecret` and the `x-udine-cron-secret` header (`_shared/cronAuth.ts:23`), set per
+  - Cron gate: `requireCronSecret` and the `x-udine-cron-secret` header (`_shared/cronAuth.ts:37`, the header constant at `:23`), set per
     function in `supabase/config.toml:384-408` (`verify_jwt = true`), scheduled by pg_cron + pg_net with the
     secret from Vault (`supabase/migrations/20260909200000_edge_cron_shared_secret.sql:65`, the same shape as
     `20260914120000_schedule_populate_retail_dishes.sql:46`).
@@ -91,7 +91,7 @@ Rationale:
   only between 7:00 and 9:00 AM Eastern (owner answer 2).
 - **Android message shape:** `notification: {title, body}`, `android: {priority: "HIGH", notification:
   {channel_id: "favorite_alerts", tag: "dish-<hash>-<day>"}}`, `data: {route: "/halls"}`. The channel id is
-  the one #596 already creates (`alerts.dart:23` on `origin/flutter/favorite-alerts-ui`). **iOS:**
+  the one #596 already creates (`alerts.dart:22` on `origin/flutter/favorite-alerts-ui`). **iOS:**
   `apns: {headers: {"apns-collapse-id": "<same tag>", "apns-priority": "10"}, payload: {aps: {sound:
   "default"}}}`. The collapse id is at most 64 bytes; `dish-` + 16 hex + `-` + a date is 32.
 - **Device sync (Task 6).** `firebase_core` + `firebase_messaging`. Rules:
@@ -175,8 +175,10 @@ Project: Firebase `udine-a6996`. `mobile/google-services.json` (the RN app, comm
 
 ## Acceptance
 
-- [ ] The topic key is identical in Dart, TS and Deno for every vector (accents, curly and straight
-  apostrophes, "&", case, whitespace) — evidence: test (`shared/vectors/dish-topic.json`, three runners)
+- [ ] The topic key is identical in Dart, TS and Deno for every vector (accented letters, curly and
+  straight apostrophes, "&", case, whitespace). `dishKey` **drops** non-ASCII letters ("Jalapeño" becomes
+  `jalape o`), it doesn't fold them; the vectors pin that, so no runner "fixes" it with NFD stripping and
+  breaks parity with the on-device key — evidence: test (`shared/vectors/dish-topic.json`, three runners)
 - [ ] The server's "where" sentence equals the Dart sentence for every vector, including "now, until",
   "from", two halls, a dish whose last serving has ended (no sentence) and the 2 AM rollover — evidence:
   test (`shared/vectors/where.json`, Dart and Deno)
@@ -185,6 +187,9 @@ Project: Firebase `udine-a6996`. `mobile/google-services.json` (the RN app, comm
 - [ ] A run before 7 AM Eastern posts nothing; a dish on two halls posts once; a second run the same day
   posts nothing; a failed FCM call releases the claim; a dish whose last serving ended posts nothing — evidence:
   deno test (fake clock, fake menus, fake FCM)
+- [ ] A request with the cron secret and `{"test": {"dish": "<name>"}}` sends that one dish's notification
+  now, skipping the Eastern-time gate and the claim (it writes no `dish_alerts_sent` row); without the
+  secret it is refused like any other call — evidence: deno test
 - [ ] The function refuses a request without the cron secret and never logs the service-account JSON or
   the access token — evidence: deno test
 - [ ] With Notify me never turned on, the app makes no FCM call and auto-init stays off; turning it off
@@ -205,10 +210,10 @@ Project: Firebase `udine-a6996`. `mobile/google-services.json` (the RN app, comm
 On the internal flavor (`com.udinetogether.udine.internal`), signed in to nothing:
 1. Favourite a dish, turn on Notify me, grant permission; confirm the topic is followed (the sync's debug
    log, no secret).
-2. `adb shell am force-stop com.udinetogether.udine.internal`, then trigger `send-dish-alerts` for that dish
-   (owner runs the function, or an agent runs it from a test topic with the secret loaded from the owner's
-   env, never printed). Record the banner arriving.
-3. `adb shell dumpsys deviceidle force-idle`, trigger again with a second dish, record arrival;
+2. `adb shell am force-stop com.udinetogether.udine.internal`, then call `send-dish-alerts` with
+   `{"test": {"dish": "<that dish>"}}` (Task 4's test hook; the owner runs it, or an agent with the cron secret
+   loaded from the owner's env file, never printed). Record the banner arriving.
+3. `adb shell dumpsys deviceidle force-idle`, call it again for the same or a second dish, record arrival;
    `adb shell dumpsys deviceidle unforce` after.
 4. Tap each: record the landing on Halls home.
 5. Set battery use to Restricted, send again, record that nothing arrives and the row shows.
@@ -224,17 +229,21 @@ of the owner-only list, once the release brief's TestFlight build exists; the sa
    `’` and `'`, runs of non-`[a-z0-9]` become one space, trim) on the NFC form of the input. Dart
    `core/dish_topic.dart`, TS `shared/src/dishTopic.ts`, Deno `_shared/dishTopic.ts`, one vector file —
    files: `shared/vectors/dish-topic.json`, the three implementations and their tests — lanes: flutter,
-   shared, deno — blocked by: none — PR:
+   shared, deno — blocked by: none (owner-merged: touches `supabase/functions/_shared/`) — PR:
 2. **The server's "where" sentence:** `_shared/where.ts` (`wherePlan`, `whenText`, `mealWindow`,
    `effectiveMealWindow` over `HallHours`, extending `_shared/hours.ts`), `shared/vectors/where.json`
-   generated from the Dart implementation, a Dart test that runs it — files: `supabase/functions/_shared/`,
+   generated from the Dart implementation, a Dart test that runs it. The server always builds the sentence
+   with `newton: false` (`wherePlan`, `app/lib/core/m2/where.dart:51`): topics are per dish, not per user,
+   and the Charles River places aren't in the `tid` feeds the server reads. The vectors pin
+   `newton: false` — files: `supabase/functions/_shared/`,
    `shared/vectors/`, `app/test/core/` — lanes: flutter, deno — blocked by: none (owner-merged: touches
    `supabase/`) — PR:
 3. **Dedup table:** migration for `dish_alerts_sent` with RLS, grants and the three-day sweep — files:
    `supabase/migrations/`, `supabase/tests/database/27_dish_alerts_sent.sql` — lanes: pgTAP (host-direct) —
    blocked by: none (owner-merged) — PR:
 4. **`send-dish-alerts` edge function:** menus + hours fetch, match to per-dish topics, claim, FCM HTTP v1
-   send with an OAuth token minted from the service account, release on failure, Eastern-time gate;
+   send with an OAuth token minted from the service account, release on failure, Eastern-time gate, and the
+   test hook `{"test": {"dish": "<name>"}}` (behind `requireCronSecret`; skips the gate and the claim);
    `[functions.send-dish-alerts] verify_jwt = true` in `supabase/config.toml`, `requireCronSecret` — files:
    `supabase/functions/send-dish-alerts/`, `supabase/functions/_shared/fcm.ts`, `supabase/config.toml` —
    lanes: deno — blocked by: 1, 2, 3 (owner-merged) — PR:
@@ -242,15 +251,20 @@ of the owner-only list, once the release brief's TestFlight build exists; the sa
    owner-only secrets exist — files: `supabase/migrations/` — lanes: pgTAP (job row present) — blocked by: 4
    (owner-merged) — PR:
 6. **Flutter:** `firebase_core`, `firebase_messaging`, per-flavor `google-services.json`, the Gradle plugin,
-   topic sync (subscribe/unsubscribe/resync), foreground display with the shared tag, the three tap sources
-   into the one landing, Halls home landing that closes sheets but an undismissed first run, the iOS row
-   removed — files: `app/lib/alerts/`, `app/lib/shell/`, `app/lib/screens/you/favorites_notify.dart`,
+   auto-init off until Notify me, topic sync (subscribe/unsubscribe/resync), foreground display with the
+   shared tag, the three tap sources routed into the existing `alertTaps` path, the iOS row removed. The
+   Halls-home landing itself is not here: it lands in #605's rework (M2 round 13). Reds: a fake messaging
+   client that records calls (sync diff, retry after a throw, the 2000 cap, no call while Notify me has
+   never been on, `deleteToken` on off), a manifest test for the auto-init key, and a test that each tap
+   source reaches `alertTaps` — files: `app/lib/alerts/`, `app/lib/shell/`, `app/lib/screens/you/favorites_notify.dart`,
    `app/android/`, `app/ios/`, `app/pubspec.yaml` — lanes: flutter, A53 device run — blocked by: 1, #596,
    #605, owner steps 1-2 (and 3-4 for the device run) — PR:
 7. **Retire the local check** (only if Open question 1 is answered "drop" and Task 6 is device-verified):
    `workmanager`, `alertsDispatcher`, `runAlertCheck`, `loadAlertBoard`, the BGTaskScheduler entry,
    `alert_sent` and its export, `user_version` migration — files: `app/lib/alerts/`, `app/lib/core/store/`,
-   `app/lib/core/export.dart`, `app/android/`, `app/ios/` — lanes: flutter — blocked by: 6 verified — PR:
+   `app/lib/core/export.dart`, `app/android/`, `app/ios/`. Reds: a v(N) to v(N+1) migration test that drops
+   `alert_sent` from a seeded database, the export test without it, and a manifest test that the WorkManager
+   entries are gone — lanes: flutter — blocked by: 6 verified — PR:
 8. **Residency and privacy policy:** a new row in CLAUDE.md's table and a note under "Data residency";
    the `docs/decisions-log.md` entry; the policy's Permissions paragraph ("doesn't send notifications",
    gh-pages `index.html:66`) rewritten to say what is sent to Google and that our server doesn't learn which
@@ -268,3 +282,6 @@ of the owner-only list, once the release brief's TestFlight build exists; the sa
 3. **Topic key:** the existing `dishKey` normalization, 16 hex (64 bits).
 4. **Variant families:** one topic per base dish name until round 12 lands.
 5. **iOS row:** "Background App Refresh is off…" is removed with Task 6.
+
+Known limit: FCM takes a while to propagate a new topic subscription, so a dish favourited just before the
+morning run can miss that day's alert, like a dish added to the menu after it.
