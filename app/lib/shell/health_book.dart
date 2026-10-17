@@ -15,13 +15,15 @@ enum HealthRowState { hidden, off, allowed, denied, revoked }
 /// before: a meal that is new or changed is written, one that is gone is deleted. The first state it sees is the baseline, so nothing
 /// that was logged earlier is ever written (no backfill), and a meal changed while the switch is off or tracking is off is left alone.
 class HealthBook extends ChangeNotifier {
-  HealthBook({required this.client, required UdineStore store, required LogBook log, required this.titleOf, required this.tracking, required this.enabled, DateTime Function()? now})
+  HealthBook({required this.client, required UdineStore store, required LogBook log, required this.titleOf, required this.tracking, required this.enabled, Listenable? prefs, DateTime Function()? now})
       : _store = store,
+        _prefs = prefs,
         _log = log,
         _writer = HealthWriter(store, client),
         _now = now ?? DateTime.now {
     _seen = _signatures();
     log.addListener(_onLog);
+    prefs?.addListener(_onPrefs);
   }
 
   final HealthClient client;
@@ -33,8 +35,8 @@ class HealthBook extends ChangeNotifier {
   final DateTime Function() _now;
 
   /// Opens the book on the saved switch and asks the OS where it stands.
-  static Future<HealthBook> open({required HealthClient client, required UdineStore store, required LogBook log, required String Function(LoggedMeal) titleOf, required bool Function() tracking, DateTime Function()? now}) async {
-    final b = HealthBook(client: client, store: store, log: log, titleOf: titleOf, tracking: tracking, enabled: await store.healthOn(), now: now);
+  static Future<HealthBook> open({required HealthClient client, required UdineStore store, required LogBook log, required String Function(LoggedMeal) titleOf, required bool Function() tracking, Listenable? prefs, DateTime Function()? now}) async {
+    final b = HealthBook(client: client, store: store, log: log, titleOf: titleOf, tracking: tracking, enabled: await store.healthOn(), prefs: prefs, now: now);
     await b.refresh();
     return b;
   }
@@ -45,6 +47,7 @@ class HealthBook extends ChangeNotifier {
   HealthAccess? _access;
   late Map<String, String> _seen;
   Future<void> _tail = Future.value();
+  final Listenable? _prefs;
 
   String get name => client.platform == 'ios' ? 'Apple Health' : 'Health Connect';
   String get settingsLabel => client.platform == 'ios' ? 'Open Settings' : 'Open Health Connect';
@@ -69,12 +72,15 @@ class HealthBook extends ChangeNotifier {
     if (a == HealthAccess.granted) _denied = false; // allowed in system settings after a refusal: the row is ready to be switched on
     _access = a;
     if (changed) notifyListeners();
+    _wasLive = _live;
+    reconcile(); // (does nothing unless live) a failed write or delete is tried again here
   }
 
   /// The row was tapped: allowed turns it off; anything else raises the OS permission sheet at once.
   Future<void> tap() async {
     if (state == HealthRowState.allowed) {
       enabled = false;
+      _wasLive = false;
       notifyListeners();
       await _store.setHealthOn(false);
       return;
@@ -91,6 +97,8 @@ class HealthBook extends ChangeNotifier {
     if (ok) _access = HealthAccess.granted;
     notifyListeners();
     await _store.setHealthOn(ok);
+    _wasLive = _live;
+    reconcile();
   }
 
   Future<void> openSettings() async {
@@ -103,35 +111,77 @@ class HealthBook extends ChangeNotifier {
 
   // ---- the writes ----
 
+  /// The log as the last notification left it, meal id to its rows (id and servings): what tells a change from a notification that changed
+  /// nothing (the café names arriving, say).
   Map<String, String> _signatures() => {for (final m in _log.meals) m.loggedAt: [for (final i in m.items) '${i.id}:${i.qty}'].join(',')};
 
   bool get _live => enabled && tracking() && _access == HealthAccess.granted;
+  bool _wasLive = false;
+
+  /// Meals changed (or logged) while live whose write has not landed: tried again at every sync until it does.
+  final _want = <String>{};
 
   void _onLog() {
-    final prev = _seen, cur = _signatures(), meals = {for (final m in _log.meals) m.loggedAt: m};
+    final prev = _seen, cur = _signatures();
     _seen = cur;
-    if (!_live) return;
+    if (!_live) return; // off means hands off: a change made now is reconciled when the book is live again
     for (final e in cur.entries) {
-      if (prev[e.key] != e.value) _run(() => _write(meals[e.key]!));
+      if (prev[e.key] != e.value) _want.add(e.key);
     }
-    for (final id in prev.keys) {
-      if (!cur.containsKey(id)) _run(() => _writer.delete(id));
+    reconcile();
+  }
+
+  void _onPrefs() {
+    final live = _live, rose = live && !_wasLive;
+    _wasLive = live;
+    if (rose) reconcile();
+  }
+
+  /// Brings Health in line with the log, for what UDine wrote and nothing else (never a backfill): a written meal that is no longer in the log
+  /// has its record deleted, one whose content differs from what was written is written again, and meals changed while live whose write did
+  /// not land are tried again. Does nothing unless live (row on, tracking on, access granted). Failures change nothing and are tried at the next
+  /// sync (a change, a refresh, the app resuming).
+  Future<void> reconcile() {
+    _tail = _tail.then((_) => _sync()).then<void>((_) {}, onError: (Object e, StackTrace st) => debugPrint('udine: a Health sync failed: $e\n$st'));
+    return _tail;
+  }
+
+  Future<void> _sync() async {
+    if (!_live) return;
+    final written = await _store.healthSigs(client.platform), meals = {for (final m in _log.meals) m.loggedAt: m};
+    for (final e in written.entries) {
+      final m = meals[e.key];
+      if (m == null) {
+        await _try(() => _writer.delete(e.key));
+      } else if (e.value != healthMealOf(m, titleOf(m)).signature(client.platform)) {
+        await _try(() => _write(m));
+      }
+    }
+    for (final id in [..._want]) {
+      final m = meals[id];
+      if (m == null || written.containsKey(id) || await _try(() => _write(m))) _want.remove(id);
     }
   }
 
-  void _run(Future<Object?> Function() job) {
-    _tail = _tail.then((_) => job()).then<void>((_) {}, onError: (Object e, StackTrace st) => debugPrint('udine: a Health write failed: $e\n$st'));
+  Future<bool> _try(Future<bool> Function() job) async {
+    try {
+      return await job();
+    } catch (e, st) {
+      debugPrint('udine: a Health write failed: $e\n$st');
+      return false;
+    }
   }
 
-  /// Settles once the writes queued so far have finished.
+  /// Settles once the syncs queued so far have finished.
   Future<void> get idle => _tail;
 
+  /// True when there is nothing more to do for [m]: written, or skipped for good.
   Future<bool> _write(LoggedMeal m) async {
     final h = healthMealOf(m, titleOf(m));
     // Health Connect refuses a record that starts ahead of the clock (a wrong device time, a meal logged for later): skip it and say why
     if (h.start.isAfter(_now())) {
       debugPrint('udine: not writing the ${h.mealId} meal to $name: it starts ahead of the device clock');
-      return false;
+      return true;
     }
     final ok = await _writer.write(h);
     if (!ok) debugPrint('udine: $name did not take the ${h.mealId} meal');
@@ -141,6 +191,7 @@ class HealthBook extends ChangeNotifier {
   @override
   void dispose() {
     _log.removeListener(_onLog);
+    _prefs?.removeListener(_onPrefs);
     super.dispose();
   }
 }

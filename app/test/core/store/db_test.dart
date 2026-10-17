@@ -110,10 +110,10 @@ void main() {
     await db.close();
   }
 
-  test('fresh create == RN schema + saved_foods + alert_sent + health_writes, user_version 4', () async {
+  test('fresh create == RN schema + saved_foods + alert_sent + health_writes, user_version 5', () async {
     final r = await openStore(path, factory: f);
     final db = (r as StoreReady).db;
-    expect(await version(db), 4);
+    expect(await version(db), 5);
     final ref = await f.openDatabase(inMemoryDatabasePath);
     for (final s in rnSchema) {
       await ref.execute(s);
@@ -123,18 +123,18 @@ void main() {
     expect(await db.query('saved_foods'), isEmpty);
     expect(await alertSentShape(db), 'CREATE TABLE alert_sent (dish_name TEXT NOT NULL, day TEXT NOT NULL, PRIMARY KEY (dish_name, day))');
     expect(await db.query('alert_sent'), isEmpty);
-    expect(await healthWritesShape(db), 'CREATE TABLE health_writes (meal_id TEXT NOT NULL, platform TEXT NOT NULL, record_ids_json TEXT NOT NULL, PRIMARY KEY (meal_id, platform))');
+    expect(await healthWritesShape(db), 'CREATE TABLE health_writes (meal_id TEXT NOT NULL, platform TEXT NOT NULL, record_ids_json TEXT NOT NULL, content_sig TEXT, PRIMARY KEY (meal_id, platform))');
     expect(await db.query('health_writes'), isEmpty);
     await db.close();
   });
 
-  test('user_version 1 (an earlier Flutter build) with RN data upgrades to 4, rows identical, all three tables added', () async {
+  test('user_version 1 (an earlier Flutter build) with RN data upgrades to 5, rows identical, all three tables added', () async {
     await seedRn(1);
     final before = await f.openDatabase(path, options: OpenDatabaseOptions(readOnly: true));
     final want = await dump(before);
     await before.close();
     final db = (await openStore(path, factory: f) as StoreReady).db;
-    expect(await version(db), 4);
+    expect(await version(db), 5);
     expect(await dump(db), want);
     expect(await db.query('saved_foods'), isEmpty);
     await db.close();
@@ -150,7 +150,7 @@ void main() {
     final want = await dump(before);
     await before.close();
     final db = (await openStore(path, factory: f) as StoreReady).db;
-    expect(await version(db), 4);
+    expect(await version(db), 5);
     expect(await dump(db), want);
     expect(await db.query('saved_foods'), [{'id': 'off:1', 'food_json': '{"a":1}'}]);
     expect(await db.query('alert_sent'), isEmpty);
@@ -168,7 +168,7 @@ void main() {
     final want = await dump(before);
     await before.close();
     final db = (await openStore(path, factory: f) as StoreReady).db;
-    expect(await version(db), 4);
+    expect(await version(db), 5);
     expect(await dump(db), want);
     expect(await db.query('alert_sent'), [{'dish_name': 'Pizza', 'day': '2026-10-08'}]);
     expect(await db.query('health_writes'), isEmpty);
@@ -180,7 +180,7 @@ void main() {
     await db.insert('health_writes', {'meal_id': 'm1', 'platform': 'android', 'record_ids_json': '["udine-m1"]'});
     await db.close();
     final db2 = (await openStore(path, factory: f) as StoreReady).db;
-    expect(await db2.query('health_writes'), [{'meal_id': 'm1', 'platform': 'android', 'record_ids_json': '["udine-m1"]'}]);
+    expect(await db2.query('health_writes'), [{'meal_id': 'm1', 'platform': 'android', 'record_ids_json': '["udine-m1"]', 'content_sig': null}]);
     await db2.close();
   });
 
@@ -194,14 +194,14 @@ void main() {
     await db2.close();
   });
 
-  test('RN db at user_version 0 upgrades to 4, rows byte-identical', () async {
+  test('RN db at user_version 0 upgrades to 5, rows byte-identical', () async {
     await seedRn(0);
     final before = await f.openDatabase(path, options: OpenDatabaseOptions(readOnly: true));
     final want = await dump(before);
     expect(await version(before), 0);
     await before.close();
     final db = (await openStore(path, factory: f) as StoreReady).db;
-    expect(await version(db), 4);
+    expect(await version(db), 5);
     expect(await dump(db), want);
     await db.close();
   });
@@ -215,7 +215,7 @@ void main() {
     await db.close();
     final db2 = (await openStore(path, factory: f) as StoreReady).db;
     expect(await dump(db2), want);
-    expect(await version(db2), 4);
+    expect(await version(db2), 5);
     await db2.close();
     expect(File(path).readAsBytesSync(), first);
   });
@@ -226,7 +226,7 @@ void main() {
     final r = await openStore(path, factory: f);
     expect(r, isA<StoreNewerVersion>());
     expect((r as StoreNewerVersion).found, 7);
-    expect(r.supported, 4);
+    expect(r.supported, 5);
     expect(File(path).readAsBytesSync(), before);
   });
 
@@ -264,7 +264,7 @@ void main() {
   test('uncheckpointed RN WAL is replayed: rows present and identical', () async {
     final copy = await walCopy(0);
     final db = (await openStore(copy, factory: f) as StoreReady).db;
-    expect(await version(db), 4);
+    expect(await version(db), 5);
     expect(await dump(db), _want);
     expect((await db.query('log_entries')).length, 3);
     await db.close();

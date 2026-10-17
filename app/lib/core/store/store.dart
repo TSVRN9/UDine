@@ -253,8 +253,15 @@ class UdineStore {
     return r.isEmpty ? const [] : List<String>.from(jsonDecode(r.single['record_ids_json']! as String) as List);
   }
 
-  Future<void> setHealthIds(String mealId, String platform, List<String> ids) =>
-      db.insert('health_writes', {'meal_id': mealId, 'platform': platform, 'record_ids_json': jsonEncode(ids)}, conflictAlgorithm: ConflictAlgorithm.replace);
+  /// [sig] is the digest of what was written ([HealthMeal.signature]); null when unknown.
+  Future<void> setHealthIds(String mealId, String platform, List<String> ids, [String? sig]) => db.insert(
+      'health_writes', {'meal_id': mealId, 'platform': platform, 'record_ids_json': jsonEncode(ids), 'content_sig': sig},
+      conflictAlgorithm: ConflictAlgorithm.replace);
+
+  /// Every meal written to [platform] and the digest of what was written (null: written before digests were kept).
+  Future<Map<String, String?>> healthSigs(String platform) async => {
+        for (final r in await db.query('health_writes', columns: ['meal_id', 'content_sig'], where: 'platform = ?', whereArgs: [platform])) r['meal_id']! as String: r['content_sig'] as String?,
+      };
 
   Future<void> removeHealthIds(String mealId, String platform) =>
       db.delete('health_writes', where: 'meal_id = ? AND platform = ?', whereArgs: [mealId, platform]);

@@ -76,6 +76,18 @@ void main() {
       });
     });
 
+    test('the signature covers the time, the name and every nutrient the platform takes', () {
+      final base = healthMealOf(meal([entry('a', 1)]), 'Lunch');
+      String sig(HealthMeal h) => h.signature('android');
+      expect(sig(healthMealOf(meal([entry('a', 1)]), 'Lunch')), sig(base));
+      expect(sig(healthMealOf(meal([entry('a', 1)]), 'Dinner')), isNot(sig(base)));
+      expect(sig(healthMealOf(meal([entry('a', 1, cal: 201)]), 'Lunch')), isNot(sig(base)));
+      expect(sig(healthMealOf(meal([entry('a', 2)]), 'Lunch')), isNot(sig(base)));
+      final other = LoggedMeal('2026-10-01T12:42:00.000', '2026-10-01', [LoggedItem(LogEntry(id: 'a', loggedAt: '2026-10-01T12:42:00.000', source: const UmassMenuSource(dishName: 'Pizza', hallTid: 1), servings: 1, nutrition: facts()))]);
+      expect(sig(healthMealOf(other, 'Lunch')), isNot(sig(base)));
+      expect(base.signature('ios'), isNot(base.signature('android'))); // (iOS has no trans fat)
+    });
+
     test('HealthKit has no trans fat type: iOS drops it, Android keeps it', () {
       final h = healthMealOf(meal([entry('a', 1)]), 'Lunch');
       expect(h.fieldsFor('ios').containsKey('transFatG'), isFalse);
@@ -126,7 +138,10 @@ void main() {
       final k = File('android/app/src/main/kotlin/com/udinetogether/udine/PrivacyActivity.kt').readAsStringSync();
       expect(k, contains('"https://owenwang.dev/UDine/"'));
       expect(k, contains('Intent.ACTION_VIEW'));
-      expect(k.indexOf('startActivity'), lessThan(k.indexOf('finish()')));
+      expect(k, contains('catch (e: ActivityNotFoundException)'));
+      expect(k.indexOf('catch'), lessThan(k.indexOf('finish()')));
+      expect(m, isNot(contains('android:scheme="https"'))); // (nothing resolves or canLaunch-es a URL, so no <queries> entry)
+      expect(m, isNot(contains('android:scheme="market"')));
     });
 
     test('iOS: HealthKit entitlement and the update string, no share (read) string', () {

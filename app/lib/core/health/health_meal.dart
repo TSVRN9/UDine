@@ -25,6 +25,10 @@ class HealthMeal {
   final DateTime start, end;
   final Map<String, double> fields;
 
+  /// What a write of this meal says: time, name and the nutrients for [platform]. Two meals with the same signature leave the same record.
+  String signature(String platform) =>
+      '${start.millisecondsSinceEpoch}|$name|${(fieldsFor(platform).entries.toList()..sort((a, b) => a.key.compareTo(b.key))).map((e) => '${e.key}=${e.value}').join(',')}';
+
   /// HealthKit has no trans-fat type, so iOS gets the rest.
   Map<String, double> fieldsFor(String platform) => {
         for (final e in fields.entries)

@@ -12,7 +12,7 @@ class HealthWriter {
   Future<bool> write(HealthMeal m) async {
     final ids = await _client.write(m);
     if (ids == null) return false;
-    await _store.setHealthIds(m.mealId, _client.platform, ids);
+    await _store.setHealthIds(m.mealId, _client.platform, ids, m.signature(_client.platform));
     return true;
   }
 

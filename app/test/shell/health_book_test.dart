@@ -2,6 +2,7 @@
 // Real store and LogBook over a throwaway file; the health store is the simulated OS (SimulatedHealth).
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show ChangeNotifier;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -10,6 +11,7 @@ import 'package:udine/core/store/db.dart';
 import 'package:udine/core/store/log_book.dart';
 import 'package:udine/core/store/store.dart';
 import 'package:udine/core/types.dart';
+import 'package:udine/core/health/health_meal.dart';
 import 'package:udine/data/recorded/simulated_health.dart';
 import 'package:udine/shell/health_book.dart';
 
@@ -23,6 +25,20 @@ LogEntry entry(String id, String at, {num cal = 200, num servings = 1}) =>
 
 const lunchAt = '2026-10-08T12:41:00.000', dinnerAt = '2026-10-08T18:05:00.000';
 final clock = DateTime(2026, 10, 8, 20);
+
+/// Throws from its next write (as a channel error would), then behaves.
+class Flaky extends SimulatedHealth {
+  Flaky({super.status});
+  bool throwNext = false;
+  @override
+  Future<List<String>?> write(HealthMeal meal) async {
+    if (throwNext) {
+      throwNext = false;
+      throw PlatformException(code: 'boom');
+    }
+    return super.write(meal);
+  }
+}
 
 class Rig {
   Rig(this.store, this.log, this.sim, this.book);
@@ -52,8 +68,10 @@ void main() {
   late UdineStore store;
   late LogBook log;
   var tracking = true;
+  var title = 'Lunch at Worcester';
   setUp(() async {
     tracking = true;
+    title = 'Lunch at Worcester';
     dir = Directory.systemTemp.createTempSync('udine_healthbook');
     store = UdineStore((await openStore('${dir.path}/SQLite/udine.db', factory: databaseFactoryFfi) as StoreReady).db);
     log = LogBook(store, now: () => clock);
@@ -64,7 +82,7 @@ void main() {
     sim ??= SimulatedHealth(status: enabled ? HealthAccess.granted : HealthAccess.denied);
     if (enabled) await store.setHealthOn(true);
     await log.reload();
-    final book = await HealthBook.open(client: sim, store: store, log: log, titleOf: (m) => 'Lunch at Worcester', tracking: () => tracking, now: () => now ?? clock);
+    final book = await HealthBook.open(client: sim, store: store, log: log, titleOf: (m) => title, tracking: () => tracking, now: () => now ?? clock);
     addTearDown(book.dispose);
     return Rig(store, log, sim, book);
   }
@@ -185,6 +203,115 @@ void main() {
     });
   });
 
+  group('Health never drifts from the log', () {
+    test('a failed write is tried again on the next refresh', () async {
+      final r = await open(enabled: true);
+      r.sim.failWrites = true;
+      await r.logMeal([entry('a', lunchAt)]);
+      expect(r.sim.records, isEmpty);
+      r.sim.failWrites = false;
+      await r.book.refresh();
+      await r.settle();
+      expect(r.kcal(lunchAt), 200);
+      expect((await store.healthWrites()).single.mealId, lunchAt);
+    });
+
+    test('a write that throws is tried again on the next refresh', () async {
+      final sim = Flaky(status: HealthAccess.granted)..throwNext = true;
+      final r = await open(sim: sim, enabled: true);
+      await r.logMeal([entry('a', lunchAt)]);
+      expect(r.sim.records, isEmpty);
+      await r.book.refresh();
+      await r.settle();
+      expect(r.kcal(lunchAt), 200);
+    });
+
+    test('a failed delete keeps its row and is tried again', () async {
+      final r = await open(enabled: true);
+      await r.logMeal([entry('a', lunchAt)]);
+      r.sim.failWrites = true;
+      await log.deleteMeal(log.meals.single);
+      await r.settle();
+      expect(r.sim.records.length, 1);
+      expect((await store.healthWrites()).length, 1);
+      r.sim.failWrites = false;
+      await r.book.refresh();
+      await r.settle();
+      expect(r.sim.records, isEmpty);
+      expect(await store.healthWrites(), isEmpty);
+    });
+
+    test('a meal deleted while the row is off has its record deleted once the row is back on', () async {
+      final r = await open(enabled: true);
+      await r.logMeal([entry('a', lunchAt)]);
+      await r.book.tap(); // off
+      await log.deleteMeal(log.meals.single);
+      await r.settle();
+      expect(r.sim.records.length, 1); // off means hands off
+      await r.book.tap(); // on again
+      await r.settle();
+      expect(r.sim.records, isEmpty);
+      expect(await store.healthWrites(), isEmpty);
+    });
+
+    test('a meal edited while tracking is off is rewritten when tracking is back on', () async {
+      final prefsLike = _Ping();
+      final sim = SimulatedHealth(status: HealthAccess.granted);
+      await store.setHealthOn(true);
+      await log.reload();
+      final book = await HealthBook.open(client: sim, store: store, log: log, titleOf: (_) => title, tracking: () => tracking, prefs: prefsLike, now: () => clock);
+      addTearDown(book.dispose);
+      final r = Rig(store, log, sim, book);
+      await r.logMeal([entry('a', lunchAt)]);
+      tracking = false;
+      prefsLike.ping();
+      await log.setServings(log.meals.single.items.single, 2);
+      await r.settle();
+      expect(r.kcal(lunchAt), 200);
+      tracking = true;
+      prefsLike.ping();
+      await r.settle();
+      expect(r.kcal(lunchAt), 400);
+    });
+
+    test('an edit made while revoked is rewritten after the permission is given again', () async {
+      final r = await open(enabled: true);
+      await r.logMeal([entry('a', lunchAt)]);
+      r.sim.status = HealthAccess.denied;
+      await r.book.refresh();
+      await log.setServings(log.meals.single.items.single, 2);
+      await r.settle();
+      expect(r.kcal(lunchAt), 200); // revoked: hands off
+      await r.book.tap(); // the OS sheet allows it
+      await r.settle();
+      expect(r.kcal(lunchAt), 400);
+    });
+
+    test('a record whose content differs (the name changed) is rewritten at the next sync', () async {
+      final r = await open(enabled: true);
+      await r.logMeal([entry('a', lunchAt)]);
+      title = 'Lunch at Franklin';
+      await r.book.refresh();
+      await r.settle();
+      expect(r.sim.records.values.single.name, 'Lunch at Franklin');
+      expect(r.sim.records.length, 1);
+    });
+
+    test('reconcile never backfills: a meal UDine never wrote stays unwritten, however often it runs', () async {
+      await store.addEntries([entry('old', '2026-10-07T12:00:00.000')]);
+      final r = await open(enabled: true);
+      await r.logMeal([entry('b', dinnerAt)]);
+      r.sim.status = HealthAccess.denied;
+      await r.book.refresh();
+      await r.logMeal([entry('c', '2026-10-08T15:00:00.000')]); // logged while revoked
+      await r.book.tap();
+      await r.book.reconcile();
+      await r.book.refresh();
+      await r.settle();
+      expect(r.sim.records.keys, ['udine-$dinnerAt']);
+    });
+  });
+
   group('the switch', () {
     test('off: the row is there, unchecked, and asks nothing until tapped', () async {
       final r = await open();
@@ -244,4 +371,8 @@ void main() {
       expect((await open()).book.settingsLabel, 'Open Health Connect');
     });
   });
+}
+
+class _Ping extends ChangeNotifier {
+  void ping() => notifyListeners();
 }

@@ -1,6 +1,7 @@
 package com.udinetogether.udine
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -9,7 +10,11 @@ import android.os.Bundle
 class PrivacyActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_URL)))
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_URL)))
+        } catch (e: ActivityNotFoundException) {
+            // no browser: nothing to show, and the permission screen stays where it was
+        }
         finish()
     }
 
