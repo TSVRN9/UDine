@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:udine/core/health/health_client.dart';
-import 'package:udine/core/m2/history.dart';
 import 'package:udine/core/store/db.dart';
 import 'package:udine/core/store/log_book.dart';
 import 'package:udine/core/store/store.dart';
