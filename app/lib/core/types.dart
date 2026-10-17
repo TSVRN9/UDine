@@ -73,6 +73,15 @@ class NutritionFacts {
   final Set<String> blank;
   final Dv? totalFatDv, satFatDv, cholesterolDv, sodiumDv, totalCarbDv, dietaryFiberDv, sugarsDv, proteinDv;
 
+  /// The same figures with [blank] as the ones the source left empty (a saved packaged food reads them back from its row).
+  NutritionFacts withBlank(Set<String> blank) => blank.isEmpty
+      ? this
+      : NutritionFacts(
+          servingSize: servingSize, calories: calories, caloriesFromFat: caloriesFromFat, totalFatG: totalFatG, satFatG: satFatG, transFatG: transFatG, cholesterolMg: cholesterolMg,
+          sodiumMg: sodiumMg, totalCarbG: totalCarbG, dietaryFiberG: dietaryFiberG, sugarsG: sugarsG, proteinG: proteinG, totalFatDv: totalFatDv, satFatDv: satFatDv,
+          cholesterolDv: cholesterolDv, sodiumDv: sodiumDv, totalCarbDv: totalCarbDv, dietaryFiberDv: dietaryFiberDv, sugarsDv: sugarsDv, proteinDv: proteinDv, blank: blank,
+        );
+
   factory NutritionFacts.fromJson(Map<String, dynamic> j) => NutritionFacts(
         servingSize: j['servingSize'] as String,
         calories: j['calories'] as num,
@@ -187,7 +196,11 @@ class MenuItem {
 sealed class LogSource {
   const LogSource();
   factory LogSource.fromJson(Map<String, dynamic> j) => switch (j['type']) {
-        'umass-menu' => UmassMenuSource(dishName: j['dishName'] as String, hallTid: j['hallTid'] as int),
+        'umass-menu' => UmassMenuSource(
+            dishName: j['dishName'] as String,
+            hallTid: j['hallTid'] as int,
+            parts: j['parts'] == null ? null : [for (final p in j['parts'] as List) LogPart.fromJson(p as Map<String, dynamic>)],
+          ),
         'off' => OffSource(barcode: j['barcode'] as String, productName: j['productName'] as String),
         'usda' => UsdaSource(fdcId: j['fdcId'] as String, productName: j['productName'] as String),
         'custom' => CustomSource(customFoodId: j['customFoodId'] as String, productName: j['productName'] as String),
@@ -196,12 +209,34 @@ sealed class LogSource {
   Map<String, dynamic> toJson();
 }
 
+/// One part of a logged bowl: its name, how many servings, and its nutrition per serving (a snapshot, so a past meal never
+/// depends on a later menu). The entry's own nutrition is the sum.
+class LogPart {
+  const LogPart({required this.name, required this.servings, required this.nutrition});
+  final String name;
+  final num servings;
+  final NutritionFacts nutrition;
+
+  factory LogPart.fromJson(Map<String, dynamic> j) => LogPart(
+        name: j['name'] as String,
+        servings: j['servings'] as num,
+        nutrition: NutritionFacts.fromJson(j['nutrition'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {'name': name, 'servings': jsonNum(servings), 'nutrition': nutrition.toJson()};
+}
+
 class UmassMenuSource extends LogSource {
-  const UmassMenuSource({required this.dishName, required this.hallTid});
+  const UmassMenuSource({required this.dishName, required this.hallTid, this.parts});
   final String dishName;
   final int hallTid;
+
+  /// A bowl's parts (flutter-port-bowls). Not in the TS type: an additive key inside source_json, so RN ignores it and a
+  /// row without it reads as before.
+  final List<LogPart>? parts;
   @override
-  Map<String, dynamic> toJson() => {'type': 'umass-menu', 'dishName': dishName, 'hallTid': hallTid};
+  Map<String, dynamic> toJson() =>
+      {'type': 'umass-menu', 'dishName': dishName, 'hallTid': hallTid, if (parts != null) 'parts': [for (final p in parts!) p.toJson()]};
 }
 
 class OffSource extends LogSource {

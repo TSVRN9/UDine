@@ -76,7 +76,7 @@ Rationale:
 
 ## Tasks
 
-1. **Fetch and cache** — HTTP client, menu/hours/events fetch on top of `core/` parsers, the
+1. **Fetch and cache** (includes an events day cache, `events:v2:<date>`, so offline Search keeps its Events row — M2 R11b NOTES item c; added 2026-10-14) — HTTP client, menu/hours/events fetch on top of `core/` parsers, the
    `preferences_kv` cache, the state model, launch prefetch — files: `app/lib/data/`, `app/test/data/` —
    lanes: flutter — blocked by: shared-logic 2, device-data 1 — PR:
 1b. **Recorded-data mode** — the source switch, fixed clock and `net=` simulation, read from route

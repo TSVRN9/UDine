@@ -12,7 +12,7 @@ String _esc(String s) =>
 /// [menus] is menus-2026-10-08-to-22.json (`dishes` + `days[day][place][meal] = [[station, [dish idx]]]`),
 /// [locations] the get_infov2 capture, [events] get_beacons_events.
 class RecordedClient extends http.BaseClient {
-  RecordedClient({required this.menus, required this.locations, required this.events}) {
+  RecordedClient({required this.menus, required this.locations, required this.events, this.pdf}) {
     final locs = jsonDecode(locations) as List;
     // Halls are keyed Worcester/Franklin/Hampshire/Berkshire in the recording; their location ids are the foodpro tids.
     _ids = {
@@ -23,6 +23,12 @@ class RecordedClient extends http.BaseClient {
   }
   final Map<String, dynamic> menus;
   final String locations, events;
+
+  /// The recorded PDF named [pdfFiles]' value (`Lunch.pdf`), from the gitignored local copies (tool/link_pdfs.sh); null = none linked.
+  final Future<List<int>> Function(String file)? pdf;
+
+  /// Which local file answers a PDF URL: the menu's name in the URL, ignoring case and spacing ("LITE FARE" -> `Lite-fare.pdf`).
+  static const pdfFiles = {'litefare': 'Lite-fare.pdf', 'lunch': 'Lunch.pdf', 'dinner': 'Dinner.pdf', 'dessert': 'Dessert.pdf'};
   late final Map<String, int> _ids;
 
   /// ponytail: one MenuItem-shaped HTML fragment per station; Procrastination Station has no location id in get_infov2, so it has no menu.
@@ -47,15 +53,16 @@ class RecordedClient extends http.BaseClient {
     return '<a$attrs href="#inline">${_esc(d['dish-name'] as String)}</a>$price';
   }
 
-  /// M2's busy simulation (src.html BUSY/TYPICAL, Thursday 12:41), per hall location id: [live] headcount now, [peak] the typical
-  /// headcount over [from, to), [samples] per bucket. Thresholds are 300/600 for all, so levels follow from counts:
-  /// Worcester busy, usual, calmer 13:30, good; Franklin a little busy, low confidence; Hampshire not busy, quieter, good;
-  /// Berkshire busy, busier, low confidence. ponytail: pct, usual_pct and the outlook board have no OccupancyRead field.
+  /// M2's busy simulation (src.html BUSY/TYPICAL, Thursday 12:41), per hall location id: [live] headcount now and the typical day as M2's own
+  /// `TYPICAL[h]` = [first hour, pct per hour]. Thresholds are 300/600 for all, so levels follow from counts: Worcester busy, usual, calmer
+  /// 13:30, good; Franklin a little busy, low confidence; Hampshire not busy, quieter, good; Berkshire busy, busier, low confidence.
+  /// ponytail: M2's pct is a share of capacity and its TYPICAL disagrees with its own calmer_at (Worcester's 12:45 is already under 600), so the
+  /// headcount is pct x `scale` and [clearsAt] pins Worcester's last busy bucket; pct, usual_pct and the outlook have no OccupancyRead field.
   static const _sim = {
-    1: (live: 700, peak: 680, from: 11 * 60, to: 13 * 60 + 30, shoulder: 450, shoulderTo: 14 * 60 + 30, samples: 6),
-    2: (live: 400, peak: 400, from: 11 * 60, to: 15 * 60, shoulder: 100, shoulderTo: 15 * 60, samples: 2),
-    3: (live: 150, peak: 450, from: 11 * 60, to: 14 * 60, shoulder: 100, shoulderTo: 14 * 60, samples: 6),
-    4: (live: 750, peak: 500, from: 11 * 60, to: 14 * 60, shoulder: 100, shoulderTo: 14 * 60, samples: 2),
+    1: (scale: 10, live: 700, start: 7, pct: [15, 25, 30, 22, 30, 62, 86, 70, 40, 30, 45, 70, 82, 60, 40, 30, 22], samples: 6, clearsAt: 13 * 60 + 30),
+    2: (scale: 8, live: 400, start: 7, pct: [12, 20, 22, 18, 30, 55, 50, 30, 20, 25, 45, 55, 35, 20], samples: 2, clearsAt: 0),
+    3: (scale: 8, live: 150, start: 7, pct: [10, 18, 20, 16, 28, 44, 40, 25, 18, 22, 40, 48, 30, 18], samples: 6, clearsAt: 0),
+    4: (scale: 8, live: 750, start: 11, pct: [45, 74, 70, 45, 30, 40, 72, 84, 70, 50, 40, 45, 38], samples: 2, clearsAt: 0),
   };
 
   /// get_infov2 with the four halls' headcount triple replaced by the simulation.
@@ -72,26 +79,39 @@ class RecordedClient extends http.BaseClient {
     return jsonEncode(list);
   }
 
-  /// Stand-in for `rpc/occupancy_typical`, shaped per hall by [_sim]; other locations get Worcester's.
+  /// Stand-in for `rpc/occupancy_typical`, shaped per hall by [_sim]: each hour's pct is the headcount of its four 15-minute buckets, falling
+  /// toward the next hour's when that is lower (so the hour's highest bucket is its pct). Other locations get Worcester's.
   static String typicalCurveJson(int locationId) {
     final s = _sim[locationId] ?? _sim[1]!;
     return jsonEncode([
-      for (var m = 7 * 60; m < 22 * 60; m += 15)
-        () {
-          final n = m >= s.from && m < s.to ? s.peak : m >= s.to && m < s.shoulderTo ? s.shoulder : 100;
-          return {
-            'bucket_start': '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}:00',
-            'median_headcount': n,
-            'median_level': n >= 600 ? 2 : n >= 300 ? 1 : 0,
-            'samples': s.samples,
-          };
-        }(),
+      for (var i = 0; i < s.pct.length; i++)
+        for (var q = 0; q < 4; q++)
+          () {
+            final m = (s.start + i) * 60 + q * 15, v = s.pct[i], next = i + 1 < s.pct.length ? s.pct[i + 1] : v;
+            final n = ((v + (next < v ? (next - v) * q / 4 : 0)) * s.scale).round();
+            final level = n >= 600 ? 2 : n >= 300 ? 1 : 0;
+            return {
+              'bucket_start': '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}:00',
+              'median_headcount': n,
+              'median_level': s.clearsAt > 0 ? (m >= 11 * 60 && m < s.clearsAt ? 2 : level > 1 ? 1 : level) : level,
+              'samples': s.samples,
+            };
+          }(),
     ]);
   }
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final u = request.url;
+    if (u.path.toLowerCase().endsWith('.pdf')) {
+      final name = Uri.decodeComponent(u.path).toLowerCase().replaceAll(RegExp('[^a-z]'), '');
+      final file = pdfFiles.entries.where((e) => name.contains(e.key)).firstOrNull?.value;
+      List<int>? bytes;
+      try {
+        bytes = file == null || pdf == null ? null : await pdf!(file);
+      } catch (_) {} // not linked: the same 404 as a menu with no recording
+      return http.StreamedResponse(Stream.value(bytes ?? utf8.encode('no recording')), bytes == null ? 404 : 200, request: request);
+    }
     final body = switch (u.path) {
       '/foodpro-menu-ajax' => () {
         final [m, d, y] = u.queryParameters['date']!.split('/');

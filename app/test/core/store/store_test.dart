@@ -7,6 +7,7 @@ import 'package:udine/core/export.dart';
 import 'package:udine/core/store/db.dart';
 import 'package:udine/core/store/store.dart';
 import 'package:udine/core/types.dart';
+import 'package:udine/core/packaged_food.dart';
 
 const nut = '{"servingSize":"1 cup","calories":210,"caloriesFromFat":54,"totalFatG":6,"satFatG":1.5,"transFatG":0,"cholesterolMg":10,"sodiumMg":340,"totalCarbG":30,"dietaryFiberG":3,"sugarsG":4,"proteinG":9.5,"sodiumDv":14}';
 // All four RN LogEntry sources, as RN's JSON.stringify writes them.
@@ -180,6 +181,12 @@ void main() {
       await s.setAvoid(['milk']);
       expect(await raw(), '{"allergensToAvoid":["milk"],"requiredDietTags":[]}');
     });
+    test('pinned cafés: empty by default, kept in the order pinned, beside RN keys', () async {
+      expect(await s.pins(), isEmpty);
+      await s.setPins(['Wasabi', 'Tamales']);
+      expect(await s.pins(), ['Wasabi', 'Tamales']);
+      expect(await raw(), rn);
+    });
     test('M2 keys default, round-trip, and sit beside RN keys', () async {
       expect([await s.tracking(), await s.charlesRiver(), await s.firstRunSeen(), await s.scores()], [true, false, false, (healthfulness: false, carbon: false)]);
       await s.setTracking(false);
@@ -258,5 +265,101 @@ void main() {
         expect(out['$base.${kind.split('_').last}'], expected);
       });
     }
+  });
+
+  group('saved foods (packaged and lookup foods added to the plate)', () {
+    NutritionFacts n(num cal, [String serving = 'per 100g']) => NutritionFacts.fromJson({...jsonDecode(nut) as Map<String, dynamic>, 'servingSize': serving, 'calories': cal});
+    final clif = PackagedFood(
+      source: const OffSource(barcode: '0722252068484', productName: 'Chocolate Chip'),
+      productName: 'Chocolate Chip',
+      brand: 'Clif Bar',
+      nutrition: n(368),
+      ingredients: 'oats, "syrup"',
+      allergens: const ['Soybeans'],
+    );
+    final oats = PackagedFood(source: const UsdaSource(fdcId: '1', productName: 'Oats'), productName: 'Oats', nutrition: n(380));
+    final laksa = PackagedFood(source: const UmassMenuSource(dishName: 'Laksa', hallTid: 4306), productName: 'Laksa', nutrition: n(420, '1 bowl'), allergens: const ['Shellfish']);
+
+    test('round trips every field and lists newest first', () async {
+      await s.saveFood(clif);
+      await s.saveFood(oats);
+      await s.saveFood(laksa);
+      final got = await s.savedFoods();
+      expect(got.map((f) => f.id), ['umass:Laksa|4306', 'usda:1', 'off:0722252068484']);
+      final back = got.last;
+      expect(back.toJson(), clif.toJson());
+      expect(back.displayName, 'Clif Bar Chocolate Chip');
+      expect(back.ingredients, 'oats, "syrup"');
+      expect(back.allergens, ['Soybeans']);
+      expect(back.nutrition.servingSize, 'per 100g');
+      expect(got[1].ingredients, isNull);
+    });
+
+    test('saving an existing food again edits it in place; Undo restores the old row exactly', () async {
+      await s.saveFood(clif);
+      await s.saveFood(oats);
+      final before = await rows(db, 'saved_foods');
+      final undo = await s.saveFood(PackagedFood(source: clif.source, productName: 'Chocolate Chip', brand: 'Clif Bar', nutrition: n(999)));
+      expect((await s.savedFoods()).map((f) => f.id), ['usda:1', 'off:0722252068484']);
+      expect((await s.savedFoods()).last.nutrition.calories, 999);
+      await undo();
+      expect(await rows(db, 'saved_foods'), before);
+    });
+
+    test('remove then Undo puts back the same row', () async {
+      await s.saveFood(clif);
+      await s.saveFood(oats);
+      final before = await rows(db, 'saved_foods');
+      final undo = await s.removeSavedFood('off:0722252068484');
+      expect((await s.savedFoods()).map((f) => f.id), ['usda:1']);
+      await undo();
+      expect(await rows(db, 'saved_foods'), before);
+    });
+
+    test('never touches custom_foods, log entries or favorites', () async {
+      final before = await dump(db);
+      await s.saveFood(clif);
+      await (await s.removeSavedFood(clif.id))();
+      await s.saveFood(oats);
+      final after = await dump(db);
+      expect(after, before);
+    });
+
+    test('exports as udine-saved-foods.json and .csv, like the other tables', () async {
+      await s.saveFood(clif);
+      await s.saveFood(oats);
+      final foods = await s.savedFoods();
+      final j = (await s.exportJson())['udine-saved-foods.json']!;
+      expect(j, exportSavedFoodsAsJson(foods));
+      expect(jsonDecode(j), [for (final f in foods) f.toJson()]);
+      final c = (await s.exportCsv())['udine-saved-foods.csv']!;
+      expect(c, exportSavedFoodsAsCsv(foods));
+      expect(c.split('\n'), [
+        'id,name,servingSize,calories,proteinG,totalCarbG,totalFatG,ingredients',
+        '"usda:1","Oats","per 100g","380","9.5","30","6",""',
+        '"off:0722252068484","Clif Bar Chocolate Chip","per 100g","368","9.5","30","6","oats, ""syrup"""',
+      ]);
+      expect(exportSavedFoodsAsJson([]), '[]');
+    });
+  });
+
+  group('a logged bowl keeps its parts (source_json only: no new column, user_version unchanged)', () {
+    const part = '{"name":"Hard Boiled Egg","servings":2,"nutrition":$nut}';
+    const bowl = '{"type":"umass-menu","dishName":"Beef Brisket Noodle Bowl","hallTid":1,"parts":[$part]}';
+    test('add, read back, and export carry the parts; the old rows still read and export as before', () async {
+      expect((await db.rawQuery('PRAGMA user_version')).first.values.first, kUserVersion);
+      final e = LogEntry(
+          id: 'bowl1', loggedAt: '2026-10-02T12:00:00.000', servings: 1, nutrition: NutritionFacts.fromJson(jsonDecode(nut)),
+          source: LogSource.fromJson(jsonDecode(bowl)));
+      await s.addEntry(e);
+      final all = await s.allEntries();
+      final back = all.firstWhere((x) => x.id == 'bowl1').source as UmassMenuSource;
+      expect([for (final p in back.parts!) (p.name, p.servings, p.nutrition.calories)], [('Hard Boiled Egg', 2, 210)]);
+      expect((all.firstWhere((x) => x.id == 'e0').source as UmassMenuSource).parts, isNull);
+      final json = jsonDecode(exportEntriesAsJson(all)) as List;
+      expect(((json.firstWhere((x) => x['id'] == 'bowl1')['source'] as Map)['parts'] as List).single['name'], 'Hard Boiled Egg');
+      expect((json.firstWhere((x) => x['id'] == 'e0')['source'] as Map).containsKey('parts'), isFalse);
+      expect(((await db.query('log_entries', where: 'id = ?', whereArgs: ['bowl1'])).single['source_json'] as String), jsonEncode(jsonDecode(bowl)));
+    });
   });
 }

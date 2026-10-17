@@ -47,10 +47,14 @@ Rationale:
   #541 ("White Pizza" finds "White Cheese Pizza"), checked by the shared vectors.
 - **Search runs over every place's cached days.** It doesn't fetch on each keystroke. Days not yet cached
   are fetched once when Search opens, through the repository's prefetch.
-- **The packaged-food lookup is out.** `lookup-dish` and OpenFoodFacts/USDA wait for `m2-round-11`.
-- **Offline search (owner, 2026-10-13: "I'd like there to be offline search").** Search works offline
-  over every saved menu. M2 doesn't model Search offline or failed yet (the prototype ignores
-  `?net=fail`), so how it reads is designed in `m2-round-11` item 4. Task 3 builds that design.
+- **Packaged foods, Your foods and the UMass Dining lookup** are `flutter-port-packaged-foods` (M2 R11 §1);
+  this brief leaves their slots after the menu groups.
+- **Offline search (owner, 2026-10-13; designed in M2 R11 §4, approved 2026-10-14).** Offline, a line at the top
+  says what it searches ("You're offline. Searching the menus saved on this phone: the halls, today and tomorrow",
+  plus ", and Green Fields, today." for a saved or pinned café); unsaved places are absent from the dish groups but
+  still match by name in Places. Failed (online, UMass unreachable): "Couldn't connect" with Try again, and
+  Packaged and Search UMass Dining are still offered. Offline idle Search keeps its Events row, from the events
+  day cache (`flutter-port-menu-data` Task 1). Task 3 builds this.
 
 ## Acceptance
 
@@ -71,8 +75,8 @@ Rationale:
 1. **Search** — field, lenses, the result groups, add from a row, dish sheet over Search, the no-match
    call to action — files: `app/lib/screens/search/` — lanes: flutter — blocked by: hall-menu 1,
    dish-and-plate 1 — PR:
-3. **Offline search** — the round-11 design for Search offline and failed, built on the cached-days index
-   from Task 1 — files: `app/lib/screens/search/` — lanes: flutter — blocked by: 1, m2-round-11 1 — PR:
 2. **Events** — the idle carousel and the event page (from the bake-off), with "See the menu" landing on
    the event's day — files: `app/lib/screens/search/events*.dart`, `app/lib/screens/event/` — lanes:
    flutter — blocked by: 1 — PR:
+3. **Offline and failed Search** — M2 R11 §4 as described above, on the cached-days index from Task 1 and the
+   events day cache — files: `app/lib/screens/search/` — lanes: flutter — blocked by: 1, 2, menu-data 1 — PR:

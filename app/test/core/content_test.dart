@@ -78,6 +78,14 @@ void main() {
       expect(items(r'<p>Espresso $3.00</p><p>Bagel</p>'), const [RetailMenuItem('Espresso', r'$3.00'), RetailMenuItem('Bagel', null)]);
     });
 
+    test('a run of prices (Peet\'s, Newman) is the price, not part of the name', () {
+      expect(items(r'<p>Chai or Matcha Green Tea $4 / $4.50 / $5<br />+ Chocolate &amp; Caramel Swirl $4.25 / 4.75 / $5.25</p><p>Hot Coffee $1.95/$2.25/$2.50</p>'), const [
+        RetailMenuItem('Chai or Matcha Green Tea', r'$4 / $4.50 / $5'),
+        RetailMenuItem('+ Chocolate & Caramel Swirl', r'$4.25 / 4.75 / $5.25'),
+        RetailMenuItem('Hot Coffee', r'$1.95/$2.25/$2.50'),
+      ]);
+    });
+
     test('<br>-separated lines in one block are separate priced items', () {
       expect(items(brSeparatedMenu), const [
         RetailMenuItem('Chai Latte', r'$3.75'),
@@ -108,6 +116,29 @@ void main() {
       expect(parseRetailMenuHtml('<p><a href="https://evil.example/redir?to=x#.pdf">Menu</a></p>'), isNot(isA<RetailMenuPdf>()));
       expect(parseRetailMenuHtml('<p><a href="https://umassdining.com.evil.example/x.pdf">Menu</a></p>'), isNot(isA<RetailMenuPdf>()));
       expect(parseRetailMenuHtml('<p><a href="https://cdn.umassdining.com/menus/fall.pdf">Fall Menu</a></p>'), isA<RetailMenuPdf>());
+    });
+
+    test('every PDF link is kept, in the feed order (The Commonwealth lists four)', () {
+      final p = parseRetailMenuHtml(commonwealthBreakfastMenu) as RetailMenuPdf;
+      expect([for (final l in p.links) l.label], ['Click here for the Lunch Menu', 'Click here for the Lite Fare Menu', 'Click here for the Dinner Menu', 'Click here for the Dessert Menu']);
+      expect(p.url, p.links.first.url);
+      expect(p.links[1].url, 'https://www.umassdining.com/sites/default/files/2026-10/Commonwealth%20Fall%2026%20LITE%20FARE%20Menus.pdf');
+    });
+
+    test('a link that fails the gate is dropped without hiding the ones after it', () {
+      final p = parseRetailMenuHtml('<p><a href="https://evil.example/a.pdf">A</a></p><p><a href="https://umassdining.com/b.pdf">B</a></p><p><a href="mailto:x@y.z">C</a></p><p><a href="https://umassdining.com/d.pdf">D</a></p>') as RetailMenuPdf;
+      expect([for (final l in p.links) l.label], ['B', 'D']);
+    });
+
+    test('a single PDF link has one link', () {
+      expect((parseRetailMenuHtml(babyBerkBreakfastMenu) as RetailMenuPdf).links, hasLength(1));
+    });
+
+    test('menuName cuts the link text to the menu\'s name (R11 §3: Lunch, Lite fare, Dinner, Dessert)', () {
+      expect([for (final l in (parseRetailMenuHtml(commonwealthBreakfastMenu) as RetailMenuPdf).links) menuName(l.label)], ['Lunch', 'Lite fare', 'Dinner', 'Dessert']);
+      expect(menuName('Baby Berk Menu'), 'Baby Berk');
+      expect(menuName('Menu'), 'Menu');
+      expect(menuName('Click here for the Menu'), 'Menu');
     });
 
     test('a PDF link with no text is labelled Menu', () {

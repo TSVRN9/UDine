@@ -12,6 +12,14 @@ const argoTeaBreakfastMenu =
 const babyBerkBreakfastMenu =
     '<p><a href="https://umassdining.com/sites/default/files/2025-08/Baby%20Berk%201%20FA25_compressed.pdf" target="_blank">Baby Berk Menu</a></p>';
 
+/// The Commonwealth Restaurant breakfast_menu (get_infov2, 2026-10-13): four PDF links, one per <p>. Link text and URL shape as live; the file
+/// names are shortened.
+const commonwealthBreakfastMenu =
+    '<p><a href="https://www.umassdining.com/sites/default/files/2026-10/Commonwealth%20Fall%2026%20LUNCH%20Menus.pdf" target="_blank">Click here for the Lunch Menu</a></p>'
+    '<p><a href="https://www.umassdining.com/sites/default/files/2026-10/Commonwealth%20Fall%2026%20LITE%20FARE%20Menus.pdf" target="_blank">Click here for the Lite Fare Menu</a></p>'
+    '<p><a href="https://www.umassdining.com/sites/default/files/2026-10/Commonwealth%20Fall%2026%20DINNER%20Menus.pdf" target="_blank">Click here for the Dinner Menu</a></p>'
+    '<p><a href="https://www.umassdining.com/sites/default/files/2026-10/Commonwealth%20Fall%2026%20DESSERT%20Menus.pdf" target="_blank">Click here for the Dessert Menu</a></p>';
+
 /// BR_SEPARATED_MENU_SHAPE (Argo/Peet's/Courtside shape).
 const brSeparatedMenu = '<p>Chai Latte \$3.75<br>Matcha Latte \$4.25<br>Green Tea \$2.50<br>Black Tea</p>';
 

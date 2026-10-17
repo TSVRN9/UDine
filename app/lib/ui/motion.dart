@@ -14,12 +14,14 @@ Anim resolveAnim(BuildContext c, Anim a) => reducedMotion(c) ? M2Motion.rmFade :
 class Arrive extends StatelessWidget {
   final Widget child;
   final Anim anim;
-  const Arrive({super.key, required this.child, this.anim = M2Motion.settle});
+  /// where the fade starts (M2's `A(el, [{opacity: .4}, {opacity: 1}], 'settle')` turns a sheet's content into another in place)
+  final double from;
+  const Arrive({super.key, required this.child, this.anim = M2Motion.settle, this.from = 0});
   @override
   Widget build(BuildContext context) {
     final a = resolveAnim(context, anim);
     return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1), duration: a.duration, curve: a.curve,
+      tween: Tween(begin: from, end: 1), duration: a.duration, curve: a.curve,
       builder: (_, v, c) => Opacity(opacity: v, child: c), child: child,
     );
   }
@@ -71,3 +73,6 @@ class Spring {
 
   void dispose() => stop();
 }
+
+/// A token's milliseconds as a Duration (receipt time, the slow-network wait), for the screens and the shell, which hold no raw durations.
+Duration msOf(num ms) => Duration(milliseconds: (ms).round());

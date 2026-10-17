@@ -19,9 +19,10 @@ class Badge extends StatelessWidget {
   static Badge? forDiet(int diet) =>
       diet & 2 != 0 ? const Badge(Glyph.plant, label: 'Plant based') : diet & 1 != 0 ? const Badge(Glyph.veg, label: 'Vegetarian') : null;
 
-  /// A name with its patch: the last word and the patch never parted (M2 `nameHTML` puts them in a nowrap span), the patch's
+  /// A name with its patch and favourite star: the last word and its marks never parted (M2 `nameHTML` puts them in a nowrap span), the patch's
   /// baseline [M2Layout.patchBaseline] from its top, so it hangs 7 dp below the text's baseline.
-  static InlineSpan name(String text, TextStyle style, {Widget? badge, InlineSpan? star}) {
+  static InlineSpan name(String text, TextStyle style, {Widget? badge, Widget? star}) {
+    text = text.replaceAll('/', '/\u2060'); // the browser never breaks after a slash (`w/Bacon`); ICU does, so a word joiner holds it
     if (badge == null && star == null) return TextSpan(text: text, style: style);
     final i = text.lastIndexOf(' ');
     return TextSpan(style: style, children: [
@@ -32,9 +33,9 @@ class Badge extends StatelessWidget {
           Text(text.substring(i + 1), style: style),
           if (badge != null)
             Padding(padding: const EdgeInsets.only(left: M2Layout.patchLeft), child: BaselineAt(baseline: M2Layout.patchBaseline, child: badge)),
+          if (star != null) BaselineAt(baseline: M2Layout.starBaseline, child: star),
         ]),
       ),
-      ?star,
     ]);
   }
 }

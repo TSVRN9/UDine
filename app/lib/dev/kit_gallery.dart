@@ -43,7 +43,10 @@ class KitGallery extends StatelessWidget {
                   const Button(kind: ButtonKind.outlineDark, label: 'Directions'),
                   const Button(kind: ButtonKind.directions, label: 'Directions'),
                   const TextAction('Show all', onTap: _no),
+                  const Button(kind: ButtonKind.gold, compact: true, label: 'Berkshire'),
                 ]),
+                gap,
+                const CustomButton(label: 'Add something else', onTap: _no),
                 gap,
                 row([
                   const Stepper(qty: 1.5, onDec: _no, onInc: _no),
@@ -62,18 +65,34 @@ class KitGallery extends StatelessWidget {
                   const MarkGlyph(Glyph.local, color: M2Color.vm, size: M2Layout.chevron),
                   const HallChip(letter: 'W', name: 'Worcester'),
                   const Meter(lit: 2),
+                  const FavoriteStar(on: false, onTap: _no),
+                  const FavoriteStar(on: true, onTap: _no),
+                  const StarMark(),
                   const Chevron(),
                   const Spinner(),
                   const Felt(width: M2Space.group, height: M2Space.group),
                   BackButton(onTap: _no),
+                  const FilterChipButton(label: 'Open now', selected: false),
+                  const FilterChipButton(label: 'Open now', selected: true),
+                  const FilterChipButton(label: 'Halal', selected: false, glyph: Glyph.halal),
+                  const FilterChipButton(label: 'Low carbon', selected: true, glyph: Glyph.carbon),
+                  const ColoredBox(color: M2Color.vm, child: Row(mainAxisSize: MainAxisSize.min, children: [PinButton(pinned: false), PinButton(pinned: true)])),
                 ]),
               ]),
             ),
+            const Band(name: 'Worcester', card: true, status: 'Open until 2:30 PM', busy: Meter(lit: 3)),
+            const PlaceRow(name: 'Wasabi', detail: 'Blue Wall, Campus Center', status: 'Open until 9 PM', open: true),
+            const PlaceRow(name: 'Tavola', detail: 'Blue Wall, Campus Center', status: 'Opens 11 AM', open: false),
+            const Padding(padding: EdgeInsets.all(M2Space.gutter), child: Row(children: [HallTags(halls: ['W', 'F'], label: 'Served now at Worcester and Franklin'), SizedBox(width: M2Space.gutter), HallTags(halls: [], cafe: '3 cafés', label: 'Served now at 3 cafés')])),
+            const _GalleryField(),
+            CustomFoodButton(label: 'Add “chobani” as a custom food', onTap: _no),
+            CustomFoodButton(label: 'Add “chobani” as a custom food', solid: true, onTap: _no),
             ListRow(name: const TextSpan(text: 'Golden BBQ Chicken Thigh'), label: 'Golden BBQ Chicken Thigh', meta: const Text('240 cal'), control: const AddButton()),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: M2Space.gutter),
               child: Column(children: [
                 const LRow(title: 'Dietary preferences', subtitle: 'None'),
+                const LRow(leading: Thumb(), title: 'Wasabi', subtitle: 'Blue Wall, Campus Center', trailing: Text('Open until 9 PM')),
                 CheckRow(label: 'Vegetarian', on: true, onChanged: (_) {}),
                 CheckRow(label: 'Halal', on: false, onChanged: (_) {}, last: true),
               ]),
@@ -91,4 +110,26 @@ class KitGallery extends StatelessWidget {
       ),
     );
   }
+}
+
+class _GalleryField extends StatefulWidget {
+  const _GalleryField();
+  @override
+  State<_GalleryField> createState() => _GalleryFieldState();
+}
+
+class _GalleryFieldState extends State<_GalleryField> {
+  final _c = TextEditingController(text: 'pizza'), _f = FocusNode();
+  @override
+  void dispose() {
+    _c.dispose();
+    _f.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+        color: M2Color.dm,
+        child: Padding(padding: const EdgeInsets.all(M2Space.gutter), child: SearchField(controller: _c, focus: _f, hint: 'Search lunch at every hall', onChanged: (_) {}, onClear: _c.clear)),
+      );
 }

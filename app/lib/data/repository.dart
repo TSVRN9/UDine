@@ -10,6 +10,8 @@ import '../core/foodpro.dart';
 import '../core/hours.dart';
 import '../core/occupancy.dart';
 import '../core/types.dart';
+import '../core/m2/places.dart' show cafeTable, straight;
+import 'pdf_cache.dart';
 import 'source.dart';
 import 'supabase_source.dart';
 import 'states.dart';
@@ -84,10 +86,15 @@ String addDays(String iso, int days) {
 /// menu_cache:* rows are never touched. Raw responses are stored and re-parsed on read, so parser fixes apply to old
 /// entries and fields toJson omits (health, carbon) survive.
 class Repository {
-  Repository(this.source, this.db, {this.supabase, DateTime Function()? now, this.stillLoadingAfter = const Duration(milliseconds: 400)})
-    : now = now ?? DateTime.now;
+  Repository(this.source, this.db, {this.supabase, this.pdfs, DateTime Function()? now, Duration? stillLoadingAfter})
+    : now = now ?? DateTime.now, stillLoadingAfter = stillLoadingAfter ?? stillLoadingDelay {
+    pdfs?.pool = _pooled; // PDFs take the same slots and honour the same offline window as the menus
+  }
   final UmassSource source;
   final SupabaseSource? supabase;
+
+  /// Café menu PDFs on the phone; null where there is nowhere to keep them.
+  final PdfCache? pdfs;
   final Database db;
   final DateTime Function() now;
   final Duration stillLoadingAfter;
@@ -95,17 +102,107 @@ class Repository {
   /// A saved copy older than this, when the refresh can't reach the network, is reported as LoadedOffline (menuPrefetch.ts's 6h).
   static const menuFresh = Duration(hours: 6);
 
+  /// Every network fetch of `_load` goes through [_pooled]: at most this many in flight at once (a 15-day schedule open is 15 fetches).
+  static const maxInFlight = 4;
+
+  /// After a fetch fails Unreachable, later fetches skip the network for this long and resolve from the phone.
+  // ponytail: one window for every feed and place, cleared by any success or [retryNetwork]; per-host backoff if a feed can be down while others are up.
+  static const offlineWindow = Duration(seconds: 30);
+
+  /// Background work (a prefetch of places nobody has opened) holds at most this many of the [maxInFlight] slots, so a fetch the user just
+  /// asked for starts at once, or after one release when other foreground fetches fill the rest.
+  static const backgroundSlots = 2;
+
+  int _inFlight = 0, _backgroundInFlight = 0;
+  final _waiting = <Completer<void>>[], _waitingBackground = <Completer<void>>[];
+  DateTime? _offlineUntil;
+
+  /// "Try again": the next fetch asks the network whatever the last one said.
+  void retryNetwork() => _offlineUntil = null;
+
+  /// Runs [fetch] when one of the [maxInFlight] slots is free: a waiting foreground job always goes before a background one, and
+  /// a [background] job never holds more than [backgroundSlots]. Inside the offline window it does not run: it throws Unreachable
+  /// as the network would, so the caller's offline path (saved copy, NotSaved) answers. Unreachable starts the window; any
+  /// answer ends it.
+  Future<T> _pooled<T>(Future<T> Function() fetch, {bool background = false}) async {
+    if (_inFlight < maxInFlight && (!background || _backgroundInFlight < backgroundSlots)) {
+      _inFlight++;
+      if (background) _backgroundInFlight++;
+    } else {
+      final turn = Completer<void>();
+      (background ? _waitingBackground : _waiting).add(turn);
+      await turn.future; // a finishing fetch hands its slot over (and has counted it)
+    }
+    try {
+      final until = _offlineUntil;
+      if (until != null && now().isBefore(until)) throw const _SkippedOffline(); // (does not extend the window)
+      final v = await fetch();
+      _offlineUntil = null;
+      return v;
+    } on _SkippedOffline {
+      throw const Unreachable('offline window');
+    } on Unreachable {
+      _offlineUntil = now().add(offlineWindow);
+      rethrow;
+    } finally {
+      _inFlight--;
+      if (background) _backgroundInFlight--;
+      while (_inFlight < maxInFlight) {
+        if (_waiting.isNotEmpty) {
+          _inFlight++;
+          _waiting.removeAt(0).complete();
+        } else if (_waitingBackground.isNotEmpty && _backgroundInFlight < backgroundSlots) {
+          _inFlight++;
+          _backgroundInFlight++;
+          _waitingBackground.removeAt(0).complete();
+        } else {
+          break;
+        }
+      }
+    }
+  }
+
   String get today => effectiveTodayIso(now(), defaultRolloverHour);
 
   /// Menu for a hall (tid 1-4) or a café's foodpro location id.
-  Stream<DataState<List<MenuItem>>> menu(int locationId, String date) => _load(
+  Stream<DataState<List<MenuItem>>> menu(int locationId, String date, {bool background = false}) => _load(
+    background: background,
     key: _menuKey(locationId, date),
     fetch: () => source.menu(locationId, date),
     parse: (raw, _) => parseMenuResponse(locationId, date, raw is Map<String, dynamic> ? raw : const {}),
     quietWithin: menuFresh,
     isEmpty: (items) => items.isEmpty,
     isFinal: (items, fetchedAt) => items.isNotEmpty && !fetchedAt.isBefore(_dayStart(date)),
+    onFetched: (items) => _fetched[_menuKey(locationId, date)] = items,
   );
+
+  /// Menus fetched in this session by place-day (an empty one included: it is never final on disk, but it is not asked for again).
+  final _fetched = <String, List<MenuItem>>{};
+  /// Every (location id, date) given, once, through the one door Search and the dish sheet share: a place-day this session has had is
+  /// not asked for again, a saved final one asks for nothing (both as [menu] does), and every fetch goes through [_pooled] as background work, so at most
+  /// [maxInFlight] are in flight (and a fetch the user asks for meanwhile goes first) and, once the network is known to be down, none are asked and what is saved answers. A place-day with
+  /// no answer is left out. They start [maxInFlight] at a time, and [stopped] is checked before each wave.
+  Future<Map<(int, String), List<MenuItem>>> prefetchMenus(Iterable<(int, String)> days, {bool Function()? stopped}) async {
+    final out = <(int, String), List<MenuItem>>{}, todo = days.toList();
+    Future<void> one((int, String) d) async {
+      final had = _fetched[_menuKey(d.$1, d.$2)];
+      if (had != null) {
+        out[d] = had;
+        return;
+      }
+      List<MenuItem>? got;
+      await for (final s in menu(d.$1, d.$2, background: true)) {
+        if (s case Loaded(:final value) || LoadedOffline(:final value)) got = value;
+      }
+      if (got != null) out[d] = got;
+    }
+
+    for (var i = 0; i < todo.length; i += maxInFlight) {
+      if (stopped?.call() ?? false) break;
+      await Future.wait([for (final d in todo.skip(i).take(maxInFlight)) one(d)]);
+    }
+    return out;
+  }
 
   Stream<DataState<CafeMenu>> cafeMenu(RetailLocationHours loc, String date) {
     final id = loc.locationId;
@@ -135,25 +232,92 @@ class Repository {
     },
   );
 
-  /// Events aren't saved: nothing in the brief asks for them offline.
-  Stream<DataState<List<DiningEvent>>> events() => _load(fetch: source.events, parse: (raw, _) => parseEvents(raw as Map<String, dynamic>));
+  /// Events are saved for the day like hours (`events:v2:<date>`), so offline Search keeps its Events row; always re-fetched behind the saved copy.
+  Stream<DataState<List<DiningEvent>>> events() => _load(key: 'events:v2:$today', fetch: source.events, parse: (raw, _) => parseEvents(raw as Map<String, dynamic>));
 
-  /// Launch: drop entries older than yesterday, then warm today and tomorrow for the four halls, and today's hours.
-  /// Per-item failures are swallowed; this never throws.
-  Future<void> launch() async {
+  /// Launch: drop entries older than yesterday, then warm today and tomorrow for the four halls, and today's hours and events, and the PDFs of the
+  /// [pins]' menus (pinned cafés only: owner, round 11). Per-item failures are swallowed; this never throws.
+  Future<void> launch({List<String> pins = const []}) async {
     final t = today;
     await prune(t);
     await Future.wait([
       for (final d in [t, addDays(t, 1)])
         for (final h in diningHalls) menu(h.tid, d).drain<void>(),
-      hours(t).drain<void>(),
+      _warmHours(t, pins),
+      events().drain<void>(),
     ]);
+  }
+
+  Future<void> _warmHours(String date, List<String> pins) async {
+    HoursData? last;
+    await for (final s in hours(date)) {
+      if (s case Loaded(:final value) || LoadedOffline(:final value)) last = value;
+    }
+    if (last != null) await prefetchPdfs(last.feed, pins);
+  }
+
+  /// Saves the PDFs whose menu name is in [names], from today's hours (recorded mode's `saved=pdf:Lunch`: a menu opened before).
+  Future<void> savePdfs(Set<String> names) async {
+    final cache = pdfs;
+    if (cache == null || names.isEmpty) return;
+    HoursData? last;
+    await for (final s in hours(today)) {
+      if (s case Loaded(:final value) || LoadedOffline(:final value)) last = value;
+    }
+    for (final r in last?.feed.retail ?? const <RetailLocationHours>[]) {
+      if (resolveCafeMenu(const [], r) case StandingCafeMenu(menu: RetailMenuPdf(:final links))) {
+        for (final l in links) {
+          if (names.contains(menuName(l.label))) await cache.fetch(l.url).then<void>((_) {}, onError: (_) {});
+        }
+      }
+    }
+  }
+
+  /// Saves today's menu of the cafés named [names], from today's hours (recorded mode's `saved=Green Fields`: a café opened today).
+  Future<void> saveCafes(Set<String> names) async {
+    if (names.isEmpty) return;
+    HoursData? last;
+    await for (final s in hours(today)) {
+      if (s case Loaded(:final value) || LoadedOffline(:final value)) last = value;
+    }
+    final byTitle = {for (final r in last?.feed.retail ?? const <RetailLocationHours>[]) straight(r.name): r.locationId};
+    for (final e in cafeTable) {
+      final id = names.contains(e.name) ? byTitle[straight(e.title)] : null;
+      if (id != null) await menu(id, today).drain<void>();
+    }
+  }
+
+  /// Saves the PDFs of the [pins]' menus and drops saved ones no café lists any more. One failing PDF doesn't stop the rest.
+  Future<void> prefetchPdfs(DiningHoursFeed feed, List<String> pins) async {
+    final cache = pdfs;
+    if (cache == null) return;
+    final byTitle = {for (final r in feed.retail) straight(r.name): r};
+    List<String> urls(Iterable<RetailLocationHours> cafes) => [
+      for (final r in cafes)
+        if (resolveCafeMenu(const [], r) case StandingCafeMenu(menu: RetailMenuPdf(:final links))) for (final l in links) l.url,
+    ];
+    // a pin is M2's name for a café; the feed's title is the table's, or the name itself for a café the table doesn't list yet
+    final titles = {for (final e in cafeTable) if (pins.contains(e.name)) straight(e.title), ...pins.map(straight)};
+    final pinned = [for (final t in titles) ?byTitle[t]];
+    try {
+      await cache.prune(urls(feed.retail).toSet());
+    } catch (e) {
+      if (!kReleaseMode) debugPrint('pdf prune: $e');
+    }
+    for (final u in urls(pinned)) {
+      if (cache.file(u).existsSync()) continue;
+      try {
+        await cache.fetch(u);
+      } catch (e) {
+        if (!kReleaseMode) debugPrint('pdf prefetch $u: $e');
+      }
+    }
   }
 
   /// Deletes menu:v2:/hours:v2: entries dated before yesterday. Keys end in their YYYY-MM-DD.
   Future<void> prune(String today) => db.delete(
     'preferences_kv',
-    where: "(key LIKE 'menu:v2:%' OR key LIKE 'hours:v2:%') AND substr(key, -10) < ?",
+    where: "(key LIKE 'menu:v2:%' OR key LIKE 'hours:v2:%' OR key LIKE 'events:v2:%') AND substr(key, -10) < ?",
     whereArgs: [addDays(today, -1)],
   );
 
@@ -268,7 +432,11 @@ class Repository {
         () async {
           final id = h.locationIds[key];
           final curve = id == null || supabase == null ? const <OccupancyBucket>[] : await typicalCurve(id, dow);
-          final r = occupancyRead(typical: curve, live: value, now: at);
+          // a hall open past midnight also reads the next weekday's early buckets for its clearing time
+          final tid = diningHalls.where((d) => key.startsWith(d.name) && key.contains('Commons')).firstOrNull?.tid;
+          final hh = h.feed.halls.where((x) => x.hallTid == tid).firstOrNull;
+          final next = curve.isNotEmpty && id != null && hh != null && opensPastMidnight(hh) ? await typicalCurve(id, (dow + 1) % 7) : const <OccupancyBucket>[];
+          final r = occupancyRead(typical: curve, tomorrow: next, live: value, now: at);
           if (r != null) out[key] = r;
         }(),
     ]);
@@ -285,6 +453,8 @@ class Repository {
     bool Function(T value)? isEmpty,
     bool Function(T value, DateTime fetchedAt)? isFinal,
     Duration quietWithin = Duration.zero,
+    void Function(T value)? onFetched,
+    bool background = false,
   }) {
     final c = StreamController<DataState<T>>();
     () async {
@@ -321,8 +491,9 @@ class Repository {
           slow = Timer(stillLoadingAfter, () => c.add(StillLoading()));
         }
         try {
-          final raw = await fetch();
+          final raw = await _pooled(fetch, background: background);
           final value = parse(raw, true);
+          onFetched?.call(value);
           slow?.cancel();
           if (saved != null && isEmpty != null && isEmpty(value)) {
             return; // a later empty answer is the glitch, never news: keep the render and the saved copy
@@ -354,4 +525,8 @@ class Repository {
     }();
     return c.stream;
   }
+}
+
+class _SkippedOffline implements Exception {
+  const _SkippedOffline();
 }

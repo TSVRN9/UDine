@@ -135,7 +135,7 @@ export function parseRetailMenuHtml(html: string | null | undefined): ParsedReta
       .flatMap((chunk) => htmlToText(chunk).split("\n"))
       .filter(Boolean)
       .map((line) => {
-        const m = /^(.*?)\s+(\$\d+(?:\.\d{2})?)$/.exec(line);
+        const m = /^(.*?)\s+(\$\d+(?:\.\d{2})?(?:\s*\/\s*\$?\d+(?:\.\d{2})?)*)$/.exec(line);
         return m ? { name: m[1].trim(), price: m[2] } : { name: line, price: null };
       });
   }

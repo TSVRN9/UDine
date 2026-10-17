@@ -15,7 +15,9 @@ class Button extends StatelessWidget {
   final VoidCallback? onTap;
   /// full width (`.btn`) rather than the label's width
   final bool expand;
-  const Button({super.key, required this.kind, required this.label, this.onTap, this.size, this.expand = false});
+  /// the choose bar's `.gbtn` (`min-width:0;padding:0 14px`): as wide as its label
+  final bool compact;
+  const Button({super.key, required this.kind, required this.label, this.onTap, this.size, this.expand = false, this.compact = false});
 
   ButtonSize get _size => size ?? switch (kind) {
         ButtonKind.primary || ButtonKind.line => ButtonSize.large,
@@ -26,10 +28,12 @@ class Button extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final h = switch (_size) { ButtonSize.large => M2Layout.btnL, ButtonSize.medium => M2Layout.btnM, ButtonSize.tap => M2Size.tap };
+    final small = kind == ButtonKind.line && _size == ButtonSize.tap; // `.netfail .btn`, `.lkst .btn`: 44 tall, 15 dp, 16 of padding, the ring inset
+    final inset = kind == ButtonKind.directions || small;
     final big = _size == ButtonSize.large && (kind == ButtonKind.gold || kind == ButtonKind.outline); // `.evbtn`: 52 tall, 17 dp
     final (bg, fg, ring, style, pad) = switch (kind) {
       ButtonKind.primary => (M2Color.vm, M2Color.white, null, M2Text.action.bold(), 0.0),
-      ButtonKind.line => (null, M2Color.vm, M2Color.vm, M2Text.action.bold(), 0.0),
+      ButtonKind.line => (null, M2Color.vm, M2Color.vm, small ? M2Text.link.bold() : M2Text.action.bold(), small ? M2Layout.lineBtnPad : 0.0),
       ButtonKind.gold => (M2Color.gold, M2Color.dm, null, big ? M2Text.action.bold() : M2Text.button.bold(), M2Layout.gbtnPad),
       ButtonKind.outline => (null, M2Color.white, M2Color.outline, big ? M2Text.action : M2Text.link, M2Layout.obtnPad),
       ButtonKind.outlineDark => (null, M2Color.vm, M2Color.vm, M2Text.link, M2Layout.obtnPad),
@@ -38,10 +42,12 @@ class Button extends StatelessWidget {
     final body = Container(
       height: h,
       width: expand ? double.infinity : null,
-      constraints: kind == ButtonKind.gold ? const BoxConstraints(minWidth: M2Layout.gbtnMinW) : null,
-      padding: EdgeInsets.symmetric(horizontal: pad),
+      constraints: kind == ButtonKind.gold && !compact ? const BoxConstraints(minWidth: M2Layout.gbtnMinW) : null,
+      padding: EdgeInsets.symmetric(horizontal: compact ? M2Layout.logAtPad : pad),
       alignment: Alignment.center,
-      decoration: BoxDecoration(color: bg, borderRadius: const BorderRadius.all(Radius.circular(M2Radius.button)), border: ring == null ? null : Border.all(color: ring, width: M2Layout.rule)),
+      decoration: BoxDecoration(color: bg, borderRadius: const BorderRadius.all(Radius.circular(M2Radius.button)), border: ring == null || inset ? null : Border.all(color: ring, width: M2Layout.rule)),
+      // `.dirb`'s ring is an inset box-shadow: drawn over the box, taking no room from the padding (the other rings are borders)
+      foregroundDecoration: ring == null || !inset ? null : BoxDecoration(borderRadius: const BorderRadius.all(Radius.circular(M2Radius.button)), border: Border.all(color: ring, width: M2Layout.rule)),
       child: Text(label, style: style.style(fg), maxLines: 1),
     );
     return Press(scale: true, label: label, onTap: onTap, child: expand ? body : IntrinsicWidth(child: body));

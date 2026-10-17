@@ -55,6 +55,9 @@ MenuView menuView(Board fx, String day, String place, String meal, Prefs prefs, 
   return MenuView(sections, showAll ? 0 : byAllergen.length, _line(prefs, byAllergen, showAll));
 }
 
+/// The one line over any list of dishes (Search's too): what the preferences hide, counted; null when there is nothing to say.
+String? prefLine(Prefs p, Iterable<MenuItem> all, bool revealed) => _line(p, [for (final d in all) if (dietOK(p, d) && hits(p, d).isNotEmpty) d], revealed);
+
 String? _line(Prefs p, List<MenuItem> byAllergen, bool revealed) {
   if (!_dietOn(p) && p.avoid.isEmpty) return null;
   if (!_dietOn(p) && byAllergen.isEmpty) return null;
@@ -100,8 +103,11 @@ String dayCell(Board fx, int i) {
 }
 
 /// "Saturday, October 10".
-String dayFull(Board fx, int i) {
-  final d = _noon(dayIsos(fx)[i]);
+String dayFull(Board fx, int i) => isoFull(dayIsos(fx)[i]);
+
+/// "Saturday, October 10" for an ISO day (M2 `isoFull`).
+String isoFull(String iso) {
+  final d = _noon(iso);
   return '${_wd[d.weekday - 1]}, ${_mo[d.month - 1]} ${d.day}';
 }
 

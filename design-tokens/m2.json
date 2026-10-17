@@ -169,6 +169,11 @@
    "size": 15,
    "line": "normal"
   },
+  "placeStatus": {
+   "font": "bodyMd",
+   "size": 15,
+   "line": "normal"
+  },
   "statusSm": {
    "font": "body",
    "size": 14,
@@ -584,6 +589,8 @@
  },
  "opacity": {
   "disabled": 0.4,
+  "footDisabled": 0.45,
+  "settleFrom": 0.4,
   "edgeShadow": 0.3
  },
  "gradient": {
@@ -745,6 +752,7 @@
   },
   "scrim": 0.32,
   "plateScrim": 0.5,
+  "revealFlash": 0.4,
   "dragBack": {
    "dist": 480,
    "commit": 0.82,
@@ -793,6 +801,13 @@
     "k": 300,
     "z": 0.84
    }
+  },
+  "sheetRelease": {
+   "project": 0.18,
+   "vMax": 4000,
+   "rubber": 0.55,
+   "midTop": 4,
+   "closeBelowTop": 80
   },
   "lane": {
    "from": 0.42,
@@ -963,7 +978,9 @@
   "size.tile": ".tile 18 x 22.5",
   "size.tileSheet": ".mks-s .tile 24 x 30",
   "size.tileScale": ".sscale .tile 26 x 32.5",
-  "opacity.disabled": "#bfoot .gbtn[disabled]{opacity:.45}; disabled tab .4 (tbar)",
+  "opacity.disabled": "disabled tab .4 (tbar)",
+  "opacity.footDisabled": "#bfoot .gbtn[disabled]{opacity:.45}",
+  "opacity.settleFrom": "stepPart: A($('#bfoot .l2'),[{opacity:.4},{opacity:1}],'settle')",
   "opacity.edgeShadow": ".dish.stuck .dhd shadow rgba(36,10,14,.32), drawn .3",
   "gradient.band": ".lgrad",
   "gradient.headTop": ".tgrad (height st + 80)",
@@ -982,6 +999,7 @@
   "motion.exit": "MO.exit (150, .3 0 .8 .2)",
   "motion.scrim": "MO.scrim",
   "motion.plateScrim": "#pscrim max opacity .5",
+  "motion.revealFlash": "prefshow/prefhide: the list flashes from this opacity back to whole over settle",
   "motion.dragBack": "MO.dragBack",
   "motion.push": "MO.push",
   "motion.pushIn": "push in: MO.cont timing on MO.push.e",
@@ -989,6 +1007,7 @@
   "motion.rmFade": "MO.rmFade; `always`: it plays under the system's reduced-motion setting (it is what reduced motion is replaced by)",
   "motion.spin": ".spin animation 900ms linear infinite",
   "motion.spring": "SPRING.sheet",
+  "motion.sheetRelease": "Sheet() release (project, vMax, midTop, closeBelowTop) and drag (rubber)",
   "motion.lane": "setCtl",
   "motion.receipt": "receipt timer",
   "motion.plateSwipe": "#bar pointerup",

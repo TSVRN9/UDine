@@ -13,20 +13,27 @@
 //
 // Source: af-foodpro1.campus.ads.umass.edu's public "Web INA" tool (a different vendor -- Aurora
 // Information Systems, not CBORD -- fronting the same FoodPro recipe database). Three endpoints:
-//   1. location.aspx -- lists every FoodPro locationNum (28 total: the same 4 halls + 24 retail/
+//   1. location.aspx -- lists every FoodPro locationNum (29 total as of 2026-10-14: the same 4 halls + 25 retail/
 //      café spots). Parsed live here, not hardcoded -- the retail location list can drift.
-//   2. longmenu.aspx?...&mealName=<Breakfast|Lunch|Dinner|Late Night> -- one retail location's
-//      dishes for one meal period, each carrying a label.aspx link with its RecNum. Confirmed live
-//      (2026-09-14): omitting mealName silently defaults to a single period, so all 4 are always
-//      requested explicitly. Needs a session cookie primed by one prior location.aspx GET (a cold
+//   2. shortmenu.aspx, then longmenu.aspx?...&mealName=<name> -- shortmenu's longmenu links carry the
+//      meal name(s) the location actually publishes under (`mealName=Lunch` for Newman and the
+//      Bluewall stations' Lunch/Dinner, `Daily Offerings` for most cafés, singular `Daily Offering`
+//      for Post & Bean -- research 2026-10-14). longmenu.aspx then returns one retail location's
+//      dishes for one meal name, each carrying a label.aspx link with its RecNum. A name the
+//      location doesn't publish returns 0 rows, and omitting mealName silently defaults to a single
+//      period, so the parsed names are always requested explicitly; a location whose shortmenu lists
+//      none falls back to Breakfast/Lunch/Dinner/Late Night (MEAL_PERIODS). (The original
+//      hardcoded-four rule returned 0 rows for 11 cafés.) Both need a session cookie primed by one prior location.aspx GET (a cold
 //      direct fetch 500s) -- label.aspx does not.
 //   3. label.aspx -- the actual Nutrition Facts label for one RecNum. Confirmed permanent/date-
 //      independent (dtdate doesn't gate the lookup) and fully stateless (no cookie needed). This is
 //      a rendered HTML table ("Calories&nbsp;348" style, not foodpro-menu-ajax's data-* attributes)
 //      -- genuinely new parsing logic below, not a reuse of populate-dishes' parseDishRows.
 //
-// Politeness + Edge Function time budget: a full crawl is 96 longmenu.aspx requests (24 retail
-// locations x 4 meal periods) surfacing ~394 unique dish names, of which ~331 aren't yet in
+// Politeness + Edge Function time budget: a full crawl is, per retail location, one shortmenu.aspx request plus one
+// longmenu.aspx request per parsed meal name: 25 + at most ~54 = ~79 discovery requests (11 cafés and
+// Newman x1, 5 Bluewall stations x2, the other 8 locations x4 if they still list all four), down
+// from the old 96 (24 x 4) even with the extra requests. It surfaces ~394 unique dish names, of which ~331 aren't yet in
 // public.dishes (the rest collide with hall dish names populate-dishes already wrote -- see
 // fetchExistingDishNames' doc comment for why that's an acceptable, not just convenient, thing to
 // skip). Both crawl phases (discovery, then up to MAX_LABEL_FETCHES_PER_RUN label.aspx lookups) run
@@ -59,6 +66,18 @@ const MEAL_PERIODS = ["Breakfast", "Lunch", "Dinner", "Late Night"];
 // either way. Belt-and-suspenders alongside the batched upsert below, which is the change that
 // actually removes the "lose the whole run" consequence regardless of where the real platform
 // threshold turns out to sit.
+//
+// Time budget arithmetic (2026-10-15; 29-4 = 25 retail locations, CRAWL_CONCURRENCY = 6 lanes,
+// REQUEST_DELAY_MS = 50 per lane after each request). Calibration: the 2026-09-14 measurement put
+// 96 longmenu + 50 label = 146 requests at ~6.8s, i.e. ~280ms per request-lane-slot including the
+// gap (6.8s x 6 lanes / 146). Gap alone: requests x 50ms / 6 lanes.
+//   discovery  25 shortmenu + <=54 longmenu = <=79 requests  -> 79 x 280ms / 6 = ~3.7s (gap: 0.66s)
+//   labels     <=50 requests                                 -> 50 x 280ms / 6 = ~2.3s (gap: 0.42s)
+//   total      <=129 requests                                -> ~6.0s, under the 6.8s already measured
+// Worst case (a location publishes a name we fall back past, every location uses all four):
+// 25 + 100 + 50 = 175 requests -> 175 x 280ms / 6 = ~8.2s, still below the 9.1s floor of the
+// observed platform-kill zone. shortmenu.aspx pages are larger (~40-130KB) than longmenu, so
+// re-measure live after the first deploy before raising the cap.
 const MAX_LABEL_FETCHES_PER_RUN = 50;
 // Upsert every this-many newly-fetched rows during fetchAllLabels, instead of collecting all
 // MAX_LABEL_FETCHES_PER_RUN rows and upserting once at the end -- a mid-run platform kill during the
@@ -67,7 +86,7 @@ const MAX_LABEL_FETCHES_PER_RUN = 50;
 // a full 50-row run).
 const UPSERT_BATCH_SIZE = 25;
 const REQUEST_DELAY_MS = 50; // be a polite scraper -- this is UMass IT infrastructure, not a CDN
-// Bounded worker-pool width for BOTH crawl phases (discovery's 96 longmenu.aspx requests, and up to
+// Bounded worker-pool width for BOTH crawl phases (discovery's shortmenu.aspx + longmenu.aspx requests, and up to
 // MAX_LABEL_FETCHES_PER_RUN label.aspx requests). Fixed the fully-sequential `for (...) await fetch`
 // shape that measured ~45s wall time for discovery alone -- the same shape that killed
 // populate-dishes/check-favorited-foods with platform Gateway Timeouts at just 4 sequential fetches
@@ -141,6 +160,20 @@ export function parseRetailLocations(html: string): RetailLocation[] {
     rows.push({ locationNum, locationNumRaw: m[1], hrefLocationName: m[2], displayName: decodeEntities(m[3]).trim() });
   }
   return rows;
+}
+
+/**
+ * Distinct meal names, in page order, from the `mealName=` query param of every longmenu.aspx link
+ * on one shortmenu.aspx response (URL-decoded: "Daily+Offerings" -> "Daily Offerings"). Empty when
+ * the page lists none; the caller then falls back to MEAL_PERIODS.
+ */
+export function parseMealNames(html: string): string[] {
+  const names = new Set<string>();
+  for (const m of html.matchAll(/longmenu\.aspx\?[^"'\s>]*?mealName=([^"'&\s>]+)/g)) {
+    const name = decodeURIComponent(m[1].replace(/\+/g, " ")).trim();
+    if (name) names.add(name);
+  }
+  return [...names];
 }
 
 export interface DiscoveredDish {
@@ -289,7 +322,7 @@ interface DiscoveryTask {
 }
 
 /**
- * Discovers every (location x meal period) longmenu.aspx page through a bounded worker pool
+ * Reads each location's meal names from its shortmenu.aspx (MEAL_PERIODS if none), then discovers every (location x meal name) longmenu.aspx page through a bounded worker pool
  * (see runPool's own doc comment) instead of the old fully-sequential for-loop. First-seen-wins on
  * a dish-name collision across locations/meals still holds in spirit -- only ONE label.aspx lookup
  * is ever spent per unique name -- but which task's (labelPath, locationNum) "wins" a given name is
@@ -306,7 +339,19 @@ export async function discoverAllDishes(
 ): Promise<Map<string, { labelPath: string; locationNum: number }>> {
   const discovered = new Map<string, { labelPath: string; locationNum: number }>();
   const tasks: DiscoveryTask[] = [];
-  for (const loc of locations) for (const meal of MEAL_PERIODS) tasks.push({ loc, meal });
+  await runPool(locations, concurrency, async (loc) => {
+    let meals: string[] = [];
+    try {
+      const res = await fetchImpl(`${BASE}shortmenu.aspx?sName=%60&locationNum=${loc.locationNumRaw}&locationName=${loc.hrefLocationName}&naFlag=1`, {
+        headers: { Cookie: cookieHeader },
+      });
+      if (res.ok) meals = parseMealNames(await res.text());
+    } catch (err) {
+      console.error(`populate-retail-dishes: shortmenu.aspx failed for location ${loc.locationNumRaw}:`, err);
+    }
+    for (const meal of meals.length > 0 ? meals : MEAL_PERIODS) tasks.push({ loc, meal });
+    await sleep(REQUEST_DELAY_MS);
+  });
 
   await runPool(tasks, concurrency, async ({ loc, meal }) => {
     const url = `${BASE}longmenu.aspx?sName=%60&locationNum=${loc.locationNumRaw}&locationName=${loc.hrefLocationName}&naFlag=1&mealName=${encodeURIComponent(meal)}`;

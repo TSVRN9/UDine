@@ -102,6 +102,7 @@ abstract final class M2Text {
   static const menuName = M2Type(40.0, 40.0, 'Oswald', FontWeight.w600, tabular: true);
   /// .bt .st 15px (no line-height)
   static const status = M2Type(15.0, null, 'LibreFranklin', FontWeight.w400);
+  static const placeStatus = M2Type(15.0, null, 'LibreFranklin', FontWeight.w500);
   /// .pin .bt .st, .bz 14px (no line-height)
   static const statusSm = M2Type(14.0, null, 'LibreFranklin', FontWeight.w400);
   /// .dietnote 14px/1.35
@@ -525,8 +526,12 @@ abstract final class M2Size {
 }
 
 abstract final class M2Opacity {
-  /// #bfoot .gbtn[disabled]{opacity:.45}; disabled tab .4 (tbar)
+  /// disabled tab .4 (tbar)
   static const disabled = 0.4;
+  /// #bfoot .gbtn[disabled]{opacity:.45}
+  static const footDisabled = 0.45;
+  /// stepPart: A($('#bfoot .l2'),[{opacity:.4},{opacity:1}],'settle')
+  static const settleFrom = 0.4;
   /// .dish.stuck .dhd shadow rgba(36,10,14,.32), drawn .3
   static const edgeShadow = 0.3;
 }
@@ -635,6 +640,8 @@ abstract final class M2Motion {
   static const scrim = 0.32;
   /// #pscrim max opacity .5
   static const plateScrim = 0.5;
+  /// prefshow/prefhide: the list flashes from this opacity back to whole over settle
+  static const revealFlash = 0.4;
   /// MO.dragBack
   static const dragBackDist = 480.0;
   /// MO.dragBack
@@ -662,6 +669,16 @@ abstract final class M2Motion {
   static const springSheetK = 300.0;
   /// SPRING.sheet
   static const springSheetZ = 0.84;
+  /// Sheet() release (project, vMax, midTop, closeBelowTop) and drag (rubber)
+  static const sheetReleaseProject = 0.18;
+  /// Sheet() release (project, vMax, midTop, closeBelowTop) and drag (rubber)
+  static const sheetReleaseVMax = 4000.0;
+  /// Sheet() release (project, vMax, midTop, closeBelowTop) and drag (rubber)
+  static const sheetReleaseRubber = 0.55;
+  /// Sheet() release (project, vMax, midTop, closeBelowTop) and drag (rubber)
+  static const sheetReleaseMidTop = 4.0;
+  /// Sheet() release (project, vMax, midTop, closeBelowTop) and drag (rubber)
+  static const sheetReleaseCloseBelowTop = 80.0;
   /// setCtl
   static const laneFrom = 0.42;
   /// setCtl

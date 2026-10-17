@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../date.dart';
 import '../export.dart';
+import '../packaged_food.dart';
 import '../types.dart';
 
 /// Puts back exactly the rows (rowid and bytes) an operation removed or changed.
@@ -23,7 +24,7 @@ class Meal {
 }
 
 /// M2 tracking/score/campus/first-run settings: new preferences_kv keys, prefixed so they never meet RN's.
-const kTrackKey = 'm2:track', kScoresKey = 'm2:scores', kCharlesRiverKey = 'm2:charles_river', kFirstRunSeenKey = 'm2:first_run_seen';
+const kTrackKey = 'm2:track', kScoresKey = 'm2:scores', kCharlesRiverKey = 'm2:charles_river', kFirstRunSeenKey = 'm2:first_run_seen', kPinsKey = 'm2:pins';
 
 /// Repositories over an opened db, reading and writing RN's exact rows and JSON shapes.
 class UdineStore {
@@ -101,6 +102,17 @@ class UdineStore {
         );
       });
 
+  /// A plate's rows in one transaction: all of them or, if any insert fails, none. Undo removes exactly those rows (and puts back any
+  /// row of the same id that was replaced), as [addEntry]'s does.
+  Future<Undo> addEntries(List<LogEntry> es) => _change('log_entries', 'id', [for (final e in es) e.id], (tx) async {
+        for (final e in es) {
+          await tx.rawInsert(
+            'INSERT OR REPLACE INTO log_entries (id, logged_at, source_json, servings, nutrition_json) VALUES (?, ?, ?, ?, ?)',
+            [e.id, e.loggedAt, jsonEncode(e.source.toJson()), e.servings, jsonEncode(e.nutrition.toJson())],
+          );
+        }
+      });
+
   /// Touches only the servings column; source/nutrition bytes stay as written.
   /// Undo is compare-and-set: it restores the old value only if the row still exists with the servings this edit set.
   Future<Undo> changeServings(String id, num servings) async {
@@ -147,6 +159,24 @@ class UdineStore {
         await tx.rawDelete('DELETE FROM custom_foods WHERE id = ?', [id]);
       });
 
+  // ---- saved foods: packaged and lookup foods added to the plate (Your foods, with custom_foods) ----
+
+  /// Newest first.
+  Future<List<PackagedFood>> savedFoods() async =>
+      [for (final r in await db.rawQuery('SELECT food_json FROM saved_foods ORDER BY rowid DESC')) PackagedFood.fromJson(jsonDecode(r['food_json']! as String) as Map<String, dynamic>)];
+
+  /// Saving a food that is already saved edits it where it is.
+  Future<Undo> saveFood(PackagedFood f) => _change('saved_foods', 'id', [f.id], (tx) async {
+        await tx.rawInsert(
+          'INSERT INTO saved_foods (id, food_json) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET food_json = excluded.food_json',
+          [f.id, jsonEncode(f.toJson())],
+        );
+      });
+
+  Future<Undo> removeSavedFood(String id) => _change('saved_foods', 'id', [id], (tx) async {
+        await tx.rawDelete('DELETE FROM saved_foods WHERE id = ?', [id]);
+      });
+
   // ---- preferences_kv ----
 
   Future<Object?> _kv(String key) async {
@@ -182,6 +212,9 @@ class UdineStore {
   Future<void> setTracking(bool v) => _setKv(kTrackKey, v);
   Future<bool> charlesRiver() async => await _kv(kCharlesRiverKey) as bool? ?? false;
   Future<void> setCharlesRiver(bool v) => _setKv(kCharlesRiverKey, v);
+  /// Pinned cafés by name, in the order pinned (M2 `S.pins`).
+  Future<List<String>> pins() async => List<String>.from(await _kv(kPinsKey) as List? ?? []);
+  Future<void> setPins(List<String> v) => _setKv(kPinsKey, v);
   Future<bool> firstRunSeen() async => await _kv(kFirstRunSeenKey) as bool? ?? false;
   Future<void> setFirstRunSeen(bool v) => _setKv(kFirstRunSeenKey, v);
 
@@ -202,6 +235,7 @@ class UdineStore {
         'udine-ranked-foods.json': exportRankedFoodsAsJson(await rankedFoods()),
         'udine-favorites.json': exportFavoritesAsJson(await favorites()),
         'udine-custom-foods.json': exportCustomFoodsAsJson(await customFoods()),
+        'udine-saved-foods.json': exportSavedFoodsAsJson(await savedFoods()),
       };
 
   Future<Map<String, String>> exportCsv() async => {
@@ -210,5 +244,6 @@ class UdineStore {
         'udine-ranked-foods.csv': exportRankedFoodsAsCsv(await rankedFoods()),
         'udine-favorites.csv': exportFavoritesAsCsv(await favorites()),
         'udine-custom-foods.csv': exportCustomFoodsAsCsv(await customFoods()),
+        'udine-saved-foods.csv': exportSavedFoodsAsCsv(await savedFoods()),
       };
 }

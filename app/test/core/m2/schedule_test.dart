@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:udine/core/m2/board.dart';
 import 'package:udine/core/m2/schedule.dart';
 import 'support.dart';
 
@@ -28,6 +29,14 @@ void main() {
     expect(s.days[4].meals, isEmpty);
     expect(schedule(board, 'W', 0).days[4].right, 'Holiday hours');
   });
+  test('a holiday whose only feed link was the flyer has no link to open and still lists', () {
+    final e = board.events[0];
+    final bare = Board(
+      clock: board.clock, places: board.places, hours: board.hours, grab: board.grab, days: board.days,
+      events: [HoursEvent(title: e.title, scope: e.scope, expires: e.expires, hoursTitle: e.hoursTitle, links: const [], flyer: 'https://umassdining.com/a.png')],
+    );
+    expect(schedule(bare, 'W', 4).days[4].event!.href, '');
+  });
   test('a café has no holiday row and carries its building, payment and description; empty café days say so', () {
     final wasabi = board.places.firstWhere((p) => p.name == 'Wasabi').key;
     final s = schedule(board, wasabi, 0);
@@ -43,6 +52,12 @@ void main() {
     expect(statusLine(board, 'W', 0), 'Open until midnight');
     expect(statusLine(board, 'W', 9), '7 AM to midnight');
     expect(statusLine(board, 'W', 2), '');
+  });
+  test('modeOf says each day\'s own state: loading and failed rows have no hours and do not open, unsaved ones say Not saved, loaded ones are as ever', () {
+    final s = schedule(board, 'W', 0, modeOf: (i) => switch (i) { 0 || 1 => NetMode.ok, 2 => NetMode.slow, 3 => NetMode.fail, _ => NetMode.offline });
+    expect([for (final d in s.days.take(6)) d.right], ['7 AM to midnight', '', '', '', 'Not saved', 'Not saved']);
+    expect(s.days[0].meals, isNotEmpty);
+    expect(schedule(board, 'W', 3, modeOf: (i) => i == 3 ? NetMode.fail : NetMode.ok).days[3].meals, isEmpty);
   });
   test('Directions hands the phone the café\'s lat,long', () => expect(mapsUri('42.39,-72.52').toString(), 'https://www.google.com/maps/search/?api=1&query=42.39%2C-72.52'));
 }

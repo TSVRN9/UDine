@@ -44,8 +44,11 @@ const nut = '{"calories":210,"protein":9.5,"carbs":30,"fat":6,"sodium":340}';
 Future<Map<String, Object?>> dump(Database db) async => {
       for (final t in tables) t: await db.rawQuery('SELECT * FROM $t ORDER BY rowid'),
       'schema': await db.rawQuery(
-          "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"),
+          "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != 'saved_foods' ORDER BY name"),
     };
+
+Future<String?> savedFoodsShape(Database db) async =>
+    ((await db.rawQuery("SELECT sql FROM sqlite_master WHERE name = 'saved_foods'")).firstOrNull?['sql'] as String?)?.replaceAll(RegExp(r'\s+'), ' ');
 
 Future<int> version(Database db) async =>
     (await db.rawQuery('PRAGMA user_version')).first.values.first! as int;
@@ -101,26 +104,50 @@ void main() {
     await db.close();
   }
 
-  test('fresh create == RN schema, user_version 1', () async {
+  test('fresh create == RN schema + saved_foods, user_version 2', () async {
     final r = await openStore(path, factory: f);
     final db = (r as StoreReady).db;
-    expect(await version(db), 1);
+    expect(await version(db), 2);
     final ref = await f.openDatabase(inMemoryDatabasePath);
     for (final s in rnSchema) {
       await ref.execute(s);
     }
     expect(await dump(db), await dump(ref));
+    expect(await savedFoodsShape(db), 'CREATE TABLE saved_foods (id TEXT PRIMARY KEY NOT NULL, food_json TEXT NOT NULL)');
+    expect(await db.query('saved_foods'), isEmpty);
     await db.close();
   });
 
-  test('RN db at user_version 0 upgrades to 1, rows byte-identical', () async {
+  test('user_version 1 (an earlier Flutter build) with RN data upgrades to 2, rows identical, saved_foods added', () async {
+    await seedRn(1);
+    final before = await f.openDatabase(path, options: OpenDatabaseOptions(readOnly: true));
+    final want = await dump(before);
+    await before.close();
+    final db = (await openStore(path, factory: f) as StoreReady).db;
+    expect(await version(db), 2);
+    expect(await dump(db), want);
+    expect(await db.query('saved_foods'), isEmpty);
+    await db.close();
+  });
+
+  test('saved_foods rows survive a reopen', () async {
+    await seedRn(0);
+    final db = (await openStore(path, factory: f) as StoreReady).db;
+    await db.insert('saved_foods', {'id': 'off:1', 'food_json': '{"a":1}'});
+    await db.close();
+    final db2 = (await openStore(path, factory: f) as StoreReady).db;
+    expect(await db2.query('saved_foods'), [{'id': 'off:1', 'food_json': '{"a":1}'}]);
+    await db2.close();
+  });
+
+  test('RN db at user_version 0 upgrades to 2, rows byte-identical', () async {
     await seedRn(0);
     final before = await f.openDatabase(path, options: OpenDatabaseOptions(readOnly: true));
     final want = await dump(before);
     expect(await version(before), 0);
     await before.close();
     final db = (await openStore(path, factory: f) as StoreReady).db;
-    expect(await version(db), 1);
+    expect(await version(db), 2);
     expect(await dump(db), want);
     await db.close();
   });
@@ -134,7 +161,7 @@ void main() {
     await db.close();
     final db2 = (await openStore(path, factory: f) as StoreReady).db;
     expect(await dump(db2), want);
-    expect(await version(db2), 1);
+    expect(await version(db2), 2);
     await db2.close();
     expect(File(path).readAsBytesSync(), first);
   });
@@ -145,7 +172,7 @@ void main() {
     final r = await openStore(path, factory: f);
     expect(r, isA<StoreNewerVersion>());
     expect((r as StoreNewerVersion).found, 7);
-    expect(r.supported, 1);
+    expect(r.supported, 2);
     expect(File(path).readAsBytesSync(), before);
   });
 
@@ -183,7 +210,7 @@ void main() {
   test('uncheckpointed RN WAL is replayed: rows present and identical', () async {
     final copy = await walCopy(0);
     final db = (await openStore(copy, factory: f) as StoreReady).db;
-    expect(await version(db), 1);
+    expect(await version(db), 2);
     expect(await dump(db), _want);
     expect((await db.query('log_entries')).length, 3);
     await db.close();

@@ -23,10 +23,11 @@ String _fmtMin(int m) => '${((m ~/ 60 + 11) % 12) + 1}:${(m % 60).toString().pad
 
 /// The window a place serves a meal, whatever the clock says: probe effectiveMealWindow at the place's own opening time.
 (String, String)? mealWindow(Board fx, String place, String meal, DateTime now) {
-  final h = fx.hours[place]!;
+  final h = fx.hours[place];
+  if (h == null) return null; // a place whose hours are not known serves no window
   if (!isCafe(place) && meal == 'grab') {
-    final g = fx.grab[place]!;
-    return (g.openTime, g.closeTime);
+    final g = fx.grab[place];
+    return g == null ? null : (g.openTime, g.closeTime);
   }
   if (meal == 'all' || meal == 'grab') return h.general == null ? null : (h.general!.openTime, h.general!.closeTime);
   if (h.general == null) return null;
@@ -46,9 +47,8 @@ class _Acc {
   _Acc(this.g, this.open, this.close, this.order);
 }
 
-/// Where can I get this? At most two groups: the soonest, plus one more today that names a place the first doesn't.
-/// `instant` is any DateTime; it is read as Eastern wall time.
-List<WhereGroup> whereAnswer(Board fx, String dish, DateTime instant, {bool newton = false}) {
+/// Every group a dish is served in, soonest first (M2 `wherePlan`). `instant` is any DateTime; it is read as Eastern wall time.
+List<WhereGroup> wherePlan(Board fx, String dish, DateTime instant, {bool newton = false}) {
   final now = easternWall(instant);
   final key = dishKey(dish), today = _localIso(now), nowMin = now.hour * 60 + now.minute;
   final inNewton = {for (final p in fx.places) if (p.area == 4) p.key};
@@ -84,6 +84,12 @@ List<WhereGroup> whereAnswer(Board fx, String dish, DateTime instant, {bool newt
     for (final a in gs)
       WhereGroup(a.g.st, a.g.meal, a.g.day, a.g.open, a.g.close, [...a.g.halls]..sort((x, y) => placeOrder(x) - placeOrder(y))),
   ];
+  return sorted;
+}
+
+/// Where can I get this? At most two groups: the soonest, plus one more today that names a place the first doesn't.
+List<WhereGroup> whereAnswer(Board fx, String dish, DateTime instant, {bool newton = false}) {
+  final sorted = wherePlan(fx, dish, instant, newton: newton);
   if (sorted.isEmpty) return [];
   final first = sorted.first;
   for (final g in sorted.skip(1)) {

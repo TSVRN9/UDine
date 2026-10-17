@@ -106,17 +106,14 @@ Rationale:
      `.claude/agents/*.md`, `docs/briefs/TEMPLATE.md`, `.github/PULL_REQUEST_TEMPLATE.md`, `CLAUDE.md` —
      lanes: flutter, `pr-gate.sh` on the throwaway commits — blocked by: 2 — PR:
 4. **Internal Android build:**
-   - `app/tool/build-internal-android.sh [--install]`: `flutter build apk --flavor internal --profile`
-     (release once `flutter-port-release` lands), signed with the same key as the RN internal build, so
-     it installs over it. EAS credentials are per application id, and `mobile/scripts/build-internal-android.sh`
-     builds with `app.json` patched to `.internal`, so that key is EAS's `com.udinetogether.udine.internal`
-     keystore, not the production upload key. The RN internal APK's signer is SHA-256
-     `15b699483827ec7ca7a411537cd7e8b1425ebd6afc39f68f68830cda9f3471df` (`apksigner verify --print-certs`,
-     2026-10-13). The script checks the keystore against that digest before building;
-   - **owner action:** download that keystore (`eas credentials -p android` from `mobile/` with `app.json`
-     temporarily patched to `.internal`, as the RN script does) into `~/.config/udine/android-internal.jks`
-     plus a `key.properties` outside the repo; the script reads that path and fails with this instruction
-     if it's missing or its digest differs;
+   - `app/tool/build-internal-android.sh [--install|--replace]`: `flutter build apk --flavor internal --profile`
+     (release once `flutter-port-release` lands), signed with a key of its own kept outside the repo
+     (`~/.config/udine/android-internal.jks` plus `key.properties`; SHA-256 `118429c8…1bd13f`, made 2026-10-15). The owner
+     dropped installing over the RN internal build (2026-10-15: "It's fine if you just use new keys, the internal build doesn't
+     have anything important and was exclusively used on the a53"), so `--replace` uninstalls a build signed with another key first;
+   - the internal variants take the key through `androidComponents.onVariants`, because Flutter's profile build type inherits
+     debug's signing config and a build type's config outranks a flavor's; without the key they keep the debug key;
+   - the script links the UMass photos first (`tool/link_photos.sh`; shipped, never committed);
    - versionName carries the commit sha, as RN's does (`1.0.0+<sha>` became the stale-build guard on
      2026-09-13).
    - files: `app/tool/build-internal-android.sh`, `app/android/app/build.gradle*` — lanes: flutter, the

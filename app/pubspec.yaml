@@ -33,7 +33,10 @@ dependencies:
   http: ^1.6.0
   path: ^1.9.1
   path_provider: ^2.1.6
+  pdfx: ^2.11.0
+  share_plus: ^13.3.1
   sqflite: ^2.4.4+2
+  url_launcher: ^6.3.2
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -49,6 +52,8 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   sqflite_common_ffi: ^2.4.4
+  url_launcher_platform_interface: ^2.3.2
+  plugin_platform_interface: ^2.1.8
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -83,7 +88,14 @@ flutter:
 
   # M2's recorded data (symlinks into docs/design): only the internal flavor bundles it, never store.
   assets:
+    # UMass Dining's photos: gitignored, filled by tool/link_photos.sh; the folders are kept by .gitkeep so a checkout without them builds
+    - assets/photos/
+    - assets/photos/retail/
     - path: assets/recorded/
+      flavors:
+        - internal
+    # UMass's café menu PDFs for recorded mode: gitignored, filled by tool/link_pdfs.sh, internal flavor only
+    - path: assets/recorded/pdf/
       flavors:
         - internal
 

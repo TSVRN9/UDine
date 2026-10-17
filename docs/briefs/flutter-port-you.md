@@ -41,6 +41,7 @@ around 1795):
   - turning it back on restores the plate and history as they were.
 - **"Which was better?"** is M2's page as designed (owner, 2026-10-13): pairs drawn from the dishes in
   the user's own log, then "Your ranking". No daily allowance, skip, or post-log prompt.
+- **Newer database** (user installed an older build): You shows "Your history was saved by a newer version of UDine. Update UDine to see it and keep logging." and tracking stays off; nothing is written (`Boot.menusOnly`, `app/lib/boot.dart`).
 
 Annotations: none.
 States:

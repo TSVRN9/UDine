@@ -21,8 +21,10 @@ const _fda = {'fat': 78, 'sat': 20, 'chol': 300, 'sod': 2300, 'carb': 275, 'fibe
 
 /// M2 `labelHTML`: Nutrition Facts rows with %DV (the menu's own when published, else computed from FDA values).
 /// A figure the feed left empty reads "–" with no %DV (M2 `g`/`pc`), and an empty fat-calories figure drops the Fat cal. row.
-Label labelRows(MenuItem d) {
-  final n = d.nutrition;
+Label labelRows(MenuItem d) => labelRowsOf(d.nutrition);
+
+/// The same rows for any nutrition: a dish's own, or a plate's sums (no published %DV, no serving, nothing blank).
+Label labelRowsOf(NutritionFacts n) {
   String g(String f, num x, [String u = 'g']) => n.blank.contains(f) ? '–' : '${f1(x)}$u';
   String pc(String f, num x, Dv? dv, int? base) {
     final p = dv?.value?.round() ?? (base != null && !n.blank.contains(f) ? (x / base * 100).round() : null);
@@ -46,3 +48,6 @@ Label labelRows(MenuItem d) {
     row(LabelKind.row, 'Protein', 'proteinG', n.proteinG, 'g', n.proteinDv, 'protein', last: true),
   ]);
 }
+
+/// The `.mks` marks of a food's diet bits (a food has no scores): plant based wins over vegetarian, as a dish's.
+List<String> dietMarks(int diet) => [if (diet & 2 != 0) 'plant' else if (diet & 1 != 0) 'veg', if (diet & 4 != 0) 'halal', if (diet & 8 != 0) 'local', if (diet & 16 != 0) 'sus'];
