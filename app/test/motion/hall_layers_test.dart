@@ -35,7 +35,7 @@ void main() {
       while (p() < want && guard++ < 100) {
         await t.pump(const Duration(milliseconds: 8));
       }
-      counts[want] = offscreenLayers(t.binding.renderView.debugLayer!);
+      counts[want] = offscreenLayers(t.binding.renderViews.first.debugLayer!);
     }
     for (final n in counts.values) {
       expect(n, lessThanOrEqualTo(4), reason: 'offscreen layers by p: $counts');
