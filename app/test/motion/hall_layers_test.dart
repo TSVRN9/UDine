@@ -18,6 +18,7 @@ int offscreenLayers(Layer root) {
 }
 
 void main() {
+  drift();
   setUpAll(loadFonts);
 
   testWidgets('a hall opening from its band keeps offscreen layers few at p of 0.15, 0.5 and 0.85', (t) async {
@@ -40,6 +41,24 @@ void main() {
       expect(n, lessThanOrEqualTo(4), reason: 'offscreen layers by p: $counts');
     }
     await t.pump(const Duration(seconds: 1));
+    await drain(t);
+  });
+}
+
+void drift() {
+  testWidgets('the title does not move after the container lands', (t) async {
+    await openApp(t, await bootRecorded(t));
+    await t.pump();
+    await t.tap(find.text('Franklin'));
+    Rect title() => t.getRect(find.byKey(const ValueKey('fade-title')));
+    Rect? atLanding;
+    for (var i = 0; i < 80; i++) {
+      await t.pump(const Duration(milliseconds: 16));
+      if (atLanding == null && t.widget<HallMenu>(find.byType(HallMenu)).progress.value >= 1) atLanding = title();
+    }
+    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
+    await t.pump(const Duration(milliseconds: 300));
+    expect(title(), atLanding);
     await drain(t);
   });
 }

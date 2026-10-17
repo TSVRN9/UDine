@@ -1,3 +1,5 @@
+import 'dart:async' show Timer;
+
 import 'package:flutter/widgets.dart';
 import '../../core/m2/board.dart';
 import '../../core/m2/bowl.dart' show Bowl;
@@ -39,7 +41,7 @@ SheetHandle openDishSheet(
   // today's dish that builds opens its builder (the row's + still adds it plain); a plate row of a plain dish opens as itself
   // (tracking off: a build station's dishes are just dishes, M2 CONCEPT R10 §2)
   build = !AppScope.of(context).prefs.track ? null : build ?? (day == 0 && !plain ? buildFor(fx, place, meal, dish) : null);
-  final book = WhereBook(AppScope.of(context).repo, fx, cafeIds);
+  final book = WhereBook(AppScope.of(context).repo, fx, cafeIds, false);
   return ShellScope.of(context).pushSheet((handle, done) => DishSheet(
         handle: handle, dish: dish, place: place, meal: meal, day: day, fx: fx, book: book, avoid: avoid, refs: refs, onServe: onServe, build: build, sel: sel, edit: edit,
         onClosed: () {
@@ -84,9 +86,18 @@ class _DishSheetState extends State<DishSheet> {
   final _px = ValueNotifier<double>(0);
   late Sel _sel = {...?widget.sel};
   final _rowKeys = List.generate(4, (_) => GlobalKey());
+  Timer? _whereTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // the sheet slides in first; "where it is served" (every hall's and café's menus) starts once it has settled
+    _whereTimer = Timer(M2Motion.cont.duration, widget.book.start);
+  }
 
   @override
   void dispose() {
+    _whereTimer?.cancel();
     _px.dispose();
     super.dispose();
   }
