@@ -132,6 +132,18 @@ void main() {
       await finish(t);
     });
 
+    testWidgets('in progress (another lookup is running): "UMass Dining is still looking up “laksa”. Try again in a minute." with Try again, not the hour', (t) async {
+      await openQ(t, 'laksa', lookup: LookupMode.inProgress);
+      await ask(t);
+      await until(t, () => find.textContaining('still looking up').evaluate().isNotEmpty);
+      expect(find.text('UMass Dining is still looking up “laksa”. Try again in a minute.'), findsOneWidget);
+      expect(find.textContaining('paused until'), findsNothing);
+      expect(find.widgetWithText(Button, 'Try again'), findsOneWidget);
+      await t.tap(find.widgetWithText(Button, 'Try again'));
+      await until(t, () => find.textContaining('still looking up').evaluate().isNotEmpty);
+      await finish(t);
+    });
+
     testWidgets('typing on puts the button back for the new query', (t) async {
       await openQ(t, 'laksa', lookup: LookupMode.none);
       await ask(t);

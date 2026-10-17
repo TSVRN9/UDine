@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart' show kReleaseMode;
 enum NetMode { ok, slow, offline, fail }
 
 /// What Search UMass Dining answers (M2's `?lookup=`; its `offline` is the call not coming back, `fail` here).
-enum LookupMode { found, none, fail, limited }
+enum LookupMode { found, none, fail, limited, inProgress }
 
 /// The recorded-data switch exists only where this is true: debug and profile. A const, so a release build folds every
 /// branch on it away (and its tests can assert it).
@@ -24,7 +24,7 @@ class RecordedFlags {
   /// `track=off`: Track what I eat is off, as a user who turned it off. `firstRun=1`: first run has not been shown (a recorded route marks it
   /// shown, as M2's own harnesses do, so only the capture of the sheet itself sees it).
   final bool trackOff, firstRun;
-  /// `lookup=found|none|fail|limited` (M2's `?lookup=`): what Search UMass Dining answers. `pack=fail`: the packaged search does not come back.
+  /// `lookup=found|none|fail|limited|inprogress` (M2's `?lookup=`): what Search UMass Dining answers. `pack=fail`: the packaged search does not come back.
   final LookupMode lookup;
   final bool packFail;
   /// `foods=seed`: M2's seeded Your foods, Chobani and the recorded Clif Bar Chocolate Chip.
@@ -47,7 +47,7 @@ RecordedFlags? recordedFlags(String route, {bool available = recordedAvailable})
     noEvents: q['events'] == '0',
     trackOff: q['track'] == 'off',
     firstRun: q['firstRun'] == '1',
-    lookup: switch (q['lookup']) { 'none' => LookupMode.none, 'fail' || 'offline' => LookupMode.fail, 'limited' => LookupMode.limited, _ => LookupMode.found },
+    lookup: switch (q['lookup']) { 'none' => LookupMode.none, 'fail' || 'offline' => LookupMode.fail, 'limited' => LookupMode.limited, 'inprogress' => LookupMode.inProgress, _ => LookupMode.found },
     packFail: q['pack'] == 'fail',
     seedFoods: q['foods'] == 'seed',
     savedPdfs: {for (final x in (q['saved'] ?? '').split(',')) if (x.startsWith('pdf:')) x.substring(4)},

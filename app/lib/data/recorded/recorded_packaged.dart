@@ -36,6 +36,8 @@ class RecordedPackagedClient extends http.BaseClient {
         return _json({'status': 'miss'});
       case LookupMode.limited:
         return _json({'status': 'rate_limited', 'reason': 'budget_exhausted'});
+      case LookupMode.inProgress:
+        return _json({'status': 'rate_limited', 'reason': 'in_progress'});
       case LookupMode.fail:
         return 'fail';
       case LookupMode.found:

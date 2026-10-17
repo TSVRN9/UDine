@@ -65,16 +65,13 @@ class PackFail extends StatelessWidget {
 }
 
 /// "Searching UMass Dining is paused until 1 PM.": the server's budget resets on the hour, in the hour the reader keeps.
-String pausedLine(DateTime resetsAt, [String? reason]) {
-  // ponytail: `in_progress` (another lookup is running; the hour is not what it waits for) says the same until the owner chooses its copy; this is the one place
-  if (reason == 'in_progress') return _until(resetsAt);
-  return _until(resetsAt);
-}
-
-String _until(DateTime resetsAt) {
+String pausedLine(DateTime resetsAt) {
   final w = easternWall(resetsAt);
   return 'Searching UMass Dining is paused until ${fmtT('${w.hour % 12 == 0 ? 12 : w.hour % 12}:${w.minute.toString().padLeft(2, '0')} ${w.hour < 12 ? 'AM' : 'PM'}')}.';
 }
+
+/// Another lookup is running (the server's `in_progress`): the hour is not what it waits for, so it says to try again, as a failed one does.
+String inProgressLine(String query) => 'UMass Dining is still looking up “$query”. Try again in a minute.';
 
 /// The lookup's answer in the button's slot (none, failed, rate-limited, or the wait): what happened, and what to do.
 class LookupStatus extends StatelessWidget {
@@ -91,7 +88,8 @@ class LookupStatus extends StatelessWidget {
             child: const Spinner(label: 'Searching UMass Dining'),
           ),
         LookupPhase.none => _Slot(children: [_kv('UMass Dining has nothing else called “$query”.')]),
-        LookupPhase.limited => _Slot(children: [_kv(pausedLine(resetsAt!, reason))]),
+        LookupPhase.limited when reason == 'in_progress' => _Slot(children: [_kv(inProgressLine(query)), Button(kind: ButtonKind.line, size: ButtonSize.tap, label: 'Try again', onTap: onRetry)]),
+        LookupPhase.limited => _Slot(children: [_kv(pausedLine(resetsAt!))]),
         _ => _Slot(children: [_kv("Couldn't reach UMass Dining."), Button(kind: ButtonKind.line, size: ButtonSize.tap, label: 'Try again', onTap: onRetry)]),
       };
 }
