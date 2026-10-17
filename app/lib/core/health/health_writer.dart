@@ -18,8 +18,7 @@ class HealthWriter {
 
   Future<bool> delete(String mealId) async {
     final ids = await _store.healthIds(mealId, _client.platform);
-    if (ids.isEmpty) return true;
-    if (!await _client.delete(ids)) return false;
+    if (ids.isNotEmpty && !await _client.delete(ids)) return false;
     await _store.removeHealthIds(mealId, _client.platform);
     return true;
   }

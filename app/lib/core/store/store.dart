@@ -267,8 +267,8 @@ class UdineStore {
       db.delete('health_writes', where: 'meal_id = ? AND platform = ?', whereArgs: [mealId, platform]);
 
   Future<List<HealthWrite>> healthWrites() async => [
-        for (final r in await db.rawQuery('SELECT meal_id, platform, record_ids_json FROM health_writes ORDER BY rowid'))
-          (mealId: r['meal_id']! as String, platform: r['platform']! as String, recordIds: List<String>.from(jsonDecode(r['record_ids_json']! as String) as List)),
+        for (final r in await db.rawQuery('SELECT meal_id, platform, record_ids_json, content_sig FROM health_writes ORDER BY rowid'))
+          (mealId: r['meal_id']! as String, platform: r['platform']! as String, recordIds: List<String>.from(jsonDecode(r['record_ids_json']! as String) as List), contentSig: r['content_sig'] as String?),
       ];
 
   // ---- export: every device-local user table, through core/export.dart ----

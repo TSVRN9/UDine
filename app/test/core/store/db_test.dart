@@ -175,6 +175,24 @@ void main() {
     await db.close();
   });
 
+  test('user_version 4 (Health before digests) with a health_writes row opens at 5: the row survives, content_sig NULL, the rest unchanged', () async {
+    await seedRn(4);
+    final seed = await f.openDatabase(path);
+    await seed.execute('CREATE TABLE saved_foods (id TEXT PRIMARY KEY NOT NULL, food_json TEXT NOT NULL)');
+    await seed.execute('CREATE TABLE alert_sent (dish_name TEXT NOT NULL, day TEXT NOT NULL, PRIMARY KEY (dish_name, day))');
+    await seed.execute('CREATE TABLE health_writes (meal_id TEXT NOT NULL, platform TEXT NOT NULL, record_ids_json TEXT NOT NULL, PRIMARY KEY (meal_id, platform))');
+    await seed.insert('health_writes', {'meal_id': '2026-10-08T12:41:00.000', 'platform': 'android', 'record_ids_json': '["udine-2026-10-08T12:41:00.000"]'});
+    await seed.insert('health_writes', {'meal_id': 'm2', 'platform': 'ios', 'record_ids_json': '["u1","u2"]'});
+    await seed.close();
+    final db = (await openStore(path, factory: f) as StoreReady).db;
+    expect(await version(db), 5);
+    expect(await db.query('health_writes', orderBy: 'rowid'), [
+      {'meal_id': '2026-10-08T12:41:00.000', 'platform': 'android', 'record_ids_json': '["udine-2026-10-08T12:41:00.000"]', 'content_sig': null},
+      {'meal_id': 'm2', 'platform': 'ios', 'record_ids_json': '["u1","u2"]', 'content_sig': null},
+    ]);
+    await db.close();
+  });
+
   test('health_writes rows survive a reopen', () async {
     final db = (await openStore(path, factory: f) as StoreReady).db;
     await db.insert('health_writes', {'meal_id': 'm1', 'platform': 'android', 'record_ids_json': '["udine-m1"]'});

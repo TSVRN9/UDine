@@ -244,6 +244,13 @@ void main() {
         expect(fake.records.length, 1);
       });
 
+      test('a row holding no record ids is removed by a delete, and Health is not asked', () async {
+        await s.setHealthIds('2026-10-01T12:41:00.000', platform, const []);
+        fake.fail = true; // (a call to Health would fail)
+        expect(await w.delete('2026-10-01T12:41:00.000'), isTrue);
+        expect(await s.healthWrites(), isEmpty);
+      });
+
       test('deleting a meal never written is a no-op that succeeds', () async {
         expect(await w.delete('nope'), isTrue);
       });
@@ -252,14 +259,14 @@ void main() {
 
   test('health_writes is exported as udine-health-writes.json and .csv', () async {
     await s.setHealthIds('2026-10-01T12:41:00.000', 'android', ['udine-2026-10-01T12:41:00.000']);
-    await s.setHealthIds('=m,2', 'ios', ['u1', 'u2']);
+    await s.setHealthIds('=m,2', 'ios', ['u1', 'u2'], '123|Lunch|energyKcal=200.0');
     final j = (await s.exportJson())['udine-health-writes.json']!;
     expect(jsonDecode(j), [
-      {'mealId': '2026-10-01T12:41:00.000', 'platform': 'android', 'recordIds': ['udine-2026-10-01T12:41:00.000']},
-      {'mealId': '=m,2', 'platform': 'ios', 'recordIds': ['u1', 'u2']},
+      {'mealId': '2026-10-01T12:41:00.000', 'platform': 'android', 'recordIds': ['udine-2026-10-01T12:41:00.000'], 'contentSig': null},
+      {'mealId': '=m,2', 'platform': 'ios', 'recordIds': ['u1', 'u2'], 'contentSig': '123|Lunch|energyKcal=200.0'},
     ]);
     expect((await s.exportCsv())['udine-health-writes.csv']!.split('\n'), [
-      'mealId,platform,recordIds',
+      'mealId,platform,recordIds,contentSig',
       '"2026-10-01T12:41:00.000","android","udine-2026-10-01T12:41:00.000"',
       '"\t=m,2","ios","u1 u2"',
     ]);
