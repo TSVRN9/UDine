@@ -18430,11 +18430,11 @@
    ],
    "runs": [
     {
-     "clock": "3:45 PM",
+     "clock": "7:00 AM",
      "posted": [
       [
        "Green Chile Posole",
-       "Lunch now, until 4:30 PM, at Worcester, Franklin, Hampshire and Berkshire"
+       "Lunch from 11 AM at Worcester, Franklin, Hampshire and Berkshire"
       ]
      ]
     },
@@ -18451,7 +18451,7 @@
    ],
    "runs": [
     {
-     "clock": "12:41 PM",
+     "clock": "7:59 AM",
      "posted": [
       [
        "Korean BBQ Chicken",
@@ -18459,11 +18459,119 @@
       ],
       [
        "Chewy M&M Bar",
-       "Grab 'N Go now, until 4 PM, at Franklin"
+       "Grab 'N Go now, until 8 PM, at Worcester and Berkshire"
       ]
      ]
+    },
+    {
+     "clock": "8:00 AM",
+     "posted": []
     }
    ]
+  },
+  {
+   "favorites": [
+    "Beef Brisket Noodle Bowl"
+   ],
+   "restricted": true,
+   "runs": [
+    {
+     "clock": "7:15 AM",
+     "posted": []
+    }
+   ]
+  }
+ ],
+ "stars": [
+  {
+   "favorites": [
+    "Golden BBQ Chicken Thigh"
+   ],
+   "clock": "12:41 PM",
+   "halls": [
+    "W"
+   ],
+   "meals": {
+    "W": "lunch",
+    "F": "lunch",
+    "H": "lunch",
+    "B": "lunch"
+   }
+  },
+  {
+   "favorites": [
+    "Scrambled Eggs"
+   ],
+   "clock": "6:00 AM",
+   "halls": [
+    "W",
+    "F",
+    "H"
+   ],
+   "meals": {
+    "W": "breakfast",
+    "F": "breakfast",
+    "H": "breakfast",
+    "B": "lunch"
+   }
+  },
+  {
+   "favorites": [
+    "Korean BBQ Chicken"
+   ],
+   "clock": "12:41 PM",
+   "halls": [],
+   "meals": {
+    "W": "lunch",
+    "F": "lunch",
+    "H": "lunch",
+    "B": "lunch"
+   }
+  },
+  {
+   "favorites": [
+    "Korean BBQ Chicken"
+   ],
+   "clock": "5:00 PM",
+   "halls": [
+    "B"
+   ],
+   "meals": {
+    "W": "dinner",
+    "F": "dinner",
+    "H": "dinner",
+    "B": "dinner"
+   }
+  },
+  {
+   "favorites": [
+    "Korean BBQ Chicken"
+   ],
+   "clock": "10:00 PM",
+   "halls": [],
+   "meals": {
+    "W": "late",
+    "F": null,
+    "H": null,
+    "B": "late"
+   }
+  },
+  {
+   "favorites": [
+    "Golden BBQ Chicken Thigh",
+    "Korean BBQ Chicken"
+   ],
+   "clock": "5:00 PM",
+   "halls": [
+    "W",
+    "B"
+   ],
+   "meals": {
+    "W": "dinner",
+    "F": "dinner",
+    "H": "dinner",
+    "B": "dinner"
+   }
   }
  ],
  "packaged": {
