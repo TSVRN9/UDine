@@ -80,7 +80,9 @@ Rationale:
   only: a dish key and a logical day, no user, no token. The function claims with
   `insert … on conflict do nothing returning`, sends only if a row came back, and deletes the claim if the
   FCM call fails (the same claim/release rule as `runAlertCheck`). Rows older than three days are deleted
-  at the end of a run. RLS enabled with no policies and grants to `service_role` only, so `anon` and
+  at the end of a run. The first run of a day sends one message per dish on every menu (a few hundred),
+  so sends go out with a small concurrency cap, and a 429 or 5xx from FCM releases the claim for the next
+  run rather than retrying in a loop. RLS enabled with no policies and grants to `service_role` only, so `anon` and
   `authenticated` can't read it (CLAUDE.md: explicit GRANTs + RLS on every new table; TRUNCATE not granted).
   Any SQL function pins `search_path`.
 - **Cron.** pg_cron is UTC and doesn't follow DST (the caveat at
@@ -115,6 +117,11 @@ Rationale:
     `alerts.dart:26-35`), which now lands Halls home and closes sheets (#605's `ae59f88a`).
   - A second `Firebase.initializeApp` isn't needed; the Google Services Gradle plugin reads the flavor's
     `google-services.json`.
+  - **No contact with Google until Notify me is on.** FCM auto-init is off
+    (`firebase_messaging_auto_init_enabled=false` in the Android manifest, `FirebaseMessagingAutoInitEnabled`
+    NO in Info.plist), and the sync calls `setAutoInitEnabled(true)` only when the three facts first hold.
+    Turning Notify me off unsubscribes every topic, then calls `deleteToken()`. No Analytics, Crashlytics or
+    other Firebase product is added.
 - **What the push replaces and what stays from #596/#605.**
 
   | Piece | After push |
@@ -181,6 +188,8 @@ Project: Firebase `udine-a6996`. `mobile/google-services.json` (the RN app, comm
   deno test (fake clock, fake menus, fake FCM)
 - [ ] The function refuses a request without the cron secret and never logs the service-account JSON or
   the access token — evidence: deno test
+- [ ] With Notify me never turned on, the app makes no FCM call and auto-init stays off; turning it off
+  unsubscribes everything and deletes the token — evidence: test (fake messaging) + manifest test
 - [ ] Subscribe/unsubscribe/resync follow the three facts, retry after a failed call, cap at 2000, and
   survive a thrown `firebase_messaging` — evidence: test (fake messaging)
 - [ ] A push sent to a real dish topic arrives with the app force-stopped and with the device force-idled,
