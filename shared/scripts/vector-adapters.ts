@@ -1,6 +1,7 @@
 // Language-neutral JSON in -> TS module call -> JSON out, for shared/vectors/*.json. gen-vectors.ts
 // uses these to WRITE expected values; src/vectors.test.ts uses the same adapters to CHECK the
 // committed files, so a behaviour change in the TS modules fails until the vectors are regenerated.
+import { dishTopic } from "../src/dishTopic.ts";
 import { matchFavoritedDishes } from "../src/favoriteMatch.ts";
 import { currentMealPeriod, effectiveMealWindow, mapInfoV2, openStatus, parseMapAddress, parseStreetAddress } from "../src/hours.ts";
 import type { InfoV2Location } from "../src/hours.ts";
@@ -80,6 +81,7 @@ export const ADAPTERS: Record<string, Record<string, (input: never) => unknown>>
   "hours.json": { map_info_v2: hoursMap, street_address: streetAddress, map_address: mapAddress, status: hoursStatus },
   "match-query.json": { match: matchQuery },
   "favorite-match.json": { match: favoriteMatch },
+  "dish-topic.json": { topic: (i: { name: string }) => dishTopic(i.name) },
   "packaged.json": { off_search: offSearch, off_product: offProduct, usda_search: usdaSearch },
   "export.json": {
     entries_json: exporter(storage.exportEntriesAsJson),

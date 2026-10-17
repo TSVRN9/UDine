@@ -225,7 +225,7 @@ of the owner-only list, once the release brief's TestFlight build exists; the sa
 
 1. **Topic key and normalization:** `dishTopic(name)` = `dish-` + first 16 hex of sha256 of the normalized
    name. Normalization is the app's existing `dishKey` (`app/lib/core/m2/board.dart:17`: lowercase, drop
-   `’` and `'`, runs of non-`[a-z0-9]` become one space, trim) on the NFC form of the input. Dart
+   `’` and `'`, runs of non-`[a-z0-9]` become one space, trim) on the name as the feed gives it (no Unicode normalization). Dart
    `core/dish_topic.dart`, TS `shared/src/dishTopic.ts`, Deno `_shared/dishTopic.ts`, one vector file —
    files: `shared/vectors/dish-topic.json`, the three implementations and their tests — lanes: flutter,
    shared, deno — blocked by: none (owner-merged: touches `supabase/functions/_shared/`) — PR:
