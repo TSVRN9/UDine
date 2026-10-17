@@ -1423,11 +1423,15 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       const x1 = await at(.1), x5 = await at(.5);
       assert(x1.bzx < .01 && x1.sch < .01 && x5.bzx > .3 && x5.bzx < 1 && f.bzx === 1, 'what the header adds (the "Calmer around" line, the chevron) crossfades in on top of the travelling element');
     });
-    await scen('the hall header reserves its busy row: the title never moves when a reading lands, and every hall has it at the same place', async () => {
-      await go(); const tops = await ev(() => HALLS.map(h => { openHall(h, true); const n = document.querySelector('#mtn'), bz = document.querySelector('#mbz'), a = Math.round(n.getBoundingClientRect().top);
-        bz.classList.add('ghost'); const g = Math.round(n.getBoundingClientRect().top); bz.classList.remove('ghost'); return [h, a, g]; }));
-      assert.deepEqual(tops.map(x => x[1]), [tops[0][1], tops[0][1], tops[0][1], tops[0][1]], 'the four halls: the title at one height, with or without an extra line (' + JSON.stringify(tops) + ')');
-      assert(tops.every(x => x[1] === x[2]), 'a reading landing (ghost off) does not move it');
+    await scen('a busy reading that lands late: the title and the letter stay put, the block grows in below, the tabs and the list ride down; loaded titles keep M2\'s positions', async () => {
+      const m = () => ev(() => { const r = e => { const q = document.querySelector(e).getBoundingClientRect(); return [Math.round(q.left * 10) / 10, Math.round(q.top * 10) / 10]; }; return { nm: r('#mtn'), let: r('#mlet'), tabs: r('#mtabs'), list: r('#mlist .row') }; });
+      const loaded = {}; for (const h of ['W', 'F', 'H', 'B']) { await go('?state=menu&hall=' + h); await page.waitForTimeout(500); loaded[h] = await m(); }
+      assert.deepEqual([loaded.W.nm[1], loaded.H.nm[1], loaded.B.nm[1], loaded.F.nm[1] - loaded.W.nm[1]], [loaded.W.nm[1], loaded.W.nm[1], loaded.W.nm[1], 22], 'loaded: Worcester, Hampshire and Berkshire at one height, Franklin 22 lower (M2\'s measured 82 and 104): ' + JSON.stringify(Object.fromEntries(Object.entries(loaded).map(([h, v]) => [h, v.nm[1]]))));
+      for (const h of ['W', 'F']) { await go('?state=menu&hall=' + h + '&busy=late'); await page.waitForTimeout(500); const a = await m();
+        await ev(() => arriveBusy()); await page.waitForTimeout(100); const z = await m();
+        assert.deepEqual([z.nm, z.let], [a.nm, a.let], h + ': the title and the letter do not move when the reading lands');
+        assert(z.tabs[1] - a.tabs[1] >= 20 && z.list[1] - a.list[1] >= 20, h + ': the meal tabs and the list ride down (' + (z.tabs[1] - a.tabs[1]) + ' px)');
+        assert.deepEqual([z.nm, z.tabs], [loaded[h].nm, loaded[h].tabs], h + ': and it ends exactly where a header opened with the reading is'); }
     });
     await scen('Search tiles: centred on the meta line, and as one group under the +, clamped at the row\'s content edge (360)', async () => {
       await page.setViewportSize({ width: 360, height: 844 }); await go('?state=search'); await page.locator('#q').fill('chicken'); await page.waitForTimeout(900);

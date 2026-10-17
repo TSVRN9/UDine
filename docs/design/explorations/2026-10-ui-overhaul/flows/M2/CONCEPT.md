@@ -1338,14 +1338,14 @@ under the colour layer's p, which at p .5 covers only 75%.
 - **Predictive back** is the same function run backwards by the finger: at p .1, .3 and .5 the card is whole (no hollow), the letter and the title
   are where the line between the header and the card puts them, and the content that has no counterpart is partway faded.
 - **Frames:** `build/r12/p7/open390.png`, `close390.png`, `scrub390.png` (and 360): twelve frames each way, evenly spaced in eased progress.
-- **A late busy reading doesn't move the title (decided: always reserve the row).** The header's title stack is anchored from the bottom, so a busy row
-  that lands after the open (Flutter's `AnimatedSize` pushed the title 22 dp) moves everything above it. Decision: the whole busy block is reserved from the first
-  frame: the meter line (17 dp) and the extra line ("Calmer around…", "Busier than usual", 17 dp of text + 5 dp row gap = 22 dp), whether or not the hall has an extra
-  line. The reading then fades into the reserved space (`settle`), and a hall with no extra line draws its title **22 dp higher than M2 measured it**
-  (Franklin: "Usual", no extra line; Worcester, Hampshire and Berkshire are unchanged). The other two ways were worse: reserving only the meter line leaves the
-  22 dp shift for three halls of four when the extra line lands, and growing the late row downward needs a title anchored from the top, which moves all four halls.
-  M2 itself now reserves the extra line the same way (its ghost row already reserved the meter line). The **hall card on Halls** doesn't have the shift: its title,
-  status and meter are stacked from the top of a fixed-height band, so a late meter grows downward under the status line and nothing above it moves; no change.
+- **A late busy reading doesn't move the title or the letter (owner, 2026-10-17: don't reserve).** A header opened with its reading (M2's measured state) is as it was:
+  Worcester, Hampshire and Berkshire's titles at one height, Franklin's 22 dp lower (M2's 82 and 104 dp; Franklin has no "Calmer around" line). A header opened *before* the
+  reading lands has no busy block and no chart, and is shorter by the block's height D; its title is already where it will stay (the title is anchored by the header's foot, so
+  without the block it sits exactly where it sits with it). When the reading lands the block grows in below the status line (height, spacing and opacity, `settle`), the header
+  grows by D, and the meal tabs and the list ride down by D with it (Worcester, Hampshire, Berkshire: D = 47 dp, 39 of block and 8 of spacing; Franklin: D = 25, 17 and 8). The
+  title and the letter do not move at any frame. A header that never gets a reading stays short (no reservation): that differs from M2's own offline and other-day header, which
+  keeps reserving the hall's own block as before. The **hall card on Halls** is stacked from the top of a fixed band, so a late meter grows downward under the status line; no change.
+  Sim: `?busy=late` opens a hall in the pre-reading state; `arriveBusy()` is the reading landing.
 
 ### 5. Search's hall tiles (owner decision 2026-10-17, with Flutter PR #611)
 The felt-letter tiles ("W F H B") under a Search row's `+`: a tile **centres vertically on the row's meta line** (the cal and protein line), not at the lane's

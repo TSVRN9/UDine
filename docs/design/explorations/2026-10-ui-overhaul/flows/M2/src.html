@@ -423,7 +423,7 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .bt .bz{margin-top:6px}
 .mt .bz{margin-top:8px;font-size:14px;flex-wrap:wrap;row-gap:5px;max-width:230px}
 .mt .bzx{flex-basis:100%;font-size:14px;color:rgba(255,255,255,.86)}
-.mt .bzx:empty{display:block;min-height:17px}   /* round 13: the extra line is always reserved (17 px of text + the 5 px row gap = 22), so a reading that lands, or a hall with no extra, never moves the title: every hall's title is at 82 */
+.mt .bzx:empty{display:none}
 .meter{display:inline-flex;gap:2px;align-items:flex-end;flex:none}
 .meter i{width:5px;height:12px;border-radius:1px;background:rgba(255,255,255,.22)}
 .meter i.on{background:var(--gold)}
@@ -868,8 +868,9 @@ function A(el, kf, tok, extra={}){
 const done = a => a ? a.finished.catch(()=>{}) : Promise.resolve();
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const frame = $('#frame');
-let ST, SB, HH, CH, H;
-function measure(){ const p=$('#probe').getBoundingClientRect(); ST=p.height; SB=p.width; HH=ST+282; CH=ST+52; H=frame.clientHeight; frame.style.setProperty('--hh',HH+'px'); }
+let ST, SB, HH, CH, H, LATE_D=0;   // LATE_D: how much shorter the header is while a busy reading hasn't landed
+const setHH = v => { HH=v; frame.style.setProperty('--hh',v+'px'); };   // round 13: the header's height can change (a busy reading landing late grows it)
+function measure(){ const p=$('#probe').getBoundingClientRect(); ST=p.height; SB=p.width; HH=ST+282-LATE_D; CH=ST+52; H=frame.clientHeight; frame.style.setProperty('--hh',HH+'px'); }
 measure(); addEventListener('resize',()=>{measure();});
 
 let armed=false; addEventListener('pointerdown',()=>armed=true,{capture:true,once:true});
@@ -1521,6 +1522,9 @@ function renderMenu(){
   $('#mts').classList.toggle('none',!line); $('#mts').setAttribute('aria-label', line ? line+', hours and directions' : '');
   const bz=$('#mbz'), wasGhost=bz.classList.contains('ghost'); bz.innerHTML = C ? '' : busyRow(k,true); bz.classList.toggle('ghost',!live); if(wasGhost && live && !C && menuShowing()) A(bz,[{opacity:0},{opacity:1}],'settle'); bz.setAttribute('aria-hidden',!live); bz.setAttribute('aria-label',bz.textContent);
   $('#mhist').innerHTML = live ? histSVG(k) : '';
+  // round 13 (owner, 2026-10-17): a busy reading that lands late does not move the title or the letter. `?busy=late` opens a hall as the phone does before the reading
+  // arrives (no busy block, a header shorter by its height D, the title where it will stay); arriveBusy() is the reading landing.
+  LATE_D=0; setHH(ST+282); bz.style.display=''; S.lateWant = LATEBUSY && !C && !day && live;   // (measured once the menu is shown: lateSetup)
   // the pinned rows: the day cell, then that day's meals
   $('#dayl').textContent=dayCell(day); $('.dayc').setAttribute('aria-label',`${dayFull(day)}, change the day`);
   const meals = MM ? MEALS.filter(x=>MM[x[0]]) : [];
@@ -1694,6 +1698,19 @@ function runXF(from, to, dur, done){
 function fitName(){ const n=E.mtn; n.style.fontSize=''; const max=W0()-40, w=n.offsetWidth, fs=parseFloat(getComputedStyle(n).fontSize);
   if(w>max) n.style.fontSize=Math.max(26,Math.floor(fs*max/w))+'px'; NS=22/parseFloat(getComputedStyle(n).fontSize);
   NS=Math.min(NS, (W0()-64-(S.cafe!=null?52:16))/n.offsetWidth); }   // round 11: in the compact bar it clears the back button and the pin
+const LATEBUSY = new URLSearchParams(location.search).get('busy')==='late';
+// the reading lands: the busy lines grow in below the status line (height, spacing and opacity), the header grows by their height, and the meal tabs and the list
+// ride down with it (`settle`); the title and the letter, anchored by the header's foot, stay exactly where they were
+function lateMeasure(){ if(!LATE_D) return; const bz=$('#mbz'); bz.style.display=''; const D=bz.offsetHeight+parseFloat(getComputedStyle(bz).marginTop); bz.style.display='none'; if(D>0 && Math.abs(D-LATE_D)>.01){ LATE_D=D; setHH(ST+282-D); } }   // the block's height, measured on the real fonts
+function lateSetup(){ if(!S.lateWant) return; S.lateWant=false; const bz=$('#mbz'), D=bz.offsetHeight+parseFloat(getComputedStyle(bz).marginTop); if(!(D>0)) return; LATE_D=D; bz.style.display='none'; $('#mhist').innerHTML=''; setHH(ST+282-D); }
+let LB=null;   // the reading landing: {Dc, mt, base, D}
+function busyStep(e){ const bz=$('#mbz'); bz.style.height=LB.Dc*e+'px'; bz.style.marginTop=LB.mt*e+'px'; bz.style.opacity=e; $('#mhist').style.opacity=e; setHH(LB.base+LB.D*e); paint(XP,$('#mscroll').scrollTop); }
+function arriveBusy(manual){ lateMeasure(); const D=LATE_D; if(!D) return Promise.resolve(); const bz=$('#mbz'), k=PK(); LATE_D=0;
+  bz.style.display=''; bz.style.height='auto'; bz.style.marginTop=''; const Dc=bz.offsetHeight, mt=parseFloat(getComputedStyle(bz).marginTop); $('#mhist').innerHTML=histSVG(k);
+  LB={Dc, mt, base:ST+282-D, D:Dc+mt}; bz.style.overflow='hidden'; busyStep(0); if(manual) return Promise.resolve();   // (manual: the shots seek it with busyStep)
+  const E_=BEZ([.2,0,0,1]), t0=performance.now(), dur=RM?1:MO.settle.d;
+  return new Promise(res=>{ const f=t=>{ const kk=clamp((t-t0)/dur); busyStep(E_(kk));
+    if(kk<1) requestAnimationFrame(f); else { bz.style.height=bz.style.marginTop=bz.style.opacity=bz.style.overflow=''; $('#mhist').style.opacity=''; setHH(LB.base+LB.D); paint(XP,$('#mscroll').scrollTop); res(); } }; requestAnimationFrame(f); }); }
 const menuShowing = () => !!S.hall && S.hallTab===S.tab && !$('#menu').classList.contains('hide');
 // h: a hall letter, or 'C' with opt.cafe. src: the tapped band (container transform) or anything else (push); omitted, the
 // band itself when Halls is showing. instant: state restores.
@@ -1707,7 +1724,7 @@ function openHall(h, instant, src, opt={}){
   S.hall=h; S.cafe=h==='C'?opt.cafe:null; if(h!=='C') S.lastHall=h; S.mday=opt.day||0; S.mmeal=opt.meal||'lunch'; S.hallTab=S.tab;
   S.reveal = !!(opt.dish && DISH[opt.dish] && !prefOK(DISH[opt.dish]));   // arriving at a dish your preferences hide: the list opens revealed, the row marked
   renderMenu();
-  $('#menu').classList.remove('hide'); $('#mscroll').scrollTop=0; if(!S.mday) syncFront(PK()); buzz(6);
+  $('#menu').classList.remove('hide'); lateSetup(); $('#mscroll').scrollTop=0; if(!S.mday) syncFront(PK()); buzz(6);
   updSwitch(true); fitName();   // titles have layout only once the menu is visible
   measureXF(band?src:null); S.hallSrc=band?src:null;
   const after=()=>{ if(opt.dish) toDish(opt.dish); };
@@ -2717,7 +2734,7 @@ if(qs.has('launcher')){ ALERTS.on=true; ALERTS.granted=true; if(!S.fav.size){ S.
 if(qs.has('notify')){ ALERTS.on=true; ALERTS.granted=true; if(!S.fav.size) S.fav.add(norm('Beef Brisket Noodle Bowl')); const n=alertRun(7*60+15)[0]; if(n) showNote(n); }   // round 11: the 7:15 AM run's notification
 if(state==='custom'){ goSearch(null,'lunch'); $('#q').value='chobani'; S.q='chobani'; renderSearch(); openCustom('chobani'); }
 // a screen opened before the webfonts arrived measured its name on fallback metrics: measure again once they're in
-document.fonts.ready.then(()=>{ if(S.hall && !xfOn){ fitName(); measureXF(S.hallSrc && S.hallSrc.isConnected ? S.hallSrc : null); paint(XP,$('#mscroll').scrollTop); } });
+document.fonts.ready.then(()=>{ lateMeasure(); if(S.hall && !xfOn){ fitName(); measureXF(S.hallSrc && S.hallSrc.isConnected ? S.hallSrc : null); paint(XP,$('#mscroll').scrollTop); } });
 window.__S=S; window.__dayTotal=dayTotal; window.__plateHalls=plateHalls; window.__totals=totals;
 </script>
 </body>

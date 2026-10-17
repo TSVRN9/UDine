@@ -44,6 +44,7 @@ const STATES = [
   ['f-menu', '?state=menu&hall=W', seq(wait(300), ev(() => { const sc = document.querySelector('#mscroll'); const h = [...document.querySelectorAll('#mlist .sth')].find(x => x.textContent === 'Beverages'); sc.scrollTop = sc.scrollHeight; paint(1, sc.scrollTop); }), wait(500))],
   ['f-sheet', '?state=menu&hall=W', seq(wait(300), ev(() => { const sc = document.querySelector('#mscroll'); sc.scrollTop = sc.scrollHeight; paint(1, sc.scrollTop); }), wait(400), openRow('Fountain Drink'))],
   ['f-plate', '?state=menu&hall=W', seq(wait(300), ev(() => { const sc = document.querySelector('#mscroll'); sc.scrollTop = sc.scrollHeight; paint(1, sc.scrollTop); }), wait(400), tap('#mlist .row:has(.n:text-is("Fountain Drink")) .add', 700), plate)],
+  ['f-diet', '?state=menu&hall=W', seq(wait(300), ev(() => { S.diet.veg = true; S.diet.plant = true; S.diet.halal = true; relist(); const sc = document.querySelector('#mscroll'); sc.scrollTop = sc.scrollHeight; paint(1, sc.scrollTop); }), wait(500))],
   ['f-logged', '?state=menu&hall=W', seq(wait(300), ev(() => { const sc = document.querySelector('#mscroll'); sc.scrollTop = sc.scrollHeight; paint(1, sc.scrollTop); }), wait(400), tap('#mlist .row:has(.n:text-is("Fountain Drink")) .add', 700), ev(() => logPlate(S.plates[0])), wait(500), ev(() => { setTab('you'); }), wait(500), ev(() => openMeal(S.log.at(-1).id)), wait(900))],
   // round 13
   ['g-halls-star', '', ev(() => { S.fav.add('golden bbq chicken thigh'); S.fav.add('black bean burger'); relist(); })],

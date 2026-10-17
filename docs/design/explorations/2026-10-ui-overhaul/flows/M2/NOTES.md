@@ -2627,12 +2627,13 @@ blocks fold at the same time (their content has faded by then); not staggered.
   "p 0: the shared elements and the ground are fully drawn, and there is no ghost copy of a band".
 - **Shots:** `p7/open390.png`, `open360.png`, `close390.png`, `close360.png` (twelve frames), `scrub390.png`, `scrub360.png` (back at p .1, .3, .5). Looked at every frame:
   the card is never hollow, the letter and the title travel continuously. In the first frames the letter's top is clipped by the growing window, as it always was.
-- **A late busy reading (header).** Measured (`#mtn` top at the open's end): Worcester, Hampshire and Berkshire 82 dp, Franklin 104 dp: the 22 dp is the extra line
-  ("Calmer around", "Busier/Quieter than usual"), which three of the four halls have and Franklin ("Usual") doesn't. M2's ghost row already reserved the meter line from
-  the first frame and the hall's own extra line only when it had one, so on M2 the title was stable per hall but not equal across halls, and Flutter's `AnimatedSize` showed
-  the 22 dp as a push. Decision: always reserve both lines (`.mt .bzx:empty{display:block;min-height:17px}`; 17 + the 5 dp row gap = 22), fade the reading in (`settle`, `bz` going from
-  ghost to live), Franklin's title moves to 82 like the rest. The hall card on Halls is top-stacked in a fixed band: no shift, unchanged. Test: "the hall header reserves its busy row"
-  (red on round 12c's build: Worcester 144, Franklin 166 in the test page, a 22 px difference; `build/r12/red-r13-bz.txt`).
+- **A late busy reading (header), revised (owner, 2026-10-17: don't reserve).** The first pass reserved both busy lines always (Franklin's title moved to 82); that is reverted: loaded titles
+  are M2's again (Worcester, Hampshire, Berkshire at 82 dp, Franklin at 104, the test's 22 px difference; `.mt .bzx:empty{display:none}` as before). The late path is new: `?busy=late` opens a hall
+  with `LATE_D` = the block's height (W/H/B 47 dp = 39 + 8; F 25 = 17 + 8), the header `--hh` shorter by it (`setHH`, `measure()` honours it) and the block and chart hidden; `lateMeasure()` re-measures
+  on the real fonts; `arriveBusy()` grows the block (height, spacing, opacity) and the header by D together over `settle`, and `paint()` moves the tabs and list down; the title (anchored by the header's foot) and the
+  letter do not move at any frame. Against M2-r12 (the pushed round 12c tree) no loaded title moves. M2's own offline and other-day header still reserves the hall's block (documented M2 behaviour); in Flutter a
+  header that never gets a reading stays short. Test: "a busy reading that lands late" (red on the first build of `arriveBusy`, which measured while the menu was hidden: `build/r12/red-r13-late.txt`; the title
+  moved 183 to 144). The hall card on Halls is top-stacked in a fixed band: no shift.
 
 ### Round 13 follow-ups (coordinator review, 2026-10-17)
 - **Tracking lift timing.** The first build faded the figures while the blocks closed, so text was cut mid-line ("Write to Health Connect", "Your foods") and faded headings
@@ -2644,8 +2645,7 @@ blocks fold at the same time (their content has faded by then); not staggered.
   centred in the row and the tiles hang from the lane's foot; every row is measured, not a sample. Test "Search tiles" measures 1, 2 and 3 tiles at 360
   (red on the old build: "1 tile(s): centred on the meta line (280 vs 277.5)", `build/r12/red-r13-tiles.txt`).
 - **Fountain Drink** is marked Vegetarian and Plant based (round 12d, closed).
-- **Titles moved by the busy-block reservation, against M2-r12 (the pushed round 12c tree):** Franklin's header title 104 dp to 82 dp (22 dp higher); Worcester, Hampshire and Berkshire unchanged at 82 dp.
-  Nothing else in a header moves.
+- **Titles against M2-r12 (the pushed round 12c tree):** no loaded title moves (Worcester, Hampshire, Berkshire 82 dp, Franklin 104 dp); the busy-block reservation was reverted (owner, 2026-10-17).
 
 ### Round 13: tracking off hides the figures (owner, 2026-10-17)
 - **What.** The cal and protein group of a row is `.mg.fig` (`meta()` and a packaged food's row); `#frame.notrack .fig{display:none}`, the meta line closes when only figures were on it, `.row{min-height:48px}` (64 on), the
@@ -2658,4 +2658,5 @@ blocks fold at the same time (their content has faded by then); not staggered.
   off: every row shorter and never under 48; hall menus no figures; the sheet keeps name/serving/marks and drops the label; back on the figures return). Round 10's "no + or stepper" check counts `display:none` as gone;
   "hall rows keep their height" became "hall rows close up to name-only"; round 12's "tracking off keeps the picker" reads the variant from the sheet's name (the label is hidden), not the label's number.
 - **Vectors:** top-level `tracking`: the windows in ms, the row minimum heights, what is hidden and what is kept.
+- **Final counts (the busy-block and Fountain Drink changes):** `node test.js` 5,508 checks all green; `RED=13` 92, `RED=12` 166, `RED=9` 440. Frames: `p7/lateW390.png`, `lateW360.png`, `lateF390.png`, `lateF360.png` (the reading landing, 12 frames, title and letter fixed) and `p7/f-diet.png` (the Fountain Drink row with Vegetarian, Plant based and Halal all on).
 
