@@ -27,19 +27,15 @@ class FakeHealth implements HealthClient {
   @override
   final String platform;
   final records = <String, HealthMeal>{};
-  var seq = 0;
   bool fail = false;
   @override
   Future<HealthAccess> access() async => HealthAccess.granted;
   @override
   Future<bool> requestWrite() async => true;
   @override
-  Future<List<String>?> write(HealthMeal m, {List<String> replacing = const []}) async {
+  Future<List<String>?> write(HealthMeal m) async {
     if (fail) return null;
-    final ids = platform == 'android' ? ['udine-${m.mealId}'] : ['ios-${seq++}'];
-    for (final r in replacing) {
-      records.remove(r);
-    }
+    final ids = ['udine-${m.mealId}'];
     for (final id in ids) {
       records[id] = m;
     }
@@ -52,6 +48,9 @@ class FakeHealth implements HealthClient {
     ids.forEach(records.remove);
     return true;
   }
+
+  @override
+  Future<void> openSettings() async {}
 }
 
 void main() {
@@ -120,55 +119,54 @@ void main() {
     });
   });
 
-  for (final platform in ['android', 'ios']) {
-    group('ChannelHealthClient payload', () {
-    const ch = MethodChannel('udine/health');
-    final calls = <MethodCall>[];
-    Object? reply;
-    setUp(() {
-      calls.clear();
-      reply = ['udine-x'];
-      TestWidgetsFlutterBinding.ensureInitialized();
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(ch, (c) async {
-        calls.add(c);
-        return reply;
-      });
-    });
-    tearDown(() => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(ch, null));
-
-    test('write sends the udine-<mealId> client id, the zone offset, the platform\'s fields and the ids it replaces', () async {
-      final h = healthMealOf(meal([entry('a', 1)]), 'Lunch');
-      final ids = await ChannelHealthClient(channel: ch, platform: 'ios').write(h, replacing: ['old1', 'old2']);
-      expect(ids, ['udine-x']);
-      final a = calls.single.arguments as Map;
-      expect(calls.single.method, 'write');
-      expect(a['clientId'], 'udine-2026-10-01T12:41:00.000');
-      expect(a['name'], 'Lunch');
-      expect(a['startMs'], h.start.millisecondsSinceEpoch);
-      expect(a['endMs'], h.start.millisecondsSinceEpoch + 60000);
-      expect(a['zoneOffsetSeconds'], h.start.timeZoneOffset.inSeconds);
-      expect(a['fields'], h.fieldsFor('ios'));
-      expect((a['fields'] as Map).containsKey('transFatG'), isFalse);
-      expect(a['replacing'], ['old1', 'old2']);
-      await ChannelHealthClient(channel: ch, platform: 'android').write(h);
-      expect((calls.last.arguments as Map)['fields'], h.fieldsFor('android'));
-      expect((calls.last.arguments as Map)['replacing'], isEmpty);
-    });
-
-    test('requests and access carry the platform\'s write permissions only; delete carries the ids', () async {
-      reply = true;
-      await ChannelHealthClient(channel: ch, platform: 'android').requestWrite();
-      expect(calls.last.arguments, {'permissions': ['android.permission.health.WRITE_NUTRITION']});
-      reply = 'granted';
-      expect(await ChannelHealthClient(channel: ch, platform: 'ios').access(), HealthAccess.granted);
-      expect((calls.last.arguments as Map)['permissions'], kHealthWritePermissions['ios']);
-      reply = true;
-      await ChannelHealthClient(channel: ch, platform: 'ios').delete(['a', 'b']);
-      expect(calls.last.method, 'delete');
-      expect((calls.last.arguments as Map)['ids'], ['a', 'b']);
+  group('ChannelHealthClient payload', () {
+  const ch = MethodChannel('udine/health');
+  final calls = <MethodCall>[];
+  Object? reply;
+  setUp(() {
+    calls.clear();
+    reply = ['udine-x'];
+    TestWidgetsFlutterBinding.ensureInitialized();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(ch, (c) async {
+      calls.add(c);
+      return reply;
     });
   });
+  tearDown(() => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(ch, null));
 
+  test('write sends the udine-<mealId> client id, the zone offset, the platform\'s fields and nothing the native side does not read', () async {
+    final h = healthMealOf(meal([entry('a', 1)]), 'Lunch');
+    final ids = await ChannelHealthClient(channel: ch, platform: 'ios').write(h);
+    expect(ids, ['udine-x']);
+    final a = calls.single.arguments as Map;
+    expect(calls.single.method, 'write');
+    expect(a['clientId'], 'udine-2026-10-01T12:41:00.000');
+    expect(a['name'], 'Lunch');
+    expect(a['startMs'], h.start.millisecondsSinceEpoch);
+    expect(a['endMs'], h.start.millisecondsSinceEpoch + 60000);
+    expect(a['zoneOffsetSeconds'], h.start.timeZoneOffset.inSeconds);
+    expect(a['fields'], h.fieldsFor('ios'));
+    expect((a['fields'] as Map).containsKey('transFatG'), isFalse);
+    expect(a.keys.toSet(), {'clientId', 'name', 'startMs', 'endMs', 'zoneOffsetSeconds', 'fields'});
+    await ChannelHealthClient(channel: ch, platform: 'android').write(h);
+    expect((calls.last.arguments as Map)['fields'], h.fieldsFor('android'));
+  });
+
+  test('requests and access carry the platform\'s write permissions only; delete carries the ids', () async {
+    reply = true;
+    await ChannelHealthClient(channel: ch, platform: 'android').requestWrite();
+    expect(calls.last.arguments, {'permissions': ['android.permission.health.WRITE_NUTRITION']});
+    reply = 'granted';
+    expect(await ChannelHealthClient(channel: ch, platform: 'ios').access(), HealthAccess.granted);
+    expect((calls.last.arguments as Map)['permissions'], kHealthWritePermissions['ios']);
+    reply = true;
+    await ChannelHealthClient(channel: ch, platform: 'ios').delete(['a', 'b']);
+    expect(calls.last.method, 'delete');
+    expect((calls.last.arguments as Map)['ids'], ['a', 'b']);
+  });
+});
+
+  for (final platform in ['android', 'ios']) {
   group('writer on $platform', () {
       late FakeHealth fake;
       late HealthWriter w;

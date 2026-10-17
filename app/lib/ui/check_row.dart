@@ -33,18 +33,21 @@ class CheckRow extends StatelessWidget {
   final String? line;
   final Widget? lead;
   final bool on, last;
+  /// `.hrow:has(.obtn) .check`: a button hangs under the row, so the text starts 10 from the top and the box 15, with no minimum height
+  final bool anchored;
   final ValueChanged<bool> onChanged;
-  const CheckRow({super.key, required this.label, required this.on, required this.onChanged, this.line, this.lead, this.last = false});
+  const CheckRow({super.key, required this.label, required this.on, required this.onChanged, this.line, this.lead, this.last = false, this.anchored = false});
   @override
   Widget build(BuildContext context) => Semantics(
         checked: on, label: label, inMutuallyExclusiveGroup: false,
         child: Press(
           overlay: M2Color.pressRow, semantics: false, onTap: () => onChanged(!on),
           child: Container(
-            constraints: const BoxConstraints(minHeight: M2Layout.areaRowMin),
+            constraints: anchored ? null : const BoxConstraints(minHeight: M2Layout.areaRowMin),
+            padding: anchored ? const EdgeInsets.only(top: M2Layout.hrowTop) : null,
             decoration: BoxDecoration(border: last ? null : const Border(bottom: BorderSide(color: M2Color.hair))),
             child: ExcludeSemantics(
-              child: Row(children: [
+              child: Row(crossAxisAlignment: anchored ? CrossAxisAlignment.start : CrossAxisAlignment.center, children: [
                 Expanded(
                   child: Row(children: [
                     if (lead != null) ...[lead!, const SizedBox(width: M2Space.panel)],
@@ -56,7 +59,7 @@ class CheckRow extends StatelessWidget {
                     ),
                   ]),
                 ),
-                CustomPaint(size: const Size.square(M2Layout.checkSize), painter: _CheckPainter(on)),
+                Padding(padding: EdgeInsets.only(top: anchored ? M2Layout.hrowBoxTop : 0), child: CustomPaint(size: const Size.square(M2Layout.checkSize), painter: _CheckPainter(on))),
               ]),
             ),
           ),

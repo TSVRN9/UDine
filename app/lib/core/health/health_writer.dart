@@ -10,8 +10,7 @@ class HealthWriter {
   final HealthClient _client;
 
   Future<bool> write(HealthMeal m) async {
-    final old = await _store.healthIds(m.mealId, _client.platform);
-    final ids = await _client.write(m, replacing: old);
+    final ids = await _client.write(m);
     if (ids == null) return false;
     await _store.setHealthIds(m.mealId, _client.platform, ids);
     return true;

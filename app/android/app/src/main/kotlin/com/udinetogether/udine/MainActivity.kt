@@ -1,5 +1,7 @@
 package com.udinetogether.udine
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import androidx.activity.result.ActivityResultLauncher
 import androidx.health.connect.client.HealthConnectClient
@@ -46,8 +48,21 @@ class MainActivity : FlutterFragmentActivity() {
 
     private fun perms(call: MethodCall): Set<String> = call.argument<List<String>>("permissions")!!.toSet()
 
+    // UDine's permissions in Health Connect (Android 14+), Health Connect's settings, then its Play listing when it isn't installed.
+    private fun openSettings() {
+        val intents = listOfNotNull(
+            if (Build.VERSION.SDK_INT >= 34) Intent("android.health.connect.action.MANAGE_HEALTH_PERMISSIONS").putExtra(Intent.EXTRA_PACKAGE_NAME, packageName) else null,
+            Intent("androidx.health.ACTION_HEALTH_CONNECT_SETTINGS"),
+            Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.google.android.apps.healthdata")),
+        )
+        for (i in intents) {
+            try { startActivity(i); return } catch (e: Exception) { android.util.Log.w("UDineHealth", "settings intent failed", e) }
+        }
+    }
+
     // Write only: nothing here ever reads a record back.
     private fun handle(call: MethodCall, result: MethodChannel.Result) {
+        if (call.method == "openSettings") { openSettings(); result.success(null); return }
         // minSdk is 24 but Health Connect's library is 26+ (manifest overrideLibrary): no call below may run on older devices.
         if (Build.VERSION.SDK_INT < 26) {
             result.success(when (call.method) { "access" -> "unsupported"; "write" -> null; else -> false })

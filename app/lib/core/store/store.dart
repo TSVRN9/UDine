@@ -24,7 +24,7 @@ class Meal {
 }
 
 /// M2 tracking/score/campus/first-run settings: new preferences_kv keys, prefixed so they never meet RN's.
-const kTrackKey = 'm2:track', kScoresKey = 'm2:scores', kCharlesRiverKey = 'm2:charles_river', kFirstRunSeenKey = 'm2:first_run_seen', kPinsKey = 'm2:pins', kAlertsKey = 'm2:alerts';
+const kTrackKey = 'm2:track', kScoresKey = 'm2:scores', kCharlesRiverKey = 'm2:charles_river', kFirstRunSeenKey = 'm2:first_run_seen', kPinsKey = 'm2:pins', kAlertsKey = 'm2:alerts', kHealthKey = 'm2:health';
 
 /// Repositories over an opened db, reading and writing RN's exact rows and JSON shapes.
 class UdineStore {
@@ -243,7 +243,10 @@ class UdineStore {
   Future<List<({String dishName, String day})>> alertsSent() async =>
       [for (final r in await db.rawQuery('SELECT dish_name, day FROM alert_sent ORDER BY rowid')) (dishName: r['dish_name']! as String, day: r['day']! as String)];
 
-  // ---- Health Connect / Apple Health: the record ids written for a meal (never read back from Health) ----
+  // ---- Health Connect / Apple Health: the You switch, then the record ids written for a meal (never read back from Health) ----
+
+  Future<bool> healthOn() async => await _kv(kHealthKey) as bool? ?? false;
+  Future<void> setHealthOn(bool v) => _setKv(kHealthKey, v);
 
   Future<List<String>> healthIds(String mealId, String platform) async {
     final r = await db.query('health_writes', columns: ['record_ids_json'], where: 'meal_id = ? AND platform = ?', whereArgs: [mealId, platform]);

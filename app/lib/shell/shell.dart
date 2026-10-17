@@ -54,6 +54,7 @@ class ShellState extends State<Shell> with WidgetsBindingObserver implements She
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _tab.addListener(_tabChanged);
     // `/custom?name=&meal=` (a screenshot route): the custom food form over Halls; `cal`, `p`, `c` and `f` fill the macros
     final u = Uri.parse(widget.initialRoute), q = u.queryParameters;
     // `/food?name=Chobani[&edit=1]` (a screenshot route): that saved food's sheet over Halls, in Edit with `edit=1`
@@ -119,8 +120,19 @@ class ShellState extends State<Shell> with WidgetsBindingObserver implements She
     }, onError: (Object _) {});
   }
 
+  /// Health Connect is asked again when the app comes back (a permission is granted or revoked in system settings) and when You is shown.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) AppScope.of(context).health?.refresh();
+  }
+
+  void _tabChanged() {
+    if (_tab.value == 2) AppScope.of(context).health?.refresh();
+  }
+
   @override
   void dispose() {
+    _tab.removeListener(_tabChanged);
     WidgetsBinding.instance.removeObserver(this);
     _hours?.cancel();
     _book?.removeListener(_wantCafeIds);
