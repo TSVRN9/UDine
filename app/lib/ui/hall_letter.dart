@@ -3,10 +3,10 @@ import 'package:flutter/widgets.dart';
 import '../theme/tokens.dart';
 import 'letter_paths.dart';
 
-ui.Path _outline(String letter, double fontSize) {
+ui.Path _outline(String letter, double fontSize, {bool semi = false}) {
   final p = ui.Path();
   final nums = RegExp(r'-?\d+\.\d+');
-  for (final m in RegExp(r'([MLQZ])([^MLQZ]*)').allMatches(letterPaths[letter]!)) {
+  for (final m in RegExp(r'([MLQZ])([^MLQZ]*)').allMatches((semi ? letterPathsSemi : letterPaths)[letter]!)) {
     final v = [for (final n in nums.allMatches(m[2]!)) double.parse(n[0]!) * fontSize];
     switch (m[1]) {
       case 'M': p.moveTo(v[0], v[1]);
@@ -84,22 +84,25 @@ class PatchLetter extends StatelessWidget {
   final String letter;
   final double size, font;
   final Color color;
-  const PatchLetter(this.letter, {super.key, required this.size, required this.font, required this.color});
+  /// Oswald 600's outline (the Search tile), not 700's
+  final bool semi;
+  const PatchLetter(this.letter, {super.key, required this.size, required this.font, required this.color, this.semi = false});
   @override
-  Widget build(BuildContext context) => CustomPaint(size: Size.square(size), painter: _PatchPainter(letter, size, font, color));
+  Widget build(BuildContext context) => CustomPaint(size: Size.square(size), painter: _PatchPainter(letter, size, font, color, semi));
 }
 
 class _PatchPainter extends CustomPainter {
   final String letter;
   final double size, font;
   final Color color;
-  const _PatchPainter(this.letter, this.size, this.font, this.color);
+  final bool semi;
+  const _PatchPainter(this.letter, this.size, this.font, this.color, this.semi);
   @override
   void paint(Canvas canvas, Size _) {
-    final p = _outline(letter, font), b = p.getBounds();
+    final p = _outline(letter, font, semi: semi), b = p.getBounds();
     canvas.drawPath(p.shift(Offset(size / 2 - b.center.dx, _capBaseline(size, font))), Paint()..color = color);
   }
 
   @override
-  bool shouldRepaint(_PatchPainter o) => o.letter != letter || o.size != size || o.font != font || o.color != color;
+  bool shouldRepaint(_PatchPainter o) => o.letter != letter || o.size != size || o.font != font || o.color != color || o.semi != semi;
 }

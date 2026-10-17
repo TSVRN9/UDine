@@ -21,7 +21,7 @@ class HallTags extends StatelessWidget {
               Container(
                 width: M2Layout.tagSize, height: M2Layout.tagSize, alignment: Alignment.center,
                 decoration: const BoxDecoration(color: M2Color.dm, borderRadius: BorderRadius.all(Radius.circular(M2Radius.patch))),
-                child: PatchLetter(halls[i], size: M2Layout.tagSize, font: M2Layout.tagLetter.size, color: M2Color.gold),
+                child: PatchLetter(halls[i], size: M2Layout.tagSize, font: M2Layout.tagLetter.size, color: M2Color.gold, semi: true),
               ),
             ],
             if (cafe != null)

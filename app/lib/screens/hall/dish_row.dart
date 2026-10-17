@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 import '../../core/m2/board.dart';
 import '../../core/m2/menu_view.dart' show rowScores;
@@ -48,12 +49,12 @@ class DishRow extends StatelessWidget {
   Widget? get _tagSlot {
     if (!track || tags == null) return null;
     final cafe = tags is HallTags && (tags as HallTags).cafe != null;
-    final x = M2Layout.rowGap + M2Layout.lane - (cafe ? M2Layout.tagRight : M2Layout.addSize / 2);
+    final limit = M2Layout.rowGap + M2Layout.lane - M2Layout.tagRight; // the group's right edge never passes the lane's old one
     return SizedBox(
       width: 0, height: M2Layout.tagSize,
       child: OverflowBox(
-        minWidth: 0, maxWidth: x + (cafe ? M2Layout.tagCafeMax : 200), alignment: Alignment.centerLeft,
-        child: Padding(padding: EdgeInsets.only(left: x), child: FractionalTranslation(translation: Offset(cafe ? -1 : -0.5, 0), child: tags)),
+        minWidth: 0, maxWidth: limit + (cafe ? M2Layout.tagCafeMax : 200), alignment: Alignment.centerLeft,
+        child: CustomSingleChildLayout(delegate: _TagsAt(cafe ? null : M2Layout.rowGap + M2Layout.lane - M2Layout.addSize / 2, limit), child: tags),
       ),
     );
   }
@@ -119,3 +120,16 @@ class CalPer100 extends StatelessWidget {
 
 /// "a, b and c" (M2 `andList`)
 String andList(List<String> l) => l.length < 2 ? l.join() : '${l.sublist(0, l.length - 1).join(', ')} and ${l.last}';
+
+/// Where the tiles hang, from the meta line's right edge: centred on [centre] (the +) and no further right than [limit]; with no centre,
+/// right-aligned to [limit].
+class _TagsAt extends SingleChildLayoutDelegate {
+  final double? centre;
+  final double limit;
+  const _TagsAt(this.centre, this.limit);
+  @override
+  Offset getPositionForChild(Size size, Size child) =>
+      Offset(centre == null ? limit - child.width : math.min(centre! - child.width / 2, limit - child.width), (size.height - child.height) / 2);
+  @override
+  bool shouldRelayout(_TagsAt o) => o.centre != centre || o.limit != limit;
+}
