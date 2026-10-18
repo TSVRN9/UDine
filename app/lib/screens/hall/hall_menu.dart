@@ -50,6 +50,10 @@ class HallMenu extends StatefulWidget {
   final BandRect? band;
   /// the band's own copy, drawn over the photo while the container opens
   final Widget? ghost;
+  final BandParts? parts;
+  /// the status line and the meter the band showed, drawn until the page's own arrive (they travel with the card from its first frame)
+  final String? seedStatus;
+  final ({int lamps, String word})? seedBusy;
   /// an index into the 15 days (0 today); `meal` is M2's key (`lunch`, `late`, `grab`), kept if the day has it
   final int day;
   final String? meal;
@@ -64,7 +68,7 @@ class HallMenu extends StatefulWidget {
   /// down is claimed before the list's own (M2 decides the axis itself, on its first move).
   final Widget Function(Widget child)? dragWrap;
   const HallMenu({
-    super.key, required this.place, required this.top, required this.height, this.progress = kAlwaysCompleteAnimation, this.band, this.ghost,
+    super.key, required this.place, required this.top, required this.height, this.progress = kAlwaysCompleteAnimation, this.band, this.ghost, this.parts, this.seedStatus, this.seedBusy,
     this.day = 0, this.meal, required this.onBack, this.onOpenDish, this.dish, this.landOn, this.onEvent, this.dragWrap,
   });
   @override
@@ -169,10 +173,11 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
       _busyRead = r;
       _busy.value = r == null ? null : HallBusyView.of(r, span: c.placeHours == null ? null : openSpan(c.placeHours!));
     }
+    if (r == null && _day == 0 && widget.seedBusy != null && _busy.value?.seed != true) _busy.value = HallBusyView.seed(lamps: widget.seedBusy!.lamps, word: widget.seedBusy!.word);
     final h = c.placeHours;
     final iso = _iso;
     // hours are not known until they arrive; another day's span only with its menu
-    _status.value = h == null || (_day > 0 && c.state(_day) != MenuState.ok) || !fx.hours.containsKey(place) || iso.isEmpty ? '' : statusLine(fx, place, _day);
+    _status.value = h == null && _day == 0 ? widget.seedStatus ?? '' : h == null || (_day > 0 && c.state(_day) != MenuState.ok) || !fx.hours.containsKey(place) || iso.isEmpty ? '' : statusLine(fx, place, _day);
   }
 
   /// The data moved: a menu that was not showing is now, and arrives; anything else just redraws.
@@ -578,7 +583,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
               child: Stack(clipBehavior: Clip.none, children: [
                 HallHeader(
                   key: const ValueKey('header'), place: place, name: c.name, top: top, status: _status, busy: _busy, progress: p, scroll: _scrollY, dayFade: _dayFade, band: widget.band,
-                  ghost: widget.ghost, onStatus: _status.value.isEmpty ? null : _openSchedule,
+                  ghost: widget.ghost, parts: widget.parts, onStatus: _status.value.isEmpty ? null : _openSchedule,
                 ),
                 if (th > 0)
                   Positioned(
