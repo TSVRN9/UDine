@@ -98,10 +98,7 @@ class RenderTravel extends RenderProxyBox {
       layer = null;
       return super.paint(context, offset);
     }
-    final t = Matrix4.translationValues(offset.dx, offset.dy, 0)
-      ..multiply(m)
-      ..translateByDouble(-offset.dx, -offset.dy, 0, 1);
-    layer = context.pushTransform(needsCompositing, offset, t, super.paint, oldLayer: layer is TransformLayer ? layer as TransformLayer : null);
+    layer = context.pushTransform(needsCompositing, offset, m, super.paint, oldLayer: layer is TransformLayer ? layer as TransformLayer : null);
   }
 
   @override

@@ -37,14 +37,17 @@ class HallBusyView {
 /// stretched to the width (`preserveAspectRatio="none"`).
 class BusyBoard extends StatelessWidget {
   final HallBusyView view;
-  const BusyBoard({super.key, required this.view});
+  /// the board fades by its colours' alpha, which is the same pixels as an Opacity without an offscreen layer
+  final double opacity;
+  const BusyBoard({super.key, required this.view, this.opacity = 1});
   @override
-  Widget build(BuildContext context) => ExcludeSemantics(child: CustomPaint(painter: _BoardPainter(view)));
+  Widget build(BuildContext context) => ExcludeSemantics(child: CustomPaint(painter: _BoardPainter(view, opacity)));
 }
 
 class _BoardPainter extends CustomPainter {
   final HallBusyView v;
-  const _BoardPainter(this.v);
+  final double opacity;
+  const _BoardPainter(this.v, this.opacity);
   @override
   void paint(Canvas canvas, Size size) {
     final cols = v.board;
@@ -60,12 +63,12 @@ class _BoardPainter extends CustomPainter {
         final lit = now ? v.lamps : cols[i].lamps;
         canvas.drawRRect(
           RRect.fromRectAndRadius(Rect.fromLTWH(i * (bw + M2Layout.boardGap), y, bw, lh), const Radius.circular(M2Layout.boardRadius)),
-          Paint()..color = k >= lit ? M2Color.boardOff : now ? M2Color.gold : M2Color.boardOn,
+          Paint()..color = (k >= lit ? M2Color.boardOff : now ? M2Color.gold : M2Color.boardOn).withValues(alpha: (k >= lit ? M2Color.boardOff : now ? M2Color.gold : M2Color.boardOn).a * opacity),
         );
       }
     }
   }
 
   @override
-  bool shouldRepaint(_BoardPainter o) => o.v != v;
+  bool shouldRepaint(_BoardPainter o) => o.v != v || o.opacity != opacity;
 }

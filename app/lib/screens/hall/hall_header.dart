@@ -133,11 +133,11 @@ class HallHeaderState extends State<HallHeader> {
     Widget own(bool onCard, Widget child) => !travels || onCard
         ? child
         : AnimatedBuilder(animation: p, child: child, builder: (_, ch) => Opacity(opacity: incomingOpacity(p.value), child: ch));
-    // M2 `fade`: the status line, busy row and board leave with the scroll; what the card has no counterpart for (`fin`: the board) comes with the container
-    Widget faded(Widget child, {bool fin = false}) => AnimatedBuilder(
-          animation: Listenable.merge([if (fin) p, w.scroll, w.dayFade]), child: child,
+    // M2 `fade`: the status line and busy row leave with the scroll
+    Widget faded(Widget child) => AnimatedBuilder(
+          animation: Listenable.merge([w.scroll, w.dayFade]), child: child,
           builder: (_, ch) {
-            final o = (fin ? incomingOpacity(p.value) : 1.0) * (1 - _clamp(c() / M2Collapse.fadeEnd));
+            final o = 1 - _clamp(c() / M2Collapse.fadeEnd);
             return Opacity(opacity: (o * w.dayFade.value).clamp(0.0, 1.0), child: IgnorePointer(ignoring: o <= 0.5, child: ch));
           },
         );
@@ -180,6 +180,12 @@ class HallHeaderState extends State<HallHeader> {
               builder: (_, ch) => Opacity(opacity: _clamp((c() - M2Collapse.solidStart) / M2Collapse.solidSpan), child: ch),
             ),
           ),
+          // the band's own grade, under the letter as the card has it, fades with 1 - p
+          if (band != null && w.ghost != null)
+            Positioned(
+              left: 0, right: 0, top: band.off, height: band.height,
+              child: AnimatedBuilder(animation: p, builder: (_, _) => BandGrade(key: const ValueKey('fade-bandGrade'), opacity: _clamp(1 - p.value))),
+            ),
           if (_letter != null)
             Positioned.fill(
               child: AnimatedBuilder(
@@ -191,24 +197,24 @@ class HallHeaderState extends State<HallHeader> {
                 ),
               ),
             ),
-          // the band's own grade fades with 1 - p; its copy is only laid out (below), for the shared elements to read
-          if (band != null && w.ghost != null) ...[
-            Positioned(
-              left: 0, right: 0, top: band.off, height: band.height,
-              child: AnimatedBuilder(animation: p, builder: (_, _) => BandGrade(key: const ValueKey('fade-bandGrade'), opacity: _clamp(1 - p.value))),
-            ),
-            Positioned(left: 0, right: 0, top: band.off, height: band.height, child: Offstage(child: w.ghost!)),
-          ],
+          // the band's copy is only laid out, never painted: the shared elements read where the card drew each part from it
+          if (band != null && w.ghost != null) Positioned(left: 0, right: 0, top: band.off, height: band.height, child: Offstage(child: w.ghost!)),
           if (!compact)
             Positioned(
               left: M2Space.gutter, right: M2Space.gutter, bottom: M2Layout.histBottom, height: M2Layout.histH,
-              child: faded(ValueListenableBuilder<HallBusyView?>(
+              child: ValueListenableBuilder<HallBusyView?>(
                 valueListenable: busy,
                 builder: (_, v, _) {
                   if (v == null || v.seed) _lateBoard = true;
-                  return v?.board == null ? const SizedBox.shrink() : _lateBoard ? Arrive(key: const ValueKey('busy-board'), child: BusyBoard(view: v!)) : BusyBoard(key: const ValueKey('busy-board'), view: v!);
+                  if (v?.board == null) return const SizedBox.shrink();
+                  // what the card has no counterpart for: `fin`, the scroll's and the day's fades, all by alpha
+                  final board = AnimatedBuilder(
+                    animation: Listenable.merge([p, w.scroll, w.dayFade]),
+                    builder: (_, _) => BusyBoard(view: v!, opacity: (incomingOpacity(p.value) * (1 - _clamp(c() / M2Collapse.fadeEnd)) * w.dayFade.value).clamp(0.0, 1.0)),
+                  );
+                  return _lateBoard ? Arrive(key: const ValueKey('busy-board'), child: board) : KeyedSubtree(key: const ValueKey('busy-board'), child: board);
                 },
-              ), fin: true),
+              ),
             ),
           // the title block: name (it travels into the bar), status line, busy row
           Positioned(

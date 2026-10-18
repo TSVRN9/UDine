@@ -2,6 +2,7 @@
 // at every p, the header's are where the card drew them at p 0 and on the straight line to where the header draws them in between,
 // and only what the header adds (the chevron, "Calmer around") crossfades on top.
 import 'dart:math' as math;
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/motion/travel.dart';
@@ -263,5 +264,40 @@ void main() {
     for (var k = 0; k < 12; k++) {
       await drain(t);
     }
+  });
+
+  // The matrix `getRect` reads (applyPaintTransform) and the one the canvas paints with are two code paths; this reads the pixels.
+  testWidgets('the title\'s ink is where the card drew it on the first frame (what is painted, not only what is reported)', (t) async {
+    await boot(t, 'Worcester');
+    final from = card(t, 'Worcester');
+    Future<Rect> ink(Rect r) async {
+      final img = await t.runAsync(() => (t.binding.renderViews.first.debugLayer! as OffsetLayer).toImage(Rect.fromLTWH(0, 0, 390, 844)));
+      final data = (await t.runAsync(() => img!.toByteData()))!;
+      var l = 1e9, tp = 1e9, rr = -1.0, b = -1.0;
+      for (var y = r.top.floor(); y < r.bottom.ceil(); y++) {
+        for (var x = r.left.floor(); x < r.right.ceil(); x++) {
+          final o = (y * 390 + x) * 4;
+          if (data.getUint8(o) > 200 && data.getUint8(o + 1) > 200 && data.getUint8(o + 2) > 200) {
+            l = math.min(l, x.toDouble());
+            tp = math.min(tp, y.toDouble());
+            rr = math.max(rr, x + 1.0);
+            b = math.max(b, y + 1.0);
+          }
+        }
+      }
+      return Rect.fromLTRB(l, tp, rr, b);
+    }
+    final before = await ink(from.name.inflate(2));
+    await t.tap(find.text('Worcester'));
+    for (var i = 0; i < 5 && find.byType(HallMenu).evaluate().isEmpty; i++) {
+      await t.pump();
+    }
+    expect(t.widget<HallMenu>(find.byType(HallMenu)).progress.value, 0);
+    final after = await ink(from.name.inflate(2));
+    for (final d in [after.left - before.left, after.top - before.top, after.right - before.right, after.bottom - before.bottom]) {
+      expect(d.abs(), lessThan(2), reason: 'ink before $before, after $after');
+    }
+    await settle(t);
+    await drain(t);
   });
 }
