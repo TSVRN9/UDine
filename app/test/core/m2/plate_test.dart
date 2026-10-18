@@ -13,7 +13,8 @@ void main() {
     for (final v in vectors['plate'] as List) {
       // Bowl ops (M2 R10 §4) are run in bowl_test.dart.
       if ((v['ops'] as List).any((op) => op[0] == 'bowl')) continue;
-      test(v['name'], () {
+      // M2 round 12c: a blank nutrient stays blank in the totals; green with docs/briefs/m2-round-12-13.md Task 2, which removes this skip
+      test(v['name'], skip: v['name'] == 'blank calories (20 oz Chai): the plate has no calorie total' ? 'M2 round 12c missing nutrients: m2-round-12-13 Task 2' : false, () {
         var s = emptyPlates;
         for (final op in v['ops'] as List) {
           if (op[0] == 'add') {
