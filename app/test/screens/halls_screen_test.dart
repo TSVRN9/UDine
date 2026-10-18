@@ -227,6 +227,8 @@ void main() {
       expect(fading, isNotEmpty);
       await t.pumpAndSettle();
       expect(lamps(t), [5, 3, 2, 5]);
+      await t.pump(const Duration(seconds: 10)); // the stars' menus, asked for last and as slowly
+      await drain(t);
     });
 
     testWidgets('offline: the saved hours stay, no meter, "You\'re offline" under the date, no button', (t) async {

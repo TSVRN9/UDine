@@ -218,7 +218,8 @@ abstract final class M2Layout {
   static const vsName = M2Type(22.0, 25.3, 'Oswald', FontWeight.w600, tabular: true); // `.vs button`: 600 22/1.15 Oswald
   static const placeRowMin = 60.0, placeRowPadV = 8.0, placeRowGap = 12.0, placeTextTop = 2.0; // `.prow2`
   static const placeStatus = M2Type(14.0, null, 'LibreFranklin', FontWeight.w500); // `.prow2 .r`
-  static const starSize = 22.0, starGap = 8.0, starTopBand = 7.0, starTopCard = 0.0; // `.bstar` (round 13): size, margin-left, and its top within `.nm` (32 / 24 high)
+  static const starText = TextStyle(fontSize: 22, height: 1); // `.bstar` font: 400 22px/1
+  static const starGap = 8.0, starTopBand = 7.0, starTopCard = 0.0; // `.bstar` (round 13): size, margin-left, and its top within `.nm` (32 / 24 high)
   static const cardH = 76.0, cardTextTop = 13.0, cardMeterGap = 10.0; // `.band.hcard`, `.hcard .bt`, `.st` gap
   static const cardsTop = 4.0, cardsBottom = 8.0; // `.hcards` margin
   static const laneMin = 66.0; // `.lane` min-height

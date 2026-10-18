@@ -11,10 +11,12 @@ import '../../data/repository.dart';
 /// Halls' one load: today's hours (cached for the day, always refreshed behind the saved copy) and, once the live response is in,
 /// the busy reads for the four halls. Try again is the same call again.
 class HallsController extends ChangeNotifier {
-  HallsController(this.repo) {
+  /// [menus] false: the caller reads the halls' menus itself (Search's own book), so they are not asked for twice.
+  HallsController(this.repo, {this.menus = true}) {
     load();
   }
   final Repository repo;
+  final bool menus;
   DataState<HoursData> state = Loading<HoursData>();
   Map<String, OccupancyRead> reads = const {};
   /// The four halls' menus for the board's day with their hours, for the stars; null until they are in (no star meanwhile).
@@ -45,7 +47,9 @@ class HallsController extends ChangeNotifier {
       if (s is Loading<HoursData> || s is StillLoading<HoursData>) sawLoading = true;
       if (s is! Loaded<HoursData> || s.value.busy == null) reads = const {};
       notifyListeners();
-      if (s case Loaded<HoursData>(:final value) || LoadedOffline<HoursData>(:final value)) unawaited(_menus(value, run));
+      if (menus) {
+        if (s case Loaded<HoursData>(:final value) || LoadedOffline<HoursData>(:final value)) unawaited(_menus(value, run));
+      }
       if (s is Loaded<HoursData> && s.value.busy != null) {
         final r = await repo.busyReads(s.value);
         if (_disposed || run != _run) return;

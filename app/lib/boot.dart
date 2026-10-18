@@ -83,7 +83,11 @@ class Boot {
     }
     final prefs = await AppPrefs.load(store, pins: pinsFlag != null ? _fivePins.take(pinsFlag).toList() : flags != null && pinsQuery != null ? pinsQuery.split(',') : null);
     // recorded routes only: `fav=Dish A|Dish B` starts with those favourites (the Halls stars are drawn from them)
-    if (flags != null) for (final n in (Uri.parse(route).queryParameters['fav'] ?? '').split('|').where((n) => n.isNotEmpty)) await prefs.toggleFavorite(n);
+    if (flags != null) {
+      for (final n in (Uri.parse(route).queryParameters['fav'] ?? '').split('|').where((n) => n.isNotEmpty)) {
+        await prefs.toggleFavorite(n);
+      }
+    }
     final Repository repo;
     if (flags != null) {
       // `at` is Eastern wall-clock time, as M2 reads it, wherever the device is

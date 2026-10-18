@@ -64,7 +64,7 @@ class Band extends StatelessWidget {
                   Text(name, key: parts?.name, style: (small ? M2Text.pinName : M2Text.bandName).style(M2Color.white)),
                   Padding(
                     padding: EdgeInsets.only(left: M2Layout.starGap, top: card ? M2Layout.starTopCard : M2Layout.starTopBand),
-                    child: const Text('★', style: TextStyle(fontSize: M2Layout.starSize, height: 1, color: M2Color.gold)),
+                    child: Text('★', style: M2Layout.starText.copyWith(color: M2Color.gold)),
                   ),
                 ])
               else

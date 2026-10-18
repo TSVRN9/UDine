@@ -23,7 +23,7 @@ import '../hall/hall_controller.dart' show grabsOf;
 /// order is computed then, with the plate as it is at that moment: a plate change redraws controls, never the order.
 class SearchController extends ChangeNotifier {
   SearchController(this.repo, this.prefs, this.plate, {PackagedSource? packaged, LookupDishSource? lookupSource, this.foods}) {
-    hallsData = HallsController(repo)..addListener(_onHours);
+    hallsData = HallsController(repo, menus: false)..addListener(_onHours);
     prefs.addListener(_onPrefs);
     pack = packaged == null ? null : (PackagedSearch(packaged)..addListener(_onExtras));
     lookup = lookupSource == null ? null : (LookupRun(lookupSource)..addListener(_onExtras));
@@ -49,6 +49,9 @@ class SearchController extends ChangeNotifier {
   bool _charles = false;
 
   Map<String, int> get cafeIds => _hours == null ? const {} : cafeIdsOf(_hours!.feed);
+
+  /// the board Search reads its menus from (the halls' today first), which the hall cards' stars read too
+  Board? get board => _book?.board;
 
   /// every place's days are in (the halls' arrive first and are searched while the cafés come)
   bool get complete => _book?.complete ?? false;
