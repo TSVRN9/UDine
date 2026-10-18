@@ -11,7 +11,7 @@ Roadmap and global decisions: `docs/briefs/flutter-port.md`. Written 2026-10-17 
 `-search`, `-you`, `-bowls`, `-favorite-alerts` and `-alert-push`.
 
 **The spec is on two unmerged M2 branches.** Round 12 is PR #566 (`design/m2-round-12`), round 13 is PR #612
-(`design/m2-round-13`, stacked on it). Every task below is **blocked by both merging**: the M2 sections, `test.js`
+(`design/m2-round-13`, stacked on it). The build tasks are **blocked by those merging** (each task names which; Tasks 8 and 9 verify built work and need neither): the M2 sections, `test.js`
 scenarios, `vectors.json` blocks and the M2 build the measurements come from are on those branches until then.
 Read the spec from `docs/design/explorations/2026-10-ui-overhaul/flows/M2/` (`CONCEPT.md` "Round 12", "Round 12b",
 "Round 12c", "Round 12d", "Round 13"; `NOTES.md` the same; `vectors.json`; `src.html`). The owner's later decisions
@@ -139,7 +139,7 @@ Evidence: a Flutter frame strip beside M2's, the shared elements never absent, a
 rendering-bug fixes (the one-frame hole, dropped frames) are `flutter-motion-fixes.md`, not this task.
 Files: `app/lib/motion/container_math.dart`, `container_transform.dart`, `app/lib/screens/hall/hall_header.dart`, `hall_route.dart`,
 `app/lib/screens/halls/hall_page.dart`, `app/lib/ui/hall_letter.dart` — lanes: common + a frame-strip comparison + the layer count —
-blocked by: #612 merged (and `flutter-motion-fixes` Task 1 for the rendering defects) — PR:
+blocked by: #612 merged (`flutter-motion-fixes` Task 1 merged in #610) — PR:
 
 ### 5. Tracking off is a layer lifting away, figures included (M2 R13 §3)
 New token `fold` (250 ms, standard). The layer: the plate bar; on You the Today, Meals and Earlier blocks, the Health row, Your foods and
