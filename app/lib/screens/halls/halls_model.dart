@@ -1,4 +1,3 @@
-import '../../core/date.dart' show defaultRolloverHour;
 import '../../core/hours.dart';
 import '../../core/m2/board.dart';
 import '../../core/m2/busy.dart';
@@ -58,6 +57,7 @@ HallsVM buildHalls({
   required bool charlesRiver,
   Board? board,
   Set<String> favorites = const {},
+  String? day,
 }) {
   final feed = switch (state) {
     Loaded(:final value) || LoadedOffline(:final value) => value.feed,
@@ -78,7 +78,7 @@ HallsVM buildHalls({
     final r = busyBy[k], h = hallBy[k];
     return BandVM(
       key: k, name: diningHalls[halls.indexOf(k)].name, status: h == null ? null : statusText(h, now),
-      star: board != null && hallStar(board, k, favKeys, now, defaultRolloverHour),
+      star: board != null && day != null && hallStar(board, k, favKeys, day, now),
       lamps: r?.lamps, word: r == null ? null : busyWord(r.level, low: r.confidence == Confidence.low), hasExtra: r != null && HallBusyView.of(r).extra.isNotEmpty,
     );
   }

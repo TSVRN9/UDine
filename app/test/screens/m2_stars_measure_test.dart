@@ -48,7 +48,7 @@ void main() {
         expect(s.height, closeTo(star(h)[3], 1.0));
       }
       final sem = t.ensureSemantics();
-      expect(find.bySemanticsLabel(RegExp('^(Worcester|Hampshire), serves a favorite')), findsNWidgets(2));
+      expect(find.bySemanticsLabel(RegExp('^(Worcester|Hampshire), Serves a favorite')), findsNWidgets(2));
       expect(find.bySemanticsLabel(RegExp('^(Franklin|Berkshire),.*favorite')), findsNothing);
       sem.dispose();
     });
@@ -61,6 +61,7 @@ void main() {
       await t.pumpAndSettle();
       expect(starOf(find.byType(Band)), findsNothing);
       await t.runAsync(() => boot.prefs.toggleFavorite('Golden BBQ Chicken Thigh'));
+      await until(t, () => starOf(find.byType(Band)).evaluate().isNotEmpty); // (the menus are read once Halls is at rest)
       await t.pumpAndSettle();
       expect(starOf(find.byType(Band)), findsOneWidget);
       await t.runAsync(() => boot.prefs.toggleFavorite('Golden BBQ Chicken Thigh'));

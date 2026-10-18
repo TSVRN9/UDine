@@ -491,6 +491,7 @@ class Repository {
                 savedAge = now().difference(fetchedAt);
                 c.add(Loaded(value));
                 if (isFinal != null && isFinal(value, fetchedAt)) {
+                  onFetched?.call(value); // a final copy is as good as a fetch: the next ask is answered from memory
                   return;
                 }
               }

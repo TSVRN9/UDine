@@ -14,13 +14,11 @@ class WhereGroup {
 
 const _standard = {'breakfast': HallMealPeriod.breakfast, 'lunch': HallMealPeriod.lunch, 'dinner': HallMealPeriod.dinner, 'late': HallMealPeriod.latenight};
 
-int _toMin(String t) {
+/// Minutes after midnight of an "H:MM AM" time.
+int toMin(String t) {
   final m = RegExp(r'^(\d+):(\d+)\s*(AM|PM)$', caseSensitive: false).firstMatch(t)!;
   return (int.parse(m[1]!) % 12 + (m[3]!.toUpperCase() == 'PM' ? 12 : 0)) * 60 + int.parse(m[2]!);
 }
-
-/// Minutes after midnight of an "H:MM AM" time.
-int minuteOf(String t) => _toMin(t);
 
 String _fmtMin(int m) => '${((m ~/ 60 + 11) % 12) + 1}:${(m % 60).toString().padLeft(2, '0')} ${m < 720 ? 'AM' : 'PM'}';
 
@@ -34,7 +32,7 @@ String _fmtMin(int m) => '${((m ~/ 60 + 11) % 12) + 1}:${(m % 60).toString().pad
   }
   if (meal == 'all' || meal == 'grab') return h.general == null ? null : (h.general!.openTime, h.general!.closeTime);
   if (h.general == null) return null;
-  final m = _toMin(h.general!.openTime);
+  final m = toMin(h.general!.openTime);
   final wall = easternWall(now);
   final w = effectiveMealWindow(h, _standard[meal]!, easternInstant(DateTime.utc(wall.year, wall.month, wall.day, m ~/ 60, m % 60)));
   return w == null ? null : (w.openTime, w.closeTime);
@@ -64,7 +62,7 @@ List<WhereGroup> wherePlan(Board fx, String dish, DateTime instant, {bool newton
         if (!stations.any((s) => s.dishes.any((d) => d.key == key))) continue;
         final win = mealWindow(fx, place, meal, instant);
         if (win == null) continue;
-        final w = (_toMin(win.$1), _toMin(win.$2));
+        final w = (toMin(win.$1), toMin(win.$2));
         final st = day == 1 ? 'tomorrow' : nowMin >= w.$2 ? 'past' : nowMin >= w.$1 ? 'now' : 'later';
         if (st == 'past') continue;
         final gk = '$st,$meal,${w.$1},${w.$2}';
@@ -104,7 +102,7 @@ List<WhereGroup> whereAnswer(Board fx, String dish, DateTime instant, {bool newt
 }
 
 String fmtT(String t) {
-  final m = _toMin(t);
+  final m = toMin(t);
   if (m >= 1439) return 'midnight';
   if (m == 720) return 'noon';
   return '${((m ~/ 60 + 11) % 12) + 1}${m % 60 != 0 ? ':${(m % 60).toString().padLeft(2, '0')}' : ''} ${m < 720 ? 'AM' : 'PM'}';

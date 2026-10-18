@@ -96,7 +96,7 @@ class Band extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: M2Layout.seam),
       child: Semantics(
-        container: true, button: true, label: [name, if (star) 'serves a favorite', ?status].join(', '),
+        container: true, button: true, label: [name, if (star) 'Serves a favorite', ?status].join(', '),
         child: Press(onTap: onTap, overlay: M2Color.pressBand, child: ExcludeSemantics(child: body)),
       ),
     );

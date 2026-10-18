@@ -208,7 +208,20 @@ void main() {
       expect(scales.any((s) => s > M2Motion.fadeThroughScale && s < 1), isTrue);
       await t.pump(const Duration(milliseconds: 200));
       expect(find.text('Worcester'), findsNothing); // gone from the screen once You is in
+      await drain(t);
     });
+  });
+
+  testWidgets('Halls settles on its own: the bands and meters are at rest before the stars\' menus are read, and the stars follow', (t) async {
+    final boot = await bootRecorded(t);
+    await t.runAsync(() => boot.prefs.toggleFavorite('Golden BBQ Chicken Thigh'));
+    await openApp(t, boot);
+    await ready(t);
+    await t.pumpAndSettle(); // returns: nothing keeps scheduling frames while the menus load
+    expect(find.text('★'), findsNothing);
+    await until(t, () => find.text('★').evaluate().isNotEmpty);
+    await t.pumpAndSettle();
+    await drain(t);
   });
 
   group('network states', () {
