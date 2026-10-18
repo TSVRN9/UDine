@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/theme/tokens.dart';
 import 'package:udine/ui/sheet.dart';
 
+import '../screens/support.dart' show phone;
+
 class Host extends StatefulWidget {
   final SheetHandle handle;
   final bool Function() closed;
@@ -33,6 +35,27 @@ class _HostState extends State<Host> {
       );
 }
 
+/// A content-sized sheet (`mid` null) whose content can grow: the sheet re-snaps to the new resting height after the rebuild.
+class Grower extends StatefulWidget {
+  final SheetHandle handle;
+  const Grower(this.handle, {super.key});
+  @override
+  State<Grower> createState() => GrowerState();
+}
+
+class GrowerState extends State<Grower> {
+  double h = 300;
+  void grow() => setState(() => h = 500);
+  @override
+  Widget build(BuildContext context) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: MediaQuery(
+          data: const MediaQueryData(size: Size(390, 844)),
+          child: M2Sheet(handle: widget.handle, top: 32, slivers: [SliverToBoxAdapter(child: Container(height: h, color: const Color(0xFFEEEEEE)))]),
+        ),
+      );
+}
+
 void main() {
   Future<void> boot(WidgetTester t, SheetHandle h, {void Function()? onClosed}) async {
     t.view.physicalSize = const Size(390, 844);
@@ -50,6 +73,52 @@ void main() {
     expect(h.px, greaterThan(0));
     await t.pumpAndSettle();
     expect(h.px, closeTo(400, 0.5));
+  });
+
+  testWidgets('settled, asked right after a rebuild that grows the content, resolves only once the re-snap that follows has rested', (t) async {
+    final h = SheetHandle();
+    phone(t);
+    await t.pumpWidget(Grower(h));
+    await t.pumpAndSettle();
+    final rest0 = h.px;
+    t.state<GrowerState>(find.byType(Grower)).grow();
+    var done = false;
+    h.settled.then((_) => done = true); // (before the frame that rebuilds: its post-frame measure starts the spring)
+    var last = h.px, moved = 0, restAt = -1;
+    for (var i = 0; i < 120 && restAt < 0; i++) {
+      await t.pump(const Duration(milliseconds: 16));
+      if ((h.px - last).abs() > 0.5) {
+        moved++;
+        expect(done, isFalse, reason: 'frame $i: settled resolved while the sheet re-snapped');
+      } else if (done) {
+        restAt = i;
+      }
+      last = h.px;
+    }
+    expect(moved, greaterThan(3), reason: 'the content grew, so the sheet re-snapped');
+    expect(restAt, greaterThan(0));
+    expect(h.px, greaterThan(rest0 + 100));
+  });
+
+  testWidgets('settled never waits past the rest cap: a sheet kept moving by retargets still releases it', (t) async {
+    final h = SheetHandle();
+    await boot(t, h);
+    await t.pumpAndSettle();
+    h.to(300);
+    var done = false;
+    h.settled.then((_) => done = true); // (asked while the sheet moves)
+    final frames = M2Layout.sheetRestCap.inMilliseconds ~/ 16;
+    for (var i = 1; i < frames - 4; i++) {
+      if (i % 4 == 0) h.to(i % 8 == 0 ? 300 : 500); // (never lets a spring finish)
+      await t.pump(const Duration(milliseconds: 16));
+      expect(done, isFalse, reason: 'frame $i: the sheet is still moving and the cap is not up');
+    }
+    for (var i = 0; i < 10; i++) {
+      await t.pump(const Duration(milliseconds: 16));
+    }
+    expect(done, isTrue, reason: 'the cap fell through');
+    h.close();
+    await t.pumpAndSettle();
   });
 
   testWidgets('away runs its callback once the sheet is half-way out, before it is shut', (t) async {
