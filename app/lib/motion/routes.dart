@@ -17,12 +17,18 @@ class _Shaped extends Simulation {
   final double from, to, seconds;
   final Curve curve;
   final bool lateStart;
-  double? _origin;
+  double? _first, _origin;
 
+  // The curve starts at the second tick after the page was built: the first (t of 0) built the page and the next drew p of 0 for the
+  // first time, and that frame's raster (offscreen targets, first-use shaders) can take longer than a frame. Starting on the tick after
+  // it, which only comes once that frame is out, puts the first visible frame at p of 0 whatever it cost.
   double _t(double t) {
     if (!lateStart || t.isInfinite) return t;
-    if (t > 0) _origin ??= t;
-    return t - (_origin ?? t);
+    if (t > 0) {
+      _first ??= t;
+      if (t > _first!) _origin ??= t;
+    }
+    return _origin == null ? 0 : t - _origin!;
   }
 
   @override
@@ -292,11 +298,16 @@ class CardRoute<T> extends StackRoute<T> {
   void install() {
     super.install();
     hider.hide(source, this);
+    // The band is back on the frame the card's last frame is drawn (the tick that reaches 0), not when the route is disposed a frame
+    // or more after it has left the tree, which showed an empty hole where the band was.
+    controller!.addStatusListener((s) {
+      if (s == AnimationStatus.dismissed) hider.show(source, this);
+    });
   }
 
   @override
   void dispose() {
-    hider.show(source, this);
+    hider.show(source, this); // (a route removed without ever animating back)
     super.dispose();
   }
 

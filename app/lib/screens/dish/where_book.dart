@@ -12,8 +12,10 @@ import '../hall/hall_controller.dart' show mealsOfItems;
 /// anyone has had is not asked for again; at most four requests at once; offline, only what is saved): [board] is replaced once for each, and [complete]
 /// says the cafés are in.
 class WhereBook extends ChangeNotifier {
-  WhereBook(this.repo, this.base, [this.cafeIds = const {}]) {
-    _load();
+  /// `start: false` waits for [start]: the dish sheet starts it once it has slid in, so the prefetch's parsing is not on the UI isolate
+  /// while the sheet moves.
+  WhereBook(this.repo, this.base, [this.cafeIds = const {}, bool start = true]) {
+    if (start) this.start();
   }
   final Repository repo;
   final Board base;
@@ -21,7 +23,13 @@ class WhereBook extends ChangeNotifier {
   final Map<String, int> cafeIds;
   Board? board;
   bool complete = false;
-  bool _disposed = false;
+  bool _disposed = false, started = false;
+
+  void start() {
+    if (started || _disposed) return;
+    started = true;
+    _load();
+  }
 
   Future<void> _load() async {
     final isos = base.days.keys.take(2).toList();

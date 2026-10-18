@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/screens/hall/dish_row.dart';
+import 'package:udine/theme/tokens.dart';
 import 'package:udine/ui/ui.dart';
 import '../fonts.dart';
 import 'search_screen_test.dart' show finish, settle;
@@ -48,8 +49,41 @@ void main() {
       near(t, 'sgrp', block(find.text('Places')), (m['sgrp'] as List).first);
       near(t, 'prow', find.byType(PlaceRow).first, (m['prow'] as List).first);
       near(t, 'row', find.byType(DishRow).first, (m['rows'] as List).first);
-      near(t, 'ht', find.byType(HallTags).first, (m['ht'] as List).first); // (M2's `.tags` also holds the tile's 2 dp margin)
+      // The tiles are not M2's `ht` rect: M2 hangs them from the lane's bottom (2.5 dp low of the meta line, growing leftward from the right
+      // edge). flutter-motion-fixes Task 2 (owner 2026-10-17) centres them on the meta line, as one group under the +.
+      final tags = find.byType(HallTags).first, row = find.ancestor(of: tags, matching: find.byType(DishRow)).first;
+      final ht = t.getRect(tags), meta = t.getRect(find.descendant(of: row, matching: find.byType(CalProtein))), add = t.getRect(find.descendant(of: row, matching: find.byType(RowControl)));
+      expect(ht.size, Size((m['ht'] as List).first[2].toDouble(), (m['ht'] as List).first[3].toDouble()));
+      expect(ht.center.dy, closeTo(meta.center.dy, 0.5), reason: 'the tile centres on the meta line');
+      expect(ht.center.dx, closeTo(add.right - M2Layout.addSize / 2, 0.5), reason: 'the tile centres under the +');
     });
+
+    // flutter-motion-fixes Task 2 (owner 2026-10-17): 1 tile centres on the +; 2 and 3 shift left so the group's right edge stays at the
+    // lane's old limit (lane right minus tagRight), never past the row's content edge.
+    for (final n in [1, 2, 3]) {
+      testWidgets('$n hall tile(s) centre on the meta line and stay inside the lane at $w dp', (t) async {
+        await open(t, '/search?q=chicken');
+        final tiles = find.byWidgetPredicate((x) => x is HallTags && x.halls.length == n && x.cafe == null);
+        final real = tiles.evaluate().isNotEmpty;
+        if (!real) {
+          // the recorded data has no row with this many halls: put one in a row of its own
+          await t.pumpWidget(Directionality(textDirection: TextDirection.ltr, child: SizedBox(width: w.toDouble(), child: DishRow(
+            dish: t.widget<DishRow>(find.byType(DishRow).first).dish, scores: (health: false, carbon: false), code: 0, onOpen: () {}, onAdd: () {}, onInc: () {}, onDec: () {},
+            tags: HallTags(halls: ['W', 'F', 'H'].sublist(0, n), label: '')))));
+        }
+        final one = real ? tiles.first : find.byType(HallTags).first, row = find.ancestor(of: one, matching: find.byType(DishRow)).first;
+        final ht = t.getRect(one), meta = t.getRect(find.descendant(of: row, matching: find.byType(CalProtein))), add = t.getRect(find.descendant(of: row, matching: find.byType(RowControl)));
+        expect(ht.center.dy, closeTo(meta.center.dy, 0.5));
+        expect(ht.right, lessThanOrEqualTo(add.right - M2Layout.tagRight + 0.01), reason: 'the group stays inside the lane');
+        final want = add.right - M2Layout.addSize / 2;
+        if (n == 1) {
+          expect(ht.center.dx, closeTo(want, 0.5));
+        } else {
+          expect(ht.center.dx, lessThan(want));
+          expect(ht.right, closeTo(add.right - M2Layout.tagRight, 0.5));
+        }
+      });
+    }
 
     testWidgets('the hall card at $w dp matches M2 within 1 dp', (t) async {
       await open(t, '/search?q=worcester');

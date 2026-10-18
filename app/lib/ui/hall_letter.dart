@@ -3,10 +3,10 @@ import 'package:flutter/widgets.dart';
 import '../theme/tokens.dart';
 import 'letter_paths.dart';
 
-ui.Path _outline(String letter, double fontSize) {
+ui.Path _outline(String letter, double fontSize, {bool semi = false}) {
   final p = ui.Path();
   final nums = RegExp(r'-?\d+\.\d+');
-  for (final m in RegExp(r'([MLQZ])([^MLQZ]*)').allMatches(letterPaths[letter]!)) {
+  for (final m in RegExp(r'([MLQZ])([^MLQZ]*)').allMatches((semi ? letterPathsSemi : letterPaths)[letter]!)) {
     final v = [for (final n in nums.allMatches(m[2]!)) double.parse(n[0]!) * fontSize];
     switch (m[1]) {
       case 'M': p.moveTo(v[0], v[1]);
@@ -29,10 +29,17 @@ ui.Path _dashed(ui.Path src, double on, double off) {
   return out;
 }
 
+/// Oswald's cap height in em: the paths run from the baseline to -0.81.
+const _cap = 0.81;
+
+/// The one centring rule for a hall letter: its cap glyph, not its line box, sits in the middle of the box. The baseline that puts the
+/// caps' middle at `size / 2`, for a letter set at `font`.
+double _capBaseline(double size, double font) => size / 2 + _cap * font / 2;
+
 // The outline is parsed and its stitch laid out once per letter, box size and x, never per paint.
 final _cache = <(String, double, double), (ui.Path, ui.Path)>{};
 (ui.Path, ui.Path) _shapes(String letter, double x, double size) => _cache.putIfAbsent((letter, x, size), () {
-      final path = _outline(letter, M2Layout.letterFont * (size / M2Layout.letterBox)).shift(Offset(x, size * M2Layout.letterBaseline));
+      final path = _outline(letter, M2Layout.letterFont * (size / M2Layout.letterBox)).shift(Offset(x, _capBaseline(size, M2Layout.letterFont * (size / M2Layout.letterBox))));
       return (path, _dashed(path, M2Layout.stitchOn, M2Layout.stitchOff));
     });
 
@@ -69,4 +76,33 @@ class HallLetter extends StatelessWidget {
         right: 0, top: top, width: size, height: size,
         child: ExcludeSemantics(child: IgnorePointer(child: RepaintBoundary(child: CustomPaint(painter: _LetterPainter(letter, x, size))))),
       );
+}
+
+/// A hall letter on a patch (`.hl`, `.ht`): the gold or maroon cap glyph drawn from the band letter's outlines, centred by its ink in a
+/// [size] square, both ways (the browser centres the line box, which sits 0.7 dp low at 18 dp).
+class PatchLetter extends StatelessWidget {
+  final String letter;
+  final double size, font;
+  final Color color;
+  /// Oswald 600's outline (the Search tile), not 700's
+  final bool semi;
+  const PatchLetter(this.letter, {super.key, required this.size, required this.font, required this.color, this.semi = false});
+  @override
+  Widget build(BuildContext context) => CustomPaint(size: Size.square(size), painter: _PatchPainter(letter, size, font, color, semi));
+}
+
+class _PatchPainter extends CustomPainter {
+  final String letter;
+  final double size, font;
+  final Color color;
+  final bool semi;
+  const _PatchPainter(this.letter, this.size, this.font, this.color, this.semi);
+  @override
+  void paint(Canvas canvas, Size _) {
+    final p = _outline(letter, font, semi: semi), b = p.getBounds();
+    canvas.drawPath(p.shift(Offset(size / 2 - b.center.dx, _capBaseline(size, font))), Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_PatchPainter o) => o.letter != letter || o.size != size || o.font != font || o.color != color || o.semi != semi;
 }
