@@ -61,5 +61,9 @@ void main() {
     expect(clockMeal(DateTime.parse('2026-10-08T08:00:00-04:00')), 'breakfast');
     expect(clockMeal(DateTime.parse('2026-10-08T22:00:00-04:00')), 'late');
     expect(clockMeal(DateTime.parse('2026-10-08T22:00:00Z')), 'dinner'); // 6 PM Eastern
+    // Late Night runs past midnight: until the 2 AM rollover the clock is still in it, as history.dart reads a logged time
+    expect(clockMeal(DateTime.parse('2026-10-09T00:40:00-04:00')), 'late');
+    expect(clockMeal(DateTime.parse('2026-10-09T01:30:00-04:00')), 'late');
+    expect(clockMeal(DateTime.parse('2026-10-09T02:00:00-04:00')), 'lunch');
   });
 }

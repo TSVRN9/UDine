@@ -1,6 +1,7 @@
 // What M2's screens read: a day-by-place-by-meal book of core MenuItems, plus the places, their hours and the hours events.
 // Built by the menu loader (flutter-port-menu-data); tests build it from the bake-off fixture.
 // Place and meal keys stay strings ('W', 'c12'; 'lunch', 'late'), as M2 spells them.
+import '../date.dart' show defaultRolloverHour;
 import '../hours.dart';
 import '../types.dart';
 
@@ -83,7 +84,7 @@ String placeName(Board b, String k) => b.places.firstWhere((p) => p.key == k).na
 /// The standard window the clock is in: M2's CLOCKMEAL (lunch at 12:41).
 String clockMeal(DateTime instant) {
   final w = easternWall(instant);
-  return mealOfMinute(w.hour * 60 + w.minute);
+  return mealOfMinute((w.hour < defaultRolloverHour ? w.hour + 24 : w.hour) * 60 + w.minute);
 }
 
 /// The standard window a minute of the day (0..1559, after-midnight minutes counted past 1440) is in; outside them, lunch.
