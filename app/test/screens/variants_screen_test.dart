@@ -2,7 +2,6 @@
 // pick, the plate keeps the feed's item under the variant's name, the row follows the plate; a pho's broths and proteins are chips.
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:udine/core/m2/board.dart';
 import 'package:udine/screens/dish/bowl_foot.dart';
 import 'package:udine/screens/dish/dish_sheet.dart';
 import 'package:udine/screens/hall/dish_row.dart';

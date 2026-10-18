@@ -29,7 +29,7 @@ class ListRow extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.rowPadTop, M2Layout.rowPadRight, M2Layout.rowPadTop),
             child: Row(children: [
               Expanded(
-                child: SettleFade(value: stands, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                child: _Fade(stands: stands, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   ExcludeSemantics(child: Text.rich(name, style: M2Text.rowName.style(M2Color.ink))),
                   if (meta != null)
                     Padding(
@@ -44,4 +44,13 @@ class ListRow extends StatelessWidget {
           const Positioned(left: M2Space.gutter, right: 0, bottom: 0, height: M2Layout.hairline, child: ColoredBox(color: M2Color.hair)),
         ]),
       );
+}
+
+/// (only a row that can come to stand for another variant carries the fade: every other row is drawn as it always was)
+class _Fade extends StatelessWidget {
+  const _Fade({required this.stands, required this.child});
+  final Object? stands;
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => stands == null ? child : SettleFade(value: stands, child: child);
 }

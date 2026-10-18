@@ -331,7 +331,7 @@ class _DishSheetState extends State<DishSheet> {
                   child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                     if (pickers.isNotEmpty) Padding(padding: const EdgeInsets.only(top: M2Layout.vpickGap), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: pickers)),
                     // (everything under the chips is the pick's own and comes back from 0.4 in place)
-                    SettleFade(value: sig, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    _Under(fade: pickers.isNotEmpty, value: sig, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                     if (price != null || serving != null)
                       Padding(
                         padding: EdgeInsets.only(top: pickers.isNotEmpty ? M2Layout.vpickGap : M2Layout.dsvTop),
@@ -535,4 +535,14 @@ class DishIngredients extends StatelessWidget {
       ]);
     });
   }
+}
+
+/// What is under a picker's chips (only a sheet with a picker fades; the others are drawn as they always were).
+class _Under extends StatelessWidget {
+  const _Under({required this.fade, required this.value, required this.child});
+  final bool fade;
+  final Object? value;
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => fade ? SettleFade(value: value, child: child) : child;
 }

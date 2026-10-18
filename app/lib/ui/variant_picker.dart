@@ -35,7 +35,7 @@ class VariantPicker extends StatelessWidget {
                   child: AnimatedContainer(
                     duration: a.duration, curve: a.curve,
                     padding: const EdgeInsets.symmetric(horizontal: M2Layout.chipPadX, vertical: M2Layout.vpickPadY),
-                    decoration: BoxDecoration(color: i == chosen ? M2Color.tint : const Color(0x00000000), borderRadius: const BorderRadius.all(Radius.circular(M2Radius.button))),
+                    decoration: BoxDecoration(color: i == chosen ? M2Color.tint : null, borderRadius: const BorderRadius.all(Radius.circular(M2Radius.button))),
                     foregroundDecoration: BoxDecoration(
                       borderRadius: const BorderRadius.all(Radius.circular(M2Radius.button)),
                       border: Border.all(color: i == chosen ? M2Color.vm : M2Layout.chipRing, width: M2Layout.rule),
