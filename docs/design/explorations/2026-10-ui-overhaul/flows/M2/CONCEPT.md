@@ -562,12 +562,15 @@ Everything else follows from treating a meal as a plate:
     Health Connect** (or **Open Settings**) button, the round-9 Try again control.
   - **Revoked in system settings:** checked when You is shown or the app resumes. It's the denied state, with "Not
     allowed in Health Connect any more". Nothing is lost on our side.
+- **Health Connect not installed** (round 13, Android before 14, where it is a separate app). The row still shows, as above. A tap opens
+  Health Connect's Play listing (the OS's, drawn as a neutral store page with Install), not a permission sheet; back closes it and leaves
+  the check empty. Once installed, the first tap raises the permission sheet as before. Sim: `?health=missing&os=android`.
 - **What's written:** the meal's time and its nutrients, mapped to whatever the platform's nutrition record supports.
   The label has calories, fat, saturated and trans fat, cholesterol, sodium, carbohydrate, fibre, sugars and protein;
   which of these each platform accepts is to be verified at build time.
 - **The prototype simulates the OS.**
   - `?os=ios|android` picks the platform's name.
-  - `?health=allow|deny|revoked` picks the outcome. The permission sheet is drawn as a neutral system sheet, clearly not
+  - `?health=allow|deny|revoked|missing` picks the outcome (missing: round 13, Android only). The permission sheet is drawn as a neutral system sheet, clearly not
     UDine's.
 
 ```
@@ -716,12 +719,12 @@ state says what happened and what to do, in the place where it happened.**
 │ Notify me                          [ ] │ │ When a favorite is on today's    │ │ Beef Brisket Noodle Bowl         │
 │ When a favorite is on today's menu     │ │ menu                             │ │ Lunch from 11 AM at Worcester    │
 │ Beef Brisket Noodle Bowl               │ └──────────────────────────────────┘ └──────────────────────────────────┘
-│ At lunch now at Worcester              │  Denied (or blocked)                    Background work off
+│ At lunch now at Worcester              │  Denied (or blocked)                    Android, battery Restricted
 │ Golden BBQ Chicken Thigh               │ ┌──────────────────────────────────┐ ┌──────────────────────────────────┐
 │ At lunch now at Worcester              │ │ Notify me                    [ ] │ │ Notify me                    [x] │
-└────────────────────────────────────────┘ │ Notifications are off for UDine  │ │ Background App Refresh is off,   │
-                                           │ [ Open Settings ]                │ │ so UDine can't check menus       │
-                                           └──────────────────────────────────┘ │ [ Open Settings ]                │
+└────────────────────────────────────────┘ │ Notifications are off for UDine  │ │ Battery use is restricted, so    │
+                                           │ [ Open Settings ]                │ │ notifications can't arrive       │
+                                           └──────────────────────────────────┘ │ [ App info ]                     │
                                                                                 └──────────────────────────────────┘
 ```
 
@@ -736,38 +739,48 @@ state says what happened and what to do, in the place where it happened.**
   - **Blocked:** the OS won't ask again (Android after two denials; iOS after one). The tap goes straight to the denied
     state, with no sheet.
   - **Revoked in system settings:** checked when You is shown or the app resumes. It's the denied state.
-  - **Background work off:** notifications are allowed, but the OS won't run UDine in the background. On iOS that's
-    Background App Refresh; on Android, a "Restricted" battery setting. The check stays on, because the wish is
-    kept. The line reads "Background App Refresh is off, so UDine can't check menus" (Android: "Battery use is
-    restricted, so UDine can't check menus"), with **Open Settings**.
+  - **Battery Restricted (Android only; round 13).** Alerts are server pushes (below) and don't need the app to run, but FCM isn't delivered to an
+    app the user set to "Restricted" battery use, so that state still matters. The check stays on, because the wish is kept; the line reads
+    "Battery use is restricted, so notifications can't arrive", with an outlined **App info** button (Android's app settings). iOS has no row
+    for this: Background App Refresh doesn't gate a visible push, so that state is gone. Sim: `?alerts=bgoff` on Android; the push doesn't arrive.
 - **What the notification says.** The title is the dish's name. The body is M2's "where" sentence, as the dish sheet
   says it, from the moment it's posted:
   - "Lunch from 11 AM at Worcester";
   - "Lunch now, until 4:30 PM, at Worcester and Berkshire";
   - "Dinner from 4:30 PM at Franklin".
   - It doesn't repeat itself, and it doesn't say "a favorite of yours": the student starred it.
-- **Tapping it** opens the app on Halls and pushes the hall at that meal, scrolled to the dish and marked. That's the
-  sheet's "where it's served" target, the first place in the answer. Several places are named in the body, and the
-  hall's own row then shows the rest.
-- **One notification per dish per day.** This differs from RN, which posts once per dish, hall and date. Two halls are
-  one notification that names both.
-  - The key is (dish name, the logical day after the 2 AM rollover), kept on the phone. Residency: device only, as RN's
-    `food_sighting_dedup`.
-  - A later run the same day posts nothing more, even if a third hall adds it.
-- **When it posts:**
-  - from 7 AM;
-  - the first time a background run finds the dish on that day's saved menus;
-  - never once the dish's last serving that day has ended. A lunch-only dish first seen at 5 PM is not posted.
-- **Limits, written as limits.** They aren't shown in the UI; the concept states them.
-  - On Android, background work runs at most every 15 minutes (WorkManager's floor), and Doze can delay it further.
-  - On iOS, background fetch is best-effort: the OS chooses when, and a force-quit app may not run at all until it is
-    opened.
-  - So an alert can arrive late, or not at all. The dish sheet, the Favorites page and the Favorites lens stay the
-    reliable answer.
+- **Tapping it** (round 13, owner, 2026-10-17) lands on the Halls home, the tab's root, not the hall pushed to the dish. Every
+  sheet closes (dish, plate) except an undismissed first run, which stays; anything pushed (a hall, a page) goes. An old
+  notification does the same: the body names where, and the hall's own card on Halls carries a star (Round 13). Search's
+  Favorites lens is the list of where each favorite is, one tap away. (Round 11 pushed the hall at that meal, scrolled to the dish.)
+- **One notification per dish per day, a server push** (round 13, owner, 2026-10-17). Alerts are visible pushes the server sends to a
+  per-dish topic, one per dish per day at about 7 AM Eastern, naming where it is served at that moment. The server never learns
+  favorites (a phone subscribes to the topics of its own favorites); the app need not be running. This differs from RN, which posts
+  once per dish, hall and date from a background job.
+  - Two halls are one notification that names both.
+  - **A dish added to a menu later that day isn't alerted.** Nothing sends after the 7 AM push, so a dish first on a menu at noon, or at
+    5 PM, gets nothing. (Round 11 posted from 7 AM, the first time a background run saw the dish, never after its last serving ended.)
+  - The phone dedups nothing: the server sends each dish once a day.
+- **The icon badge** (round 13) works without the app: **iOS**, a number on the icon, the count of favorite notifications delivered since the
+  app was last opened (each push adds 1; a notification service extension keeps it); **Android**, the launcher dot while a posted
+  notification is unread. **Both clear when the app is opened or a notification is tapped.** The in-app star on a hall card and the
+  Favorites lens are the persistent answer; the badge is a nudge.
+- **Limits, written as limits.** They aren't shown in the UI; the concept states them (round 13 rewrite).
+  - The 7 AM push is one server message a day. The OS delivers it when it chooses: Doze or Low Power can delay it by minutes, and a phone
+    that is off or offline gets it late or, past the push's time-to-live, not at all.
+  - A force-quit app on iOS still shows a visible push, but the badge number comes from the notification service extension, which the
+    OS may skip under pressure. The badge can therefore be low or stale; opening the app resets it.
+  - The topic list is the phone's own: favoriting or unfavoriting subscribes or unsubscribes when the phone is online, so a change made
+    offline reaches the server on the next connection and takes effect from the next day's push.
+  - So an alert can arrive late, or not at all, and a dish that was added after 7 AM never arrives. The dish sheet, the hall card's star,
+    the Favorites page and the Favorites lens stay the reliable answer.
+  - **Open (owner): the exact schedule.** "About 7 AM Eastern" is the working time; whether the push is a fixed hour, tied to when the
+    menus are published, or per-meal is not decided.
 - The prototype simulates the OS as round 10 does:
-  - `?alerts=allow|deny|blocked|bgoff`;
+  - `?alerts=allow|deny|blocked|bgoff` (bgoff: Android only);
   - `?os=ios|android`;
-  - `?notify=1` posts the 7:15 AM run's notification for the seeded favourite, drawn as a neutral system banner.
+  - `?notify=1` posts the 7:15 AM push's notification for the seeded favourite, drawn as a neutral system banner over the app;
+  - `?launcher=1` (round 13) draws the OS home screen instead: the notification(s) and the UDine icon with its iOS number or Android dot (`?os=ios|android`).
 
 ### 3. Café PDF menus: a café's menus are rows, and a menu is a page
 
@@ -932,3 +945,415 @@ state says what happened and what to do, in the place where it happened.**
     under a bar that stays.
   - **A row with a button under it** (Notify me, Write to Health) hangs the button 12 px under the line's last line,
     whether the line is one line or two.
+
+## Round 12: one item, its sizes or milks picked in its sheet (concept, before build)
+
+Critique: `CRITIQUE-r12.md`. Brief: `docs/briefs/m2-round-12.md`. The rule and every family and near-miss it finds:
+NOTES "Round 12". Motion: nothing new (table at the end).
+
+**The idea.** A pick-one is a row of chips under the item's name in its sheet, and it is the same control wherever M2
+asks you to pick exactly one: a size, a milk, a pho's broth. The list shows the item once. The sheet is where you
+choose. Everything under the chips (the name, price, serving, marks, Contains, the action, "where", the label, the
+ratings, the ingredients) is the picked variant's own, so what you read is what you log.
+
+```
+ Worcester Café, all day (390)              Its sheet: a size (the builder)        After 20 oz (in place)
+┌────────────────────────────────────────┐ ┌──────────────────────────────────┐ ┌──────────────────────────────────┐
+│ Beverages                              │ │               ────               │ │               ────               │
+│ Cappuccino                             │ │ Cappuccino, 16 oz            ☆   │ │ Cappuccino, 20 oz            ☆   │ the name follows
+│ 16 oz   0 cal  0g protein            + │ │ (✓16 oz)(20 oz)                  │ │ (16 oz)(✓20 oz)                  │ the pick-one
+│ Caramel Macchiato                      │ │                                  │ │                                  │
+│ 16 oz   152 cal  0.8g protein        + │ │ $5.00  16 ozl                    │ │ $5.50  20 ozl                    │ price, serving
+│ Chai                                   │ │ Toppings and Add-ons             │ │ Toppings and Add-ons             │ the builder,
+│ 16 oz   211 cal  0g protein          + │ │ Butter                        +  │ │ Butter                        +  │ unchanged
+│ …  (nine size families)                │ │ …                                │ │ …                                │
+│ 20 oz Cold Brew                        │ │ …                                │ │ …                                │
+│ 1 cal  0g protein                    + │ ├──────────────────────────────────┤ ├──────────────────────────────────┤
+│ Boba                                   │ │ 0 cal  0g protein        [ Add ] │ │ 0 cal  0g protein        [ Add ] │
+│ Almond   180 cal  0.3g protein       + │ └──────────────────────────────────┘ └──────────────────────────────────┘
+└────────────────────────────────────────┘
+  a lone size (Cold Brew, the iced drinks) is a dish: it keeps the feed's name
+```
+
+### 1. Which items group (NOTES "Round 12" has the rule's whole output)
+- **Within one place, day, meal and station.** Never across stations, places or days: Boba at Procrastination
+  Station, Roots and Worcester Café is three families, one per café (Search shows them as one row; §5).
+- **Only by a variant token, and only when it is all that differs.** Two kinds are in the feed:
+  - **a size:** a leading "16 oz " ("16 oz Cappuccino"), or a trailing "(8 oz)" or "(8oz)" ("Coconut Mango Acai Bowl
+    (8oz)");
+  - **a milk:** "<name> <kind> Milk", where the kind is one the feed uses: Almond, Maple, Oat, Skim, Soy, Whole, 1%
+    ("Boba Oat Milk"). "Maple" is a maple flavour (owner, 2026-10-16), so the chip keeps the feed's word;
+  - **a base** (round 12b, owner, 2026-10-16): Coconut or Yogurt, only as the last word before "Smoothie" ("Banana Berry
+    Coconut Smoothie", family "Banana Berry Smoothie") or after "w/" at the end of a name ("Matcha Strawberry w/Yogurt", family
+    "Matcha Strawberry"). The word anywhere else is no token ("Coconut Mango Acai Bowl", "Coconut Flavored Syrup"), and a
+    "Green Beans w/Coconut" with no "w/Yogurt" beside it is a dish.
+- **A family is two or more items at the station with the same remaining name and different tokens.** What remains
+  is the family's name ("Cappuccino", "Boba"). An item whose token has no sibling ("20 oz Cold Brew", "8 oz Spicy
+  Lentil & Veggie Soup" at Franklin) is a dish as it always was, under the feed's own name.
+- **Not grouped, by rule:**
+  - an Add-ons or Toppings station: its items are a builder's parts ("MAPLELINE Skim Milk", "MAPLELINE Whole Milk");
+  - a milk with nothing left once the milk is taken out ("1% Milk");
+  - names that differ by any other word, even with a size in front ("20 oz Iced Latte" and "20 oz Latte"; "12 oz
+    Decaf Coffee" and "12 oz Regular Coffee"; "Single" and "Double Espresso"; the milkshake flavours). Those are different drinks, so they
+    stay rows. NOTES lists every one.
+- **The order and the default.** Sizes run smallest first, and the default is the smallest. Milks keep the feed's
+  order, and the default is the first (Almond). The default is what a row stands for while none of the family is on the
+  plate (round 12b below: after that, the row follows the plate).
+
+### 2. The row: one row, standing for its default
+- **One row per family**, where its first member was in the feed's order. The other members' rows are gone.
+- **The name is the family's** ("Cappuccino", "Boba"). The meta line leads with the default's token as its own group,
+  in its chip's word ("16 oz", "Almond"; round 12 frame review), then that variant's numbers and scores. A row says what its `+` adds; a range ("180 to
+  275 cal") couldn't, and the data has ranges that run backwards (Caramel Macchiato: 152 cal at 16 oz, 27 at 20 oz).
+- **`+` adds the variant the row stands for in one tap**, as a row always does, and its stepper counts it. (As first
+  built, a row counted only its default and an oat added from the sheet lived on the plate alone, round 10's bowl rule.
+  The owner replaced that on 2026-10-16: "Round 12b, 3" below.)
+- **Dietary preferences:** a family is hidden only when every member is. Otherwise the row stands for the first member
+  your preferences allow.
+- A diet mark or star on the row is the default's mark and the family's star (§6).
+
+### 3. The picker: chips under the name
+- **The control is M2's own chip** (Cafés & markets' "Open now", Search's lenses): 44 px, an 8 px corner, tonal with a
+  check when chosen. In a single-select chip group, as MDC's `ChipGroup`, which wraps by default, so every option is
+  on screen. They sit 8 px under the name (a part of the identity group, round 7's spacing scale).
+- **Exactly one is chosen.** A chip tap chooses it; there is no "none" for a size or a milk.
+- **The labels are the tokens**: "16 oz", "20 oz"; "Almond", "Maple", "Oat", "Skim", "Soy". The name above says what
+  they are ("Boba, Oat Milk"), so the group has **no heading**.
+- **The name follows the pick**, in place: "Cappuccino, 16 oz" becomes "Cappuccino, 20 oz". It is the plate's name
+  for it, and it stays pinned at the top when the sheet is scrolled, so the label far below always says whose it is.
+- **Everything below follows the pick**, in place, without moving the sheet: price and serving, marks and scores,
+  Contains, Add (to plate), "where" (the variant's own servings), the label, the ratings panel and the ingredients.
+  The chip fills (`settle`) and the content under it crossfades from .4 (`settle`), as a plate tab does.
+- **In a builder** (most families, critique #10) the picker chooses the base. Chosen add-ins stay chosen across a
+  size change, so a 16 oz with oat milk becomes a 20 oz with oat milk. The foot sums the new base.
+- **Tracking off** keeps the picker. It chooses which variant's name, serving and marks you read (the label is gone with tracking, round 13); only Add is gone (round 10).
+
+### 4. Pick-one everywhere: the pho's broth
+- **The pho bar's broths move out of the add-in rows into the same chips**, under the name. Their labels are the feed's
+  full names, because the parentheses carry allergens: "Chicken Pho Broth (Fish)", "Green Curry Pho Broth
+  (Anchovies)", "Tantanmen Ramen Broth", "Vegetarian Pho Base".
+- **Round 11b holds otherwise.** With no broth chosen, the name is the station's ("Noodle Bowl"), no chip is chosen, the
+  foot reads 0 and Add waits. A chip names the bowl. The toppings stay add-in rows with `+` and ½.
+- **Café pho builders** (Whitmore, Star Ginger) choose their pho the same way: the station's phos are the chips, and the
+  café's add-ons stay rows under "Add-ons". A chip's text wraps inside it when a name is longer than the line
+  ("Pulmuone Tofu Pho w/Spicy Green Curry Broth").
+- **This answers round 11's "Broth heading".** No heading, for the same reason a size has none: the chips' own words
+  say what is being chosen, and a heading would describe the control.
+
+```
+ Hampshire, lunch: the pho bar              A broth chosen
+┌──────────────────────────────────┐ ┌──────────────────────────────────┐
+│               ────               │ │               ────               │
+│ Noodle Bowl                      │ │ Green Curry Pho Broth (Anchovies)│
+│ (Chicken Pho Broth (Fish))       │ │ (Chicken Pho Broth (Fish))       │
+│ (Green Curry Pho Broth           │ │ (✓Green Curry Pho Broth          │
+│   (Anchovies))                   │ │   (Anchovies))                   │
+│ (Tantanmen Ramen Broth)          │ │ (Tantanmen Ramen Broth)          │
+│ (Vegetarian Pho Base)            │ │ (Vegetarian Pho Base)            │
+│ Pho Noodles        11 cal     +  │ │ Pho Noodles        11 cal   [−1+]│
+│ Chicken for Pho    28 cal     +  │ │ Chicken for Pho    28 cal   [−1+]│
+├──────────────────────────────────┤ ├──────────────────────────────────┤
+│ 0 cal  0g protein        [ Add ] │ │ 288 cal  …               [ Add ] │
+└──────────────────────────────────┘ └──────────────────────────────────┘
+   Add disabled until a broth is chosen
+```
+
+### 5. On the plate, in history, and what is logged
+- **The plate names the variant**: "Cappuccino, 20 oz", "Boba, Oat Milk", "Clam Chowder, 12 oz". A built one keeps its
+  second line ("with PACIFIC Almond Milk").
+- **Its stepper is its own.** Two variants of a family are two plate items, as two bowls are.
+- **Tapping it reopens the sheet on that variant**, with its chip chosen, and the action reads **Update**, as a bowl's
+  does. Choosing another size and Update changes the item in place, keeping its quantity; if that variant is already on
+  the plate, the two merge (the bowl's twin rule).
+- **The log records the feed's item**: the variant's own dish name ("20 oz Cappuccino"), its id and its own nutrition,
+  so it is exact and RN-shaped (an `umass-menu` item named as the feed names it). The display name is computed
+  when drawn, so a past meal reads "Cappuccino, 20 oz" with nothing new stored, and an export carries the feed's
+  name.
+
+```
+ The plate                                   A logged meal
+┌────────────────────────────────────────┐ ┌────────────────────────────────────────┐
+│ Worcester Café lunch, 2 items          │ │ Lunch at Worcester Café   12:41 PM     │
+│ Cappuccino, 20 oz             [− 1 +]  │ │ Cappuccino, 20 oz             [− 1 +]  │
+│ 0 cal each                             │ │ 0 cal each                             │
+│ Boba, Oat Milk                [− 1 +]  │ │ Boba, Oat Milk                [− 1 +]  │
+│ 262 cal each                           │ │ 262 cal each                           │
+└────────────────────────────────────────┘ └────────────────────────────────────────┘
+```
+
+### 6. Search, favourites and alerts
+- **A family matches once.** "boba" gives one row, "Boba", in "At cafés", with the three cafés in its lane. It matches
+  on any member's name, so "oat" finds Boba too. "Later today and tomorrow" lists a family once as well.
+- **What you typed picks the row's variant.** "oat" or "boba oat" makes the row stand for Boba, Oat Milk (its meta
+  says "Oat", its `+` adds it); "20 oz latte" makes Latte stand for its 20 oz. Otherwise the row is the default.
+- **Favouriting stars the family.** The star in the sheet is the same whichever chip is chosen: you like boba, and
+  every milk is served wherever one is. The Favorites lens, the Favorites page and the row's star all read the family.
+- **Alerts match the family.** A run posts once per family per day when any member is on a menu, titled with the
+  family's name ("Boba") and the sheet's "where" sentence for it ("Now, until 4 PM, at Worcester Café").
+
+### Motion, round 12 (all existing)
+| Interaction | Pattern |
+|---|---|
+| A chip chosen | In place: the chip fills (`settle`) |
+| The sheet after a pick | In place: the name changes; the content under the chips crossfades from .4 (`settle`); the sheet doesn't move |
+| A builder's foot after a pick | In place, as an add-in step (`settle`) |
+| Update from the plate | `Sheet.away`, then the plate row changes in place (the bowl's Update) |
+| Search rows when a family collapses | Search's existing FLIP (`settle`) |
+
+### Round 12, as built (where the build departed from the concept above; NOTES "Round 12")
+- **A chosen chip has no check, and its text doesn't get bolder.** It is the tonal fill and the maroon edge alone. With
+  the filter chip's check, choosing "Almond" widened that chip by the check's width, and at 360 and 390 the five milks
+  already wrap to two lines, so a choice could move a chip to the other line under the finger (pass 1).
+- **"Later today and tomorrow" rows lead with their token too** ("8 oz", then the numbers), as the menu's and "At
+  cafés" rows do.
+- **You → Favorites names a family by its name and says where it is now**, places joined with "and" ("At lunch now at
+  Worcester Café, Roots Café and Procrastination Station"). Hall favourites read as before.
+- **Café phos** (Star Ginger's nine, Whitmore's six) are chips like the hall broths, one or two to a line; a name longer
+  than the line wraps inside its chip (NOTES "Open").
+
+### Round 12b: the owner's answers (2026-10-16)
+Six answers to round 12's open questions. Four change the design (1, 3, 4, 5), one removes a note (2) and one leaves a
+rule alone (6). NOTES "Round 12b" has the numbers, the tests and the shots.
+
+**1. Courtside Café's smoothies are families.** The rule gains a third token, a *base* (§1 above): Coconut or Yogurt, read only
+at the end of a name before "Smoothie" or after "w/". Seven families at Courtside Café (Banana Berry, Mango Tango, Passionate
+Pineapple, Summer Blush, The Green Monster, V-9, and Matcha Strawberry), two chips each, Coconut first (the feed's order).
+The sheet reads "Banana Berry Smoothie, Coconut"; the log keeps "Banana Berry Coconut Smoothie". Everything else §1 lists
+stays a set of rows: decaf and regular, hot and iced, single and double espresso, the milkshake flavours, and a flavour that
+merely starts with the word ("Coconut Flavored Syrup").
+
+**2. "Maple" stays.** The chip is the feed's word; the note that it might be Mapleline's is gone.
+
+**3. The row follows the plate.** A family row stands for the variant last added to the plate and counts that variant. It
+replaces "a row counts only its default".
+```
+ Procrastination Station, lunch                 After Oat from the sheet           After Soy too                        Soy removed
+┌──────────────────────────────────┐ ┌──────────────────────────────────┐ ┌──────────────────────────────────┐ ┌──────────────────────────────────┐
+│ Boba                             │ │ Boba                             │ │ Boba                             │ │ Boba                             │
+│ Almond  180 cal  0.3g protein  + │ │ Oat  262 cal  0.4g protein [−1+] │ │ Soy  240 cal  …            [−1+] │ │ Oat  262 cal  0.4g protein [−1+] │
+└──────────────────────────────────┘ └──────────────────────────────────┘ └──────────────────────────────────┘ └──────────────────────────────────┘
+  nothing of it on the plate: the default   the row stands for oat, counts it    the later add; oat is on the plate     the next most recent still on it
+```
+- **"Added" means touched upward:** a first add (`+`, Add, Add another), a stepper `+` (the row's or the plate's), or an Update
+  (an Update counts as adding the variant it makes). A stepper `−` never makes a variant the one the row stands for.
+- **The row counts the variant it stands for, not the family.** Its stepper is that variant's own item: `+` and `−` change that
+  item, so what the tap does is what the number says.
+- **Two variants on the plate:** the row stands for the one touched last, and counts it. The other is on the plate (it shows there
+  with its own stepper) and the row doesn't mention it. Stepping the other up on the plate makes it the one touched last, so the
+  row switches to it.
+- **When that variant leaves the plate** (its `−` takes the last half, or it is removed on the plate, or Clear plate), the row
+  falls back to the family variant touched last among those still on the plate; with none, to the default (the first your
+  preferences allow). Logging empties the plate, so the row goes back to the default.
+- **A built variant is its own item** (round 10's bowl rule stays here): a 20 oz Cappuccino made with add-ins is a bowl on the
+  plate, and the row neither follows it nor counts it. Only plain dishes (an Add with no add-ins chosen) are the row's.
+- **The row changes in place:** its token, numbers, scores and diet mark swap and the content crossfades from .4 (`settle`);
+  the row doesn't move or change height, and a `+` that becomes a stepper widens as it always does. Tapping the row opens the
+  sheet on the variant it stands for (the action reads "Add another" when that variant is on the plate).
+- **In Search, what you typed narrows first.** Among the variants whose names fit the typed words, the row stands for the one
+  last added, else the first; "soy" gives Soy even with oat on the plate. With nothing typed or the typed words fitting all
+  (a lens, "boba"), the plate decides.
+- **A variant your preferences hide** is never the one a row stands for, even on the plate.
+
+**4. Café phos are picked by protein, then broth.** Star Ginger's nine ("Beef Pho w/Chicken Broth" … "Pulmuone Tofu Pho w/Vegetable
+Broth") and Whitmore's six are a complete grid of three proteins by three (or two) broths, so the sheet shows two chip groups,
+protein first, under the name. The rule reads the shape `<protein> Pho w/<broth> Broth`, and only a full grid of at least two by two;
+otherwise the station keeps one picker of whole dishes (Star Ginger's ramen days).
+```
+ Star Ginger: the pho builder                    Protein and broth chosen
+┌──────────────────────────────────┐ ┌──────────────────────────────────┐
+│               ────               │ │               ────               │
+│ Noodle Bowl                      │ │ Chicken Pho w/Vegetable Broth    │
+│ (Beef Pho)(Chicken Pho)          │ │ (Beef Pho)(✓Chicken Pho)         │
+│ (Pulmuone Tofu Pho)              │ │ (Pulmuone Tofu Pho)              │
+│ (Chicken Broth)                  │ │ (Chicken Broth)                  │
+│ (Spicy Green Curry Broth)        │ │ (Spicy Green Curry Broth)        │
+│ (Vegetable Broth)                │ │ (✓Vegetable Broth)               │
+│ Add-ons                          │ │ Add-ons                          │
+│ Add Grilled Chicken           +  │ │ Add Grilled Chicken           +  │
+├──────────────────────────────────┤ ├──────────────────────────────────┤
+│ 0 cal  0g protein        [ Add ] │ │ 145 cal  …               [ Add ] │
+└──────────────────────────────────┘ └──────────────────────────────────┘
+   Add waits for both                    (the chosen chips are filled, not checked)
+```
+- **Labels** are the feed's words with the noun kept ("Beef Pho", "Spicy Green Curry Broth"), so the two groups never read alike
+  ("Chicken Pho", "Chicken Broth") and, as everywhere in round 12, there is no heading.
+- **Add waits until both are chosen**, not a default: round 11b's rule for a broth, now for two. Neither chosen, or one,
+  the name is the station's ("Noodle Bowl"), the foot sums only the add-ons chosen so far and Add is disabled.
+- **The bowl is named for the feed's pho** once both are chosen, and that is the plate's, the log's and history's name too
+  ("Beef Pho w/Vegetable Broth"). Nothing is composed ("Pho, Beef, Vegetable"): the feed's name already says both, and it is what
+  RN logs. Changing either chip re-resolves to the matching pho; the add-ons stay chosen; the foot, label, Contains and ratings
+  follow, in place as round 12's pick does.
+- **On the plate, Update** reopens the builder with both chips chosen from the pho. Changing either chip and Update replaces the
+  item with the new pho, keeping its quantity and its add-ons; a twin (the same pho with the same add-ons) merges, as a bowl's does.
+- **Hall pho bars** (broth only) keep their one picker.
+
+**5. Blank calories draw "–".** A feed record with no calories (20 oz Chai, 20 oz Iced Chai Latte, 20 oz Iced Tea, Add Crispy
+Chicken, Fountain Drink; nine records) is unknown, not zero, so wherever calories are drawn they read "–": a row's "20 oz –
+cal", the sheet's Calories line on the label, a plate row ("– cal each"), a logged item. A recorded 0 stays 0
+(the 31 records the feed gives as 0). Totals are the sum of what is known: a plate, meal or foot of only unknowns reads "–", and a
+plate with a known item beside one reads that item's number. The log stores the unknown as null, and an export writes null.
+Round 12c (below) extends this to protein, carbs and fat.
+
+**6. A café's add-ons apply to every dish at that meal: unchanged** (round 10's rule). Roots Café's lunch boba still builds
+with "Add Bacon Quesadilla".
+
+### Motion, round 12b (all existing)
+| Interaction | Pattern |
+|---|---|
+| A row stands for another variant | In place: the content crossfades from .4 (`settle`); the row doesn't move |
+| A protein or broth chip chosen | The same as any chip: the fill (`settle`), the content under the chips crossfades from .4 |
+
+### Round 12c: the coordinator's review of 12b (2026-10-17)
+```
+ Star Ginger, none chosen (390)               Chai, 20 oz on the plate
+┌──────────────────────────────────┐ ┌──────────────────────────────────┐
+│ Noodle Bowl                      │ │ Chai, 20 oz         [− 1 +]      │
+│ (Beef Pho)(Chicken Pho)          │ │ – cal each                       │
+│ (Pulmuone Tofu Pho)              │ │ ┌──────────────────────────────┐ │
+│                                  │ │ │ Calories                   – │ │
+│ (Chicken Broth)                  │ │ │ Protein                    – │ │
+│ (Spicy Green Curry Broth)        │ │ │ Carbs                      – │ │
+│ (Vegetable Broth)                │ │ │ Fat                        – │ │
+│ Add-ons                          │ │ └──────────────────────────────┘ │
+│ Add Crispy Chicken  – cal     +  │ └──────────────────────────────────┘
+```
+1. **A missing nutrient is "–", not only calories.** Protein, carbs and fat that the feed leaves blank are unknown too (owner's
+   rule for missing data, packaged foods, 2026-10-16). "20 oz Chai" reads "– cal – protein" on its row; the plate's Protein, Carbs
+   and Fat, the bar and the foot read "–". A recorded 0 is 0g. Totals sum what is known and are "–" only when every item is
+   unknown. The log stores null; an export writes null.
+2. **A blank-calorie add-on is offered, with "–".** The builders' filter keeps parts with calories above 0 (water, mustard) and
+   now also those with none recorded: "Add Crispy Chicken" at Whitmore.
+3. **Health writes omit an unknown field, never 0.** If every value of a field is unknown the field is not written (for the
+   Flutter build; M2 only simulates the store).
+4. **The pho's two groups are two blocks.** The broth chips used to wrap straight on after the proteins and the six read as one list. The
+   second group now starts a section gap below the first, 24 px, the add-ons heading's own top margin; chips inside a group stay 8 px
+   apart. No heading or caption.
+5. **Decided, unchanged:** the row does not follow built variants (a variant with add-ins is its own item); and a protein x broth grid
+   that is incomplete falls back to one picker of whole dishes (none occurs in the fifteen days).
+
+### Round 12d: a Fountain Drink at every dining commons (owner, 2026-10-17)
+The owner: every hall has fountain drinks. The feed lists none for a hall, so M2 adds one synthetic record, the café add-on's own
+"Fountain Drink" (1 each, every nutrient blank, so "– cal", "–" everywhere, logged as a count only; round 12b/12c rules).
+- **Where.** A last station, "Beverages", in every dining commons menu at every meal the hall posts except Grab 'N Go (packaged
+  items, no stations): Worcester breakfast, lunch, dinner and late night; Franklin and Hampshire breakfast, lunch and dinner;
+  Berkshire lunch, dinner, late night (and its one breakfast). It is last because it is a constant, not part of the cooked line:
+  it never moves a station the menu names, and the station switcher ends with it.
+- **The row** is any dish's row: the name, "– cal – protein", and `+` (a count on the plate: "– cal each"; the log keeps null).
+  Its sheet is the plain sheet with Calories "–" over a label of dashes and no star.
+- **No star, no alert.** Something served everywhere at every meal can't be spotted, so there is nothing to favourite: the sheet
+  has no star, so Favorites and alerts never hold it.
+- **Search.** Typed "fountain" finds it, once among the halls ("W F H B") and once among the cafés that list it ("8 cafés"); a
+  hall and a café group never share a row. Idle Search doesn't list it (its calories are under the idle list's floor, like water).
+- **The café add-on** (Star Ginger's, Green Fields', and the others) is unchanged.
+- **Dietary preferences never hide it, and it carries no diet marks** (owner, 2026-10-17): it is a drink, not food. The rule is in `dietOK`
+  (`ALWAYS`): Vegetarian, Plant based, Halal, all of them skip it.
+
+## Round 13: landing, favorites on Halls, the icon badge, tracking as a layer (owner, 2026-10-17)
+NOTES "Round 13" has the tests, shots and decisions.
+
+### 1. A notification lands on Halls
+Rewritten in R11 §2 above. The landing is the Halls home; it closes every sheet but an undismissed first run, and drops anything pushed.
+
+### 2. Favorites are visible on Halls
+```
+ A hall card                                    Springboard (iOS)                Launcher (Android)
+┌──────────────────────────────────────┐ ┌──────────────────────────────┐ ┌──────────────────────────────┐
+│ Worcester ★                      ┌W┐ │ │ UDine  Beef Brisket…   7 AM  │ │ UDine  Beef Brisket…   7 AM  │
+│ Open until midnight              │ │ │ │ UDine  Golden BBQ…     7 AM  │ │ UDine  Golden BBQ…     7 AM  │
+│ ▮▮▮▮▮ Busy                       └─┘ │ │  [ ] [ ] [ ] [ ]             │ │  [ ] [ ] [ ] [ ]             │
+└──────────────────────────────────────┘ │  (U)2  [ ] [ ] [ ]           │ │  (U)•  [ ] [ ] [ ]           │
+                                          └──────────────────────────────┘ └──────────────────────────────┘
+```
+- **(a) The star.** A 22 px gold star (the letters' dashed-edge gold) follows the hall's name, 8 px after it, on the name line; the status line
+  and the busy meter don't move. It means a favorite is served at that hall in **the meal on now, or, between meals, the next meal still
+  ahead today**; after the hall's last meal today there is none. (A hall serving a favorite at dinner, with lunch on, has no star until
+  lunch is over: the star answers "can I eat my favorite here now or next".) It is on the Halls bands and on a hall's card in Search.
+  It carries an aria-label ("Serves a favorite") and no caption. At 360 the longest name (Hampshire) and the star share the line.
+  It follows the Favorites star at once.
+- **(b) The icon badge.** Decided above (R11 §2): the number or dot is for favorite notifications delivered while the app was shut.
+  The simulated OS home screen (`?launcher=1`) shows both; tapping the icon opens the app and clears it, tapping a notification lands
+  on Halls and clears it.
+- Search's Favorites lens stays the list of where each favorite is: from a notification's landing, tapping Search and the lens shows
+  each favorite once with its halls ("W F B"), which reads right on its own.
+
+### 3. Tracking is a layer that lifts away (owner: "more substantial, a meaningful transition instead of disappearing elements")
+**The idea.** Tracking is a layer lying over the menu: the plate bar at the foot, the Today and Earlier blocks on You, the Health row and the two
+tracking-only rows (Your foods, Which was better?). Turning it off lifts the layer away in one motion; turning it on lays it back. The menu
+underneath never changes: it is a menu with or without the layer, so the screen reads as something taken off, not as things deleted.
+```
+ Off, on You (390)                                                       On (the reverse)
+ 0-150 ms    bar leaves down; every leaving block fades to nothing       0-250 ms   the space opens (empty)
+ 150-400 ms  the faded blocks close up (height, padding, rule);          250-450 ms the content fades in; the bar rises (250-500)
+             everything below rides up with them                          500 ms     Today and its figures are back as they were
+ 400 ms      the Track switch has not moved; only the choices are left
+```
+- **The rule: a fold only ever opens or closes empty space.** Everything leaving reaches opacity 0 before its block's height starts to close (fade
+  0-150 ms, `exit`; close 150-400 ms, `fold`), so no frame shows text cut mid-line or faded headings piling on each other. On is the same
+  rule reversed: open the space first (0-250 ms), then fade the content in (`settle`, 250-450 ms).
+- **What leaves, in order:** (1) the plate bar leaves **downward** (`exit`, 150 ms) and the blocks (Today, Meals, Earlier, the Health row, Your foods,
+  Which was better?) fade out with it; (2) at 150 ms the blocks, now empty, close (`fold`, 250 ms) and the sections below ride up as they close.
+- **The Track switch is the anchor:** its check answers at once and it never moves relative to the header; only what was above it closes.
+- **On:** the exact reverse, as one timeline: the space opens first, the content fades in after it has room, the bar rises with it.
+- **The figures leave too (owner, 2026-10-17).** With tracking off a dish row shows its name and marks only: the calorie and protein figures go everywhere they
+  appear (hall menus, Search, the Favorites lens, a food), and the dish sheet drops its Nutrition Facts label (judgement: calories and protein are the label's
+  headline, so a label that kept them would contradict the rule). The sheet keeps the name, serving, diet marks, Contains, the ratings, where and the ingredients;
+  it rests at the end of "where" instead of under Calories. The Favorites page (You) never had figures.
+- **On a list that is on screen** (Search, or a hall's menu behind a sheet) the same layer-lift runs: **0 to 150 ms** the figures and the `+` and steppers fade
+  (`exit`) with the bar and the You blocks; **150 to 400 ms** the meta line (when nothing but figures were on it), the control column and the row's
+  minimum height close (`fold`, 64 to a name-only 48), and the hall tiles settle from the meta line to the row's centre. The row's text re-wraps
+  at the end, when the control column leaves the layout. **On** is the reverse: the rows open (0 to 250 ms), then the figures and the controls fade in (250 to 450 ms).
+  The Halls and Search lists are usually hidden behind You while this plays, so on arrival they are already name-only, with no plate bar.
+- **Motion:** one new token, `fold` (250 ms, standard easing, M3 medium1: a block closing or opening). The bar uses `exit` going and `fold`
+  coming back; the fades are `settle`. Reduced motion: opacity crossfades only, no movement.
+- **Frames:** `build/r12/p7/off.png` and `on.png`: twelve frames at 390 per transition, evenly spaced in animation time.
+
+### 4. A hall opens as one continuous card (owner: "one of the most important animations in the app"; coordinator review of round 7's container transform)
+**The defect it replaces.** Round 7's container transform faded the card's copy out over p 0 to .3 and the page in over .3 to 1. At p of about .3
+neither was drawn: the card went hollow and translucent, the letter patch and the title dipped to nothing (the card's letter and the header's letter
+never overlapped, so they could only fade), and a slow predictive-back swipe sat in that hollow. In the band's own ground the photo layer faded 1-p
+under the colour layer's p, which at p .5 covers only 75%.
+**The concept.** The card does not dissolve into the page: the card IS the page's header, held at the card's rectangle and then opened up.
+- **Shared elements travel; they are never faded.** The hall letter, the title, the status line and the busy meter each carry one transform from
+  where the card drew them to where the header draws them, at full opacity for the whole way (position and, for the letter and the title, size).
+  There is no copy of them on the card side any more, so there is no second letter. The card's photo, tint and gradient are the header's own
+  ground (identical at p 0), so the card needs no ghost either.
+- **The ground never thins.** The duotone photo stays opaque under the colour as it develops; the gradient fades with the collapse, as before.
+  A card with no photo (photos off) is the band's own stack, a maroon ground under the same gradient, so a close ends on the band's gradient and
+  does not snap from a flat maroon.
+- **Only what differs crossfades, on top of the travelling element.** What the header adds to a shared element: the status line's chevron, and the
+  busy line's "Calmer around 1:30 PM" (the busy chart is the page's). Those fade in over p .2 to .8 (`fin`) on top of the status and the meter,
+  which are already there. The title's weight (600), face and size are the same on the card and in the header (a long café name is set smaller
+  to fit; the scale covers it), so nothing about the title crossfades.
+- **What has no counterpart on the card** (the back button, the pin, the meal tabs, the station row, the list, the scrim) fades in over p .2 to .8 and
+  out over the same window going back: one overlapped window instead of the old 0 to .3 / .3 to 1 pair, so at no p are both absent.
+- **Text that changes size scales; it does not interpolate font size.** The title and the letter are drawn once at their header size and scaled
+  about their top-left (a transform): no re-layout per frame and no reflow of the glyphs. Scaling Oswald down from the header size is sharp;
+  scaling it up can soften, but here the card draws the same 32 px as the header's expanded title (and the same 200 px letter), so the scale is
+  about 1 at both ends and only a long café name set smaller in the header makes it differ. Flutter: a `Transform` on a paragraph laid out once at the
+  target size; do not animate `fontSize`.
+- **Motion:** `cont` / `contBack` (500 / 400 ms emphasized) are unchanged; the frames show them right.
+- **Layer budget for the A53:** at most three offscreen layers per frame while it runs (one group for the no-counterpart content under one
+  opacity, one for the colour photo over the duotone, one for the scrim); the shared elements are transforms and need none. The old design used
+  about 28 (every element carried its own opacity).
+- **Predictive back** is the same function run backwards by the finger: at p .1, .3 and .5 the card is whole (no hollow), the letter and the title
+  are where the line between the header and the card puts them, and the content that has no counterpart is partway faded.
+- **Frames:** `build/r12/p7/open390.png`, `close390.png`, `scrub390.png` (and 360): twelve frames each way, evenly spaced in eased progress.
+- **A late busy reading doesn't move the title or the letter (owner, 2026-10-17: don't reserve).** A header opened with its reading (M2's measured state) is as it was:
+  Worcester, Hampshire and Berkshire's titles at one height, Franklin's 22 dp lower (M2's 82 and 104 dp; Franklin has no "Calmer around" line). A header opened *before* the
+  reading lands has no busy block and no chart, and is shorter by the block's height D; its title is already where it will stay (the title is anchored by the header's foot, so
+  without the block it sits exactly where it sits with it). When the reading lands the block's box grows below the status line over the first 60% of `settle` (height and spacing, no text drawn), the header
+  grows by D, and the meal tabs and the list ride down by D with it (Worcester, Hampshire, Berkshire: D = 47 dp, 39 of block and 8 of spacing; Franklin: D = 25, 17 and 8). The
+  title and the letter do not move at any frame. A header that never gets a reading stays short (no reservation): that differs from M2's own offline and other-day header, which
+  keeps reserving the hall's own block as before. The **hall card on Halls** is stacked from the top of a fixed band, so a late meter grows downward under the status line; no change.
+  Sim: `?busy=late` opens a hall in the pre-reading state; `arriveBusy()` is the reading landing.
+
+### 5. Search's hall tiles (owner decision 2026-10-17, with Flutter PR #611)
+The felt-letter tiles ("W F H B") under a Search row's `+`: a tile **centres vertically on the row's meta line** (the cal and protein line), not at the lane's
+foot (M2 drew it 2.5 px low); a **group of tiles centres under the + as one group**, but is **clamped so its right edge never passes the row's content edge**
+(20 px in from the row's right edge, the gutter). At 360: one tile (18 px) centres on the + glyph; two (40 px) and three (62 px) are wider than the + can centre, so
+they clamp, their right edge at the content edge, 340. A café's name keeps the lane's right edge as before. Measured for 1, 2 and 3 tiles at 360 in the test.
+  **The line is never drawn clipped, and the chart belongs to the late block** (coordinator review, 2026-10-17): the box grows first (0 to 60% of `settle`, its text invisible, so no
+  glyph is ever cut by a growing box or the header's edge), then the line and the hour chart fade in together once the box is whole (60 to 100%). The chart is part of the reading (M2 draws it only
+  for a live hall), so it is absent before the reading lands; it sits in the header's foot band (10 dp from the bottom, 30 tall), which is already inside the header, so it adds nothing to D. D is the
+  busy lines only.
+

@@ -29,6 +29,8 @@ class SheetHandle {
   /// `isheet.away`): never on dismissal, which for a dragged sheet comes much later.
   void away([VoidCallback? halfway]) => _s?._away(halfway);
   void close() => _s?._away(null);
+  /// Heading for its lowest height (or already there), though still in the tree until its spring settles: a back must not land on it.
+  bool get closing => _s?._closing ?? false;
   /// Springs to a height in dp (a detent).
   void to(double px, {double v0 = 0}) => _s?._springTo(px, v0: v0);
 
@@ -206,6 +208,8 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
       },
     );
   }
+
+  bool get _closing => _closed || (_spring.running && _target <= widget.min + 0.5);
 
   void _away(VoidCallback? halfway) {
     if (_closed) {

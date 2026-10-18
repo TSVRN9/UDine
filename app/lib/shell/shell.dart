@@ -167,7 +167,8 @@ class ShellState extends State<Shell> with WidgetsBindingObserver implements She
   }
 
   /// The sheet back closes first: the last one pushed, else the plate while it is up.
-  SheetHandle? _backSheet() => _sheets.isNotEmpty ? _sheets.last.handle : _plateBack?.call();
+  /// A sheet already on its way out (its spring runs for a while before it leaves `_sheets`) is passed over: a second back goes to what is under it.
+  SheetHandle? _backSheet() => [..._sheets.reversed.map((s) => s.handle), ?_plateBack?.call()].where((h) => !h.closing).firstOrNull;
 
   /// The page back pops, when there is one over the tab that moves.
   StackRoute<dynamic>? _backPage() {

@@ -22,17 +22,25 @@ class BusyRow extends StatelessWidget {
   final String word;
   final String? extra;
   final bool header;
-  const BusyRow({super.key, required this.lamps, required this.word, this.extra, this.header = false});
+  /// the meter's key, and how much of the second line shows (M2's `.bzx` crossfades over a meter that is already there)
+  final Key? meterKey;
+  final Animation<double>? extraFade;
+  const BusyRow({super.key, required this.lamps, required this.word, this.extra, this.header = false, this.meterKey, this.extraFade});
   @override
   Widget build(BuildContext context) => Padding(
         padding: EdgeInsets.only(top: header ? M2Layout.busyTopHeader : M2Layout.busyTopBand),
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: header ? M2Layout.busyMaxHeader : double.infinity),
           child: Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: M2Layout.busyGap, runSpacing: M2Layout.busyRunGap, children: [
-            Meter(lit: lamps),
+            Meter(key: meterKey, lit: lamps),
             Text(word, style: M2Text.statusSm.style(M2Color.white)),
             if (header && extra != null && extra!.isNotEmpty)
-              SizedBox(width: double.infinity, child: Text(extra!, style: M2Text.statusSm.style(M2Color.onDmSoft))),
+              SizedBox(
+                width: double.infinity,
+                child: extraFade == null
+                    ? Text(extra!, style: M2Text.statusSm.style(M2Color.onDmSoft))
+                    : AnimatedBuilder(animation: extraFade!, builder: (_, _) => Text(extra!, style: M2Text.statusSm.style(M2Color.onDmSoft.withValues(alpha: M2Color.onDmSoft.a * extraFade!.value)))),
+              ),
           ]),
         ),
       );
