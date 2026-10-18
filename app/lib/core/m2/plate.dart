@@ -92,13 +92,15 @@ PlateState addDish(PlateState s, String meal, String name, Map<String, MenuItem>
 }
 
 /// M2 `badd`: a builder's Add. A base with nothing chosen is the plain dish (its row's +); otherwise the bowl is its own item.
-PlateState addBowl(PlateState s, String meal, BowlSpec spec, Bowl bowl, String place) => spec.base != null && bowl.parts.isEmpty
-    ? addDish(s, meal, spec.base!.dishName, {place: spec.base!})
-    : addDish(s, meal, bowl.name, {place: bowl.item}, null, bowl.key, PlateBowl(bowl, spec));
+///
+/// [name] is how the item reads when that is not the feed's ("Cappuccino, 20 oz" for a family's variant).
+PlateState addBowl(PlateState s, String meal, BowlSpec spec, Bowl bowl, String place, {String? name}) => spec.base != null && bowl.parts.isEmpty
+    ? addDish(s, meal, name ?? spec.base!.dishName, {place: spec.base!}, null, spec.base!.key)
+    : addDish(s, meal, name ?? bowl.name, {place: bowl.item}, null, bowl.key, PlateBowl(bowl, spec));
 
 /// M2 `badd` with an item being edited (Update): the item becomes the new bowl where it is, with its servings; a twin already on the plate
 /// takes those servings instead.
-PlateState updateBowl(PlateState s, int plateId, String oldKey, Bowl bowl, BowlSpec spec, String place) {
+PlateState updateBowl(PlateState s, int plateId, String oldKey, Bowl bowl, BowlSpec spec, String place, {String? name}) {
   final pi = s.plates.indexWhere((p) => p.id == plateId);
   if (pi < 0) return s;
   final pl = s.plates[pi], at = pl.items.indexWhere((x) => x.key == oldKey);
@@ -107,7 +109,7 @@ PlateState updateBowl(PlateState s, int plateId, String oldKey, Bowl bowl, BowlS
   final items = <PlateItem>[
     for (var i = 0; i < pl.items.length; i++)
       if (i == at && twin >= 0) ...const <PlateItem>[]
-      else if (i == at) PlateItem(bowl.key, bowl.name, it.qty, {place: bowl.item}, null, PlateBowl(bowl, spec), null, stamp)
+      else if (i == at) PlateItem(bowl.key, name ?? bowl.name, it.qty, {place: bowl.item}, null, PlateBowl(bowl, spec), null, stamp)
       else if (i == twin) pl.items[i].withQty(pl.items[i].qty + it.qty, stamp)
       else pl.items[i],
   ];

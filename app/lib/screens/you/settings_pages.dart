@@ -109,11 +109,12 @@ class _FavoritesPageState extends State<FavoritesPage> {
           final f = prefs.favorites.toList();
           if (f.isEmpty) return const _Empty("Star a dish from its details and it shows up here, with where it's served today.");
           String? line(String n) {
+            if (n.startsWith('f:')) return null; // (a family is served at cafés, whose menus this page does not read)
             final at = _lunch?[dishKey(n)];
             return _lunch == null ? null : at == null ? 'Not on lunch today' : 'At lunch now at ${hallLabel(fx, at)}';
           }
 
-          return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [for (final (i, n) in f.indexed) LRow(title: n, subtitle: line(n), chevron: false, last: i == f.length - 1)]);
+          return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [for (final (i, n) in f.indexed) LRow(title: n.startsWith('f:') ? n.substring(2) : n, subtitle: line(n), chevron: false, last: i == f.length - 1)]);
         },
       ),
     );

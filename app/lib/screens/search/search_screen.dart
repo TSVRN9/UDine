@@ -2,10 +2,12 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 
 import '../../core/m2/board.dart';
-import '../../core/m2/menu_view.dart' show hits;
+import '../../core/m2/menu_view.dart' show hits, prefOK;
 import '../../core/m2/plate.dart';
 import '../../core/m2/search.dart';
 import '../../core/m2/status.dart';
+import '../../core/m2/variants.dart' show familiesOf, favoriteOf, shownOf;
+import '../../core/search.dart' show searchWords;
 import '../../core/m2/where.dart' show WhereGroup;
 import '../../core/saved_food.dart';
 import '../../data/packaged_search.dart' show LookupPhase, PackPhase;
@@ -121,11 +123,11 @@ class _SearchScreenState extends State<SearchScreen> {
   void _submit() {
     final e = _entries.whereType<NowEntry>().firstOrNull, c = _c;
     if (e == null || c?.index == null) return;
-    final meal = c!.index!.meal, g = e.row.g, ctx = e.cafe ? g.places.first : null, f = findItem(_plate.state, meal, g.key, ctx);
+    final meal = c!.index!.meal, st = _stand(e, c), ctx = e.cafe ? e.row.g.places.first : null, f = findItem(_plate.state, meal, st.key, ctx);
     if (f != null) {
-      _plate.step(f.plate.id, g.key, 1);
+      _plate.step(f.plate.id, st.key, 1);
     } else {
-      _plate.add(meal, g.name, g.refs);
+      _plate.add(meal, st.name, st.refs, null, st.key);
     }
     Haptics.add();
   }
@@ -133,10 +135,21 @@ class _SearchScreenState extends State<SearchScreen> {
   // ---- rows
   PlateModel get _plate => AppScope.of(context).plate;
 
-  double _code(NowEntry e, String meal) {
-    final f = findItem(_plate.state, meal, e.row.g.key, e.cafe ? e.row.g.places.first : null);
+  /// What a row stands for as the plate is now (M2 `restand`): a family's row is the variant the typed words fit and the plate last had, with
+  /// that variant's own key, name and servings; a dish's is itself.
+  ({MenuItem d, String? chip, String key, String name, Map<String, MenuItem> refs}) _stand(NowEntry e, SearchController c) {
+    final g = e.row.g, vs = g.vars;
+    if (vs == null) return (d: e.row.d, chip: null, key: g.key, name: g.name, refs: g.refs);
+    final scope = AppScope.of(context), meal = c.index!.meal;
+    final v = vs[varFor(g, searchWords(c.query), _plate.state, meal, allow: _reveal ? null : (d) => prefOK(scope.prefs.diet, d))];
+    final d = servingOf(v.refs, _plate.state, meal)!;
+    return (d: d, chip: v.chip, key: v.key, name: shownOf(familiesOf(c.index!.fx), d), refs: v.refs);
+  }
+
+  double _code(NowEntry e, String meal, String key, Map<String, MenuItem> refs) {
+    final f = findItem(_plate.state, meal, key, e.cafe ? e.row.g.places.first : null);
     if (f != null) return f.item.qty;
-    return wouldSplit(_plate.state, meal, e.row.g.refs.keys.toList()) ? -1 : 0;
+    return wouldSplit(_plate.state, meal, refs.keys.toList()) ? -1 : 0;
   }
 
   String _where(Board fx, List<String> places) {
@@ -164,27 +177,29 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _now(NowEntry e, SearchController c) {
-    final scope = AppScope.of(context), fx = c.index!.fx, meal = c.index!.meal, g = e.row.g, d = e.row.d;
-    final place = g.refs.entries.firstWhere((x) => identical(x.value, d)).key;
+    final scope = AppScope.of(context), fx = c.index!.fx, meal = c.index!.meal, g = e.row.g, st = _stand(e, c), d = st.d, ctx = e.cafe ? g.places.first : null;
+    final place = st.refs.entries.firstWhere((x) => identical(x.value, d)).key;
+    final fam = g.vars == null ? null : familiesOf(fx).familyOf(d);
     return DishRow(
-      key: ValueKey(e.id), dish: d, scores: scope.prefs.scores, contains: _reveal ? hits(scope.prefs.diet, d) : const [], favorite: scope.prefs.isFavorite(d.dishName),
-      code: _code(e, meal), track: scope.prefs.track, tags: _tags(fx, g.places, 'Served now'),
-      onOpen: () => _open(d, place: place, meal: meal, day: 0, refs: g.refs),
+      key: ValueKey(e.id), dish: d, scores: scope.prefs.scores, contains: _reveal ? hits(scope.prefs.diet, d) : const [],
+      favorite: scope.prefs.isFavorite(fam == null ? d.dishName : favoriteOf(fam)), family: st.chip == null ? null : g.name, chip: st.chip,
+      code: _code(e, meal, st.key, st.refs), track: scope.prefs.track, tags: _tags(fx, g.places, 'Served now'),
+      onOpen: () => _open(d, place: place, meal: meal, day: 0, refs: st.refs),
       onAdd: () {
-        _plate.add(meal, g.name, g.refs);
+        _plate.add(meal, st.name, st.refs, null, st.key);
         Haptics.add();
       },
       onInc: () {
-        final f = findItem(_plate.state, meal, g.key, e.cafe ? g.places.first : null);
+        final f = findItem(_plate.state, meal, st.key, ctx);
         if (f != null) {
-          _plate.step(f.plate.id, g.key, 1);
+          _plate.step(f.plate.id, st.key, 1);
           Haptics.add();
         }
       },
       onDec: () {
-        final f = findItem(_plate.state, meal, g.key, e.cafe ? g.places.first : null);
+        final f = findItem(_plate.state, meal, st.key, ctx);
         if (f != null) {
-          _plate.step(f.plate.id, g.key, -1);
+          _plate.step(f.plate.id, st.key, -1);
           Haptics.remove();
         }
       },
@@ -225,9 +240,10 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _later(LaterEntry e, SearchController c) {
-    final scope = AppScope.of(context), fx = c.index!.fx, g = e.row.g, d = e.row.d, said = _said(g);
+    final scope = AppScope.of(context), fx = c.index!.fx, g = e.row.g, d = e.row.d, said = _said(g), fam = e.row.family;
     return DishRow(
-      key: ValueKey(e.id), dish: d, scores: scope.prefs.scores, contains: _reveal ? hits(scope.prefs.diet, d) : const [], favorite: scope.prefs.isFavorite(d.dishName),
+      key: ValueKey(e.id), dish: d, scores: scope.prefs.scores, contains: _reveal ? hits(scope.prefs.diet, d) : const [],
+      favorite: scope.prefs.isFavorite(fam == null ? d.dishName : favoriteOf(fam)), family: fam?.name, chip: fam == null ? null : familiesOf(fx).variantIn(d)?.chip,
       tail: Row(mainAxisSize: MainAxisSize.min, children: [
         Text(said, style: M2Text.meta.style(M2Color.slate)),
         const SizedBox(width: M2Layout.nextToTags),

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/content.dart' show RetailMenuItems;
 import '../../core/m2/board.dart';
+import '../../core/m2/menu_view.dart' show prefOK;
 import '../../core/m2/places.dart';
 import '../../core/m2/search.dart';
 import '../../core/types.dart' show diningHalls;
@@ -151,7 +152,7 @@ class SearchController extends ChangeNotifier {
     final ix = index;
     _asks();
     generation++;
-    result = ix == null ? const SearchResult() : runSearch(ix, query: query, lenses: lenses, favorites: prefs.favorites, plate: plate.state);
+    result = ix == null ? const SearchResult() : runSearch(ix, query: query, lenses: lenses, favorites: prefs.favorites, plate: plate.state, allow: (d) => prefOK(prefs.diet, d));
     notifyListeners();
   }
 

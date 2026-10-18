@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/core/m2/board.dart';
+import 'package:udine/core/m2/where.dart';
 import 'package:udine/core/m2/plate.dart';
 import 'package:udine/core/m2/search.dart';
 import 'package:udine/core/m2/variants.dart';
@@ -159,4 +160,31 @@ void main() {
     p = updateDish(p, p.plates.first.id, a.key, 'b', b.key, {'c12': b});
     expect([for (final it in p.plates.first.items) (it.key, it.qty)], [(b.key, 3.0)]);
   });
+
+  test('alerts: a starred family is one notice by its name, its body the where sentence of any variant\'s serving; none once it is past', () {
+    String andList(List<String> l) => l.length < 2 ? l.join() : '${l.sublist(0, l.length - 1).join(', ')} and ${l.last}';
+    final name = {for (final p in board.places) p.key: p.name};
+    for (final w in v['alerts'] as List) {
+      final family = (w['favorite'] as String).substring(2);
+      final at = DateTime.parse('2026-10-08T${_clock24(w['clock'])}:00-04:00');
+      final a = whereAnswer(board, 'f:$family', at);
+      // (round 13: the server's push is at about 7 AM, so a run outside 7:00 to 7:59 posts nothing)
+      final posted = at.hour != 7 || a.isEmpty || a.first.day != 0
+          ? []
+          : [[familiesOf(board).names['f:$family'], '${whenText(a.first)}${a.first.st == 'now' ? ',' : ''} at ${andList([for (final h in a.first.halls) name[h]!])}']];
+      expect(posted, w['posted'], reason: w['clock']);
+    }
+  });
+
+  test('a past meal reads a family\'s variant by its name once a board has shown the family', () {
+    familiesOf(board);
+    expect(shownName('20 oz Cappuccino'), 'Cappuccino, 20 oz');
+    expect(shownName('Boba Oat Milk'), 'Boba, Oat Milk');
+    expect(shownName('Beef Brisket Noodle Bowl'), 'Beef Brisket Noodle Bowl');
+  });
+}
+
+String _clock24(String c) {
+  final m = RegExp(r'^(\d+):(\d+) (AM|PM)$').firstMatch(c)!;
+  return '${((int.parse(m[1]!) % 12) + (m[3] == 'PM' ? 12 : 0)).toString().padLeft(2, '0')}:${m[2]}';
 }

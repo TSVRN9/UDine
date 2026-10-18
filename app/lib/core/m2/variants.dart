@@ -59,6 +59,11 @@ List<Family> famsAt(List<MenuItem> ds, String station) {
 /// [famsAt] for a station, once (Station objects are shared by every Board copy of a day).
 List<Family> stationFamilies(Station s) => _famCache[s] ??= famsAt(s.dishes, s.name);
 
+/// M2's `VARN`: every member name any board has shown this session, for the places that have only a name (a past meal). A name no board has
+/// shown as a family's member reads as the feed spells it.
+final _shownNames = <String, String>{};
+String shownName(String feedName) => _shownNames[feedName] ?? feedName;
+
 /// Every family on a board by the dish that is a member (by identity: one dish object is one serving), M2's `FAM`.
 class FamilyIndex {
   FamilyIndex(Board b) {
@@ -70,7 +75,7 @@ class FamilyIndex {
               names[f.key] = f.name;
               for (final x in f.vars) {
                 _of[x.dish] = (f, x);
-                shown[x.dish.dishName] = '${f.name}, ${x.v}';
+                shown[x.dish.dishName] = _shownNames[x.dish.dishName] = '${f.name}, ${x.v}';
               }
             }
           }
@@ -91,6 +96,24 @@ class FamilyIndex {
 
 final _index = Expando<FamilyIndex>('familyIndex');
 FamilyIndex familiesOf(Board b) => _index[b] ??= FamilyIndex(b);
+
+/// What a starred family is stored as in the favourites (M2's `favKey`): `f:` and the name, so it never meets a dish of the same name.
+String favoriteOf(Family f) => 'f:${f.name}';
+
+/// [d] as it sits in [b]'s first day (a plate item remembers the copy of the book it came from), so its family is known; [d] itself when it
+/// already is a member, or no member of that name is there.
+MenuItem resolveIn(Board b, String place, String meal, MenuItem d) {
+  final ix = familiesOf(b);
+  if (ix.familyOf(d) != null || b.days.isEmpty) return d;
+  for (final sts in b.days[b.days.keys.first]?[place]?.values ?? const <List<Station>>[]) {
+    for (final s in sts) {
+      for (final x in s.dishes) {
+        if (x.dishName == d.dishName && ix.familyOf(x) != null) return x;
+      }
+    }
+  }
+  return d;
+}
 
 /// How an item reads on the sheet and the plate: "Cappuccino, 20 oz" (M2 `shown`).
 String shownOf(FamilyIndex ix, MenuItem d) => ix.shown[d.dishName] ?? d.dishName;

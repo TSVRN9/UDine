@@ -181,19 +181,22 @@ const maxItemName = 40;
 
 const _hallWords = ' dining commons hall', _grabWords = " grab n go grab and go";
 
+/// M2 `rep`: the serving a row speaks for among [refs]: the front plate's hall first when it is of this [meal], else the first by place order.
+MenuItem? servingOf(Map<String, MenuItem> refs, PlateState plate, String meal) {
+  final front = plate.front < plate.plates.length ? plate.plates[plate.front] : null;
+  final ph = front != null && front.meal == meal ? plateHalls(front) : null;
+  final h = ph?.where(refs.containsKey).firstOrNull ?? (refs.keys.toList()..sort((a, b) => placeOrder(a) - placeOrder(b))).firstOrNull;
+  return h == null ? null : refs[h];
+}
+
 /// M2's results for the typed text and lenses. `favorites` are dish names; `plate` decides which hall a row speaks for (`rep`) and
 /// which rows sort after the ones that would split the plate (`join`): the screen computes this when the query, lenses or data
 /// change, never on a plate change, so rows never move under a finger that has just added one.
 SearchResult runSearch(SearchIndex ix,
     {required String query, Set<Lens> lenses = const {}, Set<String> favorites = const {}, PlateState plate = emptyPlates, bool Function(MenuItem d)? allow}) {
   final toks = searchWords(query), favKeys = {for (final f in favorites) favKey(f)};
-  final front = plate.front < plate.plates.length ? plate.plates[plate.front] : null;
-  final ph = front != null && front.meal == ix.meal ? plateHalls(front) : null;
 
-  MenuItem? repOf(Map<String, MenuItem> refs) {
-    final h = ph?.where(refs.containsKey).firstOrNull ?? (refs.keys.toList()..sort((a, b) => placeOrder(a) - placeOrder(b))).firstOrNull;
-    return h == null ? null : refs[h];
-  }
+  MenuItem? repOf(Map<String, MenuItem> refs) => servingOf(refs, plate, ix.meal);
 
   MenuItem? rep(DishGroup g) => repOf(g.refs);
 
@@ -299,7 +302,7 @@ String favKey(String stored) => stored.startsWith('f:') ? 'f:${dishKey(stored.su
 /// plate's latest among them, else the first. A variant [allow] hides is never the one. Returns the index into `g.vars`.
 int varFor(DishGroup g, List<String> toks, PlateState plate, String meal, {bool Function(MenuItem d)? allow}) {
   final vars = g.vars!;
-  MenuItem repr(VarGroup v) => (v.refs.keys.toList()..sort((a, b) => placeOrder(a) - placeOrder(b))).map((h) => v.refs[h]!).first;
+  MenuItem repr(VarGroup v) => servingOf(v.refs, plate, meal)!;
   bool ok(VarGroup v) => allow == null || allow(repr(v));
   bool hit(VarGroup v) => toks.every((t) => v.key.split(' ').any((w) => w.startsWith(t)) || v.key.contains(t));
   final fit = vars.where((v) => hit(v) && ok(v)).toList(), pool = fit.isNotEmpty ? fit : vars.where(ok).toList();

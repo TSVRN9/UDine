@@ -2,6 +2,7 @@ import '../date.dart';
 import '../types.dart';
 import 'board.dart';
 import 'places.dart' show cafeTable, straight;
+import 'variants.dart' show shownName;
 import 'dish_sheet.dart' show labelRowsOf;
 import '../../ui/label_model.dart' show Label;
 
@@ -19,7 +20,7 @@ class LoggedItem {
         _ => const [],
       };
   String get name => switch (entry.source) {
-        UmassMenuSource s => s.dishName,
+        UmassMenuSource s => shownName(s.dishName),
         OffSource s => s.productName,
         UsdaSource s => s.productName,
         CustomSource s => s.productName,

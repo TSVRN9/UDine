@@ -1,6 +1,7 @@
 import '../hours.dart';
 import '../types.dart';
 import 'board.dart';
+import 'variants.dart';
 
 class WhereGroup {
   final String st; // now | later | tomorrow
@@ -50,7 +51,8 @@ class _Acc {
 /// Every group a dish is served in, soonest first (M2 `wherePlan`). `instant` is any DateTime; it is read as Eastern wall time.
 List<WhereGroup> wherePlan(Board fx, String dish, DateTime instant, {bool newton = false}) {
   final now = easternWall(instant);
-  final key = dishKey(dish), today = _localIso(now), nowMin = now.hour * 60 + now.minute;
+  // a family (`f:Boba`) is served wherever any of its variants is
+  final key = dish.startsWith('f:') ? 'f:${dishKey(dish.substring(2))}' : dishKey(dish), fam = familiesOf(fx), today = _localIso(now), nowMin = now.hour * 60 + now.minute;
   final inNewton = {for (final p in fx.places) if (p.area == 4) p.key};
   final groups = <String, _Acc>{};
   final days = [today, _nextIso(today)];
@@ -58,7 +60,7 @@ List<WhereGroup> wherePlan(Board fx, String dish, DateTime instant, {bool newton
     for (final MapEntry(key: place, value: meals) in (fx.days[days[day]] ?? const <String, Map<String, List<Station>>>{}).entries) {
       if (inNewton.contains(place) && !newton) continue;
       for (final MapEntry(key: meal, value: stations) in meals.entries) {
-        if (!stations.any((s) => s.dishes.any((d) => d.key == key))) continue;
+        if (!stations.any((s) => s.dishes.any((d) => d.key == key || fam.familyOf(d)?.key == key))) continue;
         final win = mealWindow(fx, place, meal, instant);
         if (win == null) continue;
         final w = (_toMin(win.$1), _toMin(win.$2));
