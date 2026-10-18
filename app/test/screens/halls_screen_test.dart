@@ -12,6 +12,7 @@ import '../fonts.dart';
 import 'support.dart';
 
 void main() {
+  tabReturn();
   setUpAll(loadFonts);
 
   Finder band(String name) => find.text(name);
@@ -288,4 +289,29 @@ class UdineAppWith extends StatelessWidget {
         pageRouteBuilder: <T>(settings, builder) => PageRouteBuilder<T>(settings: settings, pageBuilder: (c, _, _) => builder(c)),
         home: boot.wrap(Shell(plateBar: plate)) as Widget,
       );
+}
+
+void tabReturn() {
+  testWidgets('Halls does not fade its status and busy lines in again when the tab is returned to', (t) async {
+    await openApp(t, await bootRecorded(t));
+    await until(t, () => find.byType(Meter).evaluate().isNotEmpty);
+    await t.pumpAndSettle();
+    double fade() => t.widget<Band>(find.byType(Band).first).fade!.value;
+    expect(fade(), 1);
+    await t.tap(find.text('Search'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Halls'));
+    for (var i = 0; i < 12; i++) {
+      await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30))); // the cached hours and the busy reads land
+      await t.pump(const Duration(milliseconds: 16));
+      expect(find.byType(Band), findsWidgets);
+      expect(fade(), 1, reason: 'frame $i after the return: the lines are fading in again');
+    }
+    await t.pumpAndSettle();
+    for (var i = 0; i < 20; i++) {
+      await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 60)));
+      await t.pump(const Duration(seconds: 2));
+    }
+    await drain(t);
+  });
 }
