@@ -19,6 +19,9 @@ int _toMin(String t) {
   return (int.parse(m[1]!) % 12 + (m[3]!.toUpperCase() == 'PM' ? 12 : 0)) * 60 + int.parse(m[2]!);
 }
 
+/// Minutes after midnight of an "H:MM AM" time.
+int minuteOf(String t) => _toMin(t);
+
 String _fmtMin(int m) => '${((m ~/ 60 + 11) % 12) + 1}:${(m % 60).toString().padLeft(2, '0')} ${m < 720 ? 'AM' : 'PM'}';
 
 /// The window a place serves a meal, whatever the clock says: probe effectiveMealWindow at the place's own opening time.
