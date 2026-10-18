@@ -23,7 +23,7 @@ const _fda = {'fat': 78, 'sat': 20, 'chol': 300, 'sod': 2300, 'carb': 275, 'fibe
 /// A figure the feed left empty reads "–" with no %DV (M2 `g`/`pc`), and an empty fat-calories figure drops the Fat cal. row.
 Label labelRows(MenuItem d) => labelRowsOf(d.nutrition);
 
-/// The same rows for any nutrition: a dish's own, or a plate's sums (no published %DV, no serving, nothing blank).
+/// The same rows for any nutrition: a dish's own, or a plate's sums (no published %DV, no serving).
 Label labelRowsOf(NutritionFacts n) {
   String g(String f, num x, [String u = 'g']) => n.blank.contains(f) ? '–' : '${f1(x)}$u';
   String pc(String f, num x, Dv? dv, int? base) {
@@ -34,7 +34,7 @@ Label labelRowsOf(NutritionFacts n) {
   LabelRow row(LabelKind kind, String name, String f, num x, String u, Dv? dv, String? fdaKey, {bool last = false}) =>
       LabelRow(kind, '$name ${g(f, x, u)}', name, g(f, x, u), pc(f, x, dv, fdaKey == null ? null : _fda[fdaKey]), last: last);
   final serving = n.servingSize.trim().toLowerCase();
-  return Label(serving.isEmpty ? null : serving, fc(n.calories.round()), [
+  return Label(serving.isEmpty ? null : serving, fc(n.knownCal), [
     if (!n.blank.contains('caloriesFromFat')) LabelRow(LabelKind.thin, '', '', '', 'Fat cal. ${fc(n.caloriesFromFat)}'),
     const LabelRow(LabelKind.thin, '', '', '', '% Daily Value*'),
     row(LabelKind.row, 'Total Fat', 'totalFatG', n.totalFatG, 'g', n.totalFatDv, 'fat'),

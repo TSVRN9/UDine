@@ -106,7 +106,7 @@ void main() {
         s = addDish(s, 'lunch', n, {'W': lunch.firstWhere((i) => i.dishName == n)});
       }
       final t = totals(s.plates[0]);
-      expect((t.cal, double.parse(t.p.toStringAsFixed(1))), (404, 38.9));
+      expect((t.cal, double.parse(t.p!.toStringAsFixed(1))), (404, 38.9));
     });
 
     test('a café is served by its location id; hours carry busy', () async {
@@ -204,7 +204,7 @@ void main() {
         'nut': [for (final k in nut.keys) n(d[k])],
         'blank': {
           for (final e in nut.entries)
-            if (e.key != 'calories' && !RegExp(r'-?\d').hasMatch(d[e.key])) e.value,
+            if (!RegExp(r'-?\d').hasMatch(d[e.key])) e.value,
         },
         'dv': [for (final k in ['total-fat-dv', 'sat-fat-dv', 'cholesterol_dv', 'sodium-dv', 'total-carb-dv', 'dietary-fiber-dv', 'sugars-dv', 'protein-dv']) dv(d, k)],
       };

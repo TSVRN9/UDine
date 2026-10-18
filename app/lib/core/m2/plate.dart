@@ -54,7 +54,7 @@ bool _canJoin(Plate p, String meal, List<String>? hs) {
 /// same name with other macros is another food, and an identical one is the same.
 String customKey(String name, Macro m) {
   var h = 0x811c9dc5;
-  for (final u in '${m.cal.toDouble()}|${m.p.toDouble()}|${m.c.toDouble()}|${m.f.toDouble()}'.codeUnits) {
+  for (final u in '${m.cal?.toDouble()}|${m.p?.toDouble()}|${m.c?.toDouble()}|${m.f?.toDouble()}'.codeUnits) {
     h = ((h ^ u) * 0x01000193) & 0xffffffff;
   }
   return 'custom:${dishKey(name)}:${h.toRadixString(36)}';
@@ -124,12 +124,15 @@ PlateState stepItem(PlateState s, int plateId, String key, int dir) {
 
 Macro macroOf(PlateItem it, [String? hall]) => it.custom ?? (hall != null ? it.refs[hall] : null)?.macro ?? it.refs.values.first.macro;
 
-({double cal, double p, double c, double f, double n}) totals(Plate p, [String? hall]) {
+/// M2 `tally` / `totals`: each figure is the sum of what the items know, and null only when every item leaves it unknown.
+({double? cal, double? p, double? c, double? f, double n}) totals(Plate p, [String? hall]) {
   hall ??= plateHalls(p)?.firstOrNull;
-  double cal = 0, pr = 0, c = 0, f = 0, n = 0;
+  double? cal, pr, c, f;
+  double n = 0;
+  double? add(double? a, num? x, double q) => x == null ? a : (a ?? 0) + x * q;
   for (final it in p.items) {
     final m = macroOf(it, hall);
-    cal += m.cal * it.qty; pr += m.p * it.qty; c += m.c * it.qty; f += m.f * it.qty; n += it.qty;
+    cal = add(cal, m.cal, it.qty); pr = add(pr, m.p, it.qty); c = add(c, m.c, it.qty); f = add(f, m.f, it.qty); n += it.qty;
   }
   return (cal: cal, p: pr, c: c, f: f, n: n);
 }

@@ -23,7 +23,7 @@ List<LogEntry> logEntries(
         final it = p.items[i], c = it.custom, food = it.food;
         if (food != null) return LogEntry(id: id(i), loggedAt: loggedAt, servings: it.qty, source: food.source, nutrition: food.nutrition);
         if (c != null) {
-          final cal = c.cal, f = c.f, carb = c.c, pr = c.p;
+          final cal = c.cal ?? 0, f = c.f ?? 0, carb = c.c ?? 0, pr = c.p ?? 0;
           return LogEntry(
             id: id(i),
             loggedAt: loggedAt,

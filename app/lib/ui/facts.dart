@@ -4,16 +4,16 @@ import '../theme/tokens.dart';
 
 /// `.facts`: plate and day totals in the label's frame: Calories big over a thick rule, then Protein, Carbs and Fat.
 class Facts extends StatelessWidget {
-  final double cal, p, c, f;
+  final num? cal, p, c, f;
   final String big;
   const Facts({super.key, required this.cal, required this.p, required this.c, required this.f, this.big = 'Calories'});
 
-  Widget _nr(String name, double v, {bool last = false}) => Container(
+  Widget _nr(String name, num? v, {bool last = false}) => Container(
         padding: const EdgeInsets.only(top: M2Layout.factRowTop, bottom: M2Layout.factRowBottom),
         decoration: BoxDecoration(border: last ? null : const Border(bottom: BorderSide(color: M2Color.dm))),
         child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
           Text(name, style: M2Text.factRow.style(M2Color.dm)),
-          Text('${f1(v)}g', style: M2Text.factNum.style(M2Color.dm)),
+          Text(fg(v), style: M2Text.factNum.style(M2Color.dm)),
         ]),
       );
 

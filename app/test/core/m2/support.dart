@@ -31,12 +31,12 @@ MenuItem _item(Map<String, dynamic> j, String iso, String place, String meal, St
   return MenuItem(
     dishName: j['name'], category: station, mealPeriod: _mealPeriod[meal]!, hallTid: halls.indexOf(place) + 1, date: iso,
     nutrition: NutritionFacts(
-      servingSize: j['serving'], calories: j['cal'], caloriesFromFat: x('fatCal'), totalFatG: x('fat'), satFatG: x('sat'),
+      servingSize: j['serving'], calories: (j['cal'] as num?) ?? 0, caloriesFromFat: x('fatCal'), totalFatG: x('fat'), satFatG: x('sat'),
       transFatG: x('trans'), cholesterolMg: x('chol'), sodiumMg: x('sod'), totalCarbG: x('carb'), dietaryFiberG: x('fiber'),
       sugarsG: x('sugar'), proteinG: x('protein'),
       totalFatDv: _dv(n['fatDv']), satFatDv: _dv(n['satDv']), sodiumDv: _dv(n['sodDv']), totalCarbDv: _dv(n['carbDv']),
       dietaryFiberDv: _dv(n['fiberDv']), proteinDv: _dv(n['proteinDv']),
-      blank: {for (final e in fields.entries) if (n[e.key] == null) e.value},
+      blank: {if (j['cal'] == null) 'calories', for (final e in fields.entries) if (n[e.key] == null) e.value},
     ),
     allergens: List<String>.from(j['allergens']),
     dietTags: [for (final e in bits.entries) if (j['diet'] & e.key != 0) e.value],

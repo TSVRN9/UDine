@@ -6,7 +6,7 @@ import 'support.dart';
 
 Map<String, MenuItem> refsFor(String meal, String name, List places) =>
     {for (final p in places) p as String: servingOn(board, today, p, meal, dishKey(name))!};
-double r1(num x) => (x * 10).round() / 10;
+double? r1(num? x) => x == null ? null : (x * 10).round() / 10;
 
 void main() {
   group('plate ops match M2', () {
@@ -69,8 +69,8 @@ void main() {
     expect(brisket['B']!.macro.cal, isNot(brisket['W']!.macro.cal));
     final s = addDish(addDish(emptyPlates, 'lunch', 'Beef Brisket Noodle Bowl', brisket), 'lunch', 'Golden BBQ Chicken Thigh', bbq);
     expect(plateHalls(s.plates[0]), ['W']);
-    expect(totals(s.plates[0]).cal, brisket['W']!.macro.cal + bbq['W']!.macro.cal);
-    expect(totals(s.plates[0], 'B').cal, brisket['B']!.macro.cal + bbq['W']!.macro.cal);
+    expect(totals(s.plates[0]).cal, brisket['W']!.macro.cal! + bbq['W']!.macro.cal!);
+    expect(totals(s.plates[0], 'B').cal, brisket['B']!.macro.cal! + bbq['W']!.macro.cal!);
     expect(totals(s.plates[0], 'B').cal, isNot(totals(s.plates[0]).cal));
   });
 
