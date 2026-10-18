@@ -12,7 +12,7 @@ class LoggedItem {
   final LogEntry entry;
   String get id => entry.id;
   double get qty => entry.servings.toDouble();
-  num get calEach => entry.nutrition.calories;
+  num? get calEach => entry.nutrition.knownCal;
   /// A bowl's parts as logged (name, servings), empty for anything else.
   List<(String, num)> get parts => switch (entry.source) {
         UmassMenuSource(parts: final p?) => [for (final x in p) (x.name, x.servings)],
