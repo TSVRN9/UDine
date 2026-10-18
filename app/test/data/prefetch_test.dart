@@ -2,7 +2,6 @@
 library;
 
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -10,7 +9,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:udine/core/types.dart' show MenuItem;
 import 'package:udine/data/repository.dart';
 import 'package:udine/data/source.dart';
 
@@ -79,18 +77,6 @@ void main() {
     final fg = await make().menu(1, '2026-10-13').toList();
     expect((fg.last as Loaded).value, isNotEmpty);
     expect(Repository.offUiParses, greaterThan(before));
-  });
-
-  test('a live menu reaches the repository as bytes (decoded, parsed and encoded for the saved row on the worker), and the saved row is the one the decoded path wrote', () async {
-    final src = _BytesOnly(client);
-    final r = Repository(src, db, now: () => DateTime(2026, 10, 13, 12));
-    final got = await r.menu(1, '2026-10-13').toList();
-    expect((got.last as Loaded<List<MenuItem>>).value, isNotEmpty);
-    final row = await db.query('preferences_kv', where: 'key = ?', whereArgs: ['menu:v2:1|2026-10-13']);
-    final saved = jsonDecode(row.single['value_json']! as String) as Map<String, dynamic>;
-    expect(saved['raw'], jsonDecode(ajaxBody()));
-    expect(DateTime.parse(saved['fetchedAt'] as String).isUtc, isTrue);
-    expect([for (final s in await make().menu(1, '2026-10-13').toList()) if (s is Loaded<List<MenuItem>>) s.value.length].first, (got.last as Loaded<List<MenuItem>>).value.length);
   });
 
   test('a second ask, from the same repository or after a restart, makes no request for a place-day already had (empty ones included)', () async {
@@ -225,11 +211,4 @@ void main() {
       }
     }, timeout: const Timeout(Duration(seconds: 5)));
   });
-}
-
-/// A source whose decoding `menu()` is not to be used: the repository asks for the bytes.
-class _BytesOnly extends UmassSource {
-  _BytesOnly(super.client);
-  @override
-  Future<Object?> menu(int tid, String date) => throw StateError('decoded on the UI isolate');
 }

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:isolate' show Isolate;
 import 'dart:convert';
-import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/foundation.dart' show debugPrint, kProfileMode, kReleaseMode;
 import 'package:sqflite/sqflite.dart';
@@ -170,13 +169,11 @@ class Repository {
   Stream<DataState<List<MenuItem>>> menu(int locationId, String date, {bool background = false}) => _load(
     background: background,
     key: _menuKey(locationId, date),
-    // a live response is decoded, parsed and (for the saved row) kept as text on a worker isolate in the profile and release builds: a hall page's
-    // ~28 ms parse sat between the tap and the card's first frame, and a prefetch's dozens of place-days (the dish sheet's where, Search) held the UI isolate
-    // for 200-400 ms on an A53. Only the items and the response text come back.
-    fetch: () async => _fetchedMenu(await source.menuBytes(locationId, date), locationId, date),
+    fetch: () => source.menu(locationId, date),
+    // a menu parses off the UI isolate, a prefetch's (dozens of place-days at once) and a hall page's alike: a hall's ~28 ms parse (A53) landed
+    // between the tap and the card's first frame and was the 50-85 ms hole in the open
     parse: (raw, _) {
-      if (raw is _FetchedMenu) return raw.items;
-      final r = raw is Map<String, dynamic> ? raw : const <String, dynamic>{}; // (a saved row, already decoded)
+      final r = raw is Map<String, dynamic> ? raw : const <String, dynamic>{};
       return parseOffUi ? _parseOffUi(locationId, date, r) : parseMenuResponse(locationId, date, r);
     },
     quietWithin: menuFresh,
@@ -515,10 +512,9 @@ class Repository {
           }
           c.add(Loaded(value));
           if (key != null) {
-            final rawJson = raw is _FetchedMenu ? raw.json : jsonEncode(strip == null ? raw : strip(raw));
             await db.insert('preferences_kv', {
               'key': key,
-              'value_json': '{"fetchedAt":${jsonEncode(now().toUtc().toIso8601String())},"raw":$rawJson}',
+              'value_json': jsonEncode({'fetchedAt': now().toUtc().toIso8601String(), 'raw': strip == null ? raw : strip(raw)}),
             }, conflictAlgorithm: ConflictAlgorithm.replace);
           }
         } on Unreachable {
@@ -547,25 +543,7 @@ class _SkippedOffline implements Exception {
   const _SkippedOffline();
 }
 
-/// A live menu response: its items and its JSON text (the saved row embeds the text as it came).
-class _FetchedMenu {
-  const _FetchedMenu(this.items, this.json);
-  final List<MenuItem> items;
-  final String json;
-}
-
 // (top level, so the closure sent to the isolate captures no repository)
-_FetchedMenu _decodeMenu(Uint8List body, int locationId, String date) {
-  final json = utf8.decode(body), r = jsonDecode(json);
-  return _FetchedMenu(parseMenuResponse(locationId, date, r is Map<String, dynamic> ? r : const <String, dynamic>{}), json);
-}
-
-Future<_FetchedMenu> _fetchedMenu(Uint8List body, int locationId, String date) {
-  if (!Repository.parseOffUi) return Future.value(_decodeMenu(body, locationId, date));
-  Repository.offUiParses++;
-  return Isolate.run(() => _decodeMenu(body, locationId, date));
-}
-
 Future<List<MenuItem>> _parseOffUi(int locationId, String date, Map<String, dynamic> raw) {
   Repository.offUiParses++;
   return Isolate.run(() => parseMenuResponse(locationId, date, raw));
