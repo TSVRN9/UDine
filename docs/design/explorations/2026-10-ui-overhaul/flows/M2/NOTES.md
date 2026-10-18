@@ -2083,3 +2083,478 @@ built" has the design summary.
   - Green now. `RED=11 node test.js` gives 11 scenarios and 135 checks. `node test.js` gives 5,390 checks, all green.
 - **Frames** (`build/r11/p5`, 390 and 360 at dpr 2; `sheet1.png`): `p-zoom.png` (2.5×) and `p-zoom-side.png` (2.5×,
   scrolled 300 px sideways and 400 px down). The bar is whole and fixed in both, at both widths.
+
+
+## Round 12: variant pickers
+
+Brief: `docs/briefs/m2-round-12.md`, Task 1. Critique: `CRITIQUE-r12.md`. Concept: `CONCEPT.md`, "Round 12", committed
+before the build. Owner (2026-10-14): "drinks can be in two different sizes (16 and 20oz) and there should be a picker. Items
+like the boba in the procrastination station can also be combined, where they only differ by milk type".
+
+### The rule, derived from the feed (`menus-2026-10-08-to-22.json`)
+- **How it was found.** Every pair of names at one place, day, meal and station was compared word by word. Two kinds of
+  difference repeat across places and days and mean the same item:
+  - **a size:** "12 oz Clam Chowder" / "8 oz …", "16 oz Cappuccino" / "20 oz …", "Coconut Mango Acai Bowl (8oz)" / "(16oz)",
+    "Berry Acai Bowl (8 oz)" / "(16 oz)". Leading "N oz " or a trailing "(N oz)" / "(Noz)"; no other size words occur
+    (no Small, Large or Regular as a size: Newman's "Regular Coffee" means not decaf);
+  - **a milk:** "Boba Almond Milk" … "Boba Soy Milk". The milk kinds are the ones the feed uses anywhere: Almond, Maple, Oat,
+    Skim, Soy, Whole, 1%;
+  - **a base** (round 12b, owner, 2026-10-16): Courtside Café's Coconut or Yogurt smoothies, read only as the last word before
+    "Smoothie" or after a trailing "w/" ("Banana Berry Coconut Smoothie", "Matcha Strawberry w/Yogurt").
+- **The rule** (`variantOf`, `famsAt` in `src.html`): within one place, day, meal and station, two or more items whose
+  names are the same once that token is taken out, with different tokens, are one family named by what remains. Not at an
+  Add-ons or Toppings station. A milk family needs a name left ("1% Milk" has none). Sizes order smallest first; milks keep
+  the feed's order; the first is the default.
+- **Counts.** 59 families (one place and station each) on 325 station-days, 392 counting each meal (round 12 as first built:
+  52, 255 and 322; the seven smoothies add 7, 70 and 70). 47 are sizes of soups, oatmeal and hot drinks, two are acai bowls,
+  three are the same boba (Procrastination Station, Roots Café, Worcester Café), seven are Courtside's smoothies. Every family
+  is at a café; no hall has one in the fifteen days.
+- **Near-misses: 220** (222 before round 12b), every one in `vectors.json` `variants.nearMiss`, listed below by why the rule
+  leaves it alone. The closest to the owner's examples are called out first.
+  - **Courtside Café's smoothies** were the first near-miss (seven pairs, Coconut or Yogurt); the owner grouped them on
+    2026-10-16, so the seven sets left the list. Five lone dishes entered it as "the only base of it at this station" ("Green
+    Beans w/Coconut" at Berkshire, Franklin and Hampshire, "Sauteed Cabbage w/Coconut" at Hampshire and Worcester): they read a base
+    word and have no sibling.
+  - **Newman Café's Decaf / Regular Coffee**: each is a size family (12 oz / 20 oz); decaf or not is a second word.
+  - **Hot / Iced at Worcester Café**: the iced drinks come only in 20 oz, so each is a lone size, and "20 oz Iced Latte"
+    is a different drink from "20 oz Latte".
+  - **Single / Double Espresso** and the **milkshake flavours**: different drinks.
+  - **"Yellow Cheddar Macaroni & Cheese (8 oz)"** at Harvest Market's hot bar is alone, so it is no family; its record is a
+    4 oz serving (185 cal) on most days and 8 oz (370 cal) on Oct 18 (critique #12).
+  - **Star Ginger's and Whitmore's phos** differ by protein and broth. They are round 11b's pho builder, and since round 12b
+    their chips are two pickers (protein, then broth); they are not a family, because the builder is theirs.
+
+**Every family** (cal per variant as the feed gives it; two values where a café's record differs by day):
+
+| Place | Station | Family | Picker (default first), cal | Days | Meals |
+|---|---|---|---|---|---|
+| Courtside Café | Bowls | Berry Acai Bowl | 8 oz 242 / 16 oz 485 | 10 | all |
+| Courtside Café | Bowls | Coconut Mango Acai Bowl | 8 oz 273 / 16 oz 547 | 10 | all |
+| Harvest Market | Breakfast Miscellaneous | Hot Oatmeal | 8 oz 110 / 12 oz 169 | 14 | breakfast |
+| Harvest Market | Soups | Aged Cheddar & Cauliflower Bisque | 8 oz 319 / 12 oz 478 | 3 | dinner, lunch |
+| Harvest Market | Soups | Baked Potato Soup (Pork & Beef) | 8 oz 230 / 12 oz 345 | 2 | breakfast, dinner, lunch |
+| Harvest Market | Soups | Broccoli Cheddar Soup w/Chicken Flavor | 8 oz 230 / 12 oz 345 | 2 | dinner, lunch |
+| Harvest Market | Soups | Chana Masala Soup | 8 oz 148 / 12 oz 215 | 2 | dinner, lunch |
+| Harvest Market | Soups | Chicken Noodle Soup | 8 oz 75 / 12 oz 112 | 2 | dinner, lunch |
+| Harvest Market | Soups | Chicken Tortilla Soup | 8 oz 170 / 12 oz 255 | 2 | dinner, lunch |
+| Harvest Market | Soups | Chicken Wild Rice Soup | 8 oz 100 / 12 oz 150 | 1 | dinner, lunch |
+| Harvest Market | Soups | Clam Chowder | 8 oz 270 / 12 oz 405 | 3 | dinner, lunch |
+| Harvest Market | Soups | Italian Wedding Soup | 8 oz 120 / 12 oz 180 | 2 | dinner, lunch |
+| Harvest Market | Soups | Kale Portuguese Soup | 8 oz 140 / 12 oz 210 | 2 | dinner, lunch |
+| Harvest Market | Soups | Mexican Style Meatball Soup (Pork) | 8 oz 180 / 12 oz 270 | 1 | dinner, lunch |
+| Harvest Market | Soups | Minestrone Soup | 8 oz 80 / 12 oz 120 | 1 | dinner, lunch |
+| Harvest Market | Soups | Native Three Sisters Soup | 8 oz 150 / 12 oz 225 | 1 | dinner, lunch |
+| Harvest Market | Soups | Red Pepper & Gouda Bisque | 8 oz 281 / 12 oz 422 | 1 | dinner, lunch |
+| Harvest Market | Soups | Santa Fe Tortilla Soup | 8 oz 90 / 12 oz 135 | 1 | dinner, lunch |
+| Harvest Market | Soups | Spicy Lentil & Veggie Soup | 8 oz 146 / 12 oz 219 | 1 | dinner, lunch |
+| Harvest Market | Soups | Tomato Bisque Soup | 8 oz 180 / 12 oz 270 | 1 | dinner, lunch |
+| Newman Café | Beverages | Decaf Coffee | 12 oz 0 / 20 oz 0 | 7 | lunch |
+| Newman Café | Beverages | Iced Coffee | 16 oz 0 / 24 oz 1 | 7 | lunch |
+| Newman Café | Beverages | Regular Coffee | 12 oz 0 / 20 oz 0 | 7 | lunch |
+| Procrastination Station | Beverages | Boba | Almond Milk 180 / Maple Milk 275 / Oat Milk 262 / Skim Milk 234 / Soy Milk 240 | 10 | all |
+| Roots Café | Beverages | Boba | Almond Milk 180 / Maple Milk 275 / Oat Milk 262 / Skim Milk 234 / Soy Milk 240 | 14 | breakfast, dinner, lunch |
+| Roots Café | Soups | Baked Potato Soup (Pork & Beef) | 8 oz 230 / 12 oz 345 | 2 | dinner, lunch |
+| Roots Café | Soups | Beef Stew | 8 oz 230 / 12 oz 345 | 2 | dinner, lunch |
+| Roots Café | Soups | Chicken Noodle Soup | 8 oz 100 / 12 oz 150 | 1 | dinner, lunch |
+| Roots Café | Soups | Chicken Tortilla Soup | 8 oz 170 / 12 oz 255 | 2 | dinner, lunch |
+| Roots Café | Soups | Clam Chowder | 8 oz 270 / 12 oz 405 | 2 | dinner, lunch |
+| Roots Café | Soups | Italian Wedding Soup | 8 oz 120 / 12 oz 180 | 2 | dinner, lunch |
+| Roots Café | Soups | Minestrone Soup | 8 oz 80 / 12 oz 120 | 3 | dinner, lunch |
+| Whitmore Café | Soups | Broccoli Cheddar Soup w/Chicken Flavor | 8 oz 230 / 12 oz 345 | 1 | all |
+| Whitmore Café | Soups | Chicken Noodle Soup | 8 oz 100 / 12 oz 150 | 2 | all |
+| Whitmore Café | Soups | Chicken Tortilla Soup | 8 oz 170 / 12 oz 255 | 1 | all |
+| Whitmore Café | Soups | Clam Chowder | 8 oz 270 / 12 oz 405 | 2 | all |
+| Whitmore Café | Soups | Kale Portuguese Soup | 8 oz 140 / 12 oz 210 | 1 | all |
+| Whitmore Café | Soups | Mexican Style Meatball Soup (Pork) | 8 oz 180 / 12 oz 270 | 1 | all |
+| Whitmore Café | Soups | Minestrone Soup | 8 oz 80 / 12 oz 120 | 2 | all |
+| Whitmore Café | Soups | Organic Black Bean Soup | 8 oz 190 / 12 oz 285 | 1 | all |
+| Whitmore Café | Soups | Pumpkin Bisque Soup | 8 oz 190 / 12 oz 285 | 1 | all |
+| Whitmore Café | Soups | Tomato Bisque Soup | 8 oz 180 / 12 oz 270 | 2 | all |
+| Worcester Café | Beverages | Boba | Almond Milk 180 / Maple Milk 275 / Oat Milk 262 / Skim Milk 234 / Soy Milk 240 | 12 | all |
+| Worcester Café | Beverages | Cappuccino | 16 oz 0 / 20 oz 0 | 12 | all |
+| Worcester Café | Beverages | Caramel Macchiato | 16 oz 152 / 20 oz 27 | 12 | all |
+| Worcester Café | Beverages | Chai | 16 oz 211 / 20 oz 0 | 12 | all |
+| Worcester Café | Beverages | Chamomile Tea | 16 oz 0 / 20 oz 0 | 12 | all |
+| Worcester Café | Beverages | Coffee | 16 oz 0 / 20 oz 0 | 12 | all |
+| Worcester Café | Beverages | Earl Grey Tea | 16 oz 0 / 20 oz 0 | 12 | all |
+| Worcester Café | Beverages | Hot Americano | 16 oz 0 / 20 oz 0 | 12 | all |
+| Worcester Café | Beverages | Latte | 16 oz 0 / 20 oz 0 | 12 | all |
+| Worcester Café | Beverages | Matcha Latte | 16 oz 0 / 20 oz 0 | 12 | all |
+
+**Every near-miss**, by reason (`variants.nearMiss`; a set is names one word apart at one station):
+
+**An Add-ons or Toppings station: a builder's part** (4):
+- Worcester Café, Add-ons: MAPLELINE Skim Milk (12 days)
+- Worcester Café, Add-ons: MAPLELINE Whole Milk (12 days)
+- Worcester Café, Add-ons: PACIFIC Almond Milk (12 days)
+- Worcester Café, Add-ons: PACIFIC Soy Milk (12 days)
+
+**Nothing left once the milk is taken out** (2):
+- Hampshire, Breakfast: 1% Milk (10 days)
+- Worcester, Breakfast: 1% Milk (10 days)
+
+**One word apart at an Add-ons or Toppings station** (17):
+- Courtside Café, Add-ons: Chocolate Protein Powder, Hemp Protein Powder, Vanilla Protein Powder (10 days)
+- Deli Delish, Add-ons: Bacon, Guacamole (7 days)
+- Deli Delish, Add-ons: Extra Cheese, Extra Meat (7 days)
+- Green Fields, Add-ons: Bacon, Blueberries, Cheese, Hummus (7 days)
+- Green Fields, Add-ons: Fried Buffalo Chicken, Fried Chicken (7 days)
+- Tamales, Add-ons: Guacamole, Rice (7 days)
+- Tamales, Toppings: Brown Rice w/Lime & Cilantro, White Rice w/Lime & Cilantro (10 days)
+- Tamales, Toppings: Guacamole, Salsa (10 days)
+- Tamales, Toppings: Salsa, Tomatillo Salsa (10 days)
+- Tavola, Add-ons: Falafel, Hummus, Olives (11 days)
+- The Grill, Add-ons: Add On Beef Patty, Add On Impossible Patty (11 days)
+- The Grill, Add-ons: Extra Cheddar, Extra Swiss (11 days)
+- Wasabi, Add-ons: Add Ginger, Add Veggies, Add Wasabi (7 days)
+- Whitmore Café, Add-ons: Add Crispy Chicken, Add Grilled Chicken (7 days)
+- Worcester Café, Add-ons: MAPLELINE Skim Milk, MAPLELINE Whole Milk (12 days)
+- Worcester Café, Add-ons: PACIFIC Almond Milk, PACIFIC Soy Milk (12 days)
+- Worcester Café, Toppings: Butter, Peanut Butter (12 days)
+
+**One word apart beside the size: a different drink or dish** (12):
+- Newman Café, Beverages: 12 oz Decaf Coffee, 12 oz Regular Coffee (7 days)
+- Newman Café, Beverages: 20 oz Decaf Coffee, 20 oz Regular Coffee (7 days)
+- Worcester Café, Beverages: 16 oz Cappuccino, 16 oz Chai, 16 oz Coffee, 16 oz Latte (12 days)
+- Worcester Café, Beverages: 16 oz Latte, 16 oz Matcha Latte (12 days)
+- Worcester Café, Beverages: 20 oz Cappuccino, 20 oz Chai, 20 oz Coffee, 20 oz Latte (12 days)
+- Worcester Café, Beverages: 20 oz Caramel Macchiato, 20 oz Iced Caramel Macchiato (12 days)
+- Worcester Café, Beverages: 20 oz Chamomile Tea, 20 oz Iced Tea (12 days)
+- Worcester Café, Beverages: 20 oz Hot Americano, 20 oz Iced Americano (12 days)
+- Worcester Café, Beverages: 20 oz Iced Americano, 20 oz Iced Latte, 20 oz Iced Tea (12 days)
+- Worcester Café, Beverages: 20 oz Iced Chai Latte, 20 oz Iced Latte, 20 oz Iced Matcha Latte (12 days)
+- Worcester Café, Beverages: 20 oz Iced Latte, 20 oz Latte, 20 oz Matcha Latte (12 days)
+- Worcester Café, Beverages: 20 oz Iced Matcha Latte, 20 oz Matcha Latte (12 days)
+
+**One word apart: a different dish** (168):
+- Berkshire: Breakfast: Breakfast Burrito, Sausage Breakfast Burrito; Breakfast: GF Bacon Breakfast Bagel Sandwich, GF Breakfast Bagel Sandwich; Cold: Fruit Salad, Tossed Salad; Deli Bar: American Cheese, Provolone Cheese; Deli Bar: Chicken Salad, Tuna Salad; Deli Bar: Chicken Salad, Egg Salad, Tuna Salad; Deli Bar: Deli Beef, Deli Pepperoni; Deli Bar: Egg Salad, Tuna Salad; Display Station: Hummus, Tabouleh; Display Station: Potato Chips, Tortilla Chips; Entrees: BBQ Chicken Wings, Buffalo Chicken Wings; Grill Station: Grilled Chicken Breast, Grilled Chicken Thighs; Noodle Bowl: Beef for Pho, Chicken for Pho; Noodle Bowl: Pho Noodles, Pho Toppings; Pasta Bar: Fettuccini Pasta, Penne Pasta; Pasta Bar: Linguini Pasta, Penne Pasta; Pasta Bar: Marinara Sauce, Meatball Sauce; Pizza: Cheese Pizza, Pepperoni Pizza; Pizza: Cheese Pizza, Pepperoni Pizza, Vegetable Pizza; Salad Bar/Dressings: Banana Peppers, Green Peppers; Salad Bar/Dressings: Carrots Sticks, Celery Sticks; Salad Bar/Dressings: Chickpeas, Craisins, Cucumbers, Onions, Radishes, Tuna; Salad Bar/Dressings: Chickpeas, Cucumbers, Onions, Pepperoncini; Salad Bar/Dressings: Cucumbers, Onions, Pepperoncini; Salad Bar/Dressings: Green Olives, Green Peppers; Salad Bar/Dressings: Pumpkin Seeds, Sunflower Seeds; Salad Bar/Dressings: Sliced Eggs, Sliced Mushrooms; Sushi: Shrimp Sushi Roll, Vegetable Sushi Roll
+- Charles River Campus: Breakfast Entrees: Omelet Bar, Pancake Bar; Deli Bar: 12, Lettuce, Pickles, Tomatoes; Deli Bar: American Cheese, Provolone Cheese, Swiss Cheese; Deli Bar: Deli Beef, Deli Salami; Deli Bar: FANTINI Sourdough Bread, FANTINI White Bread; Noodle Bowl: Beef for Pho, Chicken for Pho; Noodle Bowl: Pho Noodles, Pho Toppings; Pizza: Cheese Pizza, Pepperoni Pizza; Salad Bar/Dressings: Broccoli, Carrots, Celery, Chickpeas, Cucumbers, Tuna; Salad Bar/Dressings: Fresh Green Peppers, Fresh Red Peppers, Fresh Yellow Peppers
+- Courtside Café: Cold: Turkey Multigrain Croissant, Turkey Pesto Croissant
+- Franklin: Deli Bar: American Cheese, Provolone Cheese; Deli Bar: Chicken Salad, Egg Salad, Tuna Salad; Deli Bar: Chicken Salad, Tuna Salad; Deli Bar: Deli Beef, Deli Ham; Deli Bar: Deli Beef, Deli Ham, Deli Salami; Deli Bar: Deli Ham, Deli Salami; Deli Bar: Egg Salad, Tuna Salad; Express: Brown Rice, Jasmine Rice; Express: Pho Noodles, Pho Toppings; Express: Teriyaki Salmon w/Sesame Seeds, Teriyaki Tofu w/Sesame Seeds; Express: Thai Red Curry Chicken, Thai Red Curry Tofu; Gluten Free: Alfredo Sauce, Bolognese Sauce; Gluten Free: Gluten Free Pepperoni Pizza, Gluten Free Primavera Pizza; Hot: General Tso's Chicken & Rice, General Tso's Tofu & Rice; Hot: Zesty Orange Chicken & Rice, Zesty Orange Tofu & Rice; Pasta Bar: Cavatappi Pasta, Fettuccini Pasta; Pasta Bar: Linguini Pasta, Penne Pasta; Pasta Bar: Marinara Sauce, Meatball Sauce; Pizza: Cheese Pizza, Pepperoni Pizza; Sushi: Shrimp Sushi Roll, Vegetable Sushi Roll; Vegetarian Line: Plant Based Cheese Pizza, Plant Based Greek Pizza
+- Green Fields: Brkfst Salad: Buffalo Chicken Wrap, Mediterranean Chicken Wrap; Brkfst Salad: Caesar Salad Chicken Wrap, Southwestern Salad Chicken Wrap; Brkfst Salad: Cobb Salad Wrap, Garden Salad Wrap, Power Salad Wrap; Salad Bar/Dressings: Buffalo Chicken Salad, Mediterranean Chicken Salad; Salad Bar/Dressings: Caesar Salad w/Chicken, Southwestern Salad w/Chicken; Salad Bar/Dressings: Cobb Salad, Garden Salad, Power Salad
+- Hampshire: Gluten Free: Bolognese Sauce, Marinara Sauce; Gluten Free: Gluten Free Pepperoni Pizza, Gluten Free Primavera Pizza; Grill Station: Grilled Chicken Breast, Grilled Chicken Thighs; Latino: Peruvian Rice, Peruvian Shrimp; Noodle Bowl: Beef for Pho, Chicken for Pho; Noodle Bowl: Pho Noodles, Pho Toppings; Pasta Bar: Cavatappi Pasta, Fettuccini Pasta; Pasta Bar: Gemelli Pasta, Linguini Pasta; Pasta Bar: Linguini Pasta, Penne Pasta; Pasta Bar: Marinara Sauce, Meatball Sauce; Pizza: Cheese Pizza, Pepperoni Pizza, Vegetable Pizza; Sushi: Shrimp Sushi Roll, Vegetable Sushi Roll; Vegetarian Line: Plant Based Cheese Pizza, Plant Based Greek Pizza
+- Hampshire Café: Cold: Turkey Multigrain Croissant, Turkey Pesto Croissant
+- Harvest Market: Cold: Chicken Caesar Salad, Chicken Caesar Wrap; Cold Bar Items $11.50/LB: Blue Cheese Crumbles, Blue Cheese Dressing; Cold Bar Items $11.50/LB: Carrots, Cucumbers, Edamame, Watercress; Cold Bar Items $11.50/LB: Chipotle Ranch Dressing, Ranch Dressing; Cold Bar Items $11.50/LB: Feta Cheese, Parmesan Cheese; Hot Bar Items $11.50/LB: Sausage Muffin, Sausage Patty; Hot Bar Items $11.50/LB: Vegetable Lasagna, Vegetable Medley; Pizza: Carciofi Pizza, Cheese Pizza, Pepperoni Pizza; Pizza: Cheese Pizza, Pepperoni Pizza, Primavera Pizza; Pizza: Cheese Pizza, Pepperoni Pizza, Zucchine Pizza; Salad Bar $11.50/LB: Potato Salad, Tortellini Salad, Tuna Salad; Salad Bar $11.50/LB: Tortellini Salad, Tuna Salad
+- Newman Café: Breakfast Entrees: Bacon Egg Breakfast Bagel, Bacon Egg Breakfast Sandwich; Breakfast Entrees: Bacon Egg Breakfast Bagel, Egg Breakfast Bagel, Sausage Egg Breakfast Bagel; Breakfast Entrees: Bacon Egg Breakfast Sandwich, Egg Breakfast Sandwich, Sausage Egg Breakfast Sandwich; Breakfast Entrees: Classic Breakfast w/Bacon (Bagel), Classic Breakfast w/Sausage (Bagel); Breakfast Entrees: Egg Breakfast Bagel, Egg Breakfast Sandwich; Breakfast Entrees: Newman Bacon Breakfast Burrito, Newman Sausage Breakfast Burrito; Breakfast Entrees: Plant-Based Sausage Egg B-Fast Bagel, Plant-Based Sausage Egg B-Fast Sandwich; Breakfast Entrees: Sausage Egg Breakfast Bagel, Sausage Egg Breakfast Sandwich; Breakfast Miscellaneous: Everything Bagel, Plain Bagel; Breakfast Pastries: Mini Butter Croissant, Mini Chocolate Croissant
+- People's Organic Coffee: Stir Fry Station: Southwest Bagel, Traditional Bagel
+- Procrastination Station: Cold: Turkey Multigrain Croissant, Turkey Pesto Croissant; Hot: Gruyere & Leek Tart, Gruyere Spinach & Leek Tart
+- Roots Café: Cold Bar Items $11.50/LB: Balsamic Dressing (Packet), Caesar Dressing (Packet), Italian Dressing (Packet), Ranch Dressing (Packet); Cold Bar Items $11.50/LB: Beets, Carrots, Chickpeas, Cucumbers, Salsa; Pizza: BBQ Chicken Flatbread, Buffalo Chicken Flatbread; Quesadillas: BBQ Chicken Quesadilla, Buffalo Chicken Quesadilla, Chicken Quesadilla; Quesadillas: Cheese Quesadilla, Chicken Quesadilla
+- Star Ginger: Noodle Bowl: Beef Pho w/Chicken Broth, Beef Pho w/Vegetable Broth; Noodle Bowl: Beef Pho w/Chicken Broth, Chicken Pho w/Chicken Broth; Noodle Bowl: Beef Pho w/Spicy Green Curry Broth, Chicken Pho w/Spicy Green Curry Broth; Noodle Bowl: Beef Pho w/Vegetable Broth, Chicken Pho w/Vegetable Broth; Noodle Bowl: Chicken Pho w/Chicken Broth, Chicken Pho w/Vegetable Broth; Noodle Bowl: Pulmuone Tofu Pho w/Chicken Broth, Pulmuone Tofu Pho w/Vegetable Broth; Starches: Brown Rice, Jasmine Rice
+- Tamales: Bowls: Marinated Beef Rice Bowl, Marinated Chicken Rice Bowl, Marinated Lentil Rice Bowl; Burritos: Beef Burrito, Chicken Burrito, Lentil Burrito; Quesadillas: Beef Quesadilla, Carnitas Quesadilla, Cheese Quesadilla, Chicken Quesadilla, Lentil Quesadilla; Salad Bar/Dressings: Beef Salad, Carnitas Salad, Chicken Salad, Lentil Salad; Stir Fry Station: Beef Nachos, Carnitas Nachos, Chicken Nachos, Lentil Nachos; Stir Fry Station: Loaded Nachos w/Beef, Loaded Nachos w/Chicken, Loaded Nachos w/Lentils, Loaded Nachos w/Pork
+- Tavola: Bowls: Hummus Bowl w/Beef, Hummus Bowl w/Chicken, Hummus Bowl w/Falafel, Hummus Bowl w/Lamb; Brkfst Salad: Mediterranean Wrap w/Beef, Mediterranean Wrap w/Falafel, Mediterranean Wrap w/Lamb; Salad Bar/Dressings: Tavola Salad w/Beef, Tavola Salad w/Chicken, Tavola Salad w/Falafel, Tavola Salad w/Lamb
+- The Grill: Beverages: Chocolate Shake, Strawberry Shake, Vanilla Shake; Entrees: Cheeseburger, Hamburger
+- Wasabi: Bowls: Chicken Katsudon, Pork Katsudon; Bowls: Spicy Salmon Bowl, Spicy Tuna Bowl; Sushi: Alaskan Roll, California Roll, Paradise Roll, Rainbow Roll, Tiger Roll
+- Whitmore Café: Entrees: Crispy Chicken Sandwich, Crispy Chicken Wrap; Entrees: Crispy Chicken Wrap, Grilled Chicken Wrap; Entrees: Hummus Wrap, Veggie Wrap; Noodle Bowl: Beef Pho w/Spicy Green Curry Broth, Chicken Pho w/Spicy Green Curry Broth; Noodle Bowl: Beef Pho w/Vegetable Broth, Chicken Pho w/Vegetable Broth
+- Worcester: Desserts: Chocolate Soft Serve Ice Cream, Vanilla Soft Serve Ice Cream; Display Station: Carrots Sticks, Celery Sticks; Display Station: Chapati, Idli, Sambhar; Grill Station: Roasted Cauliflower, Roasted Zucchini; Hot: Chicken Tikki Masala w/Rice & Naan, Tofu Tikki Masala w/Rice & Naan; Latino 1: Bacon, Onions; Mediterranean: Arrabbiata Sauce, Marinara Sauce; Mediterranean: Fettuccini Pasta, Rigatoni Pasta; Mediterranean: Linguini Pasta, Orecchiette Pasta; Mediterranean: Marinara Sauce, Meatball Sauce; Mediterranean: Orecchiette Pasta, Rigatoni Pasta; Mediterranean: Penne Pasta, Rigatoni Pasta; Noodle Bowl: Butter, Corn, Scallions; Noodle Bowl: Corn, Cucumber, Scallions; Noodle Bowl: Onions, Scallions; Noodle Bowl: Peanuts, Scallions; Seasons: Avocado, Scallions; Seasons: Avocado, Carrots, Corn, Nori, Scallions, Sriracha; Seasons: Carrots, Corn, Nori, Scallions; Seasons: Chickpeas, Raisins; Seasons: Corn, Scallions; Seasons: Sesame Seeds, Sunflower Seeds; Sushi: Shrimp Sushi Roll, Vegetable Sushi Roll; Tandoor: Babaganoush, Tabouleh; Tandoor: Coriander Chutney, Tomato Chutney; Tandoor: Falafel, Hummus
+- Worcester Café: Beverages: Caramel Flavored Syrup, Coconut Flavored Syrup, Hazelnut Flavored Syrup, Raspberry Flavored Syrup, Vanilla Flavored Syrup; Beverages: Chocolate Milkshake, Strawberry Milkshake, Vanilla Milkshake; Beverages: Double Espresso, Single Espresso; Breakfast Pastries: Everything Bagel, Plain Bagel; Breakfast Pastries: Mini Butter Croissant, Mini Chocolate Croissant; Premium Sandwiches CPK: Turkey Multigrain Croissant, Turkey Pesto Croissant
+
+**The only size, or base, of it at this station** (17; the five bases are the lone "w/Coconut" dishes above):
+- Franklin, Soups: 8 oz Spicy Lentil & Veggie Soup (1 day)
+- Harvest Market, Hot Bar Items $11.50/LB: Yellow Cheddar Macaroni & Cheese (8 oz) (7 days)
+- Harvest Market, Soups: 12 oz Chana Masala Soup (2 days)
+- Roots Café, Entrees: Yellow Cheddar Macaroni & Cheese (8 oz) (14 days)
+- Worcester Café, Beverages: 20 oz Cold Brew (12 days)
+- Worcester Café, Beverages: 20 oz Iced Americano (12 days)
+- Worcester Café, Beverages: 20 oz Iced Caramel Macchiato (12 days)
+- Worcester Café, Beverages: 20 oz Iced Chai Latte (12 days)
+- Worcester Café, Beverages: 20 oz Iced Latte (12 days)
+- Worcester Café, Beverages: 20 oz Iced Matcha Latte (12 days)
+- Worcester Café, Beverages: 20 oz Iced Tea (12 days)
+- Worcester Café, Breakfast Pastries: 3 oz Cinnamon Raisin Bagel (12 days)
+
+### Design (as built; motion all existing)
+- **Data (`src.html`, after the dish table).** `variantOf(name)` reads a token; `famsAt(dishes, station)` makes a station's
+  families. They run once over all fifteen days into `FAM` (dish id → its family and its own entry). From that:
+  - Search's groups (`BYK`, `CBYK`) hold a family once, under the key `f:<name>`, with each variant's own refs. A member's own
+    group loses that place's ref, so a name that is a family at one café and a lone dish at another stays findable there;
+  - `SERV[f:<name>]` holds the default's servings, so "Later today and tomorrow", favourites and alerts can ask where a
+    family is served. Each variant keeps its own `SERV` entry, so a sheet's "where" is the picked variant's;
+  - `shown(dish)` is how a member reads ("Cappuccino, 20 oz"); `shownName(name)` does the same from a logged name alone.
+- **The row** (hall and café menus) is the family's first variant your preferences allow, at its first member's place. Its
+  name is the family's; its meta line leads with the token as its own group (`.vt`). `+` adds that variant; the stepper
+  counts it. A family row carries its members' ids (`data-vars`), so "where" and an alert's tap land on it whichever
+  member they name.
+- **Search.** A family matches on any member's name (`g.words`). `varFor` picks the variant the row stands for: the first
+  whose own name has every word typed, else the first your preferences allow. The row's meta leads with that token, and
+  its `+` adds that variant at every café serving it. "Later today and tomorrow" lists a family once, under its name.
+- **The picker** (`vpickHTML`) is a `role=radiogroup` of `.chip` buttons with `role=radio`, under the name in both the plain
+  sheet and the builder. The chosen chip uses the filter chip's selected look (tonal, with its check). Chips wrap, and a
+  long label wraps inside its chip.
+- **A pick** (`pickVar`) redraws the sheet in place. The chip's fill runs its own `settle` transition, everything after the
+  chips crossfades from .4 (`settle`), and the scroll position and the sheet's height stay. In a builder the new variant's
+  builder keeps the add-ins that it shares (all of them, since a family shares its station).
+- **The pho.** Its choices (hall broths, a café's phos) are chips. They are no longer `.brow` rows, and `stepPart` no longer
+  has a pick-one case. Round 11b's no-broth state is unchanged.
+- **The plate.** `addDish` gets `shown(dish)` as the item's name; a built member's name is `nameOf(bowl)`. A family
+  member opened from the plate has `DS.from`; its action is **Update** (`vupd`), which swaps the item's dish and refs,
+  keeping its quantity, or merges into a twin.
+- **The log** is unchanged: `snapItem` takes the dish's own feed name. History draws `shownName(it.n)`.
+- **Favourites and alerts.** The sheet's star is `favKey(dish)`, the family's key. `dishName` names a family by
+  `FAMNAME`. You → Favorites names it the same way. Its line uses `servedNow`, which for anything not on a hall's lunch now
+  reads the places serving it now from `wherePlan` (before round 12, a café favourite's row showed its normalized key and
+  "Not on lunch today").
+
+### Review passes (`build/r12/p1`, `p2`, `p3`: 390 left and 360 right at dpr 2, from `shots12.js`; contact sheets `sheet1.png` to `sheet5.png` in each)
+26 states: Worcester Café's list (top and scrolled), the Cappuccino sheet (16 oz, 20 oz with an add-in, scrolled to the
+label), Courtside Café, Procrastination Station, the Boba sheet (Almond, Oat, scrolled, tracking off on Soy), Hampshire's pho
+bar (none chosen, chosen with parts), Whitmore's and Star Ginger's pho builders, the plate, Update from the plate, a row after
+`+`, a logged meal, Search ("boba", "oat", "20 oz latte", "oatmeal", "chowder"), and You → Favorites.
+
+**Pass 1: 3 flaws.**
+1. Choosing a chip changed its width. The filter chip's check and its bolder text made a chip wider when chosen,
+   and the five milks wrap to two lines at both widths, so a choice could move a chip to the other line. The chosen chip
+   is now the tonal fill and edge alone, at the same weight; a test checks every chip's rect before and after a pick.
+2. The serving line sat 4 px under the chips (its own `margin-top` under the name). It is now 8 px, a part of the group.
+3. The shots scrolled to Beverages by setting `scrollTop`, so the station button still read "Desserts". The shots now use
+   the list's own `jump`. (A harness flaw, not the design's.)
+
+**Pass 2** (`p2`) confirmed the three. One more flaw: You → Favorites joined a family's places with "or" (the plate's
+`hallLabel`, which names where one plate can be logged). A favourite's places are all true at once, so they now join with
+"and"; hall favourites read as before.
+
+**Pass 3** (`p3`, the final build): clean at both widths.
+- At 360 a family row in Search wraps its token group to its own line when the numbers don't fit beside the lane ("Almond
+  Milk", then "180 cal 0.3g protein"). That is round 8's rule that meta groups wrap whole; the row is three lines, as a
+  long-named dish's is.
+- Star Ginger's nine phos are nine chips, one or two to a line, and the sheet opens tall (Open).
+
+### Tests (`test.js`, `round12`; `RED=12` runs it alone)
+- **Scenarios** (6):
+  - a size family at Worcester Café: one row per family, none per member; the row leads with "16 oz"; the sheet's chips;
+    20 oz changes the name and price without moving the sheet; a chosen add-in stays; on the plate as "Cappuccino, 20 oz"
+    with its add-in; logged as "20 oz Cappuccino";
+  - the boba family at Procrastination Station: one row, "Almond Milk" first; five chips; Oat changes the name, the label
+    and Contains, never moving or resizing a chip; the plate names it; the row still counts its default; logged as "Boba Oat
+    Milk" with its id and 262 cal; history reads "Boba, Oat Milk";
+  - the pho's broth: chips, none chosen, no broth rows, no heading, Add waiting; a chip names the bowl; one at a time; 288
+    with parts; reopened from the plate on its broth with Update; Whitmore's phos as chips, its add-ons under "Add-ons", a
+    chosen pho names the bowl, every chip inside the line;
+  - a family on the plate: `+` adds the default and the row counts it; reopened with Update; 20 oz and Update switch the
+    item; the row returns to `+`; a twin merges to 2;
+  - Search: "boba" is one row at three cafés; "oat" finds Boba standing for oat, and its `+` adds oat at the three cafés;
+    "cappuccino" one row; "20 oz latte" Latte at 20 oz; "oatmeal" lists Harvest Market's once beside Worcester's own;
+    the star is the family's across chips; the Favorites lens; `alertRun` posts "Boba" once; You → Favorites says "Boba";
+    tracking off keeps five chips and drops Add, and Oat changes the label;
+  - near-misses: Cold Brew, the iced drinks, the espressos and milkshakes keep rows; the add-on milks stay add-ins; the
+    Coconut and Yogurt smoothies are two rows each; the acai bowls are families; "1% Milk" is a dish; 52 families, 255
+    station-days, 322 station-meals.
+- **Red:** `RED=12 SRC=build/r12/before-index.html` (round 11b's build) gives all six RED (`build/r12/red-r12.txt`):
+  ```
+  RED    a size family: …: Cappuccino: one row, named for the family
+  RED    the boba family: …: one row, "Boba"
+  RED    the pho's broth is the same picker: …: the broths are the chips, none chosen:
+  RED    a family on the plate: …: locator.tap: Timeout 30000ms exceeded.
+  RED    a family in Search: …: "boba": one row, at three cafés
+  RED    near-misses stay rows: …: locator.tap: Timeout 30000ms exceeded.
+  ```
+- **Changed after the red run:** the row-meta helper joins the meta groups with spaces (the groups are adjacent spans);
+  two expected keys were written with `norm()` on the test's side, where it doesn't exist; the family count is three
+  numbers (families, station-days, station-meals) instead of one; the oatmeal check expects Worcester's own Hot Oatmeal
+  beside Harvest Market's family. Added after: the chip rects check (pass 1). Each scenario's red was already recorded.
+- **Older tests changed:** round 11b's pho scenario picks a broth, and a café's first pho, by its chip instead of its
+  add-in row, and "one broth at a time" counts chosen chips.
+- **Now:** `RED=12 node test.js` gives 6 green scenarios, 74 checks (after the frame-review fix below). `node test.js` gives 5,296 checks and `RM=1 node
+  test.js` gives 3,631, all green.
+
+### Vectors (`vectors.js` -> `vectors.json`; the shape is in its header)
+- `variants.families`: all 322 station-meals, each with its tokens, feed names and calories, default first.
+- `variants.nearMiss`: the 222 near-misses above, with reasons and day counts.
+- `variants.shown`: how ten feed names read (members, and non-members that keep their names).
+- `variants.search`: five queries' now rows: the family once, the variant the query picks, and the places.
+- `variants.alerts`: a starred family at 7:15 AM and 12:41 PM: one post, titled "Boba".
+- Everything from rounds 9 to 11b is unchanged.
+
+### Files
+- `CRITIQUE-r12.md`, `CONCEPT.md` (Round 12), `src.html`, `test.js`, `vectors.js`, `vectors.json`, `shots12.js`.
+- Shots: `build/r12/p1`, `p2`, `p3`; the baseline is `build/r12/before-index.html`. `build/` is under
+  `~/.cache/udine-scratch/flows/M2/` and isn't committed (every frame embeds a UMass photo).
+
+### Open (for the owner), answered 2026-10-16
+Round 12's six questions and the answers; "Round 12b" below is what was done.
+- **Courtside Café's smoothies come with Coconut or Yogurt** (seven pairs). Group them with a Coconut / Yogurt picker? *Yes; the
+  rule generalises to a base token.*
+- **"Maple Milk".** Keep the feed's word, or say "Mapleline"? *It is a maple flavour. The chip stays "Maple".*
+- **A row counts only its default.** The alternative is a row that follows the plate. *The row follows the plate.*
+- **Café phos are protein × broth.** Two pickers (protein, broth) instead of one wall of chips? *Two pickers.*
+- **Blank calories read as 0.** *They show "–".*
+- **A café's add-ons apply to every dish at that meal** (round 10's rule). *Unchanged.*
+
+### Round 12, orchestrator frame review of `p3`
+- **The defect.** At 360, a boba row put "Almond Milk" on a line of its own, with the numbers under it (`m-proc`, `s-boba`,
+  `s-oat`). It wasn't a stray break: the row's text column is 210 px at 360, because the control lane is kept as wide as
+  the stepper so that `+` → stepper never rewraps the name (`.row>.add{margin-left:66px}`). The token group (76 px), the
+  10 px group gap and the numbers group (132 px) came to 218 px, so round 8's whole-group wrap moved the numbers down. "16
+  oz" is 36 px, so sizes never wrapped.
+- **The fix.** The row's token is now the chip's own word ("Almond", "Oat", "16 oz"), the word the picker uses: 48 + 10 +
+  132 = 190 px. The sheet's name and the plate keep the full form ("Boba, Almond Milk"). The concept's row frame read
+  "Almond Milk"; this replaces it.
+- **Test** (red first, against the build before the fix: `RED … it stands for the first milk in the feed's order, in its
+  chip's word`): at 360, Procrastination Station's Boba row has its token and its calories on one line (their boxes overlap
+  vertically, and the token sits to the left). Search's "oat" row expects "Oat 262 cal".
+- **Shots:** `build/r12/p4` (`m-proc`, `s-boba`, `s-oat`, `s-oatmeal`, `z-wcafe`; `sheet.png`).
+- **Check counts.** The full suite read 5,390 checks at round 11b and reads 5,296 on the final run, though round 12 adds about 74 and
+  removes none. The difference is sampled frames, not coverage: round 7's motion checks assert per rendered frame, and the
+  count moves by hundreds between runs (round 12's builds gave 5,461, then 5,116 an hour later with only a CSS change between, then
+  5,296 after this fix). Reduced motion, which asserts no sampled frames, rose: 3,494 at round 11b, 3,631 now. No
+  scenario or assert was removed. Worcester Café and the soup cafés show fewer rows, since a family is one row, so a check
+  that walks every row there walks fewer duplicates.
+
+## Round 12b: the owner's answers (2026-10-16)
+
+Concept: `CONCEPT.md`, "Round 12b". The owner answered round 12's six open questions (above). Everything in round 12 not named
+here is unchanged.
+
+### Decisions
+**1. Smoothies (a base token).** `variantOf` reads a third axis, `base`: `(Coconut|Yogurt)` as the last word before "Smoothie"
+(family "<rest> Smoothie") or after a trailing `w/` (family "<rest>"). It is anchored on purpose: unanchored it would take
+"Coconut Mango Acai Bowl", "Coconut Flavored Syrup" and any "w/Coconut" dish with no twin. Where a base has no sibling it is
+a lone dish ("Green Beans w/Coconut", "Sauteed Cabbage w/Coconut": five near-misses, "the only base of it at this station").
+The diff of `nearMiss` against round 12 is exactly Courtside's seven sets out and those five in; decaf/regular, hot/iced,
+single/double espresso and the milkshake flavours are untouched. Chip words are "Coconut" and "Yogurt"; the sheet and the plate
+read "Banana Berry Smoothie, Coconut", "Matcha Strawberry, Yogurt"; the log keeps the feed name ("Matcha Strawberry w/Yogurt").
+
+**2. "Maple".** Kept. CONCEPT §1 and the Open list no longer carry the Mapleline note.
+
+**3. The row follows the plate.** Decided (CONCEPT "Round 12b, 3" has the frames):
+- *What counts as added:* a first add, a stepper `+` (row or plate), an Update. Each stamps the plate item (`it.at = ++SEQ`).
+  A `−` never stamps.
+- *What the row shows with two variants on the plate:* the one with the highest stamp, with its token, numbers, scores and diet
+  mark; it counts that variant's own quantity (not the family's sum). The other variant is on the plate only.
+- *The fallback:* when the variant leaves the plate, the highest stamp among the family variants still on it; with none, the
+  default (the first your preferences allow). `standing(vars, find, ok)` in `src.html` is the one function; hall and café menu rows
+  (`renderMenuList`) and Search (`varFor`) both call it, and `restand(row)` swaps a row in place when the plate changes
+  (`refreshLists`).
+- *Built variants:* a variant made with add-ins is a bowl item (`bowl:` key), which `findItem` for the plain dish does not see;
+  it is not the row's (round 10's rule), and the row neither follows nor counts it. Only plain adds are.
+- *Search:* what is typed narrows first (the variants whose names fit every typed word), then the plate's latest among them,
+  else the first. So "soy" gives Soy with oat on the plate; "boba" gives oat.
+- *Preferences:* a variant your preferences hide is never the one a row stands for.
+- *Tapping the row* opens the sheet on the variant it stands for; Add reads "Add another" when that variant is on the plate.
+- The row never moves in the list or changes height; its content crossfades from .4 (`settle`, existing).
+
+**4. Café phos: two pickers.** `phoAxes(ds)` reads `<protein> Pho w/<broth> Broth` over the station's dishes and returns the
+axes only for a complete grid of at least 2 x 2 (Star Ginger 3 x 3 on 12 station-meals, Whitmore 3 x 2 on 7; Star Ginger's two
+ramen days keep one picker of whole dishes). Decided:
+- *Two groups, protein then broth,* under the name, no heading; chips are the feed's words with the noun ("Beef Pho", "Spicy
+  Green Curry Broth") so "Chicken" is never in both groups.
+- *Add waits until both are chosen,* it does not default (round 11b's rule for a broth). Neither or one chosen: the name is the
+  station's, the foot sums the add-ons so far, Add is disabled.
+- *A logged bowl is the feed's pho,* named as the feed names it ("Beef Pho w/Vegetable Broth") on the sheet, the plate, the log,
+  history and an export; nothing is composed from the two tokens.
+- *Either chip re-resolves the pho* (the add-ons stay chosen; foot, label, Contains and ratings follow).
+- *Update from the plate* reopens with both chips chosen (read from the pho) and Add reading Update; changing a chip and Update
+  replaces the item with the new pho, keeping its quantity and add-ons, and merges into a twin (the bowl rule, unchanged
+  `badd` edit path).
+- A hall pho bar (broths only) is unchanged.
+
+**5. Blank calories.** `build.py` stores `None` when the feed's `calories` is blank (9 records: 20 oz Chai, 20 oz Iced Chai Latte,
+20 oz Iced Tea, Add Crispy Chicken, Fountain Drink); the 31 records the feed gives as 0 stay 0. `fc(null)` draws "–", so the row
+meta, the label's Calories, plate rows and meal rows all read "–". Totals are the sum of what is known: `totals(plate)` and
+a bowl's foot are `null` ("–") only when every contributor is unknown. `snapItem` keeps `cal: null` in the log and the export
+writes `null`. Health's `energyKcal` added unknowns as 0 until round 12c, which leaves an unknown field out.
+
+**6. Add-ons at every dish of a meal (round 10).** Unchanged.
+
+### Tests (`round12`, now 11 scenarios; `RED=12 node test.js`)
+Red first, against `build/r12/before-r12b-index.html` (round 12 as it stood, built from the merged tree before any edit), saved as
+`build/r12/red-r12b.txt`:
+```
+RED    the boba family: …: the row follows the plate: it stands for the oat just added (owner, 2026-10-16)
+RED    the pho's broth is the same picker: …: Whitmore: three proteins and two broths
+RED    a family on the plate: …: the row follows the plate: it stands for the 20 oz now on it
+RED    Courtside's smoothies are families: …: Banana Berry Smoothie: one row, named for the family
+RED    a family row follows the plate: …: oat added: the row stands for oat
+RED    a family row follows the plate: an Update counts as added, a built variant is its own item, Search lets what you typed win: Update makes the item the 20 oz, and the row follows
+RED    café phos have two pickers: …: Star Ginger: three proteins, then three broths, none chosen
+RED    blank calories draw "–", not 0; a real 0 stays 0; the plate and the bar leave an unknown out: blank calories: the row says –
+RED    near-misses stay rows: …: Coconut and Yogurt smoothies are one drink each (owner, 2026-10-16)
+```
+- New scenarios (5): the smoothie families (seven rows, base chips, the feed item underneath, Worcester's syrup and Newman's
+  decaf/regular untouched); the row following the plate (add, add another, stepper on the row, stepper on the plate, removal
+  falling back, back to the default); an Update counting, a built variant not counting, Search's typed word beating the plate;
+  the two phos pickers (Star Ginger's chips, Add waiting for both, the feed's name, Update re-resolving, the ramen days keeping one
+  picker); blank calories ("–" on the row, plate row, bar and label; a recorded 0 stays 0; a known item makes the total; the log's null).
+- Changed (5): round 12's "the row counts its default only" (boba) and "the row is back to +" (plate) now assert the row follows;
+  the smoothies are no longer "two drinks"; the counts are 59 families, 325 station-days, 392 station-meals; Whitmore's chips are
+  five (three proteins, two broths); round 11b's pho scenario picks a protein and a broth.
+- **Now:** `RED=12 node test.js` gives 11 green scenarios, 134 checks. `node test.js` gives 5,207 checks and `RM=1 node test.js` gives 3,667, all green (the full count moves by hundreds between runs: round 7's motion checks assert per sampled frame; see the round 12 note above).
+
+### Vectors
+- `variants.families`: 392 station-meals (a new axis, `base`), `variants.nearMiss`: 220, `variants.shown`: five more names.
+- `variants.follow`: Procrastination Station's Boba through add Oat, add Soy, Oat up, Oat down to removal, Soy down to removal:
+  what the row stands for and counts after each op.
+- `variants.phos`: the two café pho grids (axes, chips, each protein x broth with its feed dish and calories).
+- `plate`: two sequences with blank calories (only "20 oz Chai": `totals.cal` is null; beside "16 oz Chai": 211).
+- `search`: regenerated. #584 (main) recorded Search before round 12's families; the rows that were family members are now
+  `cafe-dish:f:<family>` (a soup's two sizes, a smoothie's two bases).
+
+### Files
+`CONCEPT.md` (Round 12b), `src.html`, `build.py`, `test.js`, `vectors.js`, `vectors.json`, `shots12.js`. Shots: `build/r12/p4`,
+files named `r-*`, contact sheets `r12b-sheet1.png` to `r12b-sheet4.png` (390 left, 360 right).
+
+### Review passes
+20 states at 390 and 360 (dpr 2), `build/r12/p4/r-*`, sheets `r12b-sheet1.png` to `r12b-sheet4.png`, every frame looked at. No flaws found.
+- 360 wrap: Courtside's list wraps "Passionate Pineapple Smoothie" and "The Green Monster Smoothie" to two lines, the token and the numbers still one line
+  beside the stepper-wide lane; "Banana Berry Smoothie, Yogurt" and "Matcha Strawberry, Yogurt" wrap to two lines in the sheet's
+  name with the chips under them; Procrastination Station's Boba row (Almond, Oat, Soy) keeps token and calories on one line at 360 with the stepper.
+- The row follows: Almond with `+`, then Oat with a stepper of 1, then Soy with a stepper of 1 and the plate at 2 items; after Soy's
+  `−` twice the row is back on Oat; Worcester Café's Cappuccino row reads "20 oz 0 cal" with its stepper after a 20 oz is added; Search
+  "boba" with oat on the plate reads "Oat 262 cal" with its stepper and "3 cafés".
+- Phos: Star Ginger's two groups (three and three) wrap to four lines of chips at both widths and every chip fits; picked, the name wraps to
+  two lines over the chips; Update from the plate shows both chosen and the foot "Update".
+- "–": the Chai row ("20 oz – cal"), the bar ("– cal"), the plate row ("– cal each"), the label's Calories, and the lone "20 oz
+  Iced Chai Latte" / "20 oz Iced Tea" rows beside a recorded "0 cal" ("20 oz Iced Latte").
+- Seen, not changed: "0g protein" beside "– cal" (Open).
+
+### Open (for the owner)
+None from this round; round 12c settled the earlier five (below).
+
+## Round 12c: the coordinator's review of 12b (2026-10-17)
+Concept: `CONCEPT.md`, "Round 12c". Each of the 12b open questions was answered:
+- **Protein, carbs and fat.** Blank is `None` in `build.py` and "–" everywhere it is drawn: row meta (`fg()`), the foot, the bar, the
+  plate's totals, the label. `tally()` sums what is known and gives null only when every item is unknown (plate, meal, day, bowl).
+  The log keeps null; the export writes null; "Full label" on the plate shows "–" when no item knows any nutrient.
+- **Blank-calorie add-ons** are offered: the `cal>0` filter of the builders now lets `cal==null` through ("Add Crispy Chicken").
+- **Health.** `healthRecord` leaves an unknown field out (no `energyKcal`, `proteinG`, `carbsG`, `fatG` key). For the Flutter build:
+  write only the fields that are known, never 0. M2 only simulates the store.
+- **The two pho groups** are separated by `.vpick+.vpick{margin-top:24px}`.
+- **Decided, unchanged:** the row does not follow built variants; an incomplete protein x broth grid falls back to one picker.
+
+### Tests (`round12`, still 11 scenarios; `RED=12 node test.js`)
+Red first against `build/r12/before-r12c-index.html` (12b as pushed), `build/r12/red-r12c.txt`:
+```
+RED    café phos have two pickers: …: 390: the groups sit a section gap (24 px, the add-ons heading's) apart, not a chip gap
+RED    blank calories draw "–", not 0; …: blank calories and protein: the row says – for both (round 12c)
+```
+The blank scenario also now asserts the bar's protein, the plate's four totals, `[null,null,null]` in the log, a Health record without
+the unknown fields and "Add Crispy Chicken" offered with "–". Those asserts come after the first red, so the same two checks on the
+12b build (a `healthRecord` call and a look at the Whitmore builder's parts) gave `energyKcal, proteinG, carbsG, fatG` written and
+the add-on missing.
+- **Older test changed:** round 10's "add-ons with no nutrition are left out" (Green Fields' Fountain Drink, blank calories) now expects it offered with "–".
+- **Now:** `RED=12 node test.js` gives 11 green scenarios, 141 checks; `node test.js` gives 5,397 checks and `RM=1 node test.js` 3,743, all green.
+- Vectors: plate totals are null for each unknown (`blank calories (20 oz Chai)`: all four null; beside "16 oz Chai": 211, 0, 52.7, 0).
+  Nothing else in `vectors.json` changed.
+
+### Review passes
+`build/r12/p5`, sheets `r12c-sheet1.png` to `r12c-sheet2.png`: nine states at 390 and 360, every frame looked at.
+- The two pho groups read as two blocks at both widths (Star Ginger's 3 + 3 and Whitmore's 3 + 2), the broth group starting a section gap
+  below the proteins; no flaw at 360.
+- "Add Crispy Chicken – cal $4.25" shows under Whitmore's Add-ons. A side effect of the same filter: "Fountain Drink – cal $1.50" is
+  now offered at Star Ginger and Green Fields (blank calories, as the add-on).
+- "20 oz – cal – protein" on the row, the bar and the foot read "– cal – protein"; the plate's Calories, Protein, Carbs and Fat boxes read "–";
+  the label's every nutrient was already "–".
+
+## Round 12d: a Fountain Drink at every dining commons (owner, 2026-10-17)
+Concept: `CONCEPT.md`, "Round 12d".
+- **Data (`build.py`).** `FOUNTAIN` is one extra record through `dish()` (1 each, blank nutrients), appended to each hall's non-Grab
+  meals as a last station `['Beverages', [FOUNTAIN]]`. The feed's café "Fountain Drink" has a price and a health score; the hall's has
+  neither (halls draw no price). Day 3 (Oct 10) stays empty everywhere.
+- **`ALWAYS(d)`** in `src.html` (`k === 'fountain drink'`) leaves the star out of its sheet: nothing is favouritable, so no alert.
+- **Decisions:** the station sits last; Grab 'N Go has none; Search lists it when typed (hall row and café row) and not idle; no star.
+- **Test** (`round12`, now 12 scenarios): every hall and meal has Beverages last with one row; Grab 'N Go none; the row's "– cal –
+  protein"; its sheet (no star, Calories "–"); on the plate "–", "–"; logged `["Fountain Drink",1,null,null]`; Search finds both rows;
+  idle Search doesn't. Red against round 12c's build (`build/r12/red-fountain.txt`): "W breakfast: Beverages is the last station, with one
+  row", then "Search finds it when typed".
+- **Vectors:** top-level `fountain` (the record and the station-days per hall and meal); `scores` +1.
+- **Closed (owner, 2026-10-17, revised):** no diet marks (it is a drink, not food), and no diet preference hides it: `dietOK(d)` returns true for `ALWAYS(d)`. (An earlier pass marked it Vegetarian and Plant based; the marks are removed.) Test: no `.tg` on its row; Vegetarian + Plant based + Halal on, the row is still there.
+
