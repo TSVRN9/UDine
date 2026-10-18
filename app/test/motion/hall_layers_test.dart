@@ -2,6 +2,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/screens/hall/hall_menu.dart';
+import 'package:udine/ui/ui.dart' show Photos, Photo;
 import '../fonts.dart';
 import '../screens/support.dart';
 
@@ -19,9 +20,10 @@ int offscreenLayers(Layer root) {
 
 void main() {
   drift();
+  photoLayer();
   setUpAll(loadFonts);
 
-  testWidgets('a hall opening from its band keeps offscreen layers few at p of 0.15, 0.5 and 0.85', (t) async {
+  testWidgets('a hall opening from its band keeps offscreen layers few at p of 0.15, 0.3, 0.5 and 0.85', (t) async {
     await openApp(t, await bootRecorded(t));
     await t.pump();
     await t.tap(find.text('Worcester'));
@@ -30,19 +32,34 @@ void main() {
     await t.pump(const Duration(milliseconds: 16));
     final counts = <double, int>{};
     double p() => t.widget<HallMenu>(find.byType(HallMenu)).progress.value;
-    for (final want in [0.15, 0.5, 0.85]) {
+    for (final want in [0.15, 0.3, 0.5, 0.85]) {
       var guard = 0;
       while (p() < want && guard++ < 100) {
         await t.pump(const Duration(milliseconds: 8));
       }
       counts[want] = offscreenLayers(t.binding.renderViews.first.debugLayer!);
     }
+    // M2 R13 §4: at most 3 a frame while it runs. The photo's duotone is the third (see the Photo test below; the page draws none here, so
+    // the budget left for everything else is 2: the back button's fade and the busy board's).
     for (final n in counts.values) {
-      expect(n, lessThanOrEqualTo(4), reason: 'offscreen layers by p: $counts');
+      expect(n, lessThanOrEqualTo(2), reason: 'offscreen layers by p: $counts');
     }
     await t.pump(const Duration(seconds: 1));
     await drain(t);
   });
+}
+
+/// The photo is one offscreen layer however far it has developed: the colour image under it is drawn plainly (opaque, never faded), the
+/// duotone over it is the one ColorFilter layer (M2 R13: the ground never thins), and nothing else is composited.
+void photoLayer() {
+  for (final duo in [0.0, 0.3, 0.5, 0.9, 1.0]) {
+    testWidgets('a Photo at duotone $duo adds one offscreen layer', (t) async {
+      Photos.enabled = true;
+      addTearDown(() => Photos.enabled = false);
+      await t.pumpWidget(Directionality(textDirection: TextDirection.ltr, child: SizedBox(width: 390, height: 200, child: Photo(path: 'assets/photos/none.jpg', duo: AlwaysStoppedAnimation(duo)))));
+      expect(offscreenLayers(t.binding.renderViews.first.debugLayer!), 1);
+    });
+  }
 }
 
 void drift() {
