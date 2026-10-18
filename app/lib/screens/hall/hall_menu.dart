@@ -539,7 +539,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
         Positioned.fill(
           child: AnimatedBuilder(
             animation: Listenable.merge([p, _arrive, _dayFade, _flash]),
-            builder: (_, c) => Opacity(
+            builder: (_, c) => ChalkFade(
               key: const ValueKey('fade-list'), opacity: (incomingOpacity(p.value) * _arrive.value * _dayFade.value * _flash.value).clamp(0.0, 1.0),
               child: Transform.scale(
                 key: const ValueKey('day-scale'), alignment: Alignment(0, (_pin + (h - _pin) / 2) / h * 2 - 1),
@@ -669,4 +669,20 @@ class _FadeProduct extends Animation<double> with AnimationLocalListenersMixin, 
     day.removeListener(notifyListeners);
     arrive.removeListener(notifyListeners);
   }
+}
+
+/// `opacity` of `child` over the chalk ground, drawn as a chalk veil of the remaining alpha over it instead of an `Opacity`: the same
+/// pixels (the screen's ground is chalk), without compositing the whole scroll view into an offscreen texture on every frame of the
+/// container transform.
+class ChalkFade extends StatelessWidget {
+  const ChalkFade({super.key, required this.opacity, required this.child});
+  final double opacity;
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => opacity >= 1
+      ? child
+      : Stack(fit: StackFit.passthrough, children: [
+          child,
+          if (opacity > 0) Positioned.fill(child: IgnorePointer(child: ColoredBox(color: M2Color.chalk.withValues(alpha: 1 - opacity)))) else Positioned.fill(child: IgnorePointer(child: ColoredBox(color: M2Color.chalk))),
+        ]);
 }

@@ -56,7 +56,8 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.text('Hampshire'));
     await t.pump();
-    await t.pump(const Duration(milliseconds: 16));
+    await t.pump(const Duration(milliseconds: 16)); // the page's first frame
+    await t.pump(const Duration(milliseconds: 16)); // the tick the curve starts on
     await t.pump(const Duration(milliseconds: 200));
     await expectLater(find.byType(UdineApp), matchesGoldenFile('../goldens/halls_xf_mid_390.png'));
     await until(t, () => find.byType(DishRow).evaluate().isNotEmpty);

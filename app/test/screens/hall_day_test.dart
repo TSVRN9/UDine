@@ -107,7 +107,7 @@ void main() {
       await openHall(t, await bootRecorded(t), '/hall/worcester?meal=lunch');
       await openSchedule(t);
       final y0 = t.getTopLeft(find.byType(SheetGrab)).dy, h = t.view.physicalSize.height / t.view.devicePixelRatio;
-      double o() => t.widget<Opacity>(find.byKey(const ValueKey('fade-list'))).opacity;
+      double o() => t.widget<ChalkFade>(find.byKey(const ValueKey('fade-list'))).opacity;
       await t.tap(option('Saturday, October 17'));
       double? yAtFade;
       for (var i = 0; i < 80 && yAtFade == null; i++) {
@@ -186,7 +186,7 @@ void main() {
     for (final reduced in [false, true]) {
       testWidgets('fades through${reduced ? ' (reduced motion: opacity only, over rmFade)' : ': out in place, linear, over the first 35%; in from .97 on fadeThrough'}', (t) async {
         await openHall(t, await bootRecorded(t), '/hall/worcester?meal=lunch', reduced: reduced);
-        double o() => t.widget<Opacity>(find.byKey(const ValueKey('fade-list'))).opacity;
+        double o() => t.widget<ChalkFade>(find.byKey(const ValueKey('fade-list'))).opacity;
         double scale() => t.widget<Transform>(find.byKey(const ValueKey('day-scale'))).transform.storage[0];
         final f = M2Motion.fadeThrough, out = f.duration * M2Motion.sharedXAt, inn = f.duration - out;
         final run = menu(t).changeDay(9);
@@ -260,7 +260,7 @@ void main() {
 
     testWidgets('revealing flashes the list from .4 over settle, as M2 does', (t) async {
       await openHall(t, await bootRecorded(t, avoid: const ['Milk', 'Eggs']), '/hall/worcester?meal=lunch');
-      double o() => t.widget<Opacity>(find.byKey(const ValueKey('fade-list'))).opacity;
+      double o() => t.widget<ChalkFade>(find.byKey(const ValueKey('fade-list'))).opacity;
       await t.tap(words('Show all'));
       await t.pump();
       expect(o(), closeTo(0.4, 0.02));

@@ -9,10 +9,12 @@ class ListRow extends StatelessWidget {
   final InlineSpan name;
   final Widget? meta;
   final Widget? control;
+  /// Set on the meta line's right edge, outside the line's own width and its excluded semantics (Search's hall tiles, which hang under the control)
+  final Widget? metaEnd;
   final VoidCallback? onTap;
   final bool here;
   final String label;
-  const ListRow({super.key, required this.name, this.meta, this.control, this.onTap, this.here = false, required this.label});
+  const ListRow({super.key, required this.name, this.meta, this.control, this.metaEnd, this.onTap, this.here = false, required this.label});
   @override
   Widget build(BuildContext context) => Press(
         overlay: M2Color.pressRow, onTap: onTap, label: label,
@@ -23,12 +25,14 @@ class ListRow extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.rowPadTop, M2Layout.rowPadRight, M2Layout.rowPadTop),
             child: Row(children: [
               Expanded(
-                child: ExcludeSemantics(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text.rich(name, style: M2Text.rowName.style(M2Color.ink)),
-                    if (meta != null) Padding(padding: const EdgeInsets.only(top: M2Layout.rowMetaTop), child: meta),
-                  ]),
-                ),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  ExcludeSemantics(child: Text.rich(name, style: M2Text.rowName.style(M2Color.ink))),
+                  if (meta != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: M2Layout.rowMetaTop),
+                      child: metaEnd == null ? ExcludeSemantics(child: meta) : Row(children: [Expanded(child: ExcludeSemantics(child: meta)), metaEnd!]),
+                    ),
+                ]),
               ),
               if (control != null) ...[const SizedBox(width: M2Layout.rowGap), control!],
             ]),

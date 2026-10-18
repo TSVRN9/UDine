@@ -26,6 +26,8 @@ class HallsScreen extends StatefulWidget {
 }
 
 class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStateMixin {
+  // ponytail: per repository (one per boot), not persisted; a second kind of late data in one session would need its own key
+  static final _faded = Expando<Set<String>>();
   final _scroll = ScrollController();
   // M2 `fillBands(true)`: what arrives late (hours after a slow load or a retry, busy) fades in over `settle`; what was cached is simply there
   late final _arrive = AnimationController(vsync: this, value: 1);
@@ -85,7 +87,11 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
 
   void _onData() {
     final hk = _hoursIn, lk = _liveIn;
-    if (((hk && !_hk && _c!.sawLoading) || (lk && !_lk)) && mounted) {
+    // Late data fades in the first time it arrives. Halls is built anew each time its tab is returned to, and what is already known then
+    // is simply there (the repository's saved hours and reads land a few frames after the names, which is not news).
+    final seen = _faded[AppScope.of(context).repo] ??= {};
+    final hoursNews = hk && !_hk && seen.add('hours') && _c!.sawLoading, liveNews = lk && !_lk && seen.add('live');
+    if ((hoursNews || liveNews) && mounted) {
       final a = resolveAnim(context, M2Motion.settle);
       _arrive.value = 0;
       _arrive.animateTo(1, duration: a.duration, curve: a.curve);

@@ -4,12 +4,14 @@ import 'press.dart';
 
 /// M2's `.lgrad`: the deep-maroon left grade a band's text sits on.
 class BandGrade extends StatelessWidget {
-  const BandGrade({super.key});
+  /// A gradient fades by scaling its colours' alpha, which is the same pixels as an `Opacity` over it without an offscreen layer.
+  final double opacity;
+  const BandGrade({super.key, this.opacity = 1});
   @override
   Widget build(BuildContext context) => IgnorePointer(
         child: DecoratedBox(
           position: DecorationPosition.background,
-          decoration: BoxDecoration(gradient: LinearGradient(colors: M2Gradient.band.colors, stops: M2Gradient.band.stops)),
+          decoration: BoxDecoration(gradient: LinearGradient(colors: [for (final c in M2Gradient.band.colors) c.withValues(alpha: c.a * opacity)], stops: M2Gradient.band.stops)),
           child: const SizedBox.expand(),
         ),
       );

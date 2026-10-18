@@ -243,6 +243,55 @@ void main() {
     expect(h.hider.hides('band-Base'), isFalse);
   });
 
+  // Motion fixes Task 1: the band is drawn on every frame the card is gone, so a close never shows a hole where the band was.
+  Future<void> expectNoHole(WidgetTester tester, Harness h, {required Future<void> Function() close}) async {
+    double bandOpacity() => tester.widget<Opacity>(find.ancestor(of: find.text('band Base', skipOffstage: false), matching: find.byType(Opacity, skipOffstage: false)).first).opacity;
+    await h.tapBand('Base');
+    expect(bandOpacity(), 0);
+    await close();
+    var frames = 0;
+    for (var i = 0; i < 80; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      frames++;
+      final cardGone = find.text('C1', skipOffstage: false).evaluate().isEmpty;
+      if (cardGone) expect(bandOpacity(), 1, reason: 'frame $i: the card is gone and the band is still hidden');
+    }
+    expect(find.text('C1', skipOffstage: false), findsNothing);
+    expect(frames, 80);
+  }
+
+  testWidgets('no hole on close: the band is drawn on every frame the card is gone (back button)', (tester) async {
+    final h = Harness(tester);
+    await h.boot();
+    await expectNoHole(tester, h, close: () async => h.nav.maybePop());
+  });
+
+  testWidgets('no hole on close: the band is drawn on every frame the card is gone (committed swipe)', (tester) async {
+    final h = Harness(tester);
+    await h.boot();
+    await expectNoHole(tester, h, close: () async {
+      final g = await tester.startGesture(const Offset(5, 400));
+      await g.moveBy(const Offset(30, 0));
+      await g.moveBy(const Offset(270, 0));
+      await g.up();
+    });
+  });
+
+  testWidgets('a cancelled swipe keeps the band hidden under the card', (tester) async {
+    final h = Harness(tester);
+    await h.boot();
+    await h.tapBand('Base');
+    final g = await tester.startGesture(const Offset(5, 400));
+    await g.moveBy(const Offset(30, 0));
+    await g.moveBy(const Offset(20, 0));
+    await g.up();
+    for (var i = 0; i < 60; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(h.hider.hides('band-Base'), isTrue);
+    }
+    expect(find.text('C1'), findsOneWidget);
+  });
+
   testWidgets('a band tap during a close is taken: the same band opens again, and the first card going does not show it', (tester) async {
     final h = Harness(tester);
     await h.boot();
@@ -266,6 +315,7 @@ void main() {
     await tester.tap(find.byKey(const Key('band-Base')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 16));
+    await tester.pump(const Duration(milliseconds: 16)); // (the tick after it, where the curve starts)
     await tester.pump(const Duration(milliseconds: 120));
     final at = h.p;
     expect(at, inExclusiveRange(0.2, 0.95));
@@ -288,9 +338,12 @@ void main() {
     await h.boot();
     await tester.tap(find.byKey(const Key('band-Base')));
     await tester.pump(); // the frame that builds the page
-    await tester.pump(const Duration(milliseconds: 200)); // ... took 200 ms
-    expect(h.p, lessThan(0.1));
-    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pump(const Duration(milliseconds: 16)); // the first frame that draws it ...
+    await tester.pump(const Duration(milliseconds: 200)); // ... rasterised for 200 ms, so the next tick is late
+    expect(h.p, 0, reason: 'the first visible frames are p of 0, the late tick does not jump the curve');
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(h.p, inExclusiveRange(0.0, 1.0));
+    await tester.pump(const Duration(milliseconds: 150));
     expect(h.p, inExclusiveRange(0.3, 0.99));
     await tester.pumpAndSettle();
     expect(h.p, 1.0);
@@ -319,6 +372,7 @@ void main() {
       await tester.tap(find.byKey(const Key('push-Base')));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 16)); // (the clock starts once the page's first frame is drawn)
+      await tester.pump(const Duration(milliseconds: 16)); // (the tick after it, where the curve starts)
       await tester.pump(const Duration(milliseconds: 60));
       expect(tester.getTopLeft(find.text('P1')).dx, 0);
       final fade = tester.widget<Opacity>(find.ancestor(of: find.text('P1'), matching: find.byType(Opacity)).first).opacity;
