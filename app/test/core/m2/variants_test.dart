@@ -169,7 +169,7 @@ void main() {
       final at = DateTime.parse('2026-10-08T${_clock24(w['clock'])}:00-04:00');
       final a = whereAnswer(board, 'f:$family', at);
       // (round 13: the server's push is at about 7 AM, so a run outside 7:00 to 7:59 posts nothing)
-      final posted = at.hour != 7 || a.isEmpty || a.first.day != 0
+      final posted = !_clock24(w['clock']).startsWith('07') || a.isEmpty || a.first.day != 0
           ? []
           : [[familiesOf(board).names['f:$family'], '${whenText(a.first)}${a.first.st == 'now' ? ',' : ''} at ${andList([for (final h in a.first.halls) name[h]!])}']];
       expect(posted, w['posted'], reason: w['clock']);

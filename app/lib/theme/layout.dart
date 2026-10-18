@@ -186,6 +186,7 @@ abstract final class M2Layout {
   static const checkMarkW = 10.0, checkMarkH = 5.0, checkMarkStroke = 2.0, checkMarkRight = 2.0, checkMarkLift = 3.0; // `.chip[aria-pressed=true]::before`
   // round 12 (`.vpick .chip`): a variant picker wraps its chips 8 apart and 8 under the name; a chip is 44 or more with 10 x 14 padding and wraps
   // its text at 1.25; a second group starts a section gap (`.vpick+.vpick`) below
+  static const tokenDrop = 2.0; // `.vt`: a family row's token on the figures' baseline
   static const vpickGap = 8.0, vpickGroupGap = 24.0, vpickPadY = 10.0, vpickLine = 1.25;
   static const areaHeadTop = 16.0, areaHeadBottom = 6.0; // `.ahd` padding 16 0 6
   static const thumbW = 64.0, thumbH = 34.0, thumbGap = 12.0; // `.thumb`, `.lrow .lt`

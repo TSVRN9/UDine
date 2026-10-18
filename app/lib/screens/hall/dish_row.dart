@@ -69,7 +69,8 @@ class DishRow extends StatelessWidget {
       spacing: tail != null ? M2Layout.laterGapX : M2Layout.metaGapX, runSpacing: M2Layout.metaGapY, crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         if (contains.isNotEmpty) Text('Contains ${andList(contains.map((a) => a.toLowerCase()).toList())}', style: M2Text.meta.style(M2Color.vm).copyWith(fontWeight: FontWeight.w600)),
-        if (chip != null) Text(chip!, style: M2Text.meta.style(M2Color.slate)),
+        // (`.vt` shares the line's baseline with the Oswald figures, which sits below the line's centre)
+        if (chip != null) Transform.translate(offset: const Offset(0, M2Layout.tokenDrop), child: Text(chip!, style: M2Text.meta.style(M2Color.slate))),
         CalProtein(cal: d.nutrition.calories, protein: d.nutrition.proteinG),
         if (sc != null)
           // `.row .m .sc{margin-block:-1px}`: a 22.5 tile rides in the 22 line without growing it
