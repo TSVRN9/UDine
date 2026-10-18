@@ -4,6 +4,8 @@
 #   scripts/pr-gate.sh                  # current branch vs origin/main
 #   scripts/pr-gate.sh --base <branch>  # current branch vs origin/<branch> (a stacked PR-to-be)
 #   scripts/pr-gate.sh <pr>             # that PR's head vs the PR's own base branch (also checks the PR body template)
+#   scripts/pr-gate.sh <pr> --merge     # ...and, when the suite reads the diff, its pass on the merged tree (app/tool/test.sh --merged)
+#   scripts/pr-gate.sh <pr> --fields    # only the PR body's template fields (the hook after `gh pr edit`)
 #
 # Every rule here used to be prose in docs/agents/dev-tracks.md that a dispatch prompt
 # could waive. Now it can't: hooks run this before `gh pr create` and `gh pr merge`.
@@ -11,9 +13,11 @@ set -uo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
-PR=""; BASE_BRANCH="main"
+PR=""; BASE_BRANCH="main"; MERGE=0; FIELDS=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --merge) MERGE=1; shift ;;
+    --fields) FIELDS=1; shift ;;
     --base) BASE_BRANCH="${2:-}"; shift; shift || true ;;
     --base=*) BASE_BRANCH="${1#--base=}"; shift ;;
     *) PR="$1"; shift ;;
@@ -21,6 +25,16 @@ while [[ $# -gt 0 ]]; do
 done
 FAIL=0
 fail() { echo "FAIL  $*"; FAIL=1; }
+body_fields() {
+  local body; body="$(gh pr view "$PR" --json body --jq .body)"
+  for field in 'Brief:' 'Screenshots:' 'Red:' 'Lanes:' 'Residency:'; do
+    grep -q "^$field" <<<"$body" || fail "PR body missing '$field' (see .github/PULL_REQUEST_TEMPLATE.md)"
+  done
+}
+if [[ $FIELDS -eq 1 ]]; then
+  [[ -n "$PR" ]] || { echo "--fields needs a PR number"; exit 1; }
+  body_fields; [[ $FAIL -eq 0 ]] && echo "PR body fields ok"; exit $FAIL
+fi
 warn() { echo "WARN  $*"; }
 info() { echo "info  $*"; }
 
@@ -65,7 +79,7 @@ touched '^(mobile|shared)/'    && echo "  cd mobile && npx tsc --noEmit && TZ=Am
 if touched '^mobile/src/app/' || git diff --name-only --diff-filter=A "$BASE" "$HEAD_REF" | grep -q '^mobile/src/'; then
   echo "  cd mobile && npx expo export --platform android --output-dir /tmp/udine-export   # bundle lane (#435)"
 fi
-touched '^app/'                && echo "  cd app && flutter analyze && flutter test --concurrency=2"
+touched '^app/'                && echo "  cd app && flutter analyze && tool/test.sh <the test dirs the diff touches> test/core/m2   # full suite: app/tool/test.sh --merged <pr>, before merge"
 touched '^supabase/functions/' && echo "  deno test --node-modules-dir=none --allow-env --allow-read=shared/vectors supabase/functions"
 touched '^supabase/(migrations|tests)/' && echo "  supabase start && supabase test db"
 
@@ -96,8 +110,13 @@ done
 if [[ ${#RENDERED[@]} -gt 0 ]]; then
   echo "Rendered output changed:"; printf '  %s\n' "${RENDERED[@]}"
 
-  # screenshots: any PNG in the diff under docs/pr-review-media, or in this branch's dir
-  mapfile -t PNGS < <( { printf '%s\n' "${FILES[@]}" | grep -E '^docs/pr-review-media/.*\.png$'; ls docs/pr-review-media/"$SLUG"/*.png 2>/dev/null; } | sort -u)
+  # screenshots: the PNGs the PR body names; failing that, any PNG in the diff under docs/pr-review-media or in this branch's
+  # dir. Composites and crops made from captures go in a derived/ subdir and need no sidecar.
+  NAMED=""
+  [[ -n "$PR" ]] && NAMED="$(gh pr view "$PR" --json body --jq .body | grep -oE 'docs/pr-review-media/[^ )`"]+\.png' | sort -u || true)"
+  if [[ -n "$NAMED" ]]; then mapfile -t PNGS <<<"$NAMED"; else
+    mapfile -t PNGS < <( { printf '%s\n' "${FILES[@]}" | grep -E '^docs/pr-review-media/.*\.png$'; ls docs/pr-review-media/"$SLUG"/*.png 2>/dev/null; } | grep -v '/derived/' | sort -u)
+  fi
   if [[ ${#PNGS[@]} -eq 0 ]]; then
     fail "no screenshot: run mobile/scripts/screenshot.sh (or app/tool/screenshot.sh for app/) <route> (it writes docs/pr-review-media/$SLUG/) and commit the PNG + .json"
   else
@@ -109,9 +128,7 @@ if [[ ${#RENDERED[@]} -gt 0 ]]; then
     # merging PR #475 from an unrelated branch: every sidecar FAILed as "missing" even though all
     # three existed, committed, in the PR itself. `git show`/`git cat-file` read the object store
     # directly and don't care what's checked out locally.
-    PIXEL_PATHS=(app/lib app/assets app/pubspec.yaml app/pubspec.lock app/android/app/src/main/res app/ios/Runner
-      mobile/src mobile/assets mobile/app.json mobile/plugins shared/src
-      ':(exclude)*_test.dart' ':(exclude)*.test.ts' ':(exclude)*.test.tsx')
+    mapfile -t PIXEL_PATHS < scripts/pixel-paths
     # ...and only the ones this PR itself changes: code a merge of the base brings in was captured by its own PR
     # (and, per capture, the ones it had changed when captured, so a file it later deletes or reverts still counts)
     mapfile -d '' -t OWN < <(git diff -z --name-only "$BASE" "$HEAD_REF" -- "${PIXEL_PATHS[@]}")
@@ -126,6 +143,22 @@ if [[ ${#RENDERED[@]} -gt 0 ]]; then
       if [[ -z "$side_content" ]]; then fail "$png: no sidecar $side (re-capture with the current screenshot.sh)"; continue; fi
       sha="$(jq -r .sha <<<"$side_content")"; dirty="$(jq -r .dirty <<<"$side_content")"
       if [[ "$dirty" == "true" ]]; then fail "$png: captured with uncommitted changes -- commit, then re-capture"; continue; fi
+      # A sidecar with blobs (app/tool/screenshot.sh since 2026-10-18) is fresh while every pixel path this PR changes, now or
+      # when captured, still has the blob it was captured with: a rebase or a merge of the base that leaves them alone keeps it.
+      if [[ "$(jq -r 'has("blobs")' <<<"$side_content")" == true ]]; then
+        stale=""
+        while read -r f; do
+          [[ -z "$f" ]] && continue
+          now="$(git rev-parse -q --verify "$HEAD_REF:$f" 2>/dev/null || echo deleted)"
+          [[ "$now" == "$(jq -r --arg f "$f" '.blobs[$f] // "absent"' <<<"$side_content")" ]] || stale+=" $f"
+        done < <({ printf '%s\n' "${OWN[@]}"; jq -r '.blobs | keys[]' <<<"$side_content"; } | sort -u)
+        if [[ -n "$stale" ]]; then
+          fail "$png: changed since capture:$stale -- app/tool/recapture.sh${PR:+ $PR}"
+        else
+          info "$png  ok (blobs match, route $(jq -r .route <<<"$side_content"), device $(jq -r .device <<<"$side_content"))"
+        fi
+        continue
+      fi
       if ! git merge-base --is-ancestor "$sha" "$HEAD_REF" 2>/dev/null; then fail "$png: captured at $sha, not an ancestor of $HEAD_REF"; continue; fi
       # Only paths that can change pixels make a capture stale; test, doc and script commits don't (owner, 2026-10-15).
       mapfile -d '' -t then_own < <(git diff -z --name-only "$(git merge-base "origin/$BASE_BRANCH" "$sha")" "$sha" -- "${PIXEL_PATHS[@]}")
@@ -165,11 +198,17 @@ else
 fi
 
 # --- PR body template ----------------------------------------------------------------
-if [[ -n "$PR" ]]; then
-  body="$(gh pr view "$PR" --json body --jq .body)"
-  for field in 'Brief:' 'Screenshots:' 'Red:' 'Lanes:' 'Residency:'; do
-    grep -q "^$field" <<<"$body" || fail "PR body missing '$field' (see .github/PULL_REQUEST_TEMPLATE.md)"
-  done
+[[ -n "$PR" ]] && body_fields
+
+# --- the suite on the merged tree (merge only) ------------------------------------------
+# The one full run a PR gets is on the tree the merge makes (author and reviewer run only what the diff touches). The stamp is
+# keyed on that tree's app/ and the vectors/fixtures the tests read, so it goes stale exactly when the merge result would change.
+if [[ $MERGE -eq 1 && -n "$PR" ]] && touched '^app/|^shared/vectors/|^docs/design/explorations/2026-10-ui-overhaul/flows/'; then
+  if key="$(scripts/suite-key.sh "$PR" 2>&1)"; then
+    stamp="$HOME/.cache/udine-scratch/suite-pass/${key#* }"
+    if [[ -f "$stamp" ]]; then info "merged-tree suite: $(head -1 "$stamp")"
+    else fail "no full-suite pass on the tree this merge makes -- app/tool/test.sh --merged $PR (~35 min; run it in the background)"; fi
+  else fail "$key"; fi
 fi
 
 echo
