@@ -91,8 +91,9 @@ class _DishSheetState extends State<DishSheet> {
   @override
   void initState() {
     super.initState();
-    // the sheet slides in first; "where it is served" (every hall's and café's menus) starts once it has settled
-    _whereTimer = Timer(M2Motion.cont.duration, widget.book.start);
+    // the sheet slides in first; "where it is served" (every hall's and café's menus) loads only while the sheet rests: after the slide,
+    // and again after the halls' answer has moved it
+    _whereTimer = Timer(M2Motion.cont.duration, () => widget.book.start(settled: () => widget.handle.settled));
   }
 
   @override

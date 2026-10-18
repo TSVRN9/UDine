@@ -157,4 +157,29 @@ void whereTiming() {
     expect(book.started, isTrue);
     await drain(t);
   });
+
+  testWidgets('SheetHandle.settled resolves only once the sheet has stopped moving', (t) async {
+    await openHall(t, await bootRecorded(t), base);
+    await t.tap(find.byType(DishRow).first, warnIfMissed: false);
+    await t.pump(const Duration(milliseconds: 16));
+    final sheet = t.widget<DishSheet>(find.byType(DishSheet));
+    var done = false;
+    sheet.handle.settled.then((_) => done = true);
+    var last = sheet.handle.px, moving = 0, restAt = -1;
+    for (var i = 0; i < 120 && restAt < 0; i++) {
+      await t.pump(const Duration(milliseconds: 16));
+      final px = sheet.handle.px;
+      if ((px - last).abs() > 0.5) {
+        moving++;
+        expect(done, isFalse, reason: 'frame $i: settled resolved while the sheet was still moving');
+      } else if (done) {
+        restAt = i;
+      }
+      last = px;
+    }
+    expect(moving, greaterThan(5), reason: 'the sheet slid in over several frames');
+    expect(restAt, greaterThan(0), reason: 'settled resolved once the sheet rested');
+    await sheetUp(t); // (the where timer and both loads run out before the tree goes)
+    await drain(t);
+  });
 }

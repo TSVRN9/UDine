@@ -2,6 +2,7 @@ import 'dart:async' show scheduleMicrotask;
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
+import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter/widgets.dart';
 import '../theme/tokens.dart';
 import 'haptics.dart';
@@ -33,6 +34,21 @@ class SheetHandle {
   bool get closing => _s?._closing ?? false;
   /// Springs to a height in dp (a detent).
   void to(double px, {double v0 = 0}) => _s?._springTo(px, v0: v0);
+  /// Resolves once the sheet is at rest: every frame already asked for has drawn (a rebuild's post-frame measure may start a
+  /// spring), and no spring is running. Work that loads the UI isolate waits on this, so it never delays a frame that moves.
+  // ponytail: an endless animation anywhere on screen would hold this forever; cap the wait if one ever shares a screen with a sheet.
+  Future<void> get settled async {
+    final b = SchedulerBinding.instance;
+    while (true) {
+      if (b.hasScheduledFrame) {
+        await b.endOfFrame;
+      } else if (_s?._spring.running ?? false) {
+        await _s!._spring.done;
+      } else {
+        return;
+      }
+    }
+  }
 
   /// Android's predictive back: the sheet lowers by the gesture's distance from where it was, then closes (to its lowest height) or
   /// springs back up as Android decides.

@@ -1,3 +1,5 @@
+import 'dart:async' show Completer;
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/scheduler.dart';
@@ -35,6 +37,9 @@ class Spring {
   Ticker? _ticker;
   double x = 0, v = 0;
   bool get running => _ticker?.isActive ?? false;
+  Completer<void>? _done;
+  /// Resolves when the run under way ends (at once if none is).
+  Future<void> get done => running ? (_done ??= Completer<void>()).future : Future.value();
 
   static final description = SpringDescription.withDampingRatio(mass: 1, stiffness: M2Motion.springSheetK, ratio: M2Motion.springSheetZ);
   static const _tolerance = Tolerance(distance: 0.3, velocity: 10); // M2: stop within .3 px at under 10 px/s
@@ -69,6 +74,8 @@ class Spring {
   void stop() {
     _ticker?.dispose();
     _ticker = null;
+    _done?.complete();
+    _done = null;
   }
 
   void dispose() => stop();
