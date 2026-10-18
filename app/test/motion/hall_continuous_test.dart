@@ -2,7 +2,6 @@
 // at every p, the header's are where the card drew them at p 0 and on the straight line to where the header draws them in between,
 // and only what the header adds (the chevron, "Calmer around") crossfades on top.
 import 'dart:math' as math;
-import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/motion/travel.dart';
