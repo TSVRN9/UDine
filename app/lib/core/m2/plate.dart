@@ -14,8 +14,11 @@ class PlateItem {
 
   /// a saved food (Your foods, a packaged hit, a lookup): what Log writes is its own source and full nutrition; `custom` holds its macros
   final SavedFood? food;
-  const PlateItem(this.key, this.name, this.qty, this.refs, this.custom, [this.bowl, this.food]);
-  PlateItem withQty(double q) => PlateItem(key, name, q, refs, custom, bowl, food);
+
+  /// M2's `it.at`: when it was last touched upward (added, stepped up, updated); a family's row follows the latest. A higher number is later.
+  final int at;
+  const PlateItem(this.key, this.name, this.qty, this.refs, this.custom, [this.bowl, this.food, this.at = 0]);
+  PlateItem withQty(double q, [int? at]) => PlateItem(key, name, q, refs, custom, bowl, food, at ?? this.at);
 }
 
 class Plate {
@@ -43,6 +46,9 @@ List<String>? plateHalls(Plate p) {
   }
   return s;
 }
+
+/// The stamp the next upward touch takes: later than every item on any plate.
+int _stamp(Iterable<Plate> ps) => 1 + ps.expand((p) => p.items).fold(0, (a, it) => it.at > a ? it.at : a);
 
 bool _canJoin(Plate p, String meal, List<String>? hs) {
   if (p.meal != meal) return false;
@@ -74,13 +80,13 @@ PlateState addDish(PlateState s, String meal, String name, Map<String, MenuItem>
     plates = [...plates, Plate(nextId++, meal, const [])];
     idx = plates.length - 1;
   }
-  final pl = plates[idx], at = pl.items.indexWhere((x) => x.key == key);
+  final pl = plates[idx], at = pl.items.indexWhere((x) => x.key == key), stamp = _stamp(plates);
   final items = at < 0
-      ? [...pl.items, PlateItem(key, name, 1, {...refs}, custom, bowl, food)]
+      ? [...pl.items, PlateItem(key, name, 1, {...refs}, custom, bowl, food, stamp)]
       : [
           for (var i = 0; i < pl.items.length; i++)
             if (i != at) pl.items[i] else PlateItem(key, pl.items[i].name, pl.items[i].qty == 0.5 ? 1 : pl.items[i].qty + 1,
-                custom != null ? pl.items[i].refs : {for (final e in pl.items[i].refs.entries) if (refs.containsKey(e.key)) e.key: e.value}, pl.items[i].custom, pl.items[i].bowl, pl.items[i].food),
+                custom != null ? pl.items[i].refs : {for (final e in pl.items[i].refs.entries) if (refs.containsKey(e.key)) e.key: e.value}, pl.items[i].custom, pl.items[i].bowl, pl.items[i].food, stamp),
         ];
   return PlateState([for (var i = 0; i < plates.length; i++) i == idx ? Plate(pl.id, pl.meal, items) : plates[i]], idx, nextId);
 }
@@ -97,12 +103,30 @@ PlateState updateBowl(PlateState s, int plateId, String oldKey, Bowl bowl, BowlS
   if (pi < 0) return s;
   final pl = s.plates[pi], at = pl.items.indexWhere((x) => x.key == oldKey);
   if (at < 0) return s;
-  final it = pl.items[at], twin = pl.items.indexWhere((x) => x.key == bowl.key && x != it);
+  final it = pl.items[at], twin = pl.items.indexWhere((x) => x.key == bowl.key && x != it), stamp = _stamp(s.plates);
   final items = <PlateItem>[
     for (var i = 0; i < pl.items.length; i++)
       if (i == at && twin >= 0) ...const <PlateItem>[]
-      else if (i == at) PlateItem(bowl.key, bowl.name, it.qty, {place: bowl.item}, null, PlateBowl(bowl, spec))
-      else if (i == twin) pl.items[i].withQty(pl.items[i].qty + it.qty)
+      else if (i == at) PlateItem(bowl.key, bowl.name, it.qty, {place: bowl.item}, null, PlateBowl(bowl, spec), null, stamp)
+      else if (i == twin) pl.items[i].withQty(pl.items[i].qty + it.qty, stamp)
+      else pl.items[i],
+  ];
+  return PlateState([for (var i = 0; i < s.plates.length; i++) i == pi ? Plate(pl.id, pl.meal, items) : s.plates[i]], s.front, s.nextId);
+}
+
+/// M2 `vupd`: a plain dish's Update to another variant of its family. The item becomes that variant where it is, with its servings; a twin
+/// already on the plate takes those servings instead. Either way it is the latest touched.
+PlateState updateDish(PlateState s, int plateId, String oldKey, String name, String key, Map<String, MenuItem> refs) {
+  final pi = s.plates.indexWhere((p) => p.id == plateId);
+  if (pi < 0) return s;
+  final pl = s.plates[pi], at = pl.items.indexWhere((x) => x.key == oldKey);
+  if (at < 0) return s;
+  final it = pl.items[at], twin = pl.items.indexWhere((x) => x.key == key && x != it), stamp = _stamp(s.plates);
+  final items = <PlateItem>[
+    for (var i = 0; i < pl.items.length; i++)
+      if (i == at && twin >= 0) ...const <PlateItem>[]
+      else if (i == at) PlateItem(key, name, it.qty, {...refs}, null, null, null, stamp)
+      else if (i == twin) pl.items[i].withQty(pl.items[i].qty + it.qty, stamp)
       else pl.items[i],
   ];
   return PlateState([for (var i = 0; i < s.plates.length; i++) i == pi ? Plate(pl.id, pl.meal, items) : s.plates[i]], s.front, s.nextId);
@@ -116,7 +140,7 @@ PlateState stepItem(PlateState s, int plateId, String key, int dir) {
   if (at < 0) return s;
   final it = pl.items[at];
   final qty = dir > 0 ? (it.qty == 0.5 ? 1.0 : it.qty + 1) : it.qty > 1 ? it.qty - 1 : it.qty == 1 ? 0.5 : 0.0;
-  final items = [for (var i = 0; i < pl.items.length; i++) if (i != at) pl.items[i] else if (qty != 0) it.withQty(qty)];
+  final items = [for (var i = 0; i < pl.items.length; i++) if (i != at) pl.items[i] else if (qty != 0) it.withQty(qty, dir > 0 ? _stamp(s.plates) : null)];
   if (items.isNotEmpty) return PlateState([for (var i = 0; i < s.plates.length; i++) i == pi ? Plate(pl.id, pl.meal, items) : s.plates[i]], s.front, s.nextId);
   final plates = [...s.plates]..removeAt(pi);
   return PlateState(plates, s.front.clamp(0, plates.isEmpty ? 0 : plates.length - 1), s.nextId);
