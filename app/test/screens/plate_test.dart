@@ -7,6 +7,7 @@ import 'package:udine/data/recorded/flags.dart' show NetMode;
 import 'package:udine/screens/halls/halls_screen.dart';
 import 'package:udine/core/m2/board.dart' show dishKey, servingOn;
 import 'package:udine/core/types.dart';
+import 'package:udine/data/states.dart' show Loaded;
 import 'package:udine/screens/dish/dish_sheet.dart';
 import 'package:udine/screens/dish/full_label.dart';
 import 'package:udine/screens/hall/dish_row.dart';
@@ -158,6 +159,25 @@ void main() {
       await t.pumpAndSettle();
       expect(plateHandle(t).px, M2Layout.barMin);
       expect(find.byType(HallsScreen), findsOneWidget);
+      await drain(t);
+    });
+
+    testWidgets('00:40: a where-served tap from the plate opens the calendar day\'s breakfast on board day 1', (t) async {
+      final b = await bootRecorded(t, at: DateTime.parse('2026-10-09T00:40:00-04:00'));
+      await openHall(t, b, dishRoute('Chinese Twist Cruller', meal: 'breakfast'));
+      await sheetUp(t);
+      t.widget<DishSheet>(find.byType(DishSheet)).handle.close();
+      await t.pumpAndSettle();
+      final s = await t.runAsync(() => b.repo.menu(1, '2026-10-08').firstWhere((s) => s is Loaded<List<MenuItem>>));
+      final d = (s! as Loaded<List<MenuItem>>).value.firstWhere((d) => d.mealPeriod.name == 'breakfast' && dishKey(d.dishName) == dishKey('Chinese Twist Cruller'));
+      b.plate.add('breakfast', 'Chinese Twist Cruller', {'W': d});
+      await t.pumpAndSettle();
+      await t.tap(inBar(find.textContaining(RegExp(r'items?$'))));
+      await t.pumpAndSettle();
+      await t.tap(find.descendant(of: find.byType(PlateRow), matching: find.text('Chinese Twist Cruller')));
+      await sheetUp(t);
+      await tapChip(t, 'Worcester');
+      expect(top(t).debugDay, 1);
       await drain(t);
     });
 

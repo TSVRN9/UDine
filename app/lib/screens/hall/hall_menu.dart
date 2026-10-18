@@ -14,7 +14,7 @@ import '../../data/repository.dart' show resolveCafeMenu;
 import '../cafes/cafe_body.dart';
 import '../cafes/pdf_rows.dart';
 import '../cafes/cafes_model.dart' show NoMenuBody, cafeBody;
-import '../../core/m2/where.dart' show WhereGroup;
+import '../../core/m2/where.dart' show WhereGroup, boardDay;
 import '../../motion/container_math.dart';
 import '../../motion/container_transform.dart';
 import '../../shell/app_scope.dart';
@@ -230,10 +230,11 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
   /// if your preferences hide it); any other pushes that place at that day and meal, already at the dish.
   void _serve(MenuItem d, String p, WhereGroup g) {
     if (!mounted) return;
-    if (p == place && g.day == _day) {
+    final day = boardDay(fx, g);
+    if (p == place && day == _day) {
       _bring(d.key, meal: g.meal);
     } else {
-      ShellScope.of(context).openPlace(p, meal: g.meal, day: g.day, dish: d.key);
+      ShellScope.of(context).openPlace(p, meal: g.meal, day: day, dish: d.key);
     }
   }
 
