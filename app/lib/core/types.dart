@@ -114,7 +114,7 @@ class NutritionFacts {
         proteinDv: _dv(j, 'proteinDv'),
       );
 
-  /// What the log and the export write: [toJson] with the four tracked figures null when unknown (M2 R12c). [toJson] itself stays the
+  /// What anything the device keeps or exports writes (log rows and parts, saved and custom foods): [toJson] with the four tracked figures null when unknown (M2 R12c). [toJson] itself stays the
   /// TS contract's (a blank is 0 there; shared/vectors).
   Map<String, dynamic> toLogJson() => {
         ...toJson(),
@@ -242,7 +242,7 @@ class LogPart {
         nutrition: NutritionFacts.fromJson(j['nutrition'] as Map<String, dynamic>),
       );
 
-  Map<String, dynamic> toJson() => {'name': name, 'servings': jsonNum(servings), 'nutrition': nutrition.toJson()};
+  Map<String, dynamic> toJson() => {'name': name, 'servings': jsonNum(servings), 'nutrition': nutrition.toLogJson()};
 }
 
 class UmassMenuSource extends LogSource {
@@ -323,7 +323,7 @@ class CustomFood {
         'id': id,
         'name': name,
         'servingSize': servingSize,
-        'nutrition': nutrition.toJson(),
+        'nutrition': nutrition.toLogJson(),
         if (ingredients != null) 'ingredients': ingredients,
       };
 }

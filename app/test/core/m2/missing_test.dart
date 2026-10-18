@@ -1,4 +1,6 @@
 // M2 R12c: a nutrient the feed leaves blank is unknown ("–"), never 0: parsed, summed, logged, exported.
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/core/export.dart';
 import 'package:udine/core/foodpro.dart';
@@ -8,6 +10,7 @@ import 'package:udine/core/m2/history.dart';
 import 'package:udine/core/m2/log.dart';
 import 'package:udine/core/m2/plate.dart';
 import 'package:udine/core/m2/plate_label.dart';
+import 'package:udine/core/packaged_food.dart';
 import 'package:udine/core/types.dart';
 import 'package:udine/ui/label_model.dart';
 import 'support.dart';
@@ -64,6 +67,32 @@ void main() {
     expect(RegExp(r'"calories": null').hasMatch(json), isTrue);
     expect(RegExp(r'"proteinG": null').hasMatch(json), isTrue);
     expect(exportEntriesAsCsv([e]).split('\n').last, endsWith('"2","","","",""'));
+  });
+
+  test('a logged bowl\'s unknown add-on part exports null; a part stored as 0 reads back 0', () {
+    final e = LogEntry(
+      id: 'a', loggedAt: '2026-10-08T12:41:00.000', servings: 1, nutrition: unknown(cal: false),
+      source: UmassMenuSource(dishName: 'Bowl', hallTid: 1, parts: [LogPart(name: 'Add Crispy Chicken', servings: 1, nutrition: unknown())]),
+    );
+    final out = jsonDecode(exportEntriesAsJson([e])) as List;
+    final n = (((out.single as Map)['source'] as Map)['parts'] as List).single['nutrition'] as Map;
+    expect([n['calories'], n['proteinG'], n['totalCarbG'], n['totalFatG']], [null, null, null, null]);
+    final back = LogEntry.fromJson(jsonDecode(jsonEncode(e.toJson())) as Map<String, dynamic>);
+    expect((back.source as UmassMenuSource).parts!.single.nutrition.blank, contains('calories'));
+    final legacy = LogPart.fromJson({'name': 'x', 'servings': 1, 'nutrition': {...unknown().toJson(), 'calories': 0, 'proteinG': 0, 'totalCarbG': 0, 'totalFatG': 0}});
+    expect(legacy.nutrition.blank, isEmpty);
+    expect(legacy.nutrition.calories, 0);
+  });
+
+  test('a saved custom food and a saved packaged food with a blank figure round-trip as unknown and export null', () {
+    final c = CustomFood(id: 'c', name: 'Chili', servingSize: '1 serving', nutrition: unknown(cal: false));
+    final cj = jsonDecode(exportCustomFoodsAsJson([c])) as List;
+    expect(((cj.single as Map)['nutrition'] as Map)['proteinG'], isNull);
+    expect(CustomFood.fromJson(jsonDecode(jsonEncode(c.toJson())) as Map<String, dynamic>).nutrition.blank, containsAll(['proteinG', 'totalCarbG', 'totalFatG']));
+    final p = PackagedFood(source: const OffSource(barcode: '1', productName: 'Bar'), productName: 'Bar', nutrition: unknown());
+    final pj = jsonDecode(exportSavedFoodsAsJson([p])) as List;
+    expect(((pj.single as Map)['nutrition'] as Map)['calories'], isNull);
+    expect(PackagedFood.fromJson(jsonDecode(jsonEncode(p.toJson())) as Map<String, dynamic>).nutrition.blank, containsAll(['calories', 'proteinG']));
   });
 
   test('a day or meal of only unknowns is null; beside a known item it is the known sum', () {
