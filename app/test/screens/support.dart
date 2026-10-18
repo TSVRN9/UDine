@@ -45,7 +45,9 @@ Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? a
     if (avoid.isNotEmpty) await store.setAvoid(avoid);
     if (onlyShow.isNotEmpty) await store.setOnlyShow(onlyShow);
     // the recorded PDFs are UMass's and never in the repo: a test's are synthetic, and its pages are drawn by [pages]
-    final repo = await recordedRepository(RecordedFlags(at: at ?? lunch, net: net, savedCafes: savedCafes), db.db, read: read ?? readRecorded, slow: slow, pins: pins, readPdf: (_) async => pdfsLinked ? utf8.encode('%PDF-1.4\n%synthetic\n') : throw 'not linked', pdfDir: Directory.systemTemp.createTempSync('udine-test-pdf'));
+    final pdfDir = Directory.systemTemp.createTempSync('udine-test-pdf');
+    addTearDown(() => pdfDir.deleteSync(recursive: true));
+    final repo = await recordedRepository(RecordedFlags(at: at ?? lunch, net: net, savedCafes: savedCafes), db.db, read: read ?? readRecorded, slow: slow, pins: pins, readPdf: (_) async => pdfsLinked ? utf8.encode('%PDF-1.4\n%synthetic\n') : throw 'not linked', pdfDir: pdfDir);
     final flags = RecordedFlags(at: at ?? lunch, net: net, lookup: lookup, packFail: packFail);
     final r = await recordedPackaged(flags, read: read ?? readRecorded, wrap: count == null ? null : (inner) => count..inner = inner);
     await store.setAlertsOn(alertsOn);
