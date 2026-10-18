@@ -1,3 +1,4 @@
+import 'dart:ui' show Rect;
 import '../theme/tokens.dart';
 
 class VRect {
@@ -15,8 +16,18 @@ double _clamp(double x) => x < 0 ? 0 : x > 1 ? 1 : x;
 VRect rectAt(VRect from, VRect to, double p) =>
     VRect(from.top + (to.top - from.top) * p, from.height + (to.height - from.height) * p);
 
-double outgoingOpacity(double p) => 1 - _clamp(p / M2Motion.contFade);
-double incomingOpacity(double p) => _clamp((p - M2Motion.contFade) / (1 - M2Motion.contFade));
+/// M2 R13 `fin`: what the card has no counterpart for (back, tabs, list, the chevron and "Calmer around" a shared element adds)
+/// fades in over one window, .2 to .8, and out over the same going back, so at no p is the card hollow.
+double incomingOpacity(double p) => _clamp((p - M2Motion.contInFrom) / M2Motion.contInSpan);
+
+/// A shared element's transform at `p` (M2 `tr()`): it is drawn at `lerp(card, header) - header` from its final place, about its
+/// top-left, at full opacity. `scale` is the letter and the title (laid out once at the header's size, scaled by the card's width over
+/// the header's, so no font size is ever animated); a status line or a meter only moves.
+({double dx, double dy, double k}) sharedAt(Rect card, Rect header, double p, {bool scale = false}) => (
+      dx: (card.left - header.left) * (1 - p),
+      dy: (card.top - header.top) * (1 - p),
+      k: scale ? card.width / header.width + (1 - card.width / header.width) * p : 1,
+    );
 
 enum Settle { open, closed }
 

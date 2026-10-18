@@ -610,8 +610,10 @@ abstract final class M2Motion {
   static const settle = Anim(200, Cubic(0.2, 0.0, 0.0, 1.0));
   /// MO.cont
   static const cont = Anim(500, emphasized);
-  /// paint: fout = 1 - clamp(p/.3)
-  static const contFade = 0.3;
+  /// paint: fin = clamp((p - .2) / .6) (round 13)
+  static const contInFrom = 0.2;
+  /// paint: fin = clamp((p - .2) / .6) (round 13)
+  static const contInSpan = 0.6;
   /// MO.contBack
   static const contBack = Anim(400, emphasized);
   /// MO.fadeThrough

@@ -1,3 +1,4 @@
+import 'dart:ui' show Rect;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/motion/container_math.dart';
 import 'package:udine/theme/tokens.dart';
@@ -22,20 +23,24 @@ void main() {
     });
   });
 
-  group('content fades', () {
-    test('outgoing is gone by the early-fade fraction, incoming starts there', () {
-      expect(outgoingOpacity(0), 1);
-      expect(outgoingOpacity(M2Motion.contFade), 0);
-      expect(outgoingOpacity(1), 0);
-      expect(incomingOpacity(0), 0);
-      expect(incomingOpacity(M2Motion.contFade), 0);
-      expect(incomingOpacity(1), 1);
-      expect(incomingOpacity(0.65), closeTo(0.5, 1e-9));
+  group('content fades (M2 R13 paint(): fin = clamp((p - .2) / .6))', () {
+    test('what has no counterpart on the card is fully in by .8 and fully out below .2: one overlapped window, no hollow', () {
+      expect([0.0, 0.1, 0.2, 0.5, 0.8, 1.0].map(incomingOpacity).toList(), [0, 0, 0, closeTo(0.5, 1e-9), 1, 1]);
     });
-    test('the split is M2 paint(): fout = 1 - clamp(p/.3), fin = clamp((p-.3)/.7)', () {
-      expect([0.0, 0.15, 0.3, 0.65, 1.0].map(outgoingOpacity).toList(), [1, closeTo(0.5, 1e-9), 0, 0, 0]);
-      expect([0.0, 0.15, 0.3, 0.65, 1.0].map(incomingOpacity).toList(), [0, 0, 0, closeTo(0.5, 1e-9), 1]);
+  });
+
+  group('sharedAt (M2 paint() tr(): the element draws at lerp(card, header) - header)', () {
+    const card = Rect.fromLTWH(30, 120, 80, 40), header = Rect.fromLTWH(20, 70, 160, 80);
+    test('is the card exactly at p 0 and the header exactly at p 1', () {
+      final s = sharedAt(card, header, 0, scale: true), e = sharedAt(card, header, 1, scale: true);
+      expect([s.dx, s.dy, s.k], [10, 50, 0.5]);
+      expect([e.dx, e.dy, e.k], [0, 0, 1]);
     });
+    test('is on the straight line between them in between, and never faded', () {
+      final m = sharedAt(card, header, 0.3, scale: true);
+      expect([m.dx, m.dy, m.k], [closeTo(7, 1e-9), closeTo(35, 1e-9), closeTo(0.65, 1e-9)]);
+    });
+    test('a status line or meter moves and keeps its size', () => expect(sharedAt(card, header, 0.3).k, 1));
   });
 
   group('settleTarget (M2: close below commit or on a flick)', () {

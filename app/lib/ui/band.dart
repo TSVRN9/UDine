@@ -17,9 +17,18 @@ class BandGrade extends StatelessWidget {
       );
 }
 
+/// The parts of a band that a hall's header draws again, by key: the card's copy of each shared element, which the header reads to
+/// carry it (`Travel`). `letter` and `meter` go on the caller's own widgets; `name` and `status` are the band's texts.
+class BandParts {
+  BandParts({this.hasLetter = true, this.hasStatus = true, this.hasMeter = true});
+  final letter = GlobalKey(), name = GlobalKey(), status = GlobalKey(), meter = GlobalKey();
+  /// which of them the card drew: what it did not draw has nothing to travel from, and fades in with the page instead (M2 `sh && sh.k ? 1 : fin`)
+  final bool hasLetter, hasStatus, hasMeter;
+}
+
 /// A hall band (112) or pinned café (84, `compact`): photo slot, M2's left grade, name and status. `letter` is a slot (see
-/// HallLetter). `ghost` is the band's copy drawn over the screen it opens into: no ground, no margin, no touches, and its grade is
-/// the caller's (M2 fades the grade with `1 - p`, the copy's text and letter with the early fade).
+/// HallLetter). `ghost` is the band's copy laid out, never painted, in the page it opens into, so the page can read where the card
+/// drew each part (`parts`); the page's own elements travel from there.
 class Band extends StatelessWidget {
   final String name;
   final String? status;
@@ -28,9 +37,10 @@ class Band extends StatelessWidget {
   /// Search's hall card: a band at 76 dp, with no letter, its status and busy meter on one line
   final bool card;
   final VoidCallback? onTap;
+  final BandParts? parts;
   /// the status and busy fade in on this when they arrive late (a slow load or a retry)
   final Animation<double>? fade;
-  const Band({super.key, required this.name, this.status, this.busy, this.photo, this.letter, this.compact = false, this.card = false, this.ghost = false, this.onTap, this.fade});
+  const Band({super.key, required this.name, this.status, this.busy, this.photo, this.letter, this.compact = false, this.card = false, this.ghost = false, this.onTap, this.fade, this.parts});
 
   @override
   Widget build(BuildContext context) {
@@ -47,13 +57,13 @@ class Band extends StatelessWidget {
           Positioned(
             left: M2Space.gutter, top: card ? M2Layout.cardTextTop : compact ? M2Space.pinTextTop : M2Space.bandTextTop,
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(name, style: (small ? M2Text.pinName : M2Text.bandName).style(M2Color.white)),
+              Text(name, key: parts?.name, style: (small ? M2Text.pinName : M2Text.bandName).style(M2Color.white)),
               if (card) ...[
                 if ((status != null && status!.isNotEmpty) || busy != null)
                   Padding(
                     padding: const EdgeInsets.only(top: M2Layout.statusGapPin),
                     child: late(Row(mainAxisSize: MainAxisSize.min, children: [
-                      if (status != null && status!.isNotEmpty) Text(status!, style: M2Text.statusSm.style(M2Color.onDmSoft)),
+                      if (status != null && status!.isNotEmpty) Text(status!, key: parts?.status, style: M2Text.statusSm.style(M2Color.onDmSoft)),
                       if (status != null && status!.isNotEmpty && busy != null) const SizedBox(width: M2Layout.cardMeterGap),
                       ?busy,
                     ])),
@@ -62,7 +72,7 @@ class Band extends StatelessWidget {
                 if (status != null && status!.isNotEmpty)
                   Padding(
                     padding: EdgeInsets.only(top: compact ? M2Layout.statusGapPin : M2Layout.statusGapBand),
-                    child: late(Text(status!, style: (compact ? M2Text.statusSm : M2Text.status).style(M2Color.onDmSoft))),
+                    child: late(Text(status!, key: parts?.status, style: (compact ? M2Text.statusSm : M2Text.status).style(M2Color.onDmSoft))),
                   ),
                 if (busy != null) late(busy!),
               ],
