@@ -150,6 +150,28 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .bt{position:absolute;left:20px;top:16px}
 .bt .nm,.mt .nm{font:600 32px/1 Oswald,sans-serif;transform-origin:0 100%}
 .bt .st,.mt .st{font-size:15px;margin-top:7px;color:rgba(255,255,255,.86)}
+.bstar{color:var(--gold);font:400 22px/1 system-ui,sans-serif;margin-left:8px;vertical-align:3px;display:inline-block}   /* round 13: a favorite is served here (meal now, or the next ahead today); the gold of the letters' dashes, after the name */
+.oshome{position:absolute;inset:0;z-index:90;background:linear-gradient(160deg,#2b3a55,#16202e 60%,#3a2a3d);font-family:system-ui,-apple-system,Roboto,sans-serif;color:#fff;overflow:hidden}
+.oshome .osb2{position:absolute;left:0;right:0;top:0;height:var(--st);display:flex;justify-content:space-between;align-items:center;padding:0 20px;font-size:13px;font-weight:600}
+.oshome .grid{position:absolute;left:20px;right:20px;top:calc(var(--st) + 150px);display:grid;grid-template-columns:repeat(4,1fr);gap:26px 8px;justify-items:center}
+.oshome .ic{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;width:64px;position:relative;text-align:center}
+.oshome .ic i{display:block;width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,.16)}
+.oshome .ic.u i{background:var(--vm);box-shadow:inset 0 0 0 2px var(--gold);display:grid;place-items:center;font:700 30px Oswald,sans-serif;font-style:normal;color:var(--gold)}
+.oshome .bdg{position:absolute;top:-6px;right:2px;min-width:22px;height:22px;border-radius:11px;background:#ff3b30;color:#fff;font:600 14px/22px system-ui,sans-serif;text-align:center;padding:0 6px}
+.oshome .dot{position:absolute;top:-2px;right:6px;width:12px;height:12px;border-radius:50%;background:#f2f2f2;box-shadow:0 0 0 2px rgba(0,0,0,.25)}
+.oshome .osns{position:absolute;left:8px;right:8px;top:calc(var(--st) + 14px);display:flex;flex-direction:column;gap:8px}
+.oshome .osn{display:block;text-align:left;padding:12px 14px;border-radius:18px;background:rgba(255,255,255,.94);color:#111}
+.oshome .osn .oh{display:flex;justify-content:space-between;font-size:12px;color:#5a5a5a;margin-bottom:3px}
+.oshome .osn b{display:block;font-size:15px;font-weight:600}
+.oshome .osn .t{display:block;font-size:14px;line-height:1.35;color:#222;margin-top:1px}
+.osplay{position:absolute;inset:0;z-index:90;background:#fff;color:#202124;font-family:system-ui,-apple-system,Roboto,sans-serif;padding:calc(var(--st) + 8px) 20px 20px}
+.osplay .pt{display:flex;align-items:center;gap:8px;height:48px;font-size:20px}
+.osplay .pt button{width:44px;height:44px;font-size:22px}
+.osplay .app{display:flex;gap:16px;align-items:center;margin-top:20px}
+.osplay .app i{display:block;width:64px;height:64px;border-radius:16px;background:#1a73e8}
+.osplay h3{margin:0;font-size:22px;font-weight:500}
+.osplay .by{font-size:14px;color:#188038;margin-top:2px}
+.osplay .inst{margin-top:24px;width:100%;height:44px;border-radius:22px;background:#01875f;color:#fff;font-weight:500;font-size:15px}
 .sec{padding:22px 20px 0}
 .sec h2{font:600 22px/1.2 Oswald,sans-serif;color:var(--dm);margin:0 0 4px}
 .lrow{display:flex;align-items:center;justify-content:space-between;min-height:56px;border-bottom:1px solid var(--hair);width:100%;text-align:left;padding:8px 0;gap:12px}
@@ -249,6 +271,9 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 /* the status line is the schedule's other door: a button, with a chevron quieter than the gold ones in the rows below */
 #mts{display:flex;align-items:center;gap:5px;pointer-events:auto;text-align:left;padding:12px 16px 12px 0;margin:-5px 0 -12px;color:rgba(255,255,255,.86)}
 #mts.none{visibility:hidden}
+#mts .sch{opacity:var(--fx,1)}
+#mbz>*{opacity:var(--bo,1)}   /* round 13: a late reading's text fades in once its box is whole (busyStep sets --bo) */
+#mbz .bzx{opacity:calc(var(--fx,1)*var(--bo,1))}   /* round 13: what the header adds to a shared element (the chevron, the 'Calmer around' line) crossfades in on top of it */
 #mts .sch{width:14px;height:14px;flex:none;stroke:rgba(255,255,255,.6);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .mt .bz.ghost{visibility:hidden}   /* another day, or offline: no live data, but the name and status stay exactly where today has them */
 #mctl .pinb svg{fill:none}
@@ -285,7 +310,7 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
    and a row has the same shape with the scores on or off. (Later rows have no +: their "Dinner B" stays in the meta line.) */
 .lane{flex:none;width:114px;min-height:66px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end}   /* fits + or stepper over the letters: adding never changes the row's height */
 .lane>.add.ghost{margin:2px}
-.lane .tags{margin:0 14px 0 0}
+.lane .tags{margin:0 max(12px,calc(26px - 11px*var(--n,1))) 0 0;transform:translateY(var(--ty,0px))}   /* round 13 (owner 2026-10-17): the tiles centre on the meta line (alignTiles sets --ty: a transform, so the lane's height, and the row's, don't change), and as one group under the +, clamped so the group's right edge stops at the row's content edge (20 px in): 1 tile 15 px margin, 2 and 3 clamp at 12 */
 .mg .lnext+.tags{margin-left:6px}
 /* scores: an Oswald figure with its scale beside it. Healthfulness: seven bars (the ratings panel's), carbon: footprint + letter */
 /* score tiles (round 8b): portrait, rounded, never square, never maroon: unlike a hall letter in shape and colour */
@@ -526,9 +551,15 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 .row.syn{width:100%;text-align:left}
 /* round 10: tracking off. The menu keeps its shape: hall rows keep their lane (empty), Search's letters rise into the + slot,
    the bar and every way to record are gone, and "where" takes the sheet's action slot */
-#frame.notrack .row>.add,#frame.notrack .row>.step{visibility:hidden}
+#frame.notrack .row>.add,#frame.notrack .row>.step{display:none}   /* round 13: gone, not hidden: the name takes the width */
 #frame.notrack .lane>.add,#frame.notrack .lane>.step{display:none}
-#frame.notrack .lane{justify-content:flex-start;padding-top:10px}
+#frame.notrack .lane{justify-content:center;min-height:0}
+/* round 13 (owner, 2026-10-17): with tracking off a dish row shows its name and marks only: the calorie and protein figures go everywhere (hall menus, Search, the Favorites
+   lens, a food), the meta line closes when nothing else is on it, the row is a name-only 48, and a dish's sheet drops its label (name, serving, marks, Contains, ingredients, where stay) */
+#frame.notrack .fig{display:none}
+#frame.notrack .row{min-height:48px}
+#frame.notrack .row .m:not(:has(> :not(.fig))){display:none}
+#frame.notrack .dish .label{display:none}
 #frame.notrack #bar,#frame.notrack [data-act=custom],#frame.notrack .custom{display:none!important}
 #frame.notrack .dish .where{margin-top:16px}
 /* You (round 10) */
@@ -812,6 +843,7 @@ const MO = {
   sharedX:    {d:450, e:EMPH_CSS, at:.35, dist:30},  // MaterialSharedAxis X: long1, emphasized, 30dp slide + the same fade through
   scroll:     {d:500, e:EMPH_CSS},                   // programmatic scroll to a station or a dish
   exit:       {d:150, e:'cubic-bezier(.3,0,.8,.2)'}, // M3 emphasized accelerate, short3: things that leave (a stepper collapsing, a chip removed)
+  fold:       {d:250, e:'cubic-bezier(.2,0,0,1)'},   // round 13 (new): M3 medium1 standard: a block closing up or opening (the tracking layer lifting away, coming back)
   scrub:      {d:200, max:420, perPx:.05},           // close from a collapsed header: scroll back to top first
   scrim:      .32,                                   // MaterialContainerTransform's scrim: black at 32%
   dragBack:   {dist:480, commit:.82, flick:.5},      // interactive dismiss: px of drag for the whole way, commit below p .82 or a flick > .5 px/ms
@@ -838,8 +870,9 @@ function A(el, kf, tok, extra={}){
 const done = a => a ? a.finished.catch(()=>{}) : Promise.resolve();
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const frame = $('#frame');
-let ST, SB, HH, CH, H;
-function measure(){ const p=$('#probe').getBoundingClientRect(); ST=p.height; SB=p.width; HH=ST+282; CH=ST+52; H=frame.clientHeight; frame.style.setProperty('--hh',HH+'px'); }
+let ST, SB, HH, CH, H, LATE_D=0;   // LATE_D: how much shorter the header is while a busy reading hasn't landed
+const setHH = v => { HH=v; frame.style.setProperty('--hh',v+'px'); };   // round 13: the header's height can change (a busy reading landing late grows it)
+function measure(){ const p=$('#probe').getBoundingClientRect(); ST=p.height; SB=p.width; HH=ST+282-LATE_D; CH=ST+52; H=frame.clientHeight; frame.style.setProperty('--hh',HH+'px'); }
 measure(); addEventListener('resize',()=>{measure();});
 
 let armed=false; addEventListener('pointerdown',()=>armed=true,{capture:true,once:true});
@@ -1042,7 +1075,8 @@ function undoLog(){ const L=S.lastLog; if(!L) return; clearTimeout(barT);
    store (the test reads it). Which nutrient fields a platform accepts is to be checked at build time. */
 const OSQ=new URLSearchParams(location.search), OS = OSQ.get('os')==='ios' ? 'ios' : 'android';
 const HNAME = OS==='ios' ? 'Apple Health' : 'Health Connect';
-const HEALTH = {answer: OSQ.get('health')||'allow', granted:null, denied:false, records:[]};   // granted: null = never asked
+const HEALTH = {answer: OSQ.get('health')||'allow', granted:null, denied:false, records:[]};
+const HCMISSING = OS==='android' && OSQ.get('health')==='missing';   // round 13: Health Connect isn't installed: the row shows, a tap opens its Play listing   // granted: null = never asked
 HEALTH.granted = S.health ? HEALTH.answer==='allow' : null;   // on with the OS no longer allowing it: revoked in system settings
 const healthLive = () => S.track && S.health && HEALTH.granted===true;
 function healthRecord(m){ const t=mealTotal(m); return {mealId:m.id, name:mealLabel(m), at:m.at, ...(t.cal==null?{}:{energyKcal:Math.round(t.cal)}), ...(t.p==null?{}:{proteinG:+t.p.toFixed(1)}), ...(t.c==null?{}:{carbsG:+t.c.toFixed(1)}), ...(t.f==null?{}:{fatG:+t.f.toFixed(1)})}; }   // round 12c: an unknown field is left out, never written as 0
@@ -1171,7 +1205,7 @@ const IC = {
 function ctl(q, ghost){ return q ? `<div class="step" data-q="${q}"><button class="dec" aria-label="Less">${IC.minus}</button><span class="q">${fq(q)}</span><button class="inc" aria-label="More">${IC.plus}</button></div>`
   : `<button class="add${ghost?' ghost':''}" aria-label="Add">${IC.plus}</button>`; }
 // The meta line is groups that wrap whole: the numbers, then the scores (opt-in, You tab), then where. A wrapped line starts flush.
-const meta = d => `<span class="mg"><b>${fc(d.cal)}</b> cal<span class="gap"></span><b>${fg(d.p)}</b> protein</span>${scoresHTML(d)}`;
+const meta = d => `<span class="mg fig"><b>${fc(d.cal)}</b> cal<span class="gap"></span><b>${fg(d.p)}</b> protein</span>${scoresHTML(d)}`;
 const varMeta = v => `<span class="mg vt">${esc(v)}</span>`;   // round 12: a family's row leads with the variant it stands for, in its chip's word ("16 oz", "Almond"): a whole milk name ("Almond Milk") pushed the numbers to their own line at 360, beside the stepper-wide lane
 // Mark set. Glyphs are drawn, never emoji. Round 8: plant based is a sprout (stem, two leaves), vegetarian a single leaf:
 // two silhouettes, not one leaf filled or outlined. Those two are the only marks shown inline on rows.
@@ -1270,9 +1304,15 @@ function renderHalls(){
 }
 // round 9: what the rack knows. Photos, names and letters are bundled; the status needs hours (cached for the day); the busy
 // meter is live, so offline it isn't drawn rather than drawn stale. Nothing on a photo is dimmed or altered.
+// round 13 (owner, 2026-10-17): a hall card carries a star when a favorite is served there in its meal now, or, between meals, the
+// next meal still ahead today. After the hall's last meal there is no star. (The alerts' own eligibility: a serving not yet over.)
+function hallMeal(h, now=NOW){ const w=['breakfast','lunch','dinner','late'].map(m=>[m,mealWin(h,m)]).filter(x=>x[1]);
+  const cur=w.find(([,v])=>v[0]<=now && now<v[1]); if(cur) return cur[0]; const nx=w.filter(([,v])=>v[0]>now).sort((a,b)=>a[1][0]-b[1][0])[0]; return nx?nx[0]:null; }
+function hallStar(h, now=NOW){ const m=hallMeal(h, now); if(!m) return false; for(const k of S.fav) if((SERV[k]||[]).some(d=>d.h===h && !d.day && d.meal===m)) return true; return false; }
+const hstarHTML = h => hallStar(h) ? '<span class="bstar" role="img" aria-label="Serves a favorite">★</span>' : '';
 function fillBands(fade){ const hk=hoursKnown(), lk=liveKnown(), ch=[];
-  for(const b of $$('#bands .band')){ const h=b.dataset.h, st=b.querySelector('.st'), bz=b.querySelector('.bz');
-    st.textContent=hk?HOURS[h]:''; bz.innerHTML=lk?busyRow(h,false):''; b.setAttribute('aria-label',[HN[h], hk&&HOURS[h], lk&&BUSY[h].label].filter(Boolean).join(', ')); ch.push(st,bz); }
+  for(const b of $$('#bands .band')){ const h=b.dataset.h, st=b.querySelector('.st'), bz=b.querySelector('.bz'); b.querySelector('.nm').innerHTML=esc(HN[h])+hstarHTML(h);
+    st.textContent=hk?HOURS[h]:''; bz.innerHTML=lk?busyRow(h,false):''; b.setAttribute('aria-label',[HN[h], hallStar(h)&&'serves a favorite', hk&&HOURS[h], lk&&BUSY[h].label].filter(Boolean).join(', ')); ch.push(st,bz); }
   for(const b of $$('#pins .band')){ const x=P.places[+b.dataset.c], st=b.querySelector('.st'), t=status([x[3],x[4]]);
     st.textContent=hk?t:''; b.setAttribute('aria-label',hk?`${x[0]}, ${t}`:x[0]); ch.push(st); }
   for(const el of $$('#areas .lrow .b')){ const a=+el.closest('.lrow').dataset.c, ps=P.places.filter(x=>x[1]===a); el.textContent=hk?`${ps.filter(x=>isOpen([x[3],x[4]])).length} of ${ps.length} open now`:''; ch.push(el); }
@@ -1287,12 +1327,60 @@ function setNewton(on){ S.newton=on; save();
   renderPins(); renderAreas(); fillBands(false); refresh(); }
 // Track what I eat (round 10). Off: UDine is a menu. The plate in progress and the history stay as they are (nothing is
 // deleted); the + lanes empty in place, the bar leaves. On: they're back as they were.
-function setTrack(on){ S.track=on; save(); frame.classList.toggle('notrack',!on); if(!on){ if(psheet.state!=='closed') psheet.to('closed'); }
+/* round 13 (owner, 2026-10-17): turning tracking off lifts a layer away instead of deleting pieces, and turning it on puts it back.
+   The layer is: the plate bar, the Today and Earlier blocks, the Health row, and the two tracking-only rows (Your foods, Which was
+   better?). Off, in one timeline: the bar leaves downward (exit) and the figures fade (settle) together; then the blocks fold up,
+   height and padding to nothing (fold), and everything below rides up with them. The Track switch stays where it is. On: the
+   blocks open first (fold), the figures fade in after, the bar rises last. The Halls lists, hidden at the time, are already
+   name-only when you arrive. Reduced motion: opacity crossfades only. */
+const TRK = {busy:false};
+function trkEls(){ const y=$('#you');
+  return { bar:$('#bar'), blocks:[...y.querySelectorAll(':scope > .sec')].filter(e=>['Today','Meals','Earlier'].includes(e.querySelector('h2')?.textContent)).concat([...y.querySelectorAll('.hrow')].filter(e=>e.querySelector('[data-act=health]')), [...y.querySelectorAll('.lrow[data-p=foods],.lrow[data-p=rank]')]),
+    nums:[...y.querySelectorAll(':scope > .sec .facts b, :scope > .sec .mc .num')] }; }
+const barUp = () => $('#bar .in').children.length>0 && getComputedStyle($('#bar')).display!=='none';
+function foldKF(el, open){ const cs=getComputedStyle(el), full={height:el.offsetHeight+'px', minHeight:cs.minHeight, paddingTop:cs.paddingTop, paddingBottom:cs.paddingBottom, borderBottomWidth:cs.borderBottomWidth, opacity:0}, gone={height:'0px', minHeight:'0px', paddingTop:'0px', paddingBottom:'0px', borderBottomWidth:'0px', opacity:0};
+  el.style.overflow='hidden'; return open ? [gone,full] : [full,gone]; }   // opacity 0 throughout: a fold only ever opens or closes empty space
+// Off: everything leaving reaches opacity 0 first (0 to 150 ms, `exit`), THEN its block closes (150 to 400 ms, `fold`), so no frame shows cut or overlapping text.
+// On: the space opens first (0 to 250 ms, `fold`, empty), THEN the content fades in (250 to 450 ms, `settle`).
+// The dish rows on screen (a list behind a sheet, or Search): the figures fade with everything else that leaves, then the meta line and the row close to name-only.
+function rowEls(){ const rows=$$('#mlist .row:not(.syn):not(.later), #sres .row:not(.later)').filter(r=>r.offsetParent && r.querySelector('.fig'));
+  return { figs:rows.flatMap(r=>[...r.querySelectorAll('.fig')]), ctl:rows.flatMap(r=>[...r.querySelectorAll('.lane > .add, .lane > .step, :scope > .add, :scope > .step')]),
+    ms:rows.map(r=>r.querySelector('.m')).filter(m=>m && [...m.children].every(c=>c.classList.contains('fig'))), rows, lanes:rows.map(r=>r.querySelector('.lane')).filter(Boolean), tags:rows.map(r=>r.querySelector('.lane > .tags')).filter(Boolean) }; }
+// the hall tiles ride the row's meta line (--ty); with the meta gone they settle to the row's centre
+const tagY = (t, to0) => { const y=getComputedStyle(t).getPropertyValue('--ty').trim()||'0px', a={transform:`translateY(${y})`}, b={transform:'translateY(0px)'}; return to0 ? [a,b] : [b,a]; };
+const mFold = (m, open) => { const cs=getComputedStyle(m), full={height:m.offsetHeight+'px', marginTop:cs.marginTop}, gone={height:'0px', marginTop:'0px'}; m.style.overflow='hidden'; return open ? [gone,full] : [full,gone]; };
+const ctlFold = (el, open) => { const h=el.offsetHeight+'px', full={height:h, minHeight:h, opacity:0}, gone={height:'0px', minHeight:'0px', opacity:0}; el.style.overflow='hidden'; return open ? [gone,full] : [full,gone]; };
+const minFold = (el, open) => { const cs=getComputedStyle(el), a=cs.minHeight, b=el.classList.contains('row') ? '48px' : '0px'; return open ? [{minHeight:b},{minHeight:a}] : [{minHeight:a},{minHeight:b}]; };
+async function liftOff(){ const onYou=S.tab==='you' && !NAV.some(n=>n.kind==='page'), E=trkEls(), an=[], R=rowEls();
+  R.figs.concat(R.ctl).forEach(e=>an.push(A(e,[{opacity:1},{opacity:0}],'exit',{fill:'both'})));
+  R.ctl.forEach(e=>an.push(A(e,ctlFold(e,false),'fold',{fill:'forwards', delay:MO.exit.d}))); R.tags.forEach(t=>an.push(A(t,tagY(t,true),'fold',{fill:'forwards', delay:MO.exit.d})));
+  R.ms.forEach(m=>an.push(A(m,mFold(m,false),'fold',{fill:'forwards', delay:MO.exit.d}))); R.rows.concat(R.lanes).forEach(e=>an.push(A(e,minFold(e,false),'fold',{fill:'forwards', delay:MO.exit.d})));
+  if(barUp()) an.push(A(E.bar,[{transform:'none',opacity:1},{transform:'translateY(120%)',opacity:0}],'exit',{fill:'both'}));
+  if(onYou) E.blocks.forEach(e=>{ an.push(A(e,[{opacity:1},{opacity:0}],'exit',{fill:'both'})); an.push(A(e,foldKF(e,false),'fold',{fill:'forwards', delay:MO.exit.d})); });
+  TRK.an=an; await Promise.all(an.map(done)); an.forEach(a=>a&&a.cancel()); E.blocks.concat(R.ms,R.ctl).forEach(e=>e.style.overflow=''); }
+async function liftOn(){ const onYou=S.tab==='you' && !NAV.some(n=>n.kind==='page'), E=trkEls(), an=[], fd=MO.fold.d, R=rowEls();
+  R.ctl.forEach(e=>{ an.push(A(e,ctlFold(e,true),'fold',{fill:'both'})); }); R.tags.forEach(t=>an.push(A(t,tagY(t,false),'fold',{fill:'both'})));
+  R.ms.forEach(m=>{ an.push(A(m,mFold(m,true),'fold',{fill:'both'})); }); R.rows.concat(R.lanes).forEach(e=>an.push(A(e,minFold(e,true),'fold',{fill:'both'})));
+  R.figs.concat(R.ctl).forEach(e=>an.push(A(e,[{opacity:0},{opacity:1}],'settle',{fill:'both', delay:fd})));   // (the figures, and the + lane, fade in once the space is open)
+  if(onYou){ E.blocks.forEach(e=>{ an.push(A(e,foldKF(e,true),'fold',{fill:'both'})); an.push(A(e,[{opacity:0},{opacity:1}],'settle',{fill:'both', delay:fd})); });
+    if(barUp()) an.push(A(E.bar,[{transform:'translateY(120%)',opacity:0},{transform:'none',opacity:1}],'fold',{fill:'both', delay:fd})); }
+  else if(barUp()) an.push(A(E.bar,[{transform:'translateY(120%)',opacity:0},{transform:'none',opacity:1}],'fold',{fill:'both'}));
+  TRK.an=an; await Promise.all(an.map(done)); an.forEach(a=>a&&a.cancel()); E.blocks.concat(R.ms,R.ctl).forEach(e=>e.style.overflow=''); }
+async function setTrack(on){ if(TRK.busy || S.track===on) return; TRK.busy=true; S.track=on; save();
+  document.querySelector('#you [data-act=track]')?.setAttribute('aria-checked',on);
+  if(!on){ if(psheet.state!=='closed') psheet.to('closed'); await liftOff(); }
+  frame.classList.toggle('notrack',!on);
   renderBar(); if(menuShowing()){ const y=$('#mscroll').scrollTop; renderMenuList(); $('#mscroll').scrollTop=y; } if(S.tab==='search') renderSearch();
-  renderYou(); buzz(4); }
+  renderYou(); buzz(4);
+  if(on) await liftOn();
+  TRK.busy=false; }
 // Write to Health: the row is the lead-in; tapping it asks the OS at once (simulated). Allowed: it fills. Denied: it stays empty,
 // says so, and offers the platform's settings. Turning it off stops writing; what was written stays in Health.
+function osPlay(){ const o=document.createElement('div'); o.className='osplay'; o.setAttribute('role','dialog');
+  o.innerHTML=`<div class="pt"><button aria-label="Back">←</button><span>Health Connect</span></div><div class="app"><i></i><div><h3>Health Connect</h3><div class="by">Android</div></div></div><button class="inst">Install</button>`;
+  frame.appendChild(o); o.addEventListener('click',e=>{ if(e.target.closest('button')) o.remove(); }); }
 function healthTap(){
+  if(HCMISSING){ osPlay(); return; }
   if(healthLive()){ S.health=false; save(); renderYou(); return; }
   osSheet(ok=>{ HEALTH.granted=ok; HEALTH.denied=!ok; S.health=ok; save(); renderYou(); });   // denied or revoked: asking again is the OS's call
 }
@@ -1305,27 +1393,46 @@ function osSheet(done, kind='health'){ const o=document.createElement('div'); o.
    The switch lives on the Favorites page. ?alerts=allow|deny|blocked|bgoff is what the OS answers (blocked: it won't ask again;
    bgoff: notifications allowed, background work not). A background run (alertRun) matches favourites against today's saved
    menus: one notification per dish per logical day, from 7 AM, never once the dish's last serving that day has ended. */
-const ALQ = OSQ.get('alerts') || 'allow';
-const ALERTS = {on:false, granted:null, denied:false, seen:new Set()};
+let ALQ = OSQ.get('alerts') || 'allow';
+// round 13: FCM isn't delivered to an app the user set to battery Restricted, so on Android that state still matters (iOS has no equivalent row)
+const BGOFF = () => ALERTS.on && ALERTS.granted && ALQ==='bgoff' && OS==='android';
+const ALERTS = {on:false, granted:null, denied:false, seen:new Set(), unread:0};   // unread: favourite notifications delivered since the app was last opened (the iOS badge number)
 if(ALQ==='revoked') Object.assign(ALERTS, {on:true, granted:false, denied:true});   // turned off in system settings: found when You shows or the app resumes
-const BGOFF = () => ALERTS.on && ALERTS.granted && ALQ==='bgoff';
 function alertRows(){ const den=ALERTS.denied, bg=BGOFF();
-  const line = den ? 'Notifications are off for UDine' : bg ? (OS==='ios' ? "Background App Refresh is off, so UDine can't check menus" : "Battery use is restricted, so UDine can't check menus") : "When a favorite is on today's menu";
-  return `<div class="hrow">${checkRow('data-act="alerts"', ALERTS.on && !den, 'Notify me', line)}${den||bg?`<button class="obtn dk" data-act="asettings">Open Settings</button>`:''}</div>`; }
+  const line = den ? 'Notifications are off for UDine' : bg ? "Battery use is restricted, so notifications can't arrive" : "When a favorite is on today's menu";
+  return `<div class="hrow">${checkRow('data-act="alerts"', ALERTS.on && !den, 'Notify me', line)}${den||bg?`<button class="obtn dk" data-act="asettings">${bg?'App info':'Open Settings'}</button>`:''}</div>`; }
 function alertsTap(){
   if(ALERTS.on && !ALERTS.denied){ ALERTS.on=false; rerenderPage(); buzz(4); return; }
   if(ALQ==='blocked' || ALERTS.granted===false){ ALERTS.denied=true; rerenderPage(); return; }   // the OS won't ask again
   osSheet(ok=>{ ALERTS.granted=ok; ALERTS.denied=!ok; ALERTS.on=ok; rerenderPage(); buzz(ok?6:4); }, 'notify'); }
 const dishName = k => FAMNAME[k] || (SERV[k]||[])[0]?.n || k;
-function alertRun(now){ if(!(ALERTS.on && ALERTS.granted===true) || ALQ==='bgoff' || now<7*60) return [];
+// round 13: the server sends one visible push per dish per day, at about 7 AM Eastern (the sim's window is 7:00 to 7:59). alertRun is
+// that push as the phone receives it: it names the favourites on today's menus at that moment. Nothing sends later, so a dish added to a
+// menu after 7 AM is not alerted, and a run outside the window is empty. The app need not be running.
+const PUSHWIN=[7*60, 8*60];
+function alertRun(now){ if(!(ALERTS.on && ALERTS.granted===true) || BGOFF() || now<PUSHWIN[0] || now>=PUSHWIN[1]) return [];
   const out=[]; for(const k of S.fav){ const key=k+'|'+TODAY; if(ALERTS.seen.has(key)) continue;
     const A=whereAnswer(k, now); if(!A.length || A[0].day) continue;   // nothing left today: not posted (and not spent)
     ALERTS.seen.add(key); const g=A[0];
     out.push({k, title:dishName(k), body:`${whenText(g)}${g.st==='now'?',':''} at ${andList(g.hs.map(PN))}`, id:g.ids[g.hs[0]]}); }
   return out; }
+// round 13 (owner, 2026-10-17): a notification tap lands on the Halls home (the tab's root), not the hall pushed to the dish. Every
+// sheet closes except an undismissed first run, and whatever was pushed (pages, a hall) goes. Old notifications do the same.
+// the OS home screen, simulated as round 10/11 simulate the OS: the favourite alerts' push is a visible notification, and the icon carries
+// what arrived while the app was shut. iOS: a number (notifications delivered since the app was last opened, each push adds one).
+// Android: the launcher dot while a posted notification is unread. Opening the app, or tapping the notification, clears it.
+function showLauncher(){ const n=alertRun(7*60+15); ALERTS.unread=n.length; if(!n.length) return;
+  const o=document.createElement('div'); o.className='oshome'; const ios=OS==='ios';
+  o.innerHTML=`<div class="osb2"><span>7:15</span><span>${ios?'':'▾ '}100%</span></div>
+    <div class="osns">${n.map(x=>`<button class="osn" aria-label="${esc(x.title)}, ${esc(x.body)}"><span class="oh"><span class="oa">UDine</span><span class="ow">7 AM</span></span><b>${esc(x.title)}</b><span class="t">${esc(x.body)}</span></button>`).join('')}</div>
+    <div class="grid" style="top:calc(var(--st) + ${30+n.length*84}px)">${['','','',''].map(()=>`<span class="ic"><i></i><span>&nbsp;</span></span>`).join('')}<button class="ic u" data-ic="1"><i>U</i>UDine${ios?`<span class="bdg">${n.length}</span>`:'<span class="dot"></span>'}</button>${['','',''].map(()=>`<span class="ic"><i></i><span>&nbsp;</span></span>`).join('')}</div>`;
+  frame.appendChild(o);
+  o.addEventListener('click',e=>{ if(e.target.closest('.osn')){ o.remove(); landOnHalls(); } else if(e.target.closest('[data-ic]')){ o.remove(); ALERTS.unread=0; } }); }
+function landOnHalls(){ if(psheet.state!=='closed') psheet.to('closed'); if(isheet.state!=='closed') isheet.to('closed');
+  closeAllPages(); if(S.hall) hideHall(); setTab('halls', true); ALERTS.unread=0; }
 function showNote(n){ const o=document.createElement('button'); o.className='osnote'; o.setAttribute('aria-label',`${n.title}, ${n.body}`);
   o.innerHTML=`<span class="oh"><span class="oa">UDine</span><span class="ow">now</span></span><b>${esc(n.title)}</b><span class="t">${esc(n.body)}</span>`;
-  frame.appendChild(o); o.addEventListener('click',()=>{ o.remove(); const d=DISH[n.id]; setTab('halls'); openHall(d.h, false, null, {day:0, meal:d.meal, dish:d.id}); }); }
+  frame.appendChild(o); o.addEventListener('click',()=>{ o.remove(); landOnHalls(); }); }
 function retry(){ NET=''; hallsLoaded=true; renderNet(); fillBands(true); if(menuShowing()) arrive(); if(S.tab==='search') renderSearch(); buzz(6); }
 // pinned cafés: rows under the four bands, live status, opened with the same container transform as any row
 const pinIdx = n => P.places.findIndex(x=>x[0]===n);
@@ -1415,8 +1522,11 @@ function renderMenu(){
   // no line (loading, didn't load, nothing posted): it keeps its room, so the name never moves
   $('#mts').innerHTML = `<span>${line||'&nbsp;'}</span>${line?'<svg class="sch" viewBox="0 0 18 18" aria-hidden="true"><path d="M4 7l5 5 5-5"/></svg>':''}`;
   $('#mts').classList.toggle('none',!line); $('#mts').setAttribute('aria-label', line ? line+', hours and directions' : '');
-  const bz=$('#mbz'); bz.innerHTML = C ? '' : busyRow(k,true); bz.classList.toggle('ghost',!live); bz.setAttribute('aria-hidden',!live); bz.setAttribute('aria-label',bz.textContent);
+  const bz=$('#mbz'), wasGhost=bz.classList.contains('ghost'); bz.innerHTML = C ? '' : busyRow(k,true); bz.classList.toggle('ghost',!live); if(wasGhost && live && !C && menuShowing()) A(bz,[{opacity:0},{opacity:1}],'settle'); bz.setAttribute('aria-hidden',!live); bz.setAttribute('aria-label',bz.textContent);
   $('#mhist').innerHTML = live ? histSVG(k) : '';
+  // round 13 (owner, 2026-10-17): a busy reading that lands late does not move the title or the letter. `?busy=late` opens a hall as the phone does before the reading
+  // arrives (no busy block, a header shorter by its height D, the title where it will stay); arriveBusy() is the reading landing.
+  LATE_D=0; setHH(ST+282); bz.style.display=''; S.lateWant = LATEBUSY && !C && !day && live;   // (measured once the menu is shown: lateSetup)
   // the pinned rows: the day cell, then that day's meals
   $('#dayl').textContent=dayCell(day); $('.dayc').setAttribute('aria-label',`${dayFull(day)}, change the day`);
   const meals = MM ? MEALS.filter(x=>MM[x[0]]) : [];
@@ -1426,7 +1536,7 @@ function renderMenu(){
   renderMenuList();
 }
 // re-draw the showing list in place (scroll kept). Lists on other tabs re-draw when their tab returns (setTab).
-function relist(){ if(menuShowing()){ const y=$('#mscroll').scrollTop; renderMenuList(); $('#mscroll').scrollTop=y; } if(S.tab==='search') renderSearch(); }
+function relist(){ fillBands(false); if(menuShowing()){ const y=$('#mscroll').scrollTop; renderMenuList(); $('#mscroll').scrollTop=y; } if(S.tab==='search') renderSearch(); }
 function renderMenuList(){
   const k=PK(), C=isCafe(k);
   if(C && !DISHMENU.has(k)){ $('#mlist').innerHTML=cafeBody(S.cafe)+'<div class="pad-b"></div>'; updSwitch(true); return; }
@@ -1524,21 +1634,29 @@ let XF=ZERO, XP=1, xfRaf=0, xfOn=false, NB=24, NS=.55;   // NS: the name's scale
 const E={}; ['mhead','mduo','mlg','mbg','mtg','msolid','mlet','mtn','mts','mbz','mhist','mctl','mtabs','mswitch','mscroll','mdim','mcont','mghost'].forEach(k=>E[k]=$('#'+k)); E.phw=$('#mhead .phw');
 function paint(p,y){
   const q=1-p, X=XF, R=HH-CH, d=clamp(y,0,R), c=d/R, fade=1-clamp(c/.3), r=RES[S.hall]||0, open=q>1e-4;
-  const fin=clamp((p-.3)/.7), fout=1-clamp(p/.3), dev=X.band?p:1;
+  const fin=clamp((p-.2)/.6), fout=1-clamp(p/(X.band?.6:.5)), dev=X.band?p:1;   // round 13: overlapped windows (were .3-1 in and 0-.3 out, with a hole between)
+  const sh=X.band && X.sh && p<1-1e-4 ? X.sh : null;   // the shared elements are travelling
   const WT=X.T*q, WB=H-q*(H-X.T-X.BH), ty=X.y0*q, hy=ty-d;   // the container window [WT, WB]; the screen layer's offset
   E.mcont.style.clipPath = open ? `inset(${WT}px 0 ${H-WB}px 0)` : 'none';
   E.mhead.style.transform=`translate3d(0,${hy}px,0)`;
   E.mhead.style.clipPath= open ? `inset(${Math.max(0,WT-hy)}px 0 ${Math.max(0,HH-(WB-hy))}px 0)` : 'none';
   E.phw.style.transformOrigin='50% 0';
   E.phw.style.transform = y<0 ? `scale(${1+(-y)/HH})` : `translate3d(0,${d*.45}px,0)`;
-  E.mduo.style.opacity = r+(1-r)*(1-dev); E.mlg.style.opacity=X.band?q:0; E.mbg.style.opacity=dev; E.mtg.style.opacity=dev;
+  E.mduo.style.opacity = X.band && p<1-1e-4 ? 1 : r+(1-r)*(1-dev);   // round 13: the photo stays opaque under the colour as it develops (1-p over p dipped to 75% cover) E.mlg.style.opacity=X.band?q:0; E.mbg.style.opacity=dev; E.mtg.style.opacity=dev;
   // a band's copy rides on the photo it was drawn on (registered to the header's photo, so the picture is never doubled)
   const gy=X.band?hy-X.y0:0; E.mghost.style.transform = gy ? `translate3d(0,${gy}px,0)` : '';
-  E.mghost.style.opacity = fout; E.mghost.style.clipPath = open ? `inset(${Math.max(0,WT-X.T-gy)}px 0 ${Math.max(0,X.T+gy+X.BH-WB)}px 0)` : 'none';
+  E.mghost.style.opacity = X.band ? 0 : fout; E.mghost.style.clipPath = open ? `inset(${Math.max(0,WT-X.T-gy)}px 0 ${Math.max(0,X.T+gy+X.BH-WB)}px 0)` : 'none';
   E.msolid.style.opacity = clamp((c-.3)/.55);
-  E.mlet.style.opacity=fin*(1-clamp(c/.55));
-  E.mtn.style.transform=`translate3d(${44*c}px,${NB*c}px,0) scale(${1-(1-NS)*c})`; E.mtn.style.opacity=fin;
-  E.mts.style.opacity=fin*fade; E.mbz.style.opacity=fin*fade; E.mhist.style.opacity=fin*fade;
+  // shared elements: desired screen top-left and size lerp from the card's to the header's; own transform = desired - natural (the header
+  // layer's own offset hy included). Scaled text and the letter scale about their top-left; status and meter only move.
+  const tr=k=>{ const z=sh&&sh[k]; if(!z) return ''; const sc=z.scale ? z.s.w/z.f.w+(1-z.s.w/z.f.w)*p : 1;
+    return `translate3d(${(z.s.x+(z.f.x-z.s.x)*p-z.f.x).toFixed(2)}px,${(z.s.y+(z.f.y-z.s.y)*p-(z.f.y+hy)).toFixed(2)}px,0) scale(${sc.toFixed(4)})`; };
+  for(const [k,el] of [['let',E.mlet],['nm',E.mtn],['st',E.mts],['bz',E.mbz]]) if(sh&&sh[k]) el.style.transformOrigin='0 0';
+  E.mlet.style.transform = sh&&sh.let ? tr('let') : ''; E.mlet.style.opacity=(sh&&sh.let?1:fin)*(1-clamp(c/.55));
+  E.mtn.style.transformOrigin = sh&&sh.nm ? '0 0' : ''; E.mtn.style.transform = sh&&sh.nm ? tr('nm') : `translate3d(${44*c}px,${NB*c}px,0) scale(${1-(1-NS)*c})`; E.mtn.style.opacity=sh&&sh.nm?1:fin;
+  E.mts.style.transformOrigin = sh&&sh.st ? '0 0' : ''; E.mts.style.transform = sh&&sh.st ? tr('st') : ''; E.mbz.style.transformOrigin = sh&&sh.bz ? '0 0' : ''; E.mbz.style.transform = sh&&sh.bz ? tr('bz') : '';
+  E.mts.style.setProperty('--fx', sh&&sh.st ? fin : 1); E.mbz.style.setProperty('--fx', sh&&sh.bz ? fin : 1);
+  E.mts.style.opacity=(sh&&sh.st?1:fin)*fade; E.mbz.style.opacity=(sh&&sh.bz?1:fin)*fade; E.mhist.style.opacity=fin*fade;
   E.mts.style.pointerEvents = fin*fade>.5 && !E.mts.classList.contains('none') ? 'auto' : 'none';   // the status line is a door only while it can be read
   E.mctl.style.transform=`translate3d(0,${ty}px,0)`; E.mctl.style.opacity=fin; E.mctl.style.clipPath = open ? `inset(${Math.max(0,WT-ty)}px 0 0 0)` : 'none';
   E.mtabs.style.transform=`translate3d(0,${hy}px,0)`; E.mswitch.style.transform=E.mtabs.style.transform;
@@ -1559,10 +1677,15 @@ function measureXF(src){
   if(!src) return;
   const r=src.getBoundingClientRect(), band=src.classList.contains('band'), T=r.top-fr.top, off=band?Math.round((S.cafe!=null?OFFC:OFF[S.hall])*HH):0;
   XF={T, BH:r.height, off, y0:band?T-off:0, band};   // a band: the screen hangs from its photo; a row: the hall lies still under the window
+  // round 13: a band's letter, title, status line and busy meter are shared elements: each travels from where the card drew it to where the
+  // header draws it (one transform, never faded). Text is measured by its own box (a Range), the letter by its svg.
+  if(band){ const box=(e,txt)=>{ if(!e) return null; let q; if(txt){ const g=document.createRange(); g.selectNodeContents(e); q=g.getBoundingClientRect(); } else q=e.getBoundingClientRect(); return q.width>0 ? {x:q.left-fr.left,y:q.top-fr.top,w:q.width,h:q.height} : null; };
+    const sh={}; for(const [k,sel,eh,txt] of [['let','.let',E.mlet,0],['nm','.nm',E.mtn,1],['st','.st',E.mts,1],['bz','.bz',E.mbz,0]]){ const a=box(src.querySelector(sel),txt), b=box(eh,txt); if(a&&b) sh[k]={s:a,f:b,scale:k==='let'||k==='nm'}; }
+    XF.sh=sh; }
   // the outgoing content, drawn inside the container where the source showed it
   // a whole copy of the card, at the card's place: at p 0 the screen is exactly the card, whatever the screen's scroll
   E.mghost.style.setProperty('--img', src.style.getPropertyValue('--img'));   // a pinned café's photo is the band's own variable: the copy needs it too
-  if(band){ E.mghost.className='gband'+(src.classList.contains('pin')?' pin':'')+(src.classList.contains('hcard')?' hcard':''); for(const s of src.querySelectorAll(':scope > .win, :scope > .lgrad, :scope > .let, :scope > .bt')) E.mghost.appendChild(s.cloneNode(true)); }
+  if(band){ E.mghost.className='gband'+(src.classList.contains('pin')?' pin':'')+(src.classList.contains('hcard')?' hcard':''); }   // round 13: no copy at all: the header's own ground is the band's face at p 0 (photo, tint, gradient), and its letter and text travel from the card
   else { const g=src.cloneNode(true); g.removeAttribute('id'); g.style.visibility='visible'; g.classList.remove('down'); E.mghost.className='rowsrc'; E.mghost.appendChild(g); }
   Object.assign(E.mghost.style,{top:T+'px',height:r.height+'px',margin:0});
 }
@@ -1577,6 +1700,23 @@ function runXF(from, to, dur, done){
 function fitName(){ const n=E.mtn; n.style.fontSize=''; const max=W0()-40, w=n.offsetWidth, fs=parseFloat(getComputedStyle(n).fontSize);
   if(w>max) n.style.fontSize=Math.max(26,Math.floor(fs*max/w))+'px'; NS=22/parseFloat(getComputedStyle(n).fontSize);
   NS=Math.min(NS, (W0()-64-(S.cafe!=null?52:16))/n.offsetWidth); }   // round 11: in the compact bar it clears the back button and the pin
+const LATEBUSY = new URLSearchParams(location.search).get('busy')==='late';
+// the reading lands: the busy lines grow in below the status line (height, spacing and opacity), the header grows by their height, and the meal tabs and the list
+// ride down with it (`settle`); the title and the letter, anchored by the header's foot, stay exactly where they were
+function lateMeasure(){ if(!LATE_D) return; const bz=$('#mbz'); bz.style.display=''; const D=bz.offsetHeight+parseFloat(getComputedStyle(bz).marginTop); bz.style.display='none'; if(D>0 && Math.abs(D-LATE_D)>.01){ LATE_D=D; setHH(ST+282-D); } }   // the block's height, measured on the real fonts
+function lateSetup(){ if(!S.lateWant) return; S.lateWant=false; const bz=$('#mbz'), D=bz.offsetHeight+parseFloat(getComputedStyle(bz).marginTop); if(!(D>0)) return; LATE_D=D; bz.style.display='none'; $('#mhist').innerHTML=''; setHH(ST+282-D); }
+let LB=null;   // the reading landing: {Dc, mt, base, D}
+// k is linear time 0..1 over `settle`. The space grows over the first 60% (the block's box and the header, the title fixed) with its text invisible, so a growing box never clips
+// a glyph; only when the box is whole does the text, and the chart in the header's foot, fade in (the last 40%).
+const LB_GROW=.6, LB_E=BEZ([.2,0,0,1]);
+function busyStep(k){ const bz=$('#mbz'), e=LB_E(clamp(k/LB_GROW)), f=clamp((k-LB_GROW)/(1-LB_GROW)), h=$('#mhist').firstElementChild;
+  bz.style.height=LB.Dc*e+'px'; bz.style.marginTop=LB.mt*e+'px'; bz.style.setProperty('--bo',f); if(h) h.style.opacity=f; setHH(LB.base+LB.D*e); paint(XP,$('#mscroll').scrollTop); }
+function arriveBusy(manual){ lateMeasure(); const D=LATE_D; if(!D) return Promise.resolve(); const bz=$('#mbz'), k=PK(); LATE_D=0;
+  bz.style.display=''; bz.style.height='auto'; bz.style.marginTop=''; const Dc=bz.offsetHeight, mt=parseFloat(getComputedStyle(bz).marginTop); $('#mhist').innerHTML=histSVG(k);
+  LB={Dc, mt, base:ST+282-D, D:Dc+mt}; bz.style.overflow='hidden'; busyStep(0); if(manual) return Promise.resolve();   // (manual: the shots seek it with busyStep)
+  const t0=performance.now(), dur=RM?1:MO.settle.d;
+  return new Promise(res=>{ const f=t=>{ const kk=clamp((t-t0)/dur); busyStep(kk);
+    if(kk<1) requestAnimationFrame(f); else { bz.style.height=bz.style.marginTop=bz.style.overflow=''; bz.style.removeProperty('--bo'); const h=$('#mhist').firstElementChild; if(h) h.style.opacity=''; setHH(LB.base+LB.D); paint(XP,$('#mscroll').scrollTop); res(); } }; requestAnimationFrame(f); }); }
 const menuShowing = () => !!S.hall && S.hallTab===S.tab && !$('#menu').classList.contains('hide');
 // h: a hall letter, or 'C' with opt.cafe. src: the tapped band (container transform) or anything else (push); omitted, the
 // band itself when Halls is showing. instant: state restores.
@@ -1590,7 +1730,7 @@ function openHall(h, instant, src, opt={}){
   S.hall=h; S.cafe=h==='C'?opt.cafe:null; if(h!=='C') S.lastHall=h; S.mday=opt.day||0; S.mmeal=opt.meal||'lunch'; S.hallTab=S.tab;
   S.reveal = !!(opt.dish && DISH[opt.dish] && !prefOK(DISH[opt.dish]));   // arriving at a dish your preferences hide: the list opens revealed, the row marked
   renderMenu();
-  $('#menu').classList.remove('hide'); $('#mscroll').scrollTop=0; if(!S.mday) syncFront(PK()); buzz(6);
+  $('#menu').classList.remove('hide'); lateSetup(); $('#mscroll').scrollTop=0; if(!S.mday) syncFront(PK()); buzz(6);
   updSwitch(true); fitName();   // titles have layout only once the menu is visible
   measureXF(band?src:null); S.hallSrc=band?src:null;
   const after=()=>{ if(opt.dish) toDish(opt.dish); };
@@ -1771,7 +1911,7 @@ function placeHits(){
 // and the busy meter (only halls have one; a café's band is in its own colour). Like a band on Halls, it grows into its hall.
 const hallCard = h => `<button class="band hcard" data-h="${h}" aria-label="${[HN[h], hoursKnown()&&HOURS[h], liveKnown()&&BUSY[h].label].filter(Boolean).join(', ')}">
   <div class="win" style="top:${-Math.round(OFF[h]*HH)}px"><div class="duo"><div class="ph g ph-${h}"></div><div class="t"></div><div class="s"></div></div></div>
-  <div class="lgrad"></div><div class="press"></div><div class="bt"><div class="nm">${HN[h]}</div><div class="st">${hoursKnown()?HOURS[h]:''}${liveKnown()?`<span class="meter" aria-hidden="true">${[0,1,2,3,4].map(i=>`<i class="${i<lamps(BUSY[h].pct)?'on':''}"></i>`).join('')}</span>`:''}</div></div></button>`;
+  <div class="lgrad"></div><div class="press"></div><div class="bt"><div class="nm">${HN[h]}${hstarHTML(h)}</div><div class="st">${hoursKnown()?HOURS[h]:''}${liveKnown()?`<span class="meter" aria-hidden="true">${[0,1,2,3,4].map(i=>`<i class="${i<lamps(BUSY[h].pct)?'on':''}"></i>`).join('')}</span>`:''}</div></div></button>`;
 // dishes that match but aren't served at this meal now: later today or tomorrow. They open their detail (where and when).
 function laterHits(){ const toks=norm(S.q).split(' ').filter(Boolean); if(!toks.length||S.scope) return [];
   const out=[]; for(const k in SERV){ if(BYK[S.smeal]&&BYK[S.smeal][k] || CG[k] || VARK.has(k)) continue; const hay=k[0]==='f'&&k[1]===':' ? k.slice(2)+' '+SERV[k].map(d=>famOf(d).vars.map(x=>x.d.k).join(' ')).join(' ') : k;
@@ -1782,7 +1922,7 @@ function laterHits(){ const toks=norm(S.q).split(' ').filter(Boolean); if(!toks.
 // the halls serving it, by their letters (as on the bands); a row says where, never where not
 const andList = l => l.length<2 ? l.join('') : l.slice(0,-1).join(', ')+' and '+l.at(-1);
 // a café has no letter: its name (or how many cafés), after any hall letters
-const hallGlyph = (hs, said) => { const C=hs.filter(isCafe); return `<span class="tags" role="img" aria-label="${said} at ${esc(andList(hs.map(PN)))}">${hs.filter(h=>!isCafe(h)).map(h=>`<i class="ht on" aria-hidden="true">${h}</i>`).join('')}${C.length?`<span class="cnm" aria-hidden="true">${C.length===1?esc(LANE(C[0])):C.length+' cafés'}</span>`:''}</span>`; };
+const hallGlyph = (hs, said) => { const C=hs.filter(isCafe); return `<span class="tags" style="--n:${hs.filter(h=>!isCafe(h)).length}" role="img" aria-label="${said} at ${esc(andList(hs.map(PN)))}">${hs.filter(h=>!isCafe(h)).map(h=>`<i class="ht on" aria-hidden="true">${h}</i>`).join('')}${C.length?`<span class="cnm" aria-hidden="true">${C.length===1?esc(LANE(C[0])):C.length+' cafés'}</span>`:''}</span>`; };
 // dish detail: where you can get it, now or next. One line per answer, each hall a felt-letter tag that opens it there.
 function whereHTML(k){ const A=whereAnswer(k);
   if(!A.length) return `<div class="where"><p class="wt">Not on the menu again today or tomorrow</p></div>`;
@@ -1839,7 +1979,12 @@ function renderSearch(){
   for(const el of box.children){ if(n++>18) break; const k=key(el); if(k&&before.has(k)){ const dy=before.get(k)-el.getBoundingClientRect().top; if(Math.abs(dy)>1) A(el,[{transform:`translateY(${dy}px)`},{transform:'none'}],'settle'); }
     else if(!el.classList.contains('empty')||!wasEmpty) A(el,[{opacity:0},{opacity:1}],'settle'); }
   const em=box.querySelector('.empty'); if(em && !(wasEmpty && wasText===em.textContent)) em.classList.add('fadein');
+  alignTiles(box);
 }
+// round 13: a Search row's hall tiles sit on the row's meta line (the cal and protein group, its last line), whatever the name's lines: --ty is the gap between the two centres
+function alignTiles(box){ for(const r of box.querySelectorAll('.row')){ const t=r.querySelector('.lane > .tags'), m=[...r.querySelectorAll('.m .mg:not(.vt):not(.fig)')].at(-1) || [...r.querySelectorAll('.m .mg:not(.vt)')].at(-1); if(!t||!m||(frame.classList.contains('notrack')&&m.classList.contains('fig'))){ if(t) t.style.setProperty('--ty','0px'); continue; }
+    t.style.setProperty('--ty','0px'); const a=t.getBoundingClientRect(), b=m.getBoundingClientRect(); t.style.setProperty('--ty',((b.top+b.height/2)-(a.top+a.height/2)).toFixed(2)+'px'); } }
+addEventListener('resize',()=>{ const b=$('#sres'); if(b) alignTiles(b); });
 // Search's idle state (nothing typed, no lens, no scope) is the "what's on" hub: the fixture list on maroon, under the lens chips.
 const isIdle = () => !S.q && !S.lenses.size && !S.scope && EVENTS.length>0 && NET!=='fail';   // failed: nothing came, events neither
 function setIdle(){ const idle=isIdle(), el=$('#sdisc'), was=!el.classList.contains('hide');
@@ -1861,10 +2006,10 @@ for(const t of ['pointerdown','mousedown']) $('#search').addEventListener(t,e=>{
 // The outgoing tab stays drawn underneath; the incoming one fades in over it while settling from a .97 scale. The maroon
 // header region and the tab bar are never uncovered, so no frame shows bare chalk. No slides.
 // Re-tapping the tab that owns an open hall closes the hall.
-function setTab(t){
+function setTab(t, keepOb){
   if(S.tab===t && S.hall && S.hallTab===t){ closeHall(); return; }
   const prev=S.tab, changed=prev!==t; S.tab=t; closeAllPages();
-  if(psheet.state!=='closed') psheet.to('closed'); if(isheet.state!=='closed') isheet.to('closed'); if(obsheet.state!=='closed'){ markSeen(); obsheet.to('closed'); }
+  if(psheet.state!=='closed') psheet.to('closed'); if(isheet.state!=='closed') isheet.to('closed'); if(obsheet.state!=='closed' && !keepOb){ markSeen(); obsheet.to('closed'); }
   const layers=k=>[$('#tab-'+k), ...(S.hall && S.hallTab===k ? [$('#menu')] : [])];
   for(const el of [...['halls','search','you'].map(k=>$('#tab-'+k)), $('#menu')]){ el.getAnimations().forEach(a=>a.cancel()); el.style.pointerEvents=''; }
   for(const k of ['halls','search','you']) $('#tab-'+k).classList.toggle('hide', k!==t);
@@ -2190,7 +2335,7 @@ function buildMid(){ const b=$('#isbody'), rows=b.querySelectorAll('.brow'), las
 const GRAB_H=22;
 $('#isbody').addEventListener('scroll',()=>{ const b=$('#isbody'), d=b.querySelector('.dish'); if(!d) return; d.classList.toggle('stuck',b.scrollTop>4);
   if(b.scrollTop>0 && isheet.state==='mid' && IS.mid!=null) isheet.to('top'); },{passive:true});   // scrolled (wheel, trackpad, keys) at rest: it expands, as a drag up does
-function dishMid(){ const b=$('#isbody'), cal=b.querySelector('.label .cal'), top=b.getBoundingClientRect().top-b.scrollTop;
+function dishMid(){ const b=$('#isbody'), cl=b.querySelector('.label .cal'), cal=cl&&cl.offsetParent ? cl : b.querySelector('.where'), top=b.getBoundingClientRect().top-b.scrollTop;   // round 13: with tracking off there is no label: the sheet rests at the end of where
   const need=GRAB_H+(cal ? cal.getBoundingClientRect().bottom-top+6 : b.firstElementChild.offsetHeight+24+SB);   // the label's rule under Calories, then a sliver of the box: never half a line
   return Math.max(ST+8, H-need); }
 function openPlateLabel(src){
@@ -2261,7 +2406,7 @@ function lookupHits(){ const seen=new Set(), out=[];
     const f={id:'u:'+d.k, n:d.n, srv:d.srv, cal:d.cal, p:d.p, c:d.c, f:d.f, nut:d.nut, algs:d.algs, ing:d.ing, d:d.d, src:'umass'}; FX[f.id]=f; out.push(f); }
   return out.slice(0,10); }
 const foodRow = f => { const fi=findItem(foodMeal(),'food:'+f.id);
-  return `<div class="row" data-food="${esc(f.id)}" data-src="s"><div class="tx"><div class="n">${nameHTML(f.n, dietMark(f))}</div><div class="m">${f.per100?`<span class="mg"><b>${fc(f.cal)}</b> cal per 100 g</span>`:meta(f)}</div></div><div class="lane">${ctl(fi&&fi.it.qty)}</div></div>`; };
+  return `<div class="row" data-food="${esc(f.id)}" data-src="s"><div class="tx"><div class="n">${nameHTML(f.n, dietMark(f))}</div><div class="m">${f.per100?`<span class="mg fig"><b>${fc(f.cal)}</b> cal per 100 g</span>`:meta(f)}</div></div><div class="lane">${ctl(fi&&fi.it.qty)}</div></div>`; };
 // a food's sheet: the dish sheet's identity group, Add to plate, the label and ingredients. No where, grades or star: it isn't
 // served anywhere. A saved food has Edit in the star's slot.
 let FS=null;
@@ -2394,7 +2539,7 @@ function restand(row){
     const V=g0.vars[vi], d=rep(V), hs=Object.keys(V.refs).sort((a,b)=>PORD(a)-PORD(b)); row.dataset.v=vi;
     row.querySelector('.n').innerHTML=nameHTML(g0.n, dietMark(d)+(S.fav.has(g0.k)?'<span class="star" aria-label="Favorite">★</span>':''));
     row.querySelector('.m').innerHTML=`${S.sreveal?contHTML(d):''}${varMeta(V.chip)}${meta(d)}`;
-    const tg=row.querySelector('.lane .tags'); if(tg) tg.outerHTML=hallGlyph(hs,'Served now');
+    const tg=row.querySelector('.lane .tags'); if(tg){ tg.outerHTML=hallGlyph(hs,'Served now'); alignTiles(row.parentElement); }
     A(row.querySelector('.tx'),[{opacity:.4},{opacity:1}],'settle'); } }
 function refreshLists(){
   for(const box of [S.hall&&!S.mday&&$('#mlist'), $('#sres')]) if(box) for(const row of box.querySelectorAll('.row:not(.later):not(.syn)')){ restand(row); const [q,g]=rowState(row); setCtl(row,q,g); }
@@ -2591,10 +2736,11 @@ if(state==='split'){ bench(); const g=BYK.lunch[norm(byName('F','lunch',M.F.lunc
 if(state==='logged'){ bench(); logPlate(S.plates[0]); clearTimeout(barT); }
 if(state==='you'){ bench(); logPlate(S.plates[0]); clearTimeout(barT); barMode='plate'; renderBar(); setTab('you'); }
 if(state==='dish'){ openHall('W',true); openDish(W('Beef Brisket Noodle Bowl')); }
+if(qs.has('launcher')){ ALERTS.on=true; ALERTS.granted=true; if(!S.fav.size){ S.fav.add(norm('Beef Brisket Noodle Bowl')); S.fav.add(norm('Golden BBQ Chicken Thigh')); } showLauncher(); }
 if(qs.has('notify')){ ALERTS.on=true; ALERTS.granted=true; if(!S.fav.size) S.fav.add(norm('Beef Brisket Noodle Bowl')); const n=alertRun(7*60+15)[0]; if(n) showNote(n); }   // round 11: the 7:15 AM run's notification
 if(state==='custom'){ goSearch(null,'lunch'); $('#q').value='chobani'; S.q='chobani'; renderSearch(); openCustom('chobani'); }
 // a screen opened before the webfonts arrived measured its name on fallback metrics: measure again once they're in
-document.fonts.ready.then(()=>{ if(S.hall && !xfOn){ fitName(); measureXF(S.hallSrc && S.hallSrc.isConnected ? S.hallSrc : null); paint(XP,$('#mscroll').scrollTop); } });
+document.fonts.ready.then(()=>{ lateMeasure(); if(S.hall && !xfOn){ fitName(); measureXF(S.hallSrc && S.hallSrc.isConnected ? S.hallSrc : null); paint(XP,$('#mscroll').scrollTop); } });
 window.__S=S; window.__dayTotal=dayTotal; window.__plateHalls=plateHalls; window.__totals=totals;
 </script>
 </body>

@@ -2558,3 +2558,110 @@ Concept: `CONCEPT.md`, "Round 12d".
 - **Vectors:** top-level `fountain` (the record and the station-days per hall and meal); `scores` +1.
 - **Closed (owner, 2026-10-17, revised):** no diet marks (it is a drink, not food), and no diet preference hides it: `dietOK(d)` returns true for `ALWAYS(d)`. (An earlier pass marked it Vegetarian and Plant based; the marks are removed.) Test: no `.tg` on its row; Vegetarian + Plant based + Halal on, the row is still there.
 
+## Round 13: landing, favorites on Halls, the icon badge, tracking as a layer (owner, 2026-10-17)
+Branch `design/m2-round-13`, off `design/m2-round-12`. Concept: `CONCEPT.md`, "Round 13" and the rewritten R11 §2 and R10 §5.
+
+### What changed (`src.html`)
+- **Landing.** `landOnHalls()`: close the dish and plate sheets, `closeAllPages()`, `hideHall()`, `setTab('halls', true)` (the new `keepOb`
+  argument leaves an undismissed first run up). The notification banner's tap calls it; so does the simulated launcher.
+- **Alerts as a server push.** `PUSHWIN` = 7:00 to 7:59; `alertRun(now)` is the push as the phone receives it and is empty outside the window, so
+  a dish added after 7 AM is never alerted; the once-per-dish-per-day key stays. `BGOFF`, the "can't check menus" lines and `?alerts=bgoff`
+  are gone (no on-device check any more); Open Settings stays for denied only.
+- **Star.** `hallMeal(h, now)` (the meal on now, else the next ahead, else none) and `hallStar(h, now)`; `fillBands` writes the star after the
+  name, `hallCard` (Search) too; `relist()` refreshes the bands so a Favorites star shows at once. Gold, 22 px, 8 px after the name.
+- **Badge.** `ALERTS.unread`; `?launcher=1` draws the OS home screen (`showLauncher`): the notifications, the UDine icon with the iOS number
+  or the Android dot. The icon clears it; a notification clears it and lands on Halls.
+- **Health Connect missing.** `?health=missing&os=android`: the row shows; a tap opens `osPlay()`, a neutral Play listing with Install.
+- **Tracking lift.** `setTrack` is async: flips `S.track` and the switch at once, animates the layer out (`liftOff`: bar `exit` down, figures
+  `settle`, blocks `fold` after `MO.exit.d`), then re-renders with the class; on, it re-renders first and `liftOn` opens the blocks, fades the
+  figures in and rises the bar (`fold`). New token `fold` {250 ms, standard}. `TRK.busy` ignores a tap mid-lift. Blocks: Today, Meals,
+  Earlier, the Health row, Your foods, Which was better?.
+
+### Decisions
+- **Star meal rule:** the meal on now, else the next ahead today, else none. A dinner-only favorite does not star a hall while lunch is on.
+- **Badge rule:** iOS number = favorite notifications delivered since the app was last opened (each push adds one); Android = the launcher dot
+  while one is unread; both clear on opening the app or tapping a notification. No device-side check feeds it.
+- **Battery Restricted kept on Android** (reworded for push: "Battery use is restricted, so notifications can't arrive", button **App info**); iOS's Background App Refresh row stays removed. (First built removed both; the coordinator restored Android's on 2026-10-17: FCM isn't delivered to a Restricted app.) `ALQ`/`BGOFF()` read `?alerts=bgoff` on Android only; `alertRun` is empty under it; `vectors.json` `alerts` has a `restricted` case.
+- **Figures stay** on rows when tracking is off (they are the menu's facts); only controls, bar and the ledger go. Asked as Open.
+- **Owner question left open:** the exact schedule of the push (a fixed 7 AM Eastern, tied to menu publication, or per meal).
+
+### Tests (`round13`, `RED=13 node test.js`; the first five scenarios; the hall open and the busy-row reserve are in the hall sections below)
+Red first against `build/r12/before-r12c-index.html`, `build/r12/red-r13.txt`:
+```
+RED    a notification tap lands on Halls home: …: Halls home, every sheet closed
+RED    a hall card shows a star when a favorite is served there in its meal now, or the next ahead: …: Golden BBQ Chicken Thigh is on at Worcester at lunch, now
+RED    the icon badge: …: iOS: the number is the notifications delivered
+RED    turning tracking off lifts a layer away: …: the bar is on its way down
+RED    Health Connect not installed: the row shows, and a tap opens its Play listing: …: its Play listing opens
+```
+Changed older tests (round 11's alerts): "never once its last serving has ended" is now "nothing later than the push posts" (12:41 PM empty, 8:00 AM empty);
+the two background-off assertions and the `bgoff` gap check are removed; the notification's tap lands on Halls home.
+- **Now:** `RED=13 node test.js` gives 8 green scenarios, 79 checks (the five above, the hall open, the busy-row reserve, Search tiles); `RED=12` 12 scenarios, 165 checks; `node test.js` 5,354 checks (final tree; the `RM=1` full run was 3,687 on the tree before the figures change and wasn't repeated after the host's memory kill; `RED=13` 87 checks). (A full run once failed in round 9 on a pinned-café count, 'its pin is kept but not drawn'; a rerun and `RED=9` alone were green, so it is a timing flake under load, not this round's change.)
+- **Vectors:** `stars` (six cases: favorites, clock, the halls with a star, the meal per hall); `alerts` sequences changed to the push window; `fountain` from round 12d.
+
+### Shots (`build/r12/p7`)
+`off.png` and `on.png`: twelve frames each at 390, all animations paused and seeked together. Contact sheets `r13-sheet1.png`, `r13-sheet2.png` (390 left, 360 right):
+Halls with stars, the iOS and Android launchers, the landing, the landing then Search's Favorites lens, You and Halls and a hall menu after tracking off,
+Health Connect's Play listing. Looked at every frame. Seen: in the off strip the Today, Meals and Earlier headings overlap faintly for about 40 ms as their
+blocks fold at the same time (their content has faded by then); not staggered.
+
+### Round 13: hall open and close (the container transform's fade-through)
+- **Why.** The ghost faded out over p 0-.3 and the page in over .3-1: at about .3 nothing was drawn (a hollow, translucent card, the letter and title dipping
+  to nothing). The duotone photo faded 1-p under the colour at p, which covers 75% at p .5. (`paint()` in `src.html`; Flutter: `container_math.dart`
+  `outgoingOpacity` / `incomingOpacity` from `M2Motion.contFade`.)
+- **What `paint()` does now.** `measureXF` records, for a band source, the card's rectangle of the letter (svg), the title and the status line (a Range's
+  text box) and the busy meter, and the header's own at p 1. At each p the header's element gets `translate3d(lerp(s,f) - f - own offset) scale(lerp)` about its
+  top-left, opacity 1; the letter and the title scale (the status and the meter only move). The band's ghost copy is gone (a band source has no ghost);
+  the header's own photo (opaque), tint and gradient are the card's face. Windows: `fin = clamp((p-.2)/.6)` for the content with no counterpart and for
+  what a shared element adds (`#mts .sch`, `#mbz .bzx`, via `--fx`); the ghost of a non-band source (a row) would fade `1 - clamp(p/.5)` (no hall
+  opens from a row any more: they push). `E.mduo` stays 1 while `p < 1`.
+- **Numbers for Flutter:** incoming window .2 to .8 (was .3 to 1); outgoing: none for a band (shared elements); the colour photo's opacity p over an opaque duotone;
+  the scrim stays .32 p.
+- **Differences that crossfade on top of a shared element:** the status line's chevron; the busy line's "Calmer around" extra. Weight and face of the title are the same.
+- **Text size:** a scale transform about the top-left of a paragraph laid out once at its final size, not an interpolated `fontSize` (no per-frame
+  layout; Oswald stays crisp because the scale is near 1 at both ends).
+- **Layer budget:** three offscreen layers a frame at most (no-counterpart group, photo develop, scrim), was about 28.
+- **Test (`round13`, "a hall opens as one continuous card"):** at p 0, .1, .3, .5 and .8 the letter, title, status, meter and the duotone photo are at opacity 1 and
+  there is no ghost copy; the header's letter is exactly where the card drew it at p 0 and on the straight line at p .3 (position and size, 1.5 px);
+  the chevron and the "Calmer around" line are invisible at .1 and part-faded at .5, whole at 1. Red against round 12c's build (`build/r12/red-r13-hall.txt`):
+  "p 0: the shared elements and the ground are fully drawn, and there is no ghost copy of a band".
+- **Shots:** `p7/open390.png`, `open360.png`, `close390.png`, `close360.png` (twelve frames), `scrub390.png`, `scrub360.png` (back at p .1, .3, .5). Looked at every frame:
+  the card is never hollow, the letter and the title travel continuously. In the first frames the letter's top is clipped by the growing window, as it always was.
+- **A late busy reading (header), revised (owner, 2026-10-17: don't reserve).** The first pass reserved both busy lines always (Franklin's title moved to 82); that is reverted: loaded titles
+  are M2's again (Worcester, Hampshire, Berkshire at 82 dp, Franklin at 104, the test's 22 px difference; `.mt .bzx:empty{display:none}` as before). The late path is new: `?busy=late` opens a hall
+  with `LATE_D` = the block's height (W/H/B 47 dp = 39 + 8; F 25 = 17 + 8), the header `--hh` shorter by it (`setHH`, `measure()` honours it) and the block and chart hidden; `lateMeasure()` re-measures
+  on the real fonts; `arriveBusy()` grows the block (height, spacing, opacity) and the header by D together over `settle`, and `paint()` moves the tabs and list down; the title (anchored by the header's foot) and the
+  letter do not move at any frame. Against M2-r12 (the pushed round 12c tree) no loaded title moves. M2's own offline and other-day header still reserves the hall's block (documented M2 behaviour); in Flutter a
+  header that never gets a reading stays short. Test: "a busy reading that lands late" (red on the first build of `arriveBusy`, which measured while the menu was hidden: `build/r12/red-r13-late.txt`; the title
+  moved 183 to 144). The hall card on Halls is top-stacked in a fixed band: no shift.
+
+### Round 13 follow-ups (coordinator review, 2026-10-17)
+- **Tracking lift timing.** The first build faded the figures while the blocks closed, so text was cut mid-line ("Write to Health Connect", "Your foods") and faded headings
+  piled up for about 100 ms. Now every leaving block fades to 0 (0-150 ms, `exit`) and only then closes (150-400 ms, `fold`, opacity 0 throughout); on, the space opens empty
+  (0-250 ms) and the content then fades in (250-450 ms); the bar rises 250-500. Strips regenerated: `p7/off.png`, `on.png`, `off360.png`, `on360.png`. T = 400 ms off, 500 ms on.
+- **Search tiles.** Horizontal: `.lane .tags{margin:0 max(12px, calc(26px - 11px*var(--n,1))) 0 0}` with `--n` the tile count (set by `hallGlyph`): the group's visible centre under the +
+  (1 tile: 15 px margin), clamped at 12 px (right edge 340 at 360). Vertical: `alignTiles()` sets `--ty` (a `translateY`, so the lane's height and the row's don't change) to the gap
+  between the tile's centre and the centre of the row's last meta group (cal and protein): it is 2.5 px on a two-line-name row and about 12.5 px on a one-line-name row, because the text column is
+  centred in the row and the tiles hang from the lane's foot; every row is measured, not a sample. Test "Search tiles" measures 1, 2 and 3 tiles at 360
+  (red on the old build: "1 tile(s): centred on the meta line (280 vs 277.5)", `build/r12/red-r13-tiles.txt`).
+- **Fountain Drink** is marked Vegetarian and Plant based (round 12d, closed).
+- **Titles against M2-r12 (the pushed round 12c tree):** no loaded title moves (Worcester, Hampshire, Berkshire 82 dp, Franklin 104 dp); the busy-block reservation was reverted (owner, 2026-10-17).
+
+### Round 13: tracking off hides the figures (owner, 2026-10-17)
+- **What.** The cal and protein group of a row is `.mg.fig` (`meta()` and a packaged food's row); `#frame.notrack .fig{display:none}`, the meta line closes when only figures were on it, `.row{min-height:48px}` (64 on), the
+  lane's min-height is 0 and its tiles centre, the control column is `display:none` (it was `visibility:hidden`, so names now take the width), and a dish sheet's `.label` is hidden. `dishMid()` rests the sheet at
+  the end of `.where` when there is no label (it first used the whole content height and the sheet's chips fell off-screen at y 1748).
+- **Transition.** `rowEls()` collects the visible rows: figures and controls fade 0-150 (`exit`), then the meta line (`mFold`), the control column (`ctlFold`), the row and lane minimum heights (`minFold`) and the tiles
+  (`tagY`, from `--ty` to the row's centre) close 150-400 (`fold`); on reverses it, the figures and controls fading in 250-450 (`settle`). Strips: `p7/rowsoff.png`, `rowson.png` (+360) beside `off.png`/`on.png`.
+- **Judgement call:** the label goes from the sheet too (see CONCEPT). **Seen:** the row's text re-wraps at the end of the close (when the control column leaves layout), not during it.
+- **Tests:** "tracking off hides the calorie and protein figures everywhere" (red on the old build: "tracking on: the figures are there": no `.fig`; at 70 ms the figures are fading and no row has moved; mid-close the rows are closing;
+  off: every row shorter and never under 48; hall menus no figures; the sheet keeps name/serving/marks and drops the label; back on the figures return). Round 10's "no + or stepper" check counts `display:none` as gone;
+  "hall rows keep their height" became "hall rows close up to name-only"; round 12's "tracking off keeps the picker" reads the variant from the sheet's name (the label is hidden), not the label's number.
+- **Vectors:** top-level `tracking`: the windows in ms, the row minimum heights, what is hidden and what is kept.
+- **Final counts (the busy-block and Fountain Drink changes):** `node test.js` 5,349 checks all green (final tree); `RED=13` 94, `RED=12` 166. Frames: `p7/lateW390.png`, `lateW360.png`, `lateF390.png`, `lateF360.png` (the reading landing, 12 frames, title and letter fixed) and `p7/f-diet.png` (the Fountain Drink row with Vegetarian, Plant based and Halal all on).
+- **Late reading, clipping and chart (review fix).** The first `arriveBusy` grew the block's box with its text inside, so the line was cut mid-glyph for about the first half of the grow, and the chart was drawn at k 0
+  (`paint()` rewrites `#mhist`'s and `#mbz`'s own opacity every call, so the fade was set on their children: `#mbz > *{opacity:var(--bo)}` and the chart's `svg`). Now `busyStep(k)`: the box grows over the first 60% of
+  `settle` (its easing), the line and the chart fade in over the last 40%. The chart is part of the late block (a live hall's only), absent at k 0, living in the header's foot band, so D (47 dp for Worcester, Hampshire,
+  Berkshire; 25 for Franklin) is the busy lines only. Test (same scenario): at 21 steps, while the line has any opacity its scroll height equals its height and it lies inside the header; the chart is not drawn at k 0.
+  Red: `build/r12/red-r13-late2.txt`. Frames: `p7/lateW390.png`, `lateW360.png`, `lateF390.png`, `lateF360.png` (12 each).
+

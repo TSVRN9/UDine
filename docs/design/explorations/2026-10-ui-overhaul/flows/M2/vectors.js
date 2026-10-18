@@ -35,8 +35,14 @@
 //              // the one broth picked from "choices"; round 11b). The rule is baseOf; phoOf builds the pho.
 //   "synthetic": [ {"day", "place", "meal", "station", "label"} ],  // every station-day with a synthetic base: unpriced Salad Bar
 //              // and Deli Bar (never by the pound), and the halls' pho bars. A station not listed has none.
-//   "alerts": [ {"favorites": [dish], "runs": [ {"clock", "posted": [[title, body]]} ]} ],   // alertRun, allowed, runs in
+//   "alerts": [ {"favorites": [dish], "restricted"?: true (Android, battery Restricted: nothing arrives), "runs": [ {"clock", "posted": [[title, body]]} ]} ],   // alertRun, allowed, runs in
 //              // order on Oct 8 sharing one dedup: one per dish per day, from 7 AM, not once its last serving today ended
+//   // round 13 (owner, 2026-10-17): the server sends one visible push per dish per day at about 7 AM Eastern (the sim's window: 7:00 to 7:59), so
+//   // alerts' runs after the window post nothing, and the iOS icon badge is the number of notifications delivered since the app was last opened
+//   // (the length of the 7 AM run's "posted"; Android: the launcher dot while one is unread; opening the app or tapping one clears it).
+//   "tracking": {"off": {"fade": [ms, ms], "close": [ms, ms]}, "on": {"open", "fade", "bar"}, "rowMinHeight": {"on", "off"}, "hidden": [...], "kept": [...]},   // round 13: the layer lift's windows and what tracking off hides
+//   "stars": [ {"favorites": [dish], "clock", "halls": [hall keys with a star], "meals": {hall: the meal now, else the next ahead today, else null}} ],
+//              // a hall card's star: a favorite is served at that hall in that meal
 //   "packaged": {"query", "yours": [name], "shown": [[name, calPer100g]]},   // the recorded OFF answer as the Packaged group
 //              // shows it: a name once, no hit without calories, nothing already in Your foods, the brand leading a name
 //              // that lacks it
@@ -100,10 +106,12 @@ const PLATES = [
 // round 11: favourite alerts, each a sequence of background runs on Oct 8 (minutes after midnight)
 const ALERTS = [
   [['Beef Brisket Noodle Bowl', 'Golden BBQ Chicken Thigh'], [6 * 60 + 50, 7 * 60 + 15, 7 * 60 + 30]],   // before 7 AM; the first run; dedup
-  [['Beef Brisket Noodle Bowl'], [17 * 60]],                                                              // lunch only, first seen at 5 PM
-  [['Green Chile Posole'], [15 * 60 + 45, 16 * 60 + 31]],                                                 // now (lunch); dinner is the same day
-  [['Korean BBQ Chicken', 'Chewy M&M Bar'], [12 * 60 + 41]],                                              // later today; tomorrow only
+  [['Beef Brisket Noodle Bowl'], [17 * 60]],                                                              // no push at 5 PM: a dish added after 7 AM isn't alerted
+  [['Green Chile Posole'], [7 * 60, 16 * 60 + 31]],                                                       // the 7 AM push posts it; nothing later
+  [['Korean BBQ Chicken', 'Chewy M&M Bar'], [7 * 60 + 59, 8 * 60]],
+  [['Beef Brisket Noodle Bowl'], [7 * 60 + 15], { restricted: true }],                                     // Android, battery Restricted: FCM isn't delivered, nothing posts                                       // dinner today; tomorrow only; the window closes at 8
 ];
+const STARCASES = [[['Golden BBQ Chicken Thigh'], 12 * 60 + 41], [['Scrambled Eggs'], 6 * 60], [['Korean BBQ Chicken'], 12 * 60 + 41], [['Korean BBQ Chicken'], 17 * 60], [['Korean BBQ Chicken'], 22 * 60], [['Golden BBQ Chicken Thigh', 'Korean BBQ Chicken'], 17 * 60]];
 const SAVEDCASES = [['offline', [], 'W', 0], ['offline', [], 'W', 1], ['offline', [], 'W', 2], ['offline', [], 'Green Fields', 0], ['offline', ['Green Fields'], 'Green Fields', 0],
   ['offline', ['Green Fields'], 'Green Fields', 1], ['fail', [], 'W', 0]];
 const PRICE = [['Harissa Chicken', 'Terrace'], ['Caesar Salad w/Chicken', 'Green Fields'], ['Bacon, Egg & Cheese on English Muffin', 'Worcester Café'], ['California Roll', 'Wasabi'], ['Baby Spinach', 'Roots Café'],
@@ -176,9 +184,13 @@ const PRICE = [['Harissa Chicken', 'Terrace'], ['Caesar Salad w/Chicken', 'Green
     return { day: x.day, place: x.h, meal: x.meal, base: x.base, synthetic: x.syn, ...(y ? { choices: y.choices.map(d => d.n) } : {}) }; }));
   out.synthetic = await p.evaluate(() => { const out = []; MD.forEach((D, day) => Object.entries(D).forEach(([k, ms]) => Object.entries(ms).forEach(([meal, ss]) => ss.forEach(([st], si) => { const y = synOf(day, k, meal, si); if (y) out.push({ day: DAYS[day], place: k, meal, station: st, label: y.label }); })))); return out; });
   out.alerts = [];
-  for (const [fav, runs] of ALERTS) out.alerts.push(await p.evaluate(([fav, runs]) => { ALERTS.on = true; ALERTS.granted = true; ALERTS.seen.clear(); S.fav = new Set(fav.map(norm));
+  for (const [fav, runs, opt] of ALERTS) out.alerts.push(await p.evaluate(([fav, runs, opt]) => { ALERTS.on = true; ALERTS.granted = true; ALERTS.seen.clear(); S.fav = new Set(fav.map(norm)); const q0 = ALQ; if (opt && opt.restricted) ALQ = 'bgoff';
     const f = m => `${(Math.floor(m / 60) + 11) % 12 + 1}:${String(m % 60).padStart(2, '0')} ${m < 720 ? 'AM' : 'PM'}`;
-    const r = { favorites: fav, runs: runs.map(m => ({ clock: f(m), posted: alertRun(m).map(n => [n.title, n.body]) })) }; S.fav = new Set(); return r; }, [fav, runs]));
+    const r = { favorites: fav, ...(opt && opt.restricted ? { restricted: true } : {}), runs: runs.map(m => ({ clock: f(m), posted: alertRun(m).map(n => [n.title, n.body]) })) }; ALQ = q0; S.fav = new Set(); return r; }, [fav, runs, opt]));
+  out.stars = await p.evaluate(cases => cases.map(([fav, now]) => { S.fav = new Set(fav.map(norm)); const r = { favorites: fav, clock: `${(Math.floor(now / 60) + 11) % 12 + 1}:${String(now % 60).padStart(2, '0')} ${now < 720 || now >= 1440 ? 'AM' : 'PM'}`, halls: HALLS.filter(h => hallStar(h, now)), meals: Object.fromEntries(HALLS.map(h => [h, hallMeal(h, now)])) }; S.fav = new Set(); return r; }), STARCASES);
+  // round 13: the tracking layer lifting away (timings from the motion tokens, ms) and what a row keeps with tracking off
+  out.tracking = await p.evaluate(() => ({ off: { fade: [0, MO.exit.d], close: [MO.exit.d, MO.exit.d + MO.fold.d] }, on: { open: [0, MO.fold.d], fade: [MO.fold.d, MO.fold.d + MO.settle.d], bar: [MO.fold.d, 2 * MO.fold.d] },
+    rowMinHeight: { on: 64, off: 48 }, hidden: ['row calories and protein (menus, Search, Favorites lens, foods)', 'plate bar', "dish sheet's Nutrition Facts label", 'Today and Earlier on You', 'Health row', 'Your foods', 'Which was better?'], kept: ['row name, diet marks, scores, token', "dish sheet's name, serving, marks, Contains, where, ingredients"] }));
   out.packaged = await p.evaluate(() => { S.q = 'clif'; const r = { query: S.q, yours: S.foods.map(f => f.n), shown: packHits().map(f => [f.n, f.cal]) }; S.q = ''; return r; });
   out.saved = await p.evaluate(cases => cases.map(([net, cafes, place, day]) => { const n0 = NET, s0 = new Set(SAVED); NET = net; SAVED.clear(); cafes.forEach(c => SAVED.add(c));
     const k = HALLS.includes(place) ? place : 'c' + P.places.findIndex(x => x[0] === place), v = savedMenu(k, day); NET = n0; SAVED.clear(); s0.forEach(c => SAVED.add(c));
