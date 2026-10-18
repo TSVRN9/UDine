@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'support.dart' show frame;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:udine/core/hours.dart';
 import 'package:udine/core/m2/search.dart';
@@ -25,13 +24,12 @@ final lunch = easternInstant(DateTime.utc(2026, 10, 8, 12, 41));
 
 Future<void> ready(SearchController c) async {
   for (var i = 0; i < 600 && !c.complete; i++) {
-    await frame();
+    await Future<void>.delayed(const Duration(milliseconds: 10));
   }
   expect(c.complete, isTrue, reason: 'never loaded');
 }
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
   sqfliteFfiInit();
   late CountingNet net;
   late Repository repo;
@@ -151,7 +149,7 @@ Future<void> _recovers(Database db, AppPrefs prefs, PlateModel plate) async {
   final net = NetClient(RecordedClient(menus: jsonDecode(await _read('menus-2026-10-08-to-22.json')) as Map<String, dynamic>, locations: await recordedLocations(_read), events: await _read('events-raw.json')), NetMode.fail, Duration.zero);
   final c = SearchController(Repository(UmassSource(net), db, supabase: SupabaseSource(net), now: () => lunch), prefs, plate);
   for (var i = 0; i < 100 && c.net != NetLine.failed; i++) {
-    await frame();
+    await Future<void>.delayed(const Duration(milliseconds: 10));
   }
   expect(c.net, NetLine.failed);
   expect(c.menusIn, isFalse);
@@ -168,7 +166,7 @@ Future<SearchController> _failed(Database db, AppPrefs prefs, PlateModel plate) 
   final r = await recordedRepository(RecordedFlags(at: lunch, net: NetMode.fail), db, read: _read);
   final c = SearchController(r, prefs, plate);
   for (var i = 0; i < 100 && c.net != NetLine.failed; i++) {
-    await frame();
+    await Future<void>.delayed(const Duration(milliseconds: 10));
   }
   return c;
 }

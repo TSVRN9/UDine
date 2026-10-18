@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/scheduler.dart';
 
 import '../../core/m2/board.dart';
 import '../../core/types.dart' show diningHalls;
@@ -18,8 +17,6 @@ class WhereBook extends ChangeNotifier {
   WhereBook(this.repo, this.base, [this.cafeIds = const {}, bool start = true]) {
     if (start) this.start();
   }
-  /// How long the UI isolate may reduce place-days before it lets a frame run (a place-day is ~1 ms on an A53).
-  static int sliceMicros = 4000;
   final Repository repo;
   final Board base;
   /// café place key -> foodpro location id
@@ -42,19 +39,10 @@ class WhereBook extends ChangeNotifier {
     Future<void> fetch(Map<String, int> ids) async {
       final want = [for (final iso in isos) for (final e in ids.entries) if (!days[iso]!.containsKey(e.key)) (e.value, iso)];
       final got = await repo.prefetchMenus(want, stopped: () => _disposed);
-      // place-days are reduced in slices of at most [sliceMicros] (then a frame): ~24 at once held the UI isolate for 200-400 ms (A53) right after
-      // the sheet settled. (Not SchedulerBinding.scheduleTask(Priority.idle): while an animation runs it re-arms Timer.run without end, a busy loop.)
-      final sliceClock = Stopwatch()..start();
       for (final iso in isos) {
         for (final e in ids.entries) {
           final items = got[(e.value, iso)];
-          if (items == null || items.isEmpty || days[iso]!.containsKey(e.key)) continue;
-          if (sliceClock.elapsedMicroseconds >= sliceMicros) {
-            await SchedulerBinding.instance.endOfFrame;
-            sliceClock.reset();
-          }
-          if (_disposed) return;
-          days[iso]!.putIfAbsent(e.key, () => mealsOfItems(items));
+          if (items != null && items.isNotEmpty) days[iso]!.putIfAbsent(e.key, () => mealsOfItems(items));
         }
       }
     }

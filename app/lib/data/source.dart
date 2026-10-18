@@ -35,6 +35,12 @@ class UmassSource {
     return _json(Uri.https(_host, 'foodpro-menu-ajax', {'tid': '$tid', 'date': '$m/$d/$y'}));
   }
 
+  /// [menu]'s response, undecoded: the repository decodes and parses it on a worker isolate.
+  Future<Uint8List> menuBytes(int tid, String date) {
+    final [y, m, d] = date.split('-');
+    return sendBytes(client, timeout, 'GET', Uri.https(_host, 'foodpro-menu-ajax', {'tid': '$tid', 'date': '$m/$d/$y'}));
+  }
+
   Future<Object?> infoV2() => _json(Uri.https(_host, 'uapp/get_infov2'));
 
   Future<Object?> events() => _json(Uri.https(_host, 'uapp/get_beacons_events'));
