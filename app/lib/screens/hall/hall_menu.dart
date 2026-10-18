@@ -8,7 +8,7 @@ import '../../core/m2/menu_view.dart';
 import '../../core/m2/plate.dart';
 import '../../core/hours.dart' show openSpan;
 import '../../core/occupancy.dart';
-import '../../core/m2/places.dart' show Roster;
+import '../../core/m2/places.dart' show Roster, hallKeyOfTitle;
 import '../../core/m2/schedule.dart' show schedule, statusLine;
 import '../../data/repository.dart' show resolveCafeMenu;
 import '../cafes/cafe_body.dart';
@@ -203,7 +203,10 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     if (!_synced) {
       _synced = true;
       _blockFrom = _blockTo = to;
-      _h0 = _cafe ? 0 : headerHeight(widget.top) - (v?.block ?? M2Layout.busyBlockExtra); // ponytail: a live hall without a second line ends 22 dp shorter than M2's
+      // no card: what Halls (or any earlier read) found for this hall; with none at all, a hall with a second line
+      final known = _cafe || v != null ? null : AppScope.of(context).repo.lastBusy.entries.where((e) => hallKeyOfTitle(e.key) == place).firstOrNull?.value;
+      // ponytail: a cold deep link has no earlier read, so a live hall without a second line ends 22 dp shorter than M2's
+      _h0 = _cafe ? 0 : headerHeight(widget.top) - (v?.block ?? (known == null ? M2Layout.busyBlockExtra : HallBusyView.of(known).block));
       return;
     }
     if (v == null || (identical(v, before))) return;

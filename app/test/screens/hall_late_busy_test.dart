@@ -1,8 +1,13 @@
 // M2 R13 §4 last bullet, `test.js` "a busy reading that lands late": the title and the letter do not move at any frame of the reading's
 // arrival, the block grows in below the status line (the header grows by its height D, the tabs and the list ride down by D), and its
 // text and the chart fade in only once the box is whole (so no glyph is ever cut by a growing box or the header's edge).
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:udine/motion/routes.dart';
+import 'package:udine/screens/halls/halls_screen.dart';
+import 'package:udine/screens/halls/hall_page.dart';
 import 'package:udine/screens/hall/busy.dart';
 import 'package:udine/screens/hall/hall_header.dart';
 import 'package:udine/screens/hall/hall_menu.dart';
@@ -27,8 +32,17 @@ void main() {
   setUpAll(loadFonts);
 
   /// A hall opened before its reading (M2 `?busy=late`), frame by frame until the reading has landed and settled.
-  Future<List<Snap>> arrival(WidgetTester t, String key, String name, {bool reduced = false}) async {
-    await openApp(t, await bootRecorded(t, busyLate: true), route: '/hall/$key?meal=lunch', reduced: reduced);
+  Future<List<Snap>> arrival(WidgetTester t, String key, String name, {bool reduced = false, bool viaHalls = false}) async {
+    if (viaHalls) {
+      // a hall pushed with no card (a dish sheet's "served at" chip, Search, the plate sheet) while Halls has read its busy
+      await openApp(t, await bootRecorded(t));
+      await t.pump();
+      await until(t, () => find.descendant(of: find.byType(HallsScreen), matching: find.byType(Meter)).evaluate().length >= 4);
+      Nav.push<void>(t.element(find.byType(HallsScreen)), (_) => HallMenuPage(place: key == 'franklin' ? 'F' : 'W', top: 24));
+      await t.pump();
+    } else {
+      await openApp(t, await bootRecorded(t, busyLate: true), route: '/hall/$key?meal=lunch', reduced: reduced);
+    }
     final out = <Snap>[];
     var landedAt = -1;
     for (var i = 0; i < 400 && (landedAt < 0 || i < landedAt + 40); i++) {
@@ -103,4 +117,16 @@ void main() {
     }
     expect(s.last.rowOpacity, 1);
   });
+
+  // M2's measured titles (m2_dom.json: Worcester's mtn top, Franklin's 22 dp lower: it has no "Calmer around" line)
+  for (final h in [('worcester', 'Worcester', 0.0, 47.0), ('franklin', 'Franklin', 22.0, 25.0)]) {
+    testWidgets('${h.$2} pushed with no card, after Halls read its busy: it opens at the height it keeps, the title at M2\'s top', (t) async {
+      final s = await arrival(t, h.$1, h.$2, viaHalls: true);
+      final mtn = (((jsonDecode(File('test/m2_dom.json').readAsStringSync()) as Map)['390'] as Map)['head'] as Map)['mtn'] as List;
+      for (var i = 0; i < s.length; i++) {
+        expect(s[i].title.top, closeTo((mtn[1] as num) + h.$3, 1), reason: 'frame $i: the title is at M2\'s top from the first frame');
+      }
+      expect(s.last.tabs - s.first.tabs, closeTo(h.$4, 0.6));
+    });
+  }
 }
