@@ -78,9 +78,11 @@ Future<void> openApp(WidgetTester t, Boot boot, {String route = '/halls', double
 /// Lets the repository's real I/O (sqlite on an isolate) land before a test that opened a hall page ends: its calls start inside the
 /// fake-async zone, and a query still running when the test is over leaves sqflite's 10 s timer pending.
 Future<void> drain(WidgetTester t) async {
-  for (var i = 0; i < 4; i++) {
-    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 60)));
+  // (a WhereBook still reducing place-days, one a frame, keeps a frame scheduled: pump until it is done)
+  for (var i = 0; i < 80; i++) {
+    await t.runAsync(() => Future<void>.delayed(Duration(milliseconds: i < 4 ? 60 : 10)));
     await t.pump();
+    if (i >= 3 && !t.binding.hasScheduledFrame) break;
   }
 }
 
@@ -118,4 +120,12 @@ class CountingClient extends http.BaseClient {
     urls.add(request.url);
     return inner.send(request);
   }
+}
+
+/// 10 ms of real time, then a frame (nothing else runs one in a plain test; the WhereBook takes one per place-day).
+Future<void> frame() async {
+  await Future<void>.delayed(const Duration(milliseconds: 10));
+  TestWidgetsFlutterBinding.instance
+    ..handleBeginFrame(null)
+    ..handleDrawFrame();
 }

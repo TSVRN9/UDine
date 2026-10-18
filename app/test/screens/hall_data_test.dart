@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'support.dart' show frame;
 import 'package:http/http.dart' as http;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:udine/core/hours.dart';
@@ -49,6 +50,7 @@ Future<void> settled(HallController c, Iterable<int> days) async {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   sqfliteFfiInit();
   late Database db;
   late CountingNet net, counting;
@@ -114,7 +116,7 @@ void main() {
     expect(c.board.days[c.isos[0]]!.keys, ['W'], reason: 'the controller itself only has its own place');
     final book = WhereBook(repo, c.board);
     for (var i = 0; i < 400 && book.board == null; i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await frame();
     }
     final answer = whereAnswer(book.board!, 'Black Bean Burger', lunch);
     expect(answer.expand((g) => g.halls).toSet(), halls.toSet());
@@ -125,11 +127,29 @@ void main() {
   Future<WhereBook> bookOf(HallController c) async {
     final book = WhereBook(repo, c.board, c.cafeIds);
     for (var i = 0; i < 1500 && !book.complete; i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await frame();
     }
     expect(book.complete, isTrue);
     return book;
   }
+
+  test('WhereBook reduces place-days in slices with a frame between (none longer than the slice), and answers the same', () async {
+    final c = await worcester();
+    final first = await bookOf(c); // (the repository now has every place-day: the next book waits on no network)
+    final answer = whereAnswer(first.board!, 'Black Bean Burger', lunch).map((g) => g.toJson()).toList();
+    first.dispose();
+    WhereBook.sliceMicros = 0; // (a place-day is ~1 ms: a frame after each, to count them)
+    addTearDown(() => WhereBook.sliceMicros = 4000);
+    final book = WhereBook(repo, c.board);
+    var frames = 0;
+    for (; frames < 400 && book.board == null; frames++) {
+      await frame();
+    }
+    expect(frames, greaterThanOrEqualTo(6), reason: 'three other halls, two days: each takes a frame');
+    expect(whereAnswer(book.board!, 'Black Bean Burger', lunch).map((g) => g.toJson()).toList(), answer);
+    book.dispose();
+    c.dispose();
+  });
 
   test('a second dish sheet asks for no place-day the first had (halls and cafés), and never more than four requests are in flight', () async {
     final c = await worcester();
@@ -157,12 +177,12 @@ void main() {
     final c = HallController(fresh, 'W')..load(5); // a day never saved: the hall's own ask finds the network down
     await settled(c, [5]);
     for (var i = 0; i < 400 && c.placeHours == null; i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await frame();
     }
     final sends = counting.sends;
     final book = WhereBook(fresh, c.board, c.cafeIds);
     for (var i = 0; i < 1500 && !book.complete; i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await frame();
     }
     expect(counting.sends, sends, reason: 'no request once the network is known to be down');
     expect(book.board!.days[c.isos[0]]!.keys, containsAll(['W', 'B']), reason: 'what is saved still answers');
