@@ -19,6 +19,10 @@ import 'package:udine/motion/routes.dart';
 import 'package:udine/screens/halls/halls_screen.dart';
 import 'package:udine/screens/halls/hall_page.dart';
 import 'package:udine/screens/hall/dish_row.dart';
+import 'package:udine/screens/hall/hall_menu.dart';
+import 'package:udine/core/m2/board.dart' show isCafe;
+import 'package:udine/data/repository.dart' show HoursData;
+import 'package:udine/data/states.dart';
 import 'package:udine/ui/ui.dart' show Photos;
 
 /// M2's fixed clock, Thursday October 8, 12:41 Eastern (lunch), wherever the machine is.
@@ -28,7 +32,7 @@ Future<String> readRecorded(String name) => File('assets/recorded/$name').readAs
 
 /// The app's `Boot` over M2's recordings and a throwaway store, as `Boot.open` builds it for a recorded route. Real I/O (sqlite on an
 /// isolate) runs under `runAsync`.
-Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? at, List<String> pins = const [], bool charlesRiver = false, Duration? slow, bool health = false, bool carbon = false, bool track = true, bool firstRun = false, Set<String> savedCafes = const {}, bool persistPins = false, List<String> avoid = const [], List<String> onlyShow = const [], PdfOpen? pages, bool pdfsLinked = true, Future<String> Function(String)? read, Future<void> Function(String)? shareFlyer, bool foods = false, LookupMode lookup = LookupMode.found, bool packFail = false, HangingClient? hangLookup, CountingClient? count}) async {
+Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? at, List<String> pins = const [], bool charlesRiver = false, Duration? slow, bool health = false, bool carbon = false, bool track = true, bool firstRun = false, Set<String> savedCafes = const {}, bool persistPins = false, List<String> avoid = const [], List<String> onlyShow = const [], PdfOpen? pages, bool pdfsLinked = true, Future<String> Function(String)? read, Future<void> Function(String)? shareFlyer, bool foods = false, LookupMode lookup = LookupMode.found, bool packFail = false, bool busyLate = false, HangingClient? hangLookup, CountingClient? count}) async {
   return (await t.runAsync(() async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
@@ -42,7 +46,7 @@ Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? a
     if (avoid.isNotEmpty) await store.setAvoid(avoid);
     if (onlyShow.isNotEmpty) await store.setOnlyShow(onlyShow);
     // the recorded PDFs are UMass's and never in the repo: a test's are synthetic, and its pages are drawn by [pages]
-    final repo = await recordedRepository(RecordedFlags(at: at ?? lunch, net: net, savedCafes: savedCafes), db.db, read: read ?? readRecorded, slow: slow, pins: pins, readPdf: (_) async => pdfsLinked ? utf8.encode('%PDF-1.4\n%synthetic\n') : throw 'not linked', pdfDir: Directory.systemTemp.createTempSync('udine-test-pdf'));
+    final repo = await recordedRepository(RecordedFlags(at: at ?? lunch, net: net, savedCafes: savedCafes, busyLate: busyLate), db.db, read: read ?? readRecorded, slow: slow, pins: pins, readPdf: (_) async => pdfsLinked ? utf8.encode('%PDF-1.4\n%synthetic\n') : throw 'not linked', pdfDir: Directory.systemTemp.createTempSync('udine-test-pdf'));
     final flags = RecordedFlags(at: at ?? lunch, net: net, lookup: lookup, packFail: packFail);
     final r = await recordedPackaged(flags, read: read ?? readRecorded, wrap: count == null ? null : (inner) => count..inner = inner);
     final boot = Boot(repo, store, await AppPrefs.load(store, pins: persistPins ? null : pins), pdfOpen: pages ?? pdfxOpen, shareFlyer: shareFlyer, packaged: r.packaged, lookup: hangLookup == null ? r.lookup : LookupDishSource(hangLookup, now: () => lunch));
@@ -84,11 +88,26 @@ Future<void> drain(WidgetTester t) async {
   }
 }
 
+/// Lets a hall's busy reading land when one is coming (today's, at a hall with a live headcount): its header is the short one until it
+/// does (M2 R13 `LATE_D`), and a test of the loaded page looks at the loaded one. Nothing waits for a café, another day or a page with no hours.
+Future<void> landReading(WidgetTester t) async {
+  final menu = find.byType(HallMenu);
+  if (menu.evaluate().isEmpty) return;
+  final s = t.state<HallMenuState>(menu.first), h = s.c.hours;
+  if (s.debugDay != 0 || isCafe(s.place) || h is! Loaded<HoursData> || h.value.busy == null) return;
+  for (var i = 0; i < 80 && s.c.busy == null; i++) {
+    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 5)));
+    await t.pump(const Duration(milliseconds: 16));
+  }
+  await t.pumpAndSettle();
+}
+
 /// Opens `route` (`/hall/worcester?meal=lunch&day=2026-10-10`) and waits for the hall's list or the line that stands for it.
 Future<void> openHall(WidgetTester t, Boot boot, String route, {double w = 390, double h = 844, bool reduced = false}) async {
   await openApp(t, boot, route: route, w: w, h: h, reduced: reduced);
   await until(t, () => find.byType(DishRow).evaluate().isNotEmpty || find.textContaining(RegExp(r'^(No menu posted|You.re offline|.* menu .*didn.t load)')).evaluate().isNotEmpty);
   await t.pumpAndSettle();
+  await landReading(t);
 }
 
 /// Opens any place's menu page (`W`, `c3`) by a push over Halls, as a café page will host it, and waits for its list.
@@ -99,6 +118,7 @@ Future<void> openPlace(WidgetTester t, Boot boot, String place, {double w = 390,
   await t.pump();
   await until(t, () => find.byType(DishRow).evaluate().isNotEmpty || find.textContaining(RegExp(r'^(No menu posted|You.re offline|.* menu .*didn.t load)')).evaluate().isNotEmpty);
   await t.pumpAndSettle();
+  await landReading(t);
 }
 
 /// A network that has not answered yet: a request waits until [release] (so a state that is "in flight" can be looked at).

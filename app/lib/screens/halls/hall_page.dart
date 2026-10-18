@@ -50,7 +50,7 @@ class _HallPageState extends State<HallPage> {
           busy: b.lamps == null ? null : widget.card ? Meter(key: _parts.meter, lit: b.lamps!) : BusyRow(lamps: b.lamps!, word: b.word!, meterKey: _parts.meter),
           letter: cafe || widget.card ? null : HallLetter(key: _parts.letter, letter: b.key, x: hallLx[b.key]!),
         ),
-        parts: _parts, seedStatus: b.status, seedBusy: b.lamps == null ? null : (lamps: b.lamps!, word: b.word!),
+        parts: _parts, seedStatus: b.status, seedBusy: b.lamps == null ? null : (lamps: b.lamps!, word: b.word!, extra: b.hasExtra),
       ),
     );
   }

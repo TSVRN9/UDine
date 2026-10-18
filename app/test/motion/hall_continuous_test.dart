@@ -1,6 +1,8 @@
 // M2 R13 §4, `test.js` "a hall opens as one continuous card": the letter, title, status line and busy meter are drawn at full opacity
 // at every p, the header's are where the card drew them at p 0 and on the straight line to where the header draws them in between,
 // and only what the header adds (the chevron, "Calmer around") crossfades on top.
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -42,6 +44,8 @@ Future<void> settle(WidgetTester t) async {
   }
 }
 
+final _dom = jsonDecode(File('test/m2_dom.json').readAsStringSync()) as Map<String, dynamic>;
+
 void main() {
   setUpAll(loadFonts);
 
@@ -60,16 +64,14 @@ void main() {
   }
 
   /// Everything the test.js scenario asserts at one frame, at the progress the route is at.
-  void shared(WidgetTester t, String name, String status, Shared from, Shared? home, {required String at, bool opaque = true}) {
+  void shared(WidgetTester t, String name, String status, Shared from, Shared home, {required String at, bool opaque = true}) {
     final p = t.widget<HallMenu>(find.byType(HallMenu)).progress.value, now = header(t, name, status);
     Finder within(Finder f) => find.descendant(of: find.byType(HallHeader), matching: f);
     final finders = [within(find.byType(HallLetter)).first, within(find.text(name)).last, within(find.text(status)).last, within(find.byType(Meter)).last];
     for (var i = 0; i < 4; i++) {
       final k = ['letter', 'title', 'status', 'meter'][i];
-      // (`home == null`: where the element is drawing toward this frame, for a page whose own layout is still settling: Franklin's has no
-      // second line, so its block closes by 22 dp as its reading lands, which the late-busy-reading task owns)
-      final tr = t.renderObject<RenderTravel>(find.descendant(of: find.byType(HallHeader), matching: find.byType(Travel)).at(i));
-      final want = home == null ? lerpRect(from.all[i], tr.lastHome!, p) : lerpRect(from.all[i], home.all[i], p);
+      // (`home` is where the page settled, measured on its own earlier open: never what the element reports it is drawing toward)
+      final want = lerpRect(from.all[i], home.all[i], p);
       if (opaque) expect(opacityAbove(t, finders[i]), 1, reason: '$at (p $p): the $k is never faded');
       final tx = finders[i].evaluate().first.widget;
       if (opaque && i == 1 && tx is Text) expect(tx.style!.color!.a, 1, reason: '$at (p $p): the $k text is opaque');
@@ -97,6 +99,9 @@ void main() {
       await t.tap(find.text(hall.$1));
       await settle(t);
       final home = header(t, hall.$1, status);
+      // M2's measured title (Franklin has no "Calmer around" line, so its title sits 22 dp lower than the other halls')
+      final mtn = (((_dom['${hall.$2.toInt()}'] as Map)['head'] as Map)['mtn'] as List).cast<num>();
+      expect(home.name.top, closeTo(mtn[1] + (hall.$1 == 'Franklin' ? 22 : 0), 1), reason: '${hall.$1}\'s title is where M2 measured it');
       final seen = <double>[];
       await t.tap(find.byType(BackButton));
       await settle(t);
@@ -108,7 +113,7 @@ void main() {
       for (var i = 0; i < 80; i++) {
         final p = t.widget<HallMenu>(find.byType(HallMenu)).progress.value;
         seen.add(p);
-        shared(t, hall.$1, status, from, hall.$1 == 'Franklin' ? null : home, at: 'open frame $i');
+        shared(t, hall.$1, status, from, home, at: 'open frame $i');
         if (p >= 0.95) break;
         await t.pump(const Duration(milliseconds: 16));
       }
@@ -195,11 +200,13 @@ void main() {
       await t.pump();
     }
     final seen = <(double, double, double)>[];
+    int? landed;
     for (var i = 0; i < 60; i++) {
       // the reading and the hours land in real time; frames follow
       await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
       await t.pump(const Duration(milliseconds: 16));
       final p = t.widget<HallMenu>(find.byType(HallMenu)).progress.value;
+      if (landed == null && t.state<HallMenuState>(find.byType(HallMenu)).c.busy != null) landed = i;
       final chev = t.widgetList<CustomPaint>(find.descendant(of: find.byType(HallHeader), matching: find.byType(CustomPaint))).where((c) => c.size == const Size.square(M2Layout.statusChevron)).toList();
       // (the invisible copy that holds the line's room is not the line)
       final extra = [
@@ -213,7 +220,9 @@ void main() {
       final c = ((chev.first.painter! as dynamic).color as Color).a / M2Color.onDmQuiet.a, e = extra.first.style!.color!.a / M2Color.onDmSoft.a;
       seen.add((p, c, e));
       expect(c, closeTo(incomingOpacity(p), 0.02), reason: 'the chevron is at fin at p $p');
-      expect(e, closeTo(incomingOpacity(p), 0.02), reason: 'the second line is at fin at p $p');
+      // (the line is `fin`, times the reading's own fade-in over `settle` once it lands: a line whose room is already there fades over all of it)
+      expect(e, lessThanOrEqualTo(incomingOpacity(p) + 0.02), reason: 'the second line is no more than fin at p $p');
+      if (landed != null && i - landed >= 14) expect(e, closeTo(incomingOpacity(p), 0.02), reason: 'the second line is at fin at p $p, a settle after its reading');
       if (p >= 1) break;
     }
     expect(seen.any((x) => x.$1 < 0.2 && x.$2 < 0.01), isTrue, reason: 'invisible early: $seen');
@@ -300,4 +309,73 @@ void main() {
     await settle(t);
     await drain(t);
   });
+
+  /// The bounds of the pixels `lit` accepts inside `r` on a screen `w` wide: what is painted, not what is reported.
+  Future<Rect> inkOf(WidgetTester t, double w, Rect r, bool Function(int r, int g, int b) lit) async {
+    final img = await t.runAsync(() => (t.binding.renderViews.first.debugLayer! as OffsetLayer).toImage(Rect.fromLTWH(0, 0, w, 844)));
+    final data = (await t.runAsync(() => img!.toByteData()))!;
+    var l = 1e9, tp = 1e9, rr = -1.0, b = -1.0;
+    for (var y = math.max(0, r.top.floor()); y < r.bottom.ceil(); y++) {
+      for (var x = math.max(0, r.left.floor()); x < math.min(w, r.right.ceil()); x++) {
+        final o = (y * w.toInt() + x) * 4;
+        if (lit(data.getUint8(o), data.getUint8(o + 1), data.getUint8(o + 2))) {
+          l = math.min(l, x.toDouble());
+          tp = math.min(tp, y.toDouble());
+          rr = math.max(rr, x + 1.0);
+          b = math.max(b, y + 1.0);
+        }
+      }
+    }
+    return Rect.fromLTRB(l, tp, rr, b);
+  }
+
+  // luminance well above the maroon ground: the status text (white at about 78%) and the gold lamps
+  bool bright(int r, int g, int b) => 0.3 * r + 0.59 * g + 0.11 * b > 120;
+
+  for (final hall in [('Worcester', 390.0), ('Franklin', 360.0)]) {
+    testWidgets('${hall.$1} at ${hall.$2.toInt()}: the reading lands in the middle of the open and nothing moves, in the reports and in the pixels at p .5', (t) async {
+      await boot(t, hall.$1, w: hall.$2);
+      await t.pump(const Duration(milliseconds: 600)); // (the card's own text comes in)
+      final from = card(t, hall.$1);
+      final status = (find.descendant(of: find.ancestor(of: find.text(hall.$1), matching: find.byType(Band)).first, matching: find.byType(Text)).evaluate().toList()[1].widget as Text).data!;
+      // what the card painted (the status text and the lit lamps)
+      final cardStatus = await inkOf(t, hall.$2, from.status.inflate(1), bright), cardMeter = await inkOf(t, hall.$2, from.meter.inflate(1), bright);
+      await t.tap(find.text(hall.$1));
+      await settle(t);
+      final home = header(t, hall.$1, status);
+      final homeStatus = await inkOf(t, hall.$2, home.status.inflate(1), bright), homeMeter = await inkOf(t, hall.$2, home.meter.inflate(1), bright);
+      await t.tap(find.byType(BackButton));
+      await settle(t);
+      await t.tap(find.text(hall.$1));
+      for (var i = 0; i < 5 && find.byType(HallMenu).evaluate().isEmpty; i++) {
+        await t.pump();
+      }
+      double? landedAt;
+      var inked = false;
+      for (var i = 0; i < 80; i++) {
+        // (the reading lands in real time, between frames)
+        await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 4)));
+        await t.pump(const Duration(milliseconds: 16));
+        final p = t.widget<HallMenu>(find.byType(HallMenu)).progress.value;
+        if (landedAt == null && t.state<HallMenuState>(find.byType(HallMenu)).c.busy != null) landedAt = p;
+        shared(t, hall.$1, status, from, home, at: 'mid-open frame $i');
+        if (!inked && p >= 0.45) {
+          inked = true;
+          final now = header(t, hall.$1, status);
+          for (final e in [(now.status, cardStatus, homeStatus, 'status'), (now.meter, cardMeter, homeMeter, 'meter')]) {
+            final got = await inkOf(t, hall.$2, e.$1.inflate(1), bright), want = Rect.lerp(e.$2, e.$3, p)!;
+            for (final d in [got.left - want.left, got.top - want.top, got.right - want.right, got.bottom - want.bottom]) {
+              expect(d.abs(), lessThan(2), reason: 'the ${e.$4}\'s ink at p $p is $got, the line from the card to home says $want');
+            }
+          }
+        }
+        if (p >= 0.95) break;
+      }
+      expect(inked, isTrue, reason: 'a frame at p .45 or later was inked');
+      expect(landedAt, isNotNull, reason: 'the reading landed while the page was opening');
+      expect(landedAt, lessThan(0.9), reason: 'the reading landed in the middle of the open, not after it (p $landedAt)');
+      await t.pump(const Duration(seconds: 1));
+      await drain(t);
+    });
+  }
 }

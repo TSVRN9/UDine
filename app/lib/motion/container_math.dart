@@ -29,6 +29,16 @@ double incomingOpacity(double p) => _clamp((p - M2Motion.contInFrom) / M2Motion.
       k: scale ? card.width / header.width + (1 - card.width / header.width) * p : 1,
     );
 
+/// M2 R13 `busyStep(k)`: a busy reading landing late. `k` is linear time 0..1 over `settle`. The block's box grows over the first
+/// [lateGrow] of it (the settle easing); only once the box is whole do its text and the chart fade in over the rest, so a growing box never
+/// cuts a glyph. A landing that has no box to grow (the space was there) fades over all of `k`; reduced motion has the box whole at once and
+/// crossfades.
+const lateGrow = 0.6;
+({double grow, double fade}) lateStep(double k, {bool reduced = false, bool grows = true}) => (
+      grow: reduced ? 1 : M2Motion.settle.curve.transform(_clamp(k / lateGrow)),
+      fade: reduced || !grows ? _clamp(k) : _clamp((k - lateGrow) / (1 - lateGrow)),
+    );
+
 enum Settle { open, closed }
 
 /// v: px/ms, positive toward closing. M2: close below the commit point or on a flick past the threshold.
