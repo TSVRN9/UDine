@@ -31,6 +31,13 @@ class HallHeader extends StatefulWidget {
   /// today's busy at a hall; null (another day, offline, loading) keeps the row's room and draws nothing
   final ValueListenable<HallBusyView?>? busy;
   final Animation<double> progress;
+  /// the header's height now (it is as tall as the busy block it has, M2 `setHH`); null is the full `headerHeight`
+  final double? hh;
+  /// the busy block's height now, and the linear time (0..1 over `settle`) of a reading landing: the line and the chart fade in after the box is
+  /// whole (M2 `busyStep`). Null `block` lets the row take its own height.
+  final double? block;
+  final Animation<double> lateK;
+  final bool lateGrows;
 
   /// scroll offset d = clamp(y, 0, HH - CH)
   final ValueListenable<double> scroll;
@@ -49,6 +56,10 @@ class HallHeader extends StatefulWidget {
     required this.progress,
     required this.scroll,
     required this.dayFade,
+    this.hh,
+    this.block,
+    this.lateK = kAlwaysCompleteAnimation,
+    this.lateGrows = true,
     this.busy,
     this.band,
     this.ghost,
@@ -64,26 +75,24 @@ class HallHeaderState extends State<HallHeader> {
   static int builds = 0;
   final _name = GlobalKey(), _head = GlobalKey(), _letterKey = GlobalKey(), _statusText = GlobalKey(), _meter = GlobalKey();
   // the reading was there when the page opened: its row and chart are part of the card, not news (they fade in only when they arrive late)
-  bool _lateBusy = false, _lateBoard = false;
-  double _drop = 0; // NB: how far the collapsed name falls into the compact bar
+  bool _lateBusy = false;
+  double _nameBottom = 0; // the name's bottom in the header, which the busy block's growth does not move
   double? _madeFor;
   late final _fin = _Fin(widget.progress);
   late Widget? _photo;
   Widget? _letter;
   late M2Type _nameStyle;
 
-  double get hh => headerHeight(widget.top);
+  double get hh => widget.hh ?? headerHeight(widget.top);
+  double get _drop => widget.top + M2Layout.nameBarTop - (_nameBottom - r); // how far the collapsed name falls into the compact bar
   double get r => hh - (widget.top + M2Layout.barH); // R = HH - CH
 
   void _measure() {
     final n = _name.currentContext?.findRenderObject() as RenderBox?, h = _head.currentContext?.findRenderObject() as RenderBox?;
     if (n == null || h == null || !n.hasSize) return;
     final bottom = n.localToGlobal(Offset(0, n.size.height), ancestor: h).dy; // the name's bottom in the header
-    final drop = widget.top + M2Layout.nameBarTop - (bottom - r);
-    if ((drop - _drop).abs() > 0.05) setState(() => _drop = drop);
+    if ((bottom - _nameBottom).abs() > 0.05) setState(() => _nameBottom = bottom);
   }
-
-  void _remeasure() => WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? _measure() : null);
 
   @override
   void initState() {
@@ -141,8 +150,9 @@ class HallHeaderState extends State<HallHeader> {
             return Opacity(opacity: (o * w.dayFade.value).clamp(0.0, 1.0), child: IgnorePointer(ignoring: o <= 0.5, child: ch));
           },
         );
-    // The busy row's room: M2 keeps it (invisible) when there is no live reading, held at the 39 dp of a hall with its "Calmer around" line.
-    const room = ExcludeSemantics(child: Opacity(opacity: 0, child: IgnorePointer(child: BusyRow(lamps: 0, word: 'Busy', extra: 'Calmer around', header: true))));
+    final rm = reducedMotion(context);
+    // M2 `busyStep`: what a reading adds fades in only once its box is whole
+    double lateFade() => lateStep(w.lateK.value, reduced: rm, grows: w.lateGrows).fade;
     final busy = w.busy ?? const AlwaysStoppedAnimation<HallBusyView?>(null);
     return SizedBox(
       key: _head,
@@ -205,14 +215,13 @@ class HallHeaderState extends State<HallHeader> {
               child: ValueListenableBuilder<HallBusyView?>(
                 valueListenable: busy,
                 builder: (_, v, _) {
-                  if (v == null || v.seed) _lateBoard = true;
                   if (v?.board == null) return const SizedBox.shrink();
                   // what the card has no counterpart for: `fin`, the scroll's and the day's fades, all by alpha
                   final board = AnimatedBuilder(
-                    animation: Listenable.merge([p, w.scroll, w.dayFade]),
-                    builder: (_, _) => BusyBoard(view: v!, opacity: (incomingOpacity(p.value) * (1 - _clamp(c() / M2Collapse.fadeEnd)) * w.dayFade.value).clamp(0.0, 1.0)),
+                    animation: Listenable.merge([p, w.scroll, w.dayFade, w.lateK]),
+                    builder: (_, _) => BusyBoard(view: v!, opacity: (incomingOpacity(p.value) * (1 - _clamp(c() / M2Collapse.fadeEnd)) * w.dayFade.value * lateFade()).clamp(0.0, 1.0)),
                   );
-                  return _lateBoard ? Arrive(key: const ValueKey('busy-board'), child: board) : KeyedSubtree(key: const ValueKey('busy-board'), child: board);
+                  return KeyedSubtree(key: const ValueKey('busy-board'), child: board);
                 },
               ),
             ),
@@ -246,19 +255,18 @@ class HallHeaderState extends State<HallHeader> {
                   // a café has no busy row, but the empty one keeps its margin (M2 `#mbz`, 0 tall, 8 under the status)
                   if (compact) const SizedBox(height: M2Layout.busyTopHeader),
                   if (!compact)
-                    // the row takes its own height as it lands: the name settles over `settle` (at once under reduced motion) and the row fades in
+                    // the block has the height the header gives it; a reading that lands late fills it once the box is whole (M2 `busyStep`)
                     ValueListenableBuilder<HallBusyView?>(
                       valueListenable: busy,
                       builder: (_, v, _) {
                         if (v == null) _lateBusy = true;
-                        final live = own(w.parts?.hasMeter ?? true, travel(w.parts?.meter, anchor: _meter, BusyRow(lamps: v?.lamps ?? 0, word: v?.word ?? '', extra: v?.extra, header: true, meterKey: _meter, extraFade: _fin)));
-                        // (the band's meter holds the room the second line will take)
-                        final row = v == null ? room : v.seed ? Stack(children: [room, live]) : _lateBusy ? Arrive(key: const ValueKey('busy-live'), child: live) : KeyedSubtree(key: const ValueKey('busy-live'), child: live);
-                        if (reducedMotion(context)) {
-                          _remeasure(); // (AnimatedSize cannot run for no time)
-                          return row;
-                        }
-                        return AnimatedSize(alignment: Alignment.topLeft, duration: M2Motion.settle.duration, curve: M2Motion.settle.curve, onEnd: _remeasure, child: row);
+                        final live = v == null ? null : own(w.parts?.hasMeter ?? true, travel(w.parts?.meter, anchor: _meter, BusyRow(lamps: v.lamps, word: v.word, extra: v.extra, header: true, meterKey: _meter, extraFade: _LateFin(_fin, w.lateK, () => lateFade()))));
+                        final row = live == null
+                            ? const SizedBox.shrink()
+                            : _lateBusy && !v!.seed
+                                ? AnimatedBuilder(animation: w.lateK, child: live, builder: (_, ch) => Opacity(key: const ValueKey('busy-live'), opacity: lateFade(), child: ch))
+                                : KeyedSubtree(key: const ValueKey('busy-live'), child: live);
+                        return w.block == null ? row : SizedBox(width: M2Layout.busyMaxHeader, height: w.block, child: OverflowBox(alignment: Alignment.topLeft, minHeight: 0, maxHeight: double.infinity, child: row));
                       },
                     ),
               ])),
@@ -277,6 +285,28 @@ class _Fin extends Animation<double> with AnimationWithParentMixin<double> {
   final Animation<double> parent;
   @override
   double get value => incomingOpacity(parent.value);
+}
+
+/// `fin` of the container's progress times the late reading's fade: the second line comes in with the page and, when the reading is late, after its box.
+class _LateFin extends Animation<double> with AnimationLocalListenersMixin, AnimationLocalStatusListenersMixin {
+  _LateFin(this.fin, this.k, this.late);
+  final Animation<double> fin, k;
+  final double Function() late;
+  @override
+  double get value => fin.value * late();
+  @override
+  AnimationStatus get status => AnimationStatus.forward;
+  @override
+  void didRegisterListener() {
+    fin.addListener(notifyListeners);
+    k.addListener(notifyListeners);
+  }
+
+  @override
+  void didUnregisterListener() {
+    fin.removeListener(notifyListeners);
+    k.removeListener(notifyListeners);
+  }
 }
 
 class _Reverse extends Animation<double> with AnimationWithParentMixin<double> {

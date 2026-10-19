@@ -12,7 +12,7 @@ String _esc(String s) =>
 /// [menus] is menus-2026-10-08-to-22.json (`dishes` + `days[day][place][meal] = [[station, [dish idx]]]`),
 /// [locations] the get_infov2 capture, [events] get_beacons_events.
 class RecordedClient extends http.BaseClient {
-  RecordedClient({required this.menus, required this.locations, required this.events, this.pdf}) {
+  RecordedClient({required this.menus, required this.locations, required this.events, this.pdf, this.busyDelay}) {
     final locs = jsonDecode(locations) as List;
     // Halls are keyed Worcester/Franklin/Hampshire/Berkshire in the recording; their location ids are the foodpro tids.
     _ids = {
@@ -23,6 +23,9 @@ class RecordedClient extends http.BaseClient {
   }
   final Map<String, dynamic> menus;
   final String locations, events;
+
+  /// How long the occupancy curve takes to answer (`busy=late`); none by default.
+  final Duration? busyDelay;
 
   /// The recorded PDF named [pdfFiles]' value (`Lunch.pdf`), from the gitignored local copies (tool/link_pdfs.sh); null = none linked.
   final Future<List<int>> Function(String file)? pdf;
@@ -103,6 +106,7 @@ class RecordedClient extends http.BaseClient {
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final u = request.url;
+    if (busyDelay != null && u.path == '/rest/v1/rpc/occupancy_typical') await Future<void>.delayed(busyDelay!);
     if (u.path.toLowerCase().endsWith('.pdf')) {
       final name = Uri.decodeComponent(u.path).toLowerCase().replaceAll(RegExp('[^a-z]'), '');
       final file = pdfFiles.entries.where((e) => name.contains(e.key)).firstOrNull?.value;

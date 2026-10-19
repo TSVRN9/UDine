@@ -6,6 +6,7 @@ import '../../core/m2/status.dart';
 import '../../core/occupancy.dart';
 import '../../core/types.dart' show diningHalls;
 import '../../data/repository.dart';
+import '../hall/busy.dart' show HallBusyView;
 
 const _weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const _months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -16,10 +17,12 @@ enum NetLine { none, offline, failed }
 /// One band or pin: `status` and `lamps` are null while their data has not arrived (or, for lamps, is not live), and the band simply
 /// draws less. A café has no meter.
 class BandVM {
-  const BandVM({required this.key, required this.name, this.status, this.lamps, this.word});
+  const BandVM({required this.key, required this.name, this.status, this.lamps, this.word, this.hasExtra = false});
   final String key, name;
   final String? status, word;
   final int? lamps;
+  /// whether the hall's header will have a second busy line ("Calmer around"): the page it opens is that tall from its first frame
+  final bool hasExtra;
   bool get isCafe => key.startsWith('c');
 }
 
@@ -67,7 +70,7 @@ HallsVM buildHalls({
     final r = busyBy[k], h = hallBy[k];
     return BandVM(
       key: k, name: diningHalls[halls.indexOf(k)].name, status: h == null ? null : statusText(h, now),
-      lamps: r?.lamps, word: r == null ? null : busyWord(r.level, low: r.confidence == Confidence.low),
+      lamps: r?.lamps, word: r == null ? null : busyWord(r.level, low: r.confidence == Confidence.low), hasExtra: r != null && HallBusyView.of(r).extra.isNotEmpty,
     );
   }
 

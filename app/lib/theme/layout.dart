@@ -35,6 +35,9 @@ abstract final class M2Layout {
   static const statusGapBand = 7.0, statusGapPin = 6.0;
   static const busyTopBand = 6.0, busyTopHeader = 8.0; // `.bz`
   static const busyMaxHeader = 230.0;
+  // the header's busy block (M2 `#mbz` and its 8 dp margin): the meter's line, and the second line under it (5 run gap + 17). M2 `LATE_D`: 25 for a
+  // hall with no second line (Franklin), 47 with one.
+  static const busyBlock = busyTopHeader + 17.0, busyBlockExtra = busyBlock + busyRunGap + 17.0;
   static const busyGap = 8.0, busyRunGap = 5.0;
   // `.meter`
   static const lampW = 5.0, lampH = 12.0, lampGap = 2.0, lampRadius = 1.0;
