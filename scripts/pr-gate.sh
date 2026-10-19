@@ -203,9 +203,9 @@ fi
 # keyed on that tree's app/ and the vectors/fixtures the tests read, so it goes stale exactly when the merge result would change.
 if [[ $MERGE -eq 1 && -n "$PR" ]] && touched '^app/|^shared/vectors/|^docs/design/explorations/2026-10-ui-overhaul/flows/'; then
   if key="$(scripts/suite-key.sh "$PR" 2>&1)"; then
-    stamp="$HOME/.cache/udine-scratch/suite-pass/${key#* }"
+    read -r _ k _ <<<"$key"; stamp="$HOME/.cache/udine-scratch/suite-pass/$k"
     if [[ -f "$stamp" ]]; then info "merged-tree suite: $(head -1 "$stamp")"
-    else fail "no full-suite pass on the tree this merge makes -- app/tool/test.sh --merged $PR (~35 min; run it in the background)"; fi
+    else fail "no full-suite pass on the tree this merge makes -- app/tool/test.sh --merged $PR (~35 min, in the background; several PRs: --merged A B C, then merge them in that order)"; fi
   else fail "$key"; fi
 fi
 
