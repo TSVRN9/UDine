@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../core/m2/board.dart' show MenuItem, M2MenuItem, clockMeal, dishKey, halls;
 import '../../core/saved_food.dart';
+import '../../core/serving_text.dart';
 import '../dish/food_sheet.dart';
 import '../../core/m2/plate.dart' show hallLabel;
 import '../../core/m2/rank.dart';
@@ -140,7 +141,7 @@ class FoodsPage extends StatelessWidget {
           return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             for (final (i, f) in foods.indexed)
               LRow(
-                title: f.name, subtitle: '${fc(f.nutrition.calories)} cal, ${f.serving}', last: i == foods.length - 1,
+                title: f.name, subtitle: '${fc(f.nutrition.calories)} cal, ${servingText(f.serving)}', last: i == foods.length - 1,
                 onTap: () => openFoodSheet(context, food: f, meal: clockMeal(scope.repo.now())),
               ),
           ]);
