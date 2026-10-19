@@ -2,6 +2,8 @@
 // UMass lists one item several times when only a size, a milk or a base differs ("16 oz Cappuccino" / "20 oz Cappuccino", "Boba Oat Milk" /
 // "Boba Soy Milk"). Within one place, day, meal and station, two or more items whose names differ by that token alone are one family:
 // one row, with a pick-one in its sheet. Add-ons and Toppings are a builder's parts, never a family.
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import 'board.dart';
 
 class Variant {
@@ -64,6 +66,20 @@ List<Family> stationFamilies(Station s) => _famCache[s] ??= famsAt(s.dishes, s.n
 final _shownNames = <String, String>{};
 String shownName(String feedName) => _shownNames[feedName] ?? feedName;
 
+/// Fills the names from stations already in hand (the menus saved on the device at launch), as M2 fills VARN at load.
+void primeShownNames(Iterable<Station> stations) {
+  for (final s in stations) {
+    for (final f in stationFamilies(s)) {
+      for (final x in f.vars) {
+        _shownNames[x.dish.dishName] = '${f.name}, ${x.v}';
+      }
+    }
+  }
+}
+
+@visibleForTesting
+void forgetShownNames() => _shownNames.clear();
+
 /// Every family on a board by the dish that is a member (by identity: one dish object is one serving), M2's `FAM`.
 class FamilyIndex {
   FamilyIndex(Board b) {
@@ -74,7 +90,7 @@ class FamilyIndex {
             for (final f in stationFamilies(s)) {
               names[f.key] = f.name;
               for (final x in f.vars) {
-                _of[x.dish] = (f, x);
+                _of[x.dish] = _everywhere[x.dish] = (f, x);
                 shown[x.dish.dishName] = _shownNames[x.dish.dishName] = '${f.name}, ${x.v}';
               }
             }
@@ -90,33 +106,21 @@ class FamilyIndex {
 
   /// family key -> the family's name; a member's feed name -> how it reads ("Boba, Oat Milk"). A name with no sibling is no key here.
   final names = <String, String>{}, shown = <String, String>{};
-  Family? familyOf(MenuItem d) => _of[d]?.$1;
-  Variant? variantIn(MenuItem d) => _of[d]?.$2;
+  // A dish any board has indexed is known to every board: a plate item remembers the dish it was added from, which the board its
+  // sheet is given (a place's, with menus perhaps not yet in) need not hold.
+  Family? familyOf(MenuItem d) => (_of[d] ?? _everywhere[d])?.$1;
+  Variant? variantIn(MenuItem d) => (_of[d] ?? _everywhere[d])?.$2;
 }
 
 final _index = Expando<FamilyIndex>('familyIndex');
+final _everywhere = Expando<(Family, Variant)>('familyMember');
 FamilyIndex familiesOf(Board b) => _index[b] ??= FamilyIndex(b);
 
 /// What a starred family is stored as in the favourites (M2's `favKey`): `f:` and the name, so it never meets a dish of the same name.
 String favoriteOf(Family f) => 'f:${f.name}';
 
-/// [d] as it sits in [b]'s first day (a plate item remembers the copy of the book it came from), so its family is known; [d] itself when it
-/// already is a member, or no member of that name is there.
-MenuItem resolveIn(Board b, String place, String meal, MenuItem d) {
-  final ix = familiesOf(b);
-  if (ix.familyOf(d) != null || b.days.isEmpty) return d;
-  for (final sts in b.days[b.days.keys.first]?[place]?.values ?? const <List<Station>>[]) {
-    for (final s in sts) {
-      for (final x in s.dishes) {
-        if (x.dishName == d.dishName && ix.familyOf(x) != null) return x;
-      }
-    }
-  }
-  return d;
-}
-
 /// How an item reads on the sheet and the plate: "Cappuccino, 20 oz" (M2 `shown`).
-String shownOf(FamilyIndex ix, MenuItem d) => ix.shown[d.dishName] ?? d.dishName;
+String shownOf(FamilyIndex ix, MenuItem d) => switch ((ix.familyOf(d), ix.variantIn(d))) { (final f?, final x?) => '${f.name}, ${x.v}', _ => d.dishName };
 
 /// M2 `standing`: the variant the row stands for. [at] is the plate stamp of a variant's own plain item (null: not on the plate); the latest
 /// stamp wins, with none the first variant [ok] allows.

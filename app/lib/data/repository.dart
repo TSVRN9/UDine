@@ -165,6 +165,19 @@ class Repository {
 
   String get today => effectiveTodayIso(now(), defaultRolloverHour);
 
+  /// Every menu saved on the device, parsed; nothing is fetched (what a restart can read before any board is built). An unreadable row is left out.
+  Future<List<List<MenuItem>>> savedMenus() async {
+    final out = <List<MenuItem>>[];
+    for (final r in await db.query('preferences_kv', columns: ['key', 'value_json'], where: "key LIKE 'menu:v2:%'")) {
+      try {
+        final m = RegExp(r'^menu:v2:(\d+)\|(.+)$').firstMatch(r['key']! as String)!;
+        final raw = (jsonDecode(r['value_json']! as String) as Map<String, dynamic>)['raw'];
+        out.add(await parseMenuResponse(int.parse(m[1]!), m[2]!, raw is Map<String, dynamic> ? raw : const <String, dynamic>{}));
+      } catch (_) {}
+    }
+    return out;
+  }
+
   /// Menu for a hall (tid 1-4) or a café's foodpro location id.
   Stream<DataState<List<MenuItem>>> menu(int locationId, String date, {bool background = false}) => _load(
     background: background,

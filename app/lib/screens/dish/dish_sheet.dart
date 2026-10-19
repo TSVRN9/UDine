@@ -42,8 +42,6 @@ SheetHandle openDishSheet(
   ({int plateId, String key})? update,
   VoidCallback? onClosed,
 }) {
-  // (a dish from another copy of the book is found by name where it sits, so its family is known)
-  dish = resolveIn(fx, place, meal, dish);
   // today's dish that builds opens its builder (the row's + still adds it plain); a plate row of a plain dish opens as itself
   // (tracking off: a build station's dishes are just dishes, M2 CONCEPT R10 §2)
   build = !AppScope.of(context).prefs.track ? null : build ?? (day == 0 && !plain ? buildFor(fx, place, meal, dish) : null);
