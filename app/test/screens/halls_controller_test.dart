@@ -5,7 +5,9 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:udine/core/hours.dart' show easternInstant;
 import 'package:udine/core/types.dart' show MenuItem;
+import 'package:udine/data/recorded/flags.dart' show NetMode;
 import 'package:udine/data/recorded/recorded_client.dart';
 import 'package:udine/data/repository.dart';
 import 'package:udine/data/source.dart';
@@ -81,5 +83,18 @@ void main() {
     final got = await relaunch.prefetchMenus([(1, '2026-10-08')]);
     expect(got[(1, '2026-10-08')], isNotEmpty);
     expect(net.sends, sends, reason: 'with the saved row gone, only memory can answer');
+  });
+
+  test('a stale saved menu (fetched before the day began) is not recorded as had: a later prefetch refreshes it from the network', () async {
+    final yesterday = easternInstant(DateTime.utc(2026, 10, 7, 12, 41));
+    await Repository(UmassSource(net), db, supabase: SupabaseSource(net), now: () => yesterday).menu(1, '2026-10-08').drain<void>();
+    final relaunch = Repository(UmassSource(net), db, supabase: SupabaseSource(net), now: () => lunch);
+    net.mode = NetMode.fail;
+    await relaunch.menu(1, '2026-10-08').drain<void>(); // the network fails, so the stale saved copy is what it had
+    net.mode = NetMode.ok;
+    final sends = net.sends;
+    final got = await relaunch.prefetchMenus([(1, '2026-10-08')]);
+    expect(got[(1, '2026-10-08')], isNotEmpty);
+    expect(net.sends, greaterThan(sends), reason: 'a stale copy is refreshed, not answered from memory');
   });
 }
