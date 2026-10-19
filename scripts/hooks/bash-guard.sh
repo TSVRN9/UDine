@@ -24,7 +24,8 @@ base_flag() { grep -Eo '(--base|-B)[= ] *[^ ;&|]+' <<<"$cmd" | head -1 | sed -E 
 # The PR number is the first bare integer after `gh pr merge`, wherever the flags sit.
 pr_arg() { grep -Eo "gh pr $1( +[^ ;&|]+)*" <<<"$cmd" | head -1 | tr ' ' '\n' | grep -Ex '[0-9]+' | head -1 || true; }
 # pkill -f / killall match other agents' processes (and the caller's own shell, whose command line names the pattern).
-if at_cmd '(pkill|killall)\b' && grep -Eq '(^|[;&|])[[:space:]]*(killall\b|pkill\b[^;&|]*-[a-zA-Z]*f)' <<<"$cmd"; then
+if grep -Eq '(^|[^[:alnum:]_./-])(killall\b|pkill\b[^;&|]*([[:space:]]-[0-9a-zA-Z]*f[0-9a-zA-Z]*|[[:space:]]--full)([[:space:]]|$))' <<<"$cmd" \
+  && ! grep -Eq '^[[:space:]]*(grep|rg|git|echo|printf|cat|sed|jq|gh)\b' <<<"$cmd"; then
   echo "pkill -f / killall can hit other agents' processes: find yours (pgrep -x flutter_tester, then readlink /proc/PID/cwd) and kill it by PID" >&2; exit 2
 fi
 if at_cmd 'gh pr merge\b'; then
