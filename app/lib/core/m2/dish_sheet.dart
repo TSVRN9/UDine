@@ -1,4 +1,5 @@
 import '../../ui/label_model.dart';
+import '../serving_text.dart';
 import '../types.dart';
 import 'board.dart';
 
@@ -33,7 +34,7 @@ Label labelRowsOf(NutritionFacts n) {
 
   LabelRow row(LabelKind kind, String name, String f, num x, String u, Dv? dv, String? fdaKey, {bool last = false}) =>
       LabelRow(kind, '$name ${g(f, x, u)}', name, g(f, x, u), pc(f, x, dv, fdaKey == null ? null : _fda[fdaKey]), last: last);
-  final serving = n.servingSize.trim().toLowerCase();
+  final serving = servingText(n.servingSize.trim().toLowerCase());
   return Label(serving.isEmpty ? null : serving, fc(n.calories.round()), [
     if (!n.blank.contains('caloriesFromFat')) LabelRow(LabelKind.thin, '', '', '', 'Fat cal. ${fc(n.caloriesFromFat)}'),
     const LabelRow(LabelKind.thin, '', '', '', '% Daily Value*'),
