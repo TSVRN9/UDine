@@ -103,8 +103,15 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
   late final AnimationController _late = AnimationController(vsync: this, value: 1, duration: M2Motion.settle.duration, animationBehavior: AnimationBehavior.preserve)..addListener(_onLate);
   double _h0 = 0, _blockFrom = 0, _blockTo = 0;
   bool _synced = false, _lateGrows = true;
+  double _seenBlock = 0;
   void _onLate() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    // a header that has been scrolled away keeps its collapse: the list rides down by what the block adds, so the offset goes with it (M2's
+    // pushed hall has its block from the start; here it can land after the scroll to the dish)
+    final b = _block, d = b - _seenBlock;
+    _seenBlock = b;
+    if (d != 0 && _sc.hasClients && _sc.offset > 0) _sc.jumpTo(_sc.offset + d);
+    setState(() {});
   }
 
   /// the busy block's height now
@@ -202,7 +209,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     final v = _busy.value, to = v?.block ?? _blockTo;
     if (!_synced) {
       _synced = true;
-      _blockFrom = _blockTo = to;
+      _blockFrom = _blockTo = _seenBlock = to;
       // no card: what Halls (or any earlier read) found for this hall; with none at all, a hall with a second line
       final known = _cafe || v != null ? null : AppScope.of(context).repo.lastBusy.entries.where((e) => hallKeyOfTitle(e.key) == place).firstOrNull?.value;
       // ponytail: a cold deep link has no earlier read, so a live hall without a second line ends 22 dp shorter than M2's

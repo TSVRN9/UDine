@@ -5,10 +5,12 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:udine/core/occupancy.dart';
 import 'package:udine/motion/routes.dart';
 import 'package:udine/screens/halls/halls_screen.dart';
 import 'package:udine/screens/halls/hall_page.dart';
 import 'package:udine/screens/hall/busy.dart';
+import 'package:udine/screens/hall/dish_row.dart';
 import 'package:udine/screens/hall/hall_header.dart';
 import 'package:udine/screens/hall/hall_menu.dart';
 import 'package:udine/screens/hall/meal_tabs.dart';
@@ -32,7 +34,7 @@ void main() {
   setUpAll(loadFonts);
 
   /// A hall opened before its reading (M2 `?busy=late`), frame by frame until the reading has landed and settled.
-  Future<List<Snap>> arrival(WidgetTester t, String key, String name, {bool reduced = false, bool viaHalls = false}) async {
+  Future<List<Snap>> arrival(WidgetTester t, String key, String name, {bool reduced = false, bool viaHalls = false, bool stale = false}) async {
     if (viaHalls) {
       // a hall pushed with no card (a dish sheet's "served at" chip, Search, the plate sheet) while Halls has read its busy
       await openApp(t, await bootRecorded(t));
@@ -41,7 +43,10 @@ void main() {
       Nav.push<void>(t.element(find.byType(HallsScreen)), (_) => HallMenuPage(place: key == 'franklin' ? 'F' : 'W', top: 24));
       await t.pump();
     } else {
-      await openApp(t, await bootRecorded(t, busyLate: true), route: '/hall/$key?meal=lunch', reduced: reduced);
+      final boot = await bootRecorded(t, busyLate: true);
+      // (what an earlier read left in the cache, which the live reading then disagrees with: it has no second line, the live one has one)
+      if (stale) boot.repo.lastBusy['Worcester Commons'] = const OccupancyRead(level: 2, vsUsual: null, usuallyClearsAt: null, confidence: Confidence.good, lamps: 4);
+      await openApp(t, boot, route: '/hall/$key?meal=lunch', reduced: reduced);
     }
     final out = <Snap>[];
     var landedAt = -1;
@@ -129,4 +134,43 @@ void main() {
       expect(s.last.tabs - s.first.tabs, closeTo(h.$4, 0.6));
     });
   }
+
+  // a hall pushed at a dish scrolls to it before the reading is in; the reading landing must not give the header back the room it scrolled away
+  for (final h in [('worcester', 'Worcester'), ('franklin', 'Franklin')]) {
+    testWidgets('${h.$2}: scrolled down when the reading lands, the header stays as collapsed and the tabs stay put', (t) async {
+      await openApp(t, await bootRecorded(t, busyLate: true), route: '/hall/${h.$1}?meal=lunch');
+      for (var i = 0; i < 400 && (find.byType(MealTabs).evaluate().isEmpty || find.byType(DishRow).evaluate().isEmpty); i++) {
+        await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 5)));
+        await t.pump(const Duration(milliseconds: 16));
+      }
+      final menu = t.state<HallMenuState>(find.byType(HallMenu));
+      expect(menu.c.busy, isNull, reason: 'scrolled before the reading');
+      await t.drag(find.byType(DishRow).first, const Offset(0, -600));
+      await t.pump(const Duration(milliseconds: 600));
+      final head = find.byType(HallHeader);
+      Rect title() => t.getRect(find.descendant(of: head, matching: find.text(h.$2)).last);
+      final before = (title: title(), tabs: t.getRect(find.byType(MealTabs)).top);
+      for (var i = 0; i < 400 && menu.c.busy == null; i++) {
+        await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 5)));
+        await t.pump(const Duration(milliseconds: 16));
+      }
+      expect(menu.c.busy, isNotNull, reason: 'the reading landed');
+      for (var i = 0; i < 60; i++) {
+        await t.pump(const Duration(milliseconds: 16));
+        expect((title().top - before.title.top).abs(), lessThan(0.6), reason: 'frame $i: the collapsed title stays (${title()} vs ${before.title})');
+        expect((t.getRect(find.byType(MealTabs)).top - before.tabs).abs(), lessThan(0.6), reason: 'frame $i: the pinned tabs stay');
+      }
+      await drain(t);
+    });
+  }
+
+  testWidgets('a stale cached read (no second line) against a live one with: the title never moves and the block ends at the live value', (t) async {
+    final s = await arrival(t, 'worcester', 'Worcester', stale: true);
+    for (var i = 0; i < s.length; i++) {
+      expect((s[i].title.top - s.first.title.top).abs(), lessThan(0.01), reason: 'frame $i: the title is where it was');
+    }
+    // (it opened for the 25 dp it guessed; the live block is Worcester's 47)
+    expect(s.last.tabs - s.first.tabs, closeTo(47, 0.6), reason: 'the block ends at the live value');
+    expect(s.last.rowOpacity, 1);
+  });
 }

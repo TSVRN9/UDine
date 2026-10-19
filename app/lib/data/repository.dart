@@ -431,11 +431,11 @@ class Repository {
     return saved ?? const [];
   }
 
-  /// Live busy x typical curve per location title. Absent entirely without a live reading (offline, no sensor): the live
-  /// reading is never read from the cache, only the curve is.
   /// The last readings busyReads computed, per location title: what a page opened with no card guesses its busy block from.
   final lastBusy = <String, OccupancyRead>{};
 
+  /// Live busy x typical curve per location title. Absent entirely without a live reading (offline, no sensor): the live
+  /// reading is never read from the cache, only the curve is.
   Future<Map<String, OccupancyRead>> busyReads(HoursData h) async {
     final live = h.busy;
     if (live == null) return const {};
