@@ -1,10 +1,43 @@
 {
-  "sha": "2ba4fa484ec59ab74c784db6914e4ff611684801",
+  "sha": "cbc2de8e51db3ee580e312379ca518ebe04147c8",
   "branch": "flutter/m2-variants",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/m2-variants",
   "route": "/cafe/19?data=recorded&at=2026-10-08T12:41&photos=off",
   "device": "sdk_gphone64_x86_64",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-18T15:38:16Z"
+  "ts": "2026-10-19T04:54:18Z",
+  "own": {
+    "app/lib/boot.dart": "a6cf6ff845ff63c72019e68d151186ae6765b0ec",
+    "app/lib/core/m2/bowl.dart": "e88f0c71558c8b2a88db972d9d514d4a4d660665",
+    "app/lib/core/m2/history.dart": "74f01669b546b6cb2ffe9f64e7b0810d3d1769d7",
+    "app/lib/core/m2/plate.dart": "5ffa9444123740cff4e2c86f53a012fa1487e01c",
+    "app/lib/core/m2/search.dart": "00c810d8179ce50883bee3dbba74dd78d68c5c88",
+    "app/lib/core/m2/variants.dart": "5dc736338790ed76b8f27a2d7c36ac791ee3741c",
+    "app/lib/core/m2/where.dart": "f95c689436ecfc4bb25a485d88becf9b2a21e9ee",
+    "app/lib/data/repository.dart": "438aae0199f44873967345b92d65fe7bf33b0a41",
+    "app/lib/dev/kit_gallery.dart": "8abca4795604b792aff22be0672d4e03fd2e46bc",
+    "app/lib/screens/dish/bowl_foot.dart": "7c53c211fb0d449a92cdea80b4f564d6bdf95e8b",
+    "app/lib/screens/dish/dish_sheet.dart": "c1fafed4a653f850e3a56e6e1e2e73e3933f3587",
+    "app/lib/screens/hall/dish_row.dart": "b4dbf5835b3e2b047331d561f71e37a86eaaca6f",
+    "app/lib/screens/hall/hall_menu.dart": "53cbeefd860a40434277f912ce2f3d79ef5025ca",
+    "app/lib/screens/hall/meal_list.dart": "802ff380b47085b570e39bd5892630a482e63c08",
+    "app/lib/screens/plate/plate_sheet.dart": "f6cb1abff1810e8ba538cc9d7e9732b0304ff0db",
+    "app/lib/screens/search/search_controller.dart": "23447d6cbdf7759e053b34b7b672d9b4b2521481",
+    "app/lib/screens/search/search_screen.dart": "dd0f36f12c590c3edd0a6b263d8ac01d3aa56820",
+    "app/lib/screens/you/settings_pages.dart": "5fa21ea8e2c4f43b4ee004366e69f48a0f18565c",
+    "app/lib/shell/plate_model.dart": "fd77b946c2dfa41e8ea157db42932ecfe41afefa",
+    "app/lib/theme/layout.dart": "0646c0d762b692a42c84e9e55d67f924cbc56ee8",
+    "app/lib/ui/list_row.dart": "f738be94b493a5d121495bcf17011eeda8228d06",
+    "app/lib/ui/settle_fade.dart": "c961c5c970a9e6e4c46d63b80ee3c8b076ee9039",
+    "app/lib/ui/ui.dart": "4cbce65a937f791a4d54acdd12adb935e60d7c08",
+    "app/lib/ui/variant_picker.dart": "5026613c51a99c96f894f689db095e0b08b09cbc"
+  },
+  "argv": [
+    "/cafe/19?data=recorded&at=2026-10-08T12:41",
+    "--out",
+    "docs/pr-review-media/flutter/m2-variants/milk-row.png",
+    "--settle",
+    "5"
+  ]
 }
