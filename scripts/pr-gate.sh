@@ -201,11 +201,12 @@ fi
 # --- the suite on the merged tree (merge only) ------------------------------------------
 # The one full run a PR gets is on the tree the merge makes (author and reviewer run only what the diff touches). The stamp is
 # keyed on that tree's app/ and the vectors/fixtures the tests read, so it goes stale exactly when the merge result would change.
-if [[ $MERGE -eq 1 && -n "$PR" ]] && touched '^app/|^shared/vectors/|^docs/design/explorations/2026-10-ui-overhaul/flows/'; then
+# app/tool/*.sh (capture, test and build scripts) are never read by the suite (app/test imports only tool/*.dart).
+if [[ $MERGE -eq 1 && -n "$PR" ]] && printf '%s\n' "${FILES[@]}" | grep -E '^app/|^design-tokens/|^shared/vectors/|^docs/design/explorations/2026-10-ui-overhaul/flows/' | grep -vqE '^app/tool/[^/]*\.sh$'; then
   if key="$(scripts/suite-key.sh "$PR" 2>&1)"; then
-    stamp="$HOME/.cache/udine-scratch/suite-pass/${key#* }"
+    read -r _ k _ <<<"$key"; stamp="$HOME/.cache/udine-scratch/suite-pass/$k"
     if [[ -f "$stamp" ]]; then info "merged-tree suite: $(head -1 "$stamp")"
-    else fail "no full-suite pass on the tree this merge makes -- app/tool/test.sh --merged $PR (~35 min; run it in the background)"; fi
+    else fail "no full-suite pass on the tree this merge makes -- app/tool/test.sh --merged $PR (~35 min, in the background; several PRs: --merged A B C, then merge them in that order)"; fi
   else fail "$key"; fi
 fi
 
