@@ -29,6 +29,9 @@ import 'data/supabase_source.dart';
 import 'motion/routes.dart';
 import 'screens/hall/hall_controller.dart' show mealsOfItems;
 import 'core/saved_food.dart';
+import 'alerts/alerts.dart' show PlatformAlertsOs;
+import 'alerts/alerts_os.dart';
+import 'shell/alerts_model.dart';
 import 'shell/app_scope.dart';
 import 'shell/food_book.dart';
 import 'shell/plate_model.dart';
@@ -43,7 +46,7 @@ const _fivePins = ['Wasabi', 'Tamales', "Peet's Coffee & Tea", 'Harvest Market',
 /// network from the route's `?data=recorded&at=&net=`), and the preferences. Recorded mode keeps everything in a throwaway
 /// in-memory store so a capture never reads or leaves anything on the device.
 class Boot {
-  Boot(this.repo, this.store, this.prefs, {this.pdfOpen = pdfxOpen, FlyerShare? shareFlyer, this.packaged, this.lookup}) : shareFlyer = shareFlyer ?? shareFlyerFile;
+  Boot(this.repo, this.store, this.prefs, {AlertsModel? alerts, this.pdfOpen = pdfxOpen, FlyerShare? shareFlyer, this.packaged, this.lookup}) : shareFlyer = shareFlyer ?? shareFlyerFile, alerts = alerts ?? AlertsModel(store, PlatformAlertsOs());
 
   /// OpenFoodFacts / USDA and Search UMass Dining (live: the real endpoints; recorded: M2's recordings)
   final PackagedSource? packaged;
@@ -58,6 +61,8 @@ class Boot {
   /// The device store; null when the file was written by a newer build (menus only, below).
   final UdineStore? store;
   final AppPrefs prefs;
+  /// Notify me. A Boot built without one (a test) starts off, over the device's own OS calls.
+  final AlertsModel alerts;
   final hider = BandHider();
   /// The log You reads (null with no store: menus only). Held in memory, read once at launch and again after anything writes to it.
   late final LogBook? log = store == null ? null : LogBook(store!, now: repo.now);
@@ -87,7 +92,7 @@ class Boot {
   }
 
   /// [dbPath] and [read] (the recordings' reader) are test seams (the device path and the app bundle by default).
-  static Future<Boot> open(String route, {String? dbPath, Future<String> Function(String name)? read, TempDir tmp = getTemporaryDirectory}) async {
+  static Future<Boot> open(String route, {String? dbPath, Future<String> Function(String name)? read, TempDir tmp = getTemporaryDirectory, AlertsOs? alertsOs}) async {
     await clearExports(tmp: tmp); // last session's exports: plaintext copies of the log, not kept past the next start
     if (photosOff(route)) Photos.enabled = false;
     final flags = recordedFlags(route);
@@ -99,7 +104,9 @@ class Boot {
       await store?.setFirstRunSeen(!flags.firstRun);
       if (flags.avoid.isNotEmpty) await store?.setAvoid(flags.avoid);
       if (flags.onlyShow.isNotEmpty) await store?.setOnlyShow(flags.onlyShow);
+      if (Uri.parse(route).queryParameters['alerts'] == 'on') await store?.setAlertsOn(true); // Notify me stored on, as for a user who turned it on
     }
+    final alerts = await AlertsModel.load(store, alertsOs ?? PlatformAlertsOs());
     final prefs = await AppPrefs.load(store, pins: pinsFlag != null ? _fivePins.take(pinsFlag).toList() : flags != null && pinsQuery != null ? pinsQuery.split(',') : null);
     // recorded routes only: `fav=Dish A|Dish B` starts with those favourites (the Halls stars are drawn from them)
     if (flags != null) {
@@ -120,10 +127,10 @@ class Boot {
     final Boot boot;
     if (flags != null) {
       final r = await recordedPackaged(flags, read: read);
-      boot = Boot(repo, store, prefs, packaged: r.packaged, lookup: r.lookup);
+      boot = Boot(repo, store, prefs, alerts: alerts, packaged: r.packaged, lookup: r.lookup);
     } else {
       final client = http.Client();
-      boot = Boot(repo, store, prefs, packaged: PackagedSource(client), lookup: LookupDishSource(client));
+      boot = Boot(repo, store, prefs, alerts: alerts, packaged: PackagedSource(client), lookup: LookupDishSource(client));
     }
     if (flags != null && flags.seedFoods) await boot.seedFoods(read);
     await boot.log?.reload();
@@ -198,5 +205,5 @@ class Boot {
     }
   }
 
-  Widget wrap(Widget child) => AppScope(repo: repo, store: store, log: log, foods: foods, packaged: packaged, lookup: lookup, prefs: prefs, hider: hider, plate: plate, pdfOpen: pdfOpen, share: share, shareFlyer: shareFlyer, child: child);
+  Widget wrap(Widget child) => AppScope(repo: repo, store: store, log: log, foods: foods, packaged: packaged, lookup: lookup, prefs: prefs, alerts: alerts, hider: hider, plate: plate, pdfOpen: pdfOpen, share: share, shareFlyer: shareFlyer, child: child);
 }

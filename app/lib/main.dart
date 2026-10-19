@@ -6,12 +6,12 @@ import 'boot.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  var route = PlatformDispatcher.instance.defaultRouteName;
+  final route = PlatformDispatcher.instance.defaultRouteName;
   final boot = await Boot.open(route);
   // Recorded routes (screenshots) are throwaway: no schedule, no notifications.
   if (boot.store case final store? when !route.contains('data=recorded')) {
     try {
-      route = await startAlerts(on: await store.alertsOn()) ?? route;
+      await startAlerts(on: await store.alertsOn());
     } catch (e) {
       debugPrint('alerts unavailable: $e');
     }

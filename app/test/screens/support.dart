@@ -15,7 +15,10 @@ import 'package:http/http.dart' as http;
 import 'package:udine/data/packaged.dart' show LookupDishSource;
 import 'package:udine/data/pdf_pages.dart';
 import 'package:udine/data/recorded/recorded.dart';
+import 'package:udine/alerts/alerts_os.dart';
+import 'package:udine/shell/alerts_model.dart';
 import 'package:udine/shell/prefs.dart';
+import '../alerts/fake_os.dart';
 import 'package:udine/motion/routes.dart';
 import 'package:udine/screens/halls/halls_screen.dart';
 import 'package:udine/screens/halls/hall_page.dart';
@@ -33,7 +36,7 @@ Future<String> readRecorded(String name) => File('assets/recorded/$name').readAs
 
 /// The app's `Boot` over M2's recordings and a throwaway store, as `Boot.open` builds it for a recorded route. Real I/O (sqlite on an
 /// isolate) runs under `runAsync`.
-Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? at, List<String> pins = const [], bool charlesRiver = false, Duration? slow, bool health = false, bool carbon = false, bool track = true, bool firstRun = false, Set<String> savedCafes = const {}, bool persistPins = false, List<String> avoid = const [], List<String> onlyShow = const [], PdfOpen? pages, bool pdfsLinked = true, Future<String> Function(String)? read, Future<void> Function(String)? shareFlyer, bool foods = false, LookupMode lookup = LookupMode.found, bool packFail = false, bool busyLate = false, HangingClient? hangLookup, CountingClient? count}) async {
+Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? at, List<String> pins = const [], bool charlesRiver = false, Duration? slow, bool health = false, bool carbon = false, bool track = true, bool firstRun = false, Set<String> savedCafes = const {}, bool persistPins = false, List<String> avoid = const [], List<String> onlyShow = const [], PdfOpen? pages, bool pdfsLinked = true, Future<String> Function(String)? read, Future<void> Function(String)? shareFlyer, bool foods = false, LookupMode lookup = LookupMode.found, bool packFail = false, bool busyLate = false, HangingClient? hangLookup, CountingClient? count, AlertsOs? alertsOs, bool alertsOn = false}) async {
   forgetShownNames(); // (a family's names are the session's: no test reads what an earlier one learned)
   return (await t.runAsync(() async {
     sqfliteFfiInit();
@@ -53,7 +56,8 @@ Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? a
     final repo = await recordedRepository(RecordedFlags(at: at ?? lunch, net: net, savedCafes: savedCafes, busyLate: busyLate), db.db, read: read ?? readRecorded, slow: slow, pins: pins, readPdf: (_) async => pdfsLinked ? utf8.encode('%PDF-1.4\n%synthetic\n') : throw 'not linked', pdfDir: pdfDir);
     final flags = RecordedFlags(at: at ?? lunch, net: net, lookup: lookup, packFail: packFail);
     final r = await recordedPackaged(flags, read: read ?? readRecorded, wrap: count == null ? null : (inner) => count..inner = inner);
-    final boot = Boot(repo, store, await AppPrefs.load(store, pins: persistPins ? null : pins), pdfOpen: pages ?? pdfxOpen, shareFlyer: shareFlyer, packaged: r.packaged, lookup: hangLookup == null ? r.lookup : LookupDishSource(hangLookup, now: () => lunch));
+    await store.setAlertsOn(alertsOn);
+    final boot = Boot(repo, store, await AppPrefs.load(store, pins: persistPins ? null : pins), alerts: await AlertsModel.load(store, alertsOs ?? FakeAlertsOs()), pdfOpen: pages ?? pdfxOpen, shareFlyer: shareFlyer, packaged: r.packaged, lookup: hangLookup == null ? r.lookup : LookupDishSource(hangLookup, now: () => lunch));
     if (foods) await boot.seedFoods(read ?? readRecorded);
     await boot.foods?.reload();
     return boot;

@@ -19,6 +19,20 @@ import workmanager_apple
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     HealthChannel.register(engineBridge.applicationRegistrar.messenger())
+    // Notify me's two questions of the OS that no plugin answers (lib/alerts/alerts.dart, PlatformAlertsOs).
+    FlutterMethodChannel(name: "com.udinetogether.udine/alerts", binaryMessenger: engineBridge.applicationRegistrar.messenger())
+      .setMethodCallHandler { call, result in
+        switch call.method {
+        case "backgroundRestricted":
+          // Background App Refresh off for UDine (or for the whole device, or restricted)
+          result(UIApplication.shared.backgroundRefreshStatus != .available)
+        case "openSettings":
+          if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+          result(nil)
+        default:
+          result(FlutterMethodNotImplemented)
+        }
+      }
   }
 }
 

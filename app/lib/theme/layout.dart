@@ -92,6 +92,7 @@ abstract final class M2Layout {
   static const sheetMaxFrac = 0.86; // contentH is capped at 86% of the frame
   static const chevronShadow = Color.fromRGBO(36, 10, 14, 0.65); // not in design-tokens/m2.json
   static const chevronShadowDy = 1.0, chevronShadowSigma = 1.0; // `#mctl .icon svg{filter: drop-shadow(0 1px 2px rgba(36,10,14,.65))}`: blur 2 = sigma 1
+  static const hangTop = 10.0, hangBox = 5.0, hangGap = 12.0, hangFoot = 14.0; // `.hrow:has(.obtn) .check` padding-top and its box margin-top; `.check+.obtn.dk` margin-top, `.obtn.dk` margin-bottom
   static const checkSize = 26.0, checkRadius = 6.0, checkRing = 2.0, checkStroke = 2.5, checkW = 12.0, checkH = 7.0, checkLift = 2.0; // `.check i`
   static const pageTitleGap = 2.0; // `.pbar` gap
   // the hall header's title block (`.mt`) and the compact bar (`paint`: NB, NS)

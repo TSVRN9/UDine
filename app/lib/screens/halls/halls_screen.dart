@@ -78,7 +78,7 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
             prefs.markFirstRunSeen();
             done();
           },
-        ));
+        ), onboarding: true);
     _firstRun = h;
   }
 
