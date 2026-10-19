@@ -65,6 +65,7 @@ void main() {
         near('areaA $i', r(t, find.descendant(of: rows.at(i), matching: find.text(row.title))), l('areaA')[i], block: true);
         near('areaB $i', r(t, find.descendant(of: rows.at(i), matching: find.text(row.subtitle!))), l('areaB')[i], block: true);
       }
+      await drain(t); // the stars' menus, read once Halls is at rest
     });
 
     testWidgets('the offline line under the date at $w dp matches M2 within 1 dp', (t) async {

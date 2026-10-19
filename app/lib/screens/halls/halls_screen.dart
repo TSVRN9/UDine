@@ -30,7 +30,7 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
   static final _faded = Expando<Set<String>>();
   final _scroll = ScrollController();
   // M2 `fillBands(true)`: what arrives late (hours after a slow load or a retry, busy) fades in over `settle`; what was cached is simply there
-  late final _arrive = AnimationController(vsync: this, value: 1);
+  late final _arrive = AnimationController(vsync: this, value: 1)..addStatusListener((s) => s == AnimationStatus.completed ? _c?.loadMenus() : null);
   final _keys = <String, GlobalKey>{};
   HallsController? _c;
   bool _hk = false, _lk = false, _asked = false;
@@ -98,6 +98,7 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
     }
     _hk = hk;
     _lk = lk;
+    if (!_arrive.isAnimating) _c!.loadMenus();
   }
 
   @override
@@ -143,7 +144,7 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
       builder: (_, _) => Opacity(
         opacity: hider.hides(b.key) ? 0 : 1,
         child: Band(
-          name: b.name, compact: cafe, status: b.status, fade: _arrive,
+          name: b.name, compact: cafe, status: b.status, star: b.star, fade: _arrive,
           photo: bandPhoto(b, widget.top),
           busy: b.lamps == null ? null : BusyRow(lamps: b.lamps!, word: b.word!),
           letter: cafe ? null : HallLetter(letter: b.key, x: hallLx[b.key]!),
@@ -161,7 +162,7 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
       child: ListenableBuilder(
         listenable: Listenable.merge([_c!, scope.prefs]),
         builder: (context, _) {
-          final vm = buildHalls(now: scope.repo.now(), state: _c!.state, reads: _c!.reads, pins: scope.prefs.pins, charlesRiver: scope.prefs.charlesRiver);
+          final vm = buildHalls(now: scope.repo.now(), state: _c!.state, reads: _c!.reads, pins: scope.prefs.pins, charlesRiver: scope.prefs.charlesRiver, board: _c!.board, favorites: scope.prefs.favorites, day: scope.repo.today);
           final brand = Text('UDine', style: M2Text.brand.normal().style(M2Color.gold));
           final dateText = Text(vm.date, style: M2Text.date.style(M2Color.onDm));
           return Stack(children: [

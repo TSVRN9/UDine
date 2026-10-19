@@ -265,7 +265,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _cards(HallCardsEntry e, SearchController c) {
     final scope = AppScope.of(context), top = widget.top;
-    final vm = buildHalls(now: scope.repo.now(), state: c.hallsData.state, reads: c.hallsData.reads, pins: const [], charlesRiver: scope.prefs.charlesRiver);
+    final vm = buildHalls(now: scope.repo.now(), state: c.hallsData.state, reads: c.hallsData.reads, pins: const [], charlesRiver: scope.prefs.charlesRiver, board: c.board, favorites: scope.prefs.favorites, day: scope.repo.today);
     return Container(
       color: M2Color.dm, margin: const EdgeInsets.only(top: M2Layout.cardsTop, bottom: M2Layout.cardsBottom),
       child: Column(children: [
@@ -276,7 +276,7 @@ class _SearchScreenState extends State<SearchScreen> {
               builder: (_, _) => Opacity(
                 opacity: scope.hider.hides(b.key) ? 0 : 1,
                 child: Band(
-                  name: b.name, card: true, status: b.status, photo: bandPhoto(b, top),
+                  name: b.name, card: true, star: b.star, status: b.status, photo: bandPhoto(b, top),
                   busy: b.lamps == null ? null : Meter(lit: b.lamps!),
                   onTap: () => _openCard(b, scope),
                 ),
