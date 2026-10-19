@@ -25,13 +25,16 @@ class WhereBook extends ChangeNotifier {
   bool complete = false;
   bool _disposed = false, started = false;
 
-  void start() {
+  /// [settled] resolves once the sheet showing the answer is at rest; each phase's loading (the fetches, decoding, saving, all on
+  /// the UI isolate) waits for it, since a publish moves the sheet (the where line changes its resting height) and loading while it
+  /// moves holds its frames back. Without it, everything runs at once (Search).
+  void start({Future<void> Function()? settled}) {
     if (started || _disposed) return;
     started = true;
-    _load();
+    _load(settled);
   }
 
-  Future<void> _load() async {
+  Future<void> _load(Future<void> Function()? settled) async {
     final isos = base.days.keys.take(2).toList();
     if (base.hours.isEmpty) return; // no hours yet: no windows to answer with
     final days = {for (final iso in isos) iso: {...?base.days[iso]}};
@@ -53,8 +56,10 @@ class WhereBook extends ChangeNotifier {
       notifyListeners();
     }
 
+    await settled?.call();
     await fetch({for (var i = 0; i < diningHalls.length; i++) halls[i]: diningHalls[i].tid});
     publish();
+    await settled?.call();
     await fetch({for (final e in cafeIds.entries) if (base.hours.containsKey(e.key)) e.key: e.value});
     complete = true;
     publish();

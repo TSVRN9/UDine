@@ -70,6 +70,10 @@ void main() {
       expect((d.os, d.health), ('android', 'allow'));
     });
 
+    test('busy=late holds the occupancy curve back (M2\'s own flag)', () {
+      expect(recordedFlags('/?data=recorded&busy=late')!.busyLate, isTrue);
+      expect(recordedFlags('/?data=recorded')!.busyLate, isFalse);
+    });
     test('no data flag, no switch', () => expect(recordedFlags('/hall/worcester?net=fail'), isNull));
   });
 

@@ -43,7 +43,7 @@
 #   cd web && npx playwright test           # e2e (needs `npx playwright install chromium` once).
 #                                            # Add --headed or --debug to watch/step through it;
 #                                            # `npx playwright show-report` opens the last HTML report.
-#   cd app && flutter analyze && flutter test --concurrency=2
+#   cd app && flutter analyze && tool/test.sh <touched test dirs> test/core/m2   (full suite: tool/test.sh --merged <pr>, before merge)
 #                                            # Flutter lane (job flutter-tests): analyzer, the literals/
 #                                            # tokens-currency tests, M2 DOM measurements and goldens.
 #                                            # Run for any diff under app/. Kill a stuck flutter_tester by

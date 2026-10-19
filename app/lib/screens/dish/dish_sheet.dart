@@ -80,7 +80,7 @@ class DishSheet extends StatefulWidget {
 }
 
 class _DishSheetState extends State<DishSheet> {
-  final _cal = GlobalKey();
+  final _cal = GlobalKey(), _whereLine = GlobalKey();
   bool _stuck = false, _ingOpen = false;
   /// the sheet's height now (the star rides its pinned header)
   final _px = ValueNotifier<double>(0);
@@ -91,8 +91,9 @@ class _DishSheetState extends State<DishSheet> {
   @override
   void initState() {
     super.initState();
-    // the sheet slides in first; "where it is served" (every hall's and café's menus) starts once it has settled
-    _whereTimer = Timer(M2Motion.cont.duration, widget.book.start);
+    // the sheet slides in first; "where it is served" (every hall's and café's menus) loads only while the sheet rests: after the slide,
+    // and again after the halls' answer has moved it
+    _whereTimer = Timer(M2Motion.cont.duration, () => widget.book.start(settled: () => widget.handle.settled));
   }
 
   @override
@@ -118,7 +119,11 @@ class _DishSheetState extends State<DishSheet> {
     final scroll = m.body?.findRenderObject() as RenderBox?, cal = _cal.currentContext?.findRenderObject() as RenderBox?;
     if (scroll == null || cal == null || !cal.hasSize) return m.height * M2Layout.dishMidGuess;
     final bottom = cal.localToGlobal(Offset(0, cal.size.height), ancestor: scroll).dy; // under the pinned grab, to the rule under Calories
-    return restingSnap(calBottom: bottom - M2Layout.grabH, grab: M2Layout.grabH, winH: m.height, top: st);
+    // the where line is reserved at open and never moves the sheet: an answer taller than its line (a second group, chips on two
+    // rows) pushes the label down, and the rest stays where one line put it (owner, 2026-10-18)
+    final where = _whereLine.currentContext?.findRenderObject() as RenderBox?;
+    final over = where == null || !where.hasSize ? 0.0 : (where.size.height - M2Layout.whereLine).clamp(0.0, double.infinity);
+    return restingSnap(calBottom: bottom - M2Layout.grabH - over, grab: M2Layout.grabH, winH: m.height, top: st);
   }
 
   void _add(AppScope scope, String pm) {
@@ -287,8 +292,17 @@ class _DishSheetState extends State<DishSheet> {
                       ),
                     ] else if (widget.day == 0 && scope.prefs.track)
                       Padding(padding: const EdgeInsets.only(top: M2Layout.dadd), child: Button(kind: ButtonKind.primary, label: on ? 'Add another' : 'Add to plate', expand: true, onTap: () => _add(scope, pm))),
-                    // tracking off: "where it's served" takes the action's place, 16 after the identity group
-                    if (board != null && head != null) Padding(padding: EdgeInsets.only(top: scope.prefs.track ? M2Layout.whereTop : M2Layout.whereTopOff), child: _where(board, head)),
+                    // tracking off: "where it's served" takes the action's place, 16 after the identity group. One line of it is
+                    // reserved from the first frame and held empty until the answer fills it in place
+                    if (head != null)
+                      Padding(
+                        padding: EdgeInsets.only(top: scope.prefs.track ? M2Layout.whereTop : M2Layout.whereTopOff),
+                        child: ConstrainedBox(
+                          key: _whereLine,
+                          constraints: BoxConstraints(minHeight: M2Layout.whereLine),
+                          child: KeyedSubtree(key: const ValueKey('where-line'), child: board == null ? const SizedBox.shrink() : _where(board, head)),
+                        ),
+                      ),
                     Padding(padding: const EdgeInsets.only(top: M2Layout.labelTop), child: NutritionLabel(label: label, calKey: _cal)),
                     if (head != null && (head.health != null || head.carbon != null)) Padding(padding: const EdgeInsets.only(top: M2Layout.gradesTop), child: RatingsPanel(health: head.health, carbon: head.carbon)),
                     if (head?.ingredients?.isNotEmpty ?? false) DishIngredients(text: head!.ingredients!, open: _ingOpen, onToggle: () => setState(() => _ingOpen = !_ingOpen)),

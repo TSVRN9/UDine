@@ -11,7 +11,7 @@ enum LookupMode { found, none, fail, limited, inProgress }
 const recordedAvailable = !kReleaseMode;
 
 class RecordedFlags {
-  const RecordedFlags({this.at, this.net = NetMode.ok, this.scores = (health: false, carbon: false), this.avoid = const [], this.onlyShow = const [], this.savedPdfs = const {}, this.savedCafes = const {}, this.noEvents = false, this.trackOff = false, this.firstRun = false, this.lookup = LookupMode.found, this.packFail = false, this.seedFoods = false, this.os = 'android', this.health = 'allow'});
+  const RecordedFlags({this.at, this.net = NetMode.ok, this.scores = (health: false, carbon: false), this.avoid = const [], this.onlyShow = const [], this.savedPdfs = const {}, this.savedCafes = const {}, this.noEvents = false, this.trackOff = false, this.firstRun = false, this.lookup = LookupMode.found, this.packFail = false, this.seedFoods = false, this.os = 'android', this.health = 'allow', this.busyLate = false});
   final DateTime? at;
   final NetMode net;
 
@@ -32,6 +32,8 @@ class RecordedFlags {
   final String os, health;
   /// `foods=seed`: M2's seeded Your foods, Chobani and the recorded Clif Bar Chocolate Chip.
   final bool seedFoods;
+  /// `busy=late` (M2's own flag): the busy reading answers after [defaultSlow], so a hall opens before it and it lands late.
+  final bool busyLate;
   /// `scores=health,carbon`: the You switches a capture has no screen to set yet.
   final ({bool health, bool carbon}) scores;
   /// `avoid=Milk,Eggs` and `only=Halal`: You's Avoid list and "Only show" tags, likewise.
@@ -55,6 +57,7 @@ RecordedFlags? recordedFlags(String route, {bool available = recordedAvailable})
     seedFoods: q['foods'] == 'seed',
     os: q['os'] == 'ios' ? 'ios' : 'android',
     health: const {'deny', 'revoked', 'unsupported', 'notinstalled', 'device'}.contains(q['health']) ? q['health']! : 'allow',
+    busyLate: q['busy'] == 'late',
     savedPdfs: {for (final x in (q['saved'] ?? '').split(',')) if (x.startsWith('pdf:')) x.substring(4)},
     savedCafes: {for (final x in (q['saved'] ?? '').split(',')) if (x.isNotEmpty && !x.startsWith('pdf:')) x},
     scores: (health: (q['scores'] ?? '').split(',').contains('health'), carbon: (q['scores'] ?? '').split(',').contains('carbon')),
