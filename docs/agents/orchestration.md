@@ -14,15 +14,23 @@ is routing, not deep reasoning. Read this at the start of any session that dispa
    human-filed issue number. The agent reads the brief and the repo itself; pasting excerpts here
    only bloats this session's context (it averaged 343k tokens/turn before this rule).
    Parallelism: up to three UI tasks at once — one per emulator-pool device / Metro port
-   (`emulator-pool.md`). Stack dependent tasks (`gh pr create --base <parent-branch>`).
+   (`emulator-pool.md`). Base every PR on main. Stack (`gh pr create --base <parent-branch>`) only when the child
+   can't build or test without the parent: a squash merge of the parent makes the child's history unmergeable and its
+   captures look stale, and costs a hand-built merge (`git commit-tree <tree of main + the child's own diff> -p <child> -p
+   origin/main`, a fast-forward push) or a `--force-with-lease` rebase.
 3. **Gate** is mechanical: `scripts/pr-gate.sh` runs on `gh pr create` and `gh pr merge` via hooks
-   (`.claude/settings.json`) — screenshot present and stamped with the merged sha, no motion
-   literal outside `motion.ts`, PR template fields, lanes to run, owner-gated paths flagged.
-4. **Dispatch `pr-reviewer`** with the PR number and the brief path. It runs the gate, reproduces
+   (`.claude/settings.json`) — the screenshots the PR body names, each fresh (the PR's own hunks in pixel paths unchanged
+   since capture, `scripts/pixel-digest.sh`), no motion literal outside `motion.ts`, PR template fields (re-checked after
+   `gh pr edit`), lanes to run, owner-gated paths flagged; on merge also the merged-tree suite stamp (step 5).
+4. **Dispatch `pr-reviewer`** with the PR number and the brief path — except for a PR that touches only docs or briefs
+   (nothing under `app/`, `mobile/`, `shared/`, `supabase/`, `scripts/`, `.claude/`, and not M2's `vectors.json`, which the
+   Flutter suite reads): the gate alone, then merge. It runs the gate, reproduces
    reds by mutation, runs the lanes, opens the screenshots, compares to the artboard, and returns
    MERGE / REWORK / ESCALATE. It re-renders any state it needs itself.
-5. **Act on the verdict.** MERGE → `gh pr merge N --squash --delete-branch` (the hook refuses when
-   the gate printed OWNER-GATED: anything under `supabase/`, auth, sync, residency — post the
+5. **Act on the verdict.** MERGE → `app/tool/test.sh --merged N` (in the background, ~35 min: the PR's one full suite, on
+   the tree the merge makes; author and reviewer ran only the dirs the diff touches), then `gh pr merge N --squash
+   --delete-branch` (the hook refuses without that run's stamp, refuses `--delete-branch` while a PR is based on the branch, and
+   refuses when the gate printed OWNER-GATED: anything under `supabase/`, auth, sync, residency — post the
    verdict and leave it for the owner). REWORK → findings back to the same `issue-solver`.
    ESCALATE → see gates below. Stacked children: merge parent first, then the child rebases.
    The gate diffs a PR against its own base branch (`gh pr create --base X` → `pr-gate.sh --base X`;

@@ -128,10 +128,7 @@ if [[ ${#RENDERED[@]} -gt 0 ]]; then
     # merging PR #475 from an unrelated branch: every sidecar FAILed as "missing" even though all
     # three existed, committed, in the PR itself. `git show`/`git cat-file` read the object store
     # directly and don't care what's checked out locally.
-    mapfile -t PIXEL_PATHS < scripts/pixel-paths
-    # ...and only the ones this PR itself changes: code a merge of the base brings in was captured by its own PR
-    # (and, per capture, the ones it had changed when captured, so a file it later deletes or reverts still counts)
-    mapfile -d '' -t OWN < <(git diff -z --name-only "$BASE" "$HEAD_REF" -- "${PIXEL_PATHS[@]}")
+    NOW_FP="$(scripts/pixel-digest.sh "$BASE" "$HEAD_REF")"
     read_sidecar() {
       if [[ -n "$PR" ]]; then git show "$HEAD_REF:$1" 2>/dev/null; else cat "$1" 2>/dev/null; fi
     }
@@ -143,30 +140,26 @@ if [[ ${#RENDERED[@]} -gt 0 ]]; then
       if [[ -z "$side_content" ]]; then fail "$png: no sidecar $side (re-capture with the current screenshot.sh)"; continue; fi
       sha="$(jq -r .sha <<<"$side_content")"; dirty="$(jq -r .dirty <<<"$side_content")"
       if [[ "$dirty" == "true" ]]; then fail "$png: captured with uncommitted changes -- commit, then re-capture"; continue; fi
-      # A sidecar with blobs (app/tool/screenshot.sh since 2026-10-18) is fresh while every pixel path this PR changes, now or
-      # when captured, still has the blob it was captured with: a rebase or a merge of the base that leaves them alone keeps it.
-      if [[ "$(jq -r 'has("blobs")' <<<"$side_content")" == true ]]; then
-        stale=""
-        while read -r f; do
-          [[ -z "$f" ]] && continue
-          now="$(git rev-parse -q --verify "$HEAD_REF:$f" 2>/dev/null || echo deleted)"
-          [[ "$now" == "$(jq -r --arg f "$f" '.blobs[$f] // "absent"' <<<"$side_content")" ]] || stale+=" $f"
-        done < <({ printf '%s\n' "${OWN[@]}"; jq -r '.blobs | keys[]' <<<"$side_content"; } | sort -u)
-        if [[ -n "$stale" ]]; then
-          fail "$png: changed since capture:$stale -- app/tool/recapture.sh${PR:+ $PR}"
-        else
-          info "$png  ok (blobs match, route $(jq -r .route <<<"$side_content"), device $(jq -r .device <<<"$side_content"))"
-        fi
-        continue
-      fi
-      if ! git merge-base --is-ancestor "$sha" "$HEAD_REF" 2>/dev/null; then fail "$png: captured at $sha, not an ancestor of $HEAD_REF"; continue; fi
-      # Only paths that can change pixels make a capture stale; test, doc and script commits don't (owner, 2026-10-15).
-      mapfile -d '' -t then_own < <(git diff -z --name-only "$(git merge-base "origin/$BASE_BRANCH" "$sha")" "$sha" -- "${PIXEL_PATHS[@]}")
-      own=("${OWN[@]}" "${then_own[@]}")
-      if [[ ${#own[@]} -gt 0 ]] && ! git diff --quiet "$sha" "$HEAD_REF" -- "${own[@]}"; then
-        fail "$png: this PR's rendered code changed since capture ($sha -> ${HEAD_SHA:0:8}) -- re-capture"
+      # Fresh while every pixel path this PR changes now carries the same hunks it did when captured (scripts/pixel-digest.sh):
+      # a rebase, or a merge of the base that leaves the PR's own hunks alone, keeps a capture. What the base itself changes is
+      # the merged-tree suite's and goldens' to catch, not a capture's.
+      stale=""
+      if [[ "$(jq -r 'has("own")' <<<"$side_content")" == true ]]; then
+        then_fp="$(jq -r '.own | to_entries[] | "\(.key) \(.value)"' <<<"$side_content")"
+        [[ -n "$NOW_FP" ]] && stale="$(join <(sort <<<"$NOW_FP") <(sort <<<"$then_fp") -a1 -e none -o 0,1.2,2.2 | awk '$2 != $3 {printf " %s", $1}')"
+      elif git cat-file -e "$sha^{commit}" 2>/dev/null; then
+        # A sidecar from before fingerprints: stale where the PR's own commits since the capture (not merges, not the base's) touch
+        # a pixel path it changes.
+        stale="$(comm -12 <(cut -d' ' -f1 <<<"$NOW_FP" | sort -u) \
+          <(git log --no-merges --format= --name-only "$sha..$HEAD_REF" "^origin/$BASE_BRANCH" -- $(cat scripts/pixel-paths | sed "s/.*/'&'/" | xargs) | sort -u) | xargs)"
+        stale="${stale:+ $stale}"
       else
-        info "$png  ok (sha ${sha:0:8}, route $(jq -r .route <<<"$side_content"), device $(jq -r .device <<<"$side_content"))"
+        fail "$png: captured at $sha, which is gone (a rebase) and the sidecar predates fingerprints -- app/tool/recapture.sh${PR:+ $PR}"; continue
+      fi
+      if [[ -n "$stale" ]]; then
+        fail "$png: changed since capture:$stale -- app/tool/recapture.sh${PR:+ $PR}"
+      else
+        info "$png  ok (route $(jq -r .route <<<"$side_content"), device $(jq -r .device <<<"$side_content"))"
       fi
     done
   fi
