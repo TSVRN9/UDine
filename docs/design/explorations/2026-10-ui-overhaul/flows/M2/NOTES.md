@@ -2665,3 +2665,10 @@ blocks fold at the same time (their content has faded by then); not staggered.
   Berkshire; 25 for Franklin) is the busy lines only. Test (same scenario): at 21 steps, while the line has any opacity its scroll height equals its height and it lies inside the header; the chart is not drawn at k 0.
   Red: `build/r12/red-r13-late2.txt`. Frames: `p7/lateW390.png`, `lateW360.png`, `lateF390.png`, `lateF360.png` (12 each).
 
+- **Dish sheet, where line (owner 2026-10-18, #622).** On the phone the where answer arrives after the sheet (every hall's and
+  café's menus load behind it, only while the sheet rests), so M2's synchronous `openDish` layout is read as: the sheet opens at
+  its rest height with one where line's worth reserved and held empty (no shimmer, no placeholder text: the `.wt` line, its gap
+  and one `.hchip` row); the first group fills that line in place and the sheet never moves; a second group is added below
+  without a re-snap (the Calories rule then sits one line lower than the measured rest, accepted); "Not on the menu again today or
+  tomorrow" fills the same line. A sheet opened with the answer already known looks the same at rest. `src.html` and `test.js`
+  are unchanged; the Flutter measurements (`app/test/m2_dom*.json`) still hold for a one-group dish.
