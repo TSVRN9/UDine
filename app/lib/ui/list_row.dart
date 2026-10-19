@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import '../theme/tokens.dart';
 import 'press.dart';
+import 'settle_fade.dart';
 
 /// `.row`: a menu row. 64 dp at least; 20 dp in on the left, 8 on the right, 6 above and below; the name over a meta line, a
 /// control lane on the right; a hairline from 20 dp in to the edge, drawn inside the row so it adds no height. `here` is the
@@ -14,7 +15,10 @@ class ListRow extends StatelessWidget {
   final VoidCallback? onTap;
   final bool here;
   final String label;
-  const ListRow({super.key, required this.name, this.meta, this.control, this.metaEnd, this.onTap, this.here = false, required this.label});
+
+  /// what the name and meta stand for: when it changes they come back from 0.4 in place (a family's row coming to stand for another variant)
+  final Object? stands;
+  const ListRow({super.key, required this.name, this.meta, this.control, this.metaEnd, this.onTap, this.here = false, required this.label, this.stands});
   @override
   Widget build(BuildContext context) => Press(
         overlay: M2Color.pressRow, onTap: onTap, label: label,
@@ -25,14 +29,14 @@ class ListRow extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.rowPadTop, M2Layout.rowPadRight, M2Layout.rowPadTop),
             child: Row(children: [
               Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                child: _Fade(stands: stands, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   ExcludeSemantics(child: Text.rich(name, style: M2Text.rowName.style(M2Color.ink))),
                   if (meta != null)
                     Padding(
                       padding: const EdgeInsets.only(top: M2Layout.rowMetaTop),
                       child: metaEnd == null ? ExcludeSemantics(child: meta) : Row(children: [Expanded(child: ExcludeSemantics(child: meta)), metaEnd!]),
                     ),
-                ]),
+                ])),
               ),
               if (control != null) ...[const SizedBox(width: M2Layout.rowGap), control!],
             ]),
@@ -40,4 +44,13 @@ class ListRow extends StatelessWidget {
           const Positioned(left: M2Space.gutter, right: 0, bottom: 0, height: M2Layout.hairline, child: ColoredBox(color: M2Color.hair)),
         ]),
       );
+}
+
+/// (only a row that can come to stand for another variant carries the fade: every other row is drawn as it always was)
+class _Fade extends StatelessWidget {
+  const _Fade({required this.stands, required this.child});
+  final Object? stands;
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => stands == null ? child : SettleFade(value: stands, child: child);
 }

@@ -2,6 +2,7 @@ import 'dart:convert' show jsonDecode;
 import 'dart:io' show Directory;
 
 import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
+import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter/widgets.dart' show Widget;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -10,6 +11,7 @@ import 'package:sqflite/sqflite.dart';
 import 'core/hours.dart';
 import 'core/m2/bowl.dart' show Bowl;
 import 'core/m2/bowl_builder.dart' show BowlSpec, bowlNow;
+import 'core/m2/variants.dart' as core_variants;
 import 'core/m2/board.dart' show Macro, dishKey, halls, MenuItem, M2MenuItem;
 import 'core/types.dart' show MealPeriod;
 import 'core/store/db.dart';
@@ -67,6 +69,23 @@ class Boot {
   /// stays off, and nothing the user does is saved. Menus, hours and busy work as ever, cached in a throwaway in-memory database.
   bool get menusOnly => store == null;
 
+  /// M2's `VARN`, filled at load: the names of family variants in the menus saved on the device, so a logged "20 oz Cappuccino" reads
+  /// "Cappuccino, 20 oz" whatever has been opened since launch. Reads the saved menus only; nothing is fetched and the log is unchanged.
+  ///
+  /// It starts once the first frame is out (the parse is not the launch's), and once the names are in the log's screens are told, so a
+  /// You page, a day or a meal built before they landed re-reads them.
+  Future<void> primeShownNames() async {
+    try {
+      await SchedulerBinding.instance.endOfFrame;
+      for (final m in await repo.savedMenus()) {
+        core_variants.primeShownNames(mealsOfItems(m).values.expand((s) => s));
+      }
+      await log?.reload();
+    } catch (e) {
+      debugPrint('udine: saved menus not read for variant names: $e');
+    }
+  }
+
   /// [dbPath] and [read] (the recordings' reader) are test seams (the device path and the app bundle by default).
   static Future<Boot> open(String route, {String? dbPath, Future<String> Function(String name)? read, TempDir tmp = getTemporaryDirectory}) async {
     await clearExports(tmp: tmp); // last session's exports: plaintext copies of the log, not kept past the next start
@@ -109,6 +128,7 @@ class Boot {
     if (flags != null && flags.seedFoods) await boot.seedFoods(read);
     await boot.log?.reload();
     await boot.foods?.reload();
+    if (flags == null) boot.primeShownNames(); // (not awaited, and after the first frame: past meals read a family's names once the saved menus are read)
     if (flags != null) await boot.seedLog(route);
     if (flags != null) await boot.seedPlate(route); // (recorded data only: a live menu might never arrive)
     return boot;

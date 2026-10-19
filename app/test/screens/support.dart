@@ -6,6 +6,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:udine/boot.dart';
+import 'package:udine/core/m2/variants.dart' show forgetShownNames;
 import 'package:udine/app.dart';
 import 'package:udine/core/hours.dart';
 import 'package:udine/core/store/db.dart';
@@ -33,6 +34,7 @@ Future<String> readRecorded(String name) => File('assets/recorded/$name').readAs
 /// The app's `Boot` over M2's recordings and a throwaway store, as `Boot.open` builds it for a recorded route. Real I/O (sqlite on an
 /// isolate) runs under `runAsync`.
 Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? at, List<String> pins = const [], bool charlesRiver = false, Duration? slow, bool health = false, bool carbon = false, bool track = true, bool firstRun = false, Set<String> savedCafes = const {}, bool persistPins = false, List<String> avoid = const [], List<String> onlyShow = const [], PdfOpen? pages, bool pdfsLinked = true, Future<String> Function(String)? read, Future<void> Function(String)? shareFlyer, bool foods = false, LookupMode lookup = LookupMode.found, bool packFail = false, bool busyLate = false, HangingClient? hangLookup, CountingClient? count}) async {
+  forgetShownNames(); // (a family's names are the session's: no test reads what an earlier one learned)
   return (await t.runAsync(() async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
