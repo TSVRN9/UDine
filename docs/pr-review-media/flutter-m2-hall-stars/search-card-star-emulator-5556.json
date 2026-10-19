@@ -1,19 +1,19 @@
 {
-  "sha": "6837c7910a43bccc4d582796602d3eaca72efc71",
+  "sha": "a517cf22e073f398bf4ece2c3406684b875b0a01",
   "branch": "flutter/m2-hall-stars",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/m2-stars",
   "route": "/search?q=worcester&data=recorded&at=2026-10-08T12:41&fav=Golden BBQ Chicken Thigh&photos=off",
   "device": "sdk_gphone64_x86_64",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-19T05:54:04Z",
+  "ts": "2026-10-19T06:30:32Z",
   "own": {
     "app/lib/boot.dart": "995a6c99f8c754a146b33ee5072d957779f456c0",
     "app/lib/core/m2/stars.dart": "0a770b7675429f10b8e657bf97015738aa269ab9",
     "app/lib/core/m2/where.dart": "e1b1d5a3ae4e07cfc2f25ccd176a868915d232c4",
     "app/lib/data/repository.dart": "33ad3b7800ffa33da51d02bebee53738e20732e9",
     "app/lib/screens/halls/halls_controller.dart": "e889cce282fea3cb4c0ade70bc9cfd433de9215f",
-    "app/lib/screens/halls/halls_model.dart": "6646687aecd2d08c2c1fbdf8cc01aa2238d14bca",
+    "app/lib/screens/halls/halls_model.dart": "da03c4f77ce1adca07d1c377d7776ebb233585d6",
     "app/lib/screens/halls/halls_screen.dart": "9eb9c20712bca648810eab3e4cbc8d4728f13162",
     "app/lib/screens/search/search_controller.dart": "bab1eac0ff6e6b24b621c1420aea6bba2f1fedef",
     "app/lib/screens/search/search_screen.dart": "1034ea632b3eba91825855dc25878e58ff410362",
@@ -22,6 +22,8 @@
   },
   "argv": [
     "/search?q=worcester&data=recorded&at=2026-10-08T12:41&fav=Golden BBQ Chicken Thigh",
+    "--out",
+    "docs/pr-review-media/flutter-m2-hall-stars/search-card-star-emulator-5556.png",
     "--out",
     "docs/pr-review-media/flutter-m2-hall-stars/search-card-star-emulator-5556.png"
   ]
