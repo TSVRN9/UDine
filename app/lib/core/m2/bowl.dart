@@ -6,6 +6,7 @@ import '../../ui/label_model.dart' show fq;
 import '../types.dart';
 import 'board.dart';
 import 'menu_view.dart' show allergens;
+import 'variants.dart' show PhoAxes, phoAxes;
 
 /// A station's name as M2 shows it: "Salad Bar $11.50/LB" -> "Salad Bar", "Cold Bar Items" -> "Cold Bar".
 String stName(String st) => st.replaceFirst(RegExp(r'\s*\$.*$'), '').replaceFirst(RegExp(r'\s+Items$'), '').replaceFirst('Salad Bar/Dressings', 'Salad Bar').trim();
@@ -41,7 +42,7 @@ MenuItem? baseOf(Board b, String iso, String place, String meal, int si) {
 /// A synthetic base: a station with no dish of its own to build on. [label] names the bowl until a pho's base is chosen.
 class Syn {
   const Syn({required this.label, required this.head, required this.iso, required this.place, required this.meal, required this.si,
-      required this.parts, this.pho = false, this.choices = const [], this.topHead});
+      required this.parts, this.pho = false, this.choices = const [], this.topHead, this.axes});
   final String label, head, iso, place, meal;
   final int si;
   final List<MenuItem> parts;
@@ -50,13 +51,16 @@ class Syn {
   /// A pho builder's bases (a bar's broths, or a café's phos): one is picked and names the bowl.
   final List<MenuItem> choices;
 
+  /// A café's phos that are a whole protein x broth grid: picked by protein, then broth (round 12b), the grid's dishes being the [choices]
+  final PhoAxes? axes;
+
   /// A café pho builder's add-ons heading ("Add-ons"), where the choices are the station's own heading.
   final String? topHead;
 }
 
 Syn? _phoOf(Board b, String iso, String place, String meal, int si, List<MenuItem> ds) {
   Syn mk(List<MenuItem> choices, List<MenuItem> parts, [String? topHead]) =>
-      Syn(label: 'Noodle Bowl', head: 'Noodle Bowl', iso: iso, place: place, meal: meal, si: si, pho: true, choices: choices, parts: parts, topHead: topHead);
+      Syn(label: 'Noodle Bowl', head: 'Noodle Bowl', iso: iso, place: place, meal: meal, si: si, pho: true, choices: choices, parts: parts, topHead: topHead, axes: topHead == null ? null : phoAxes(choices));
   final br = ds.where(_isBroth).toList();
   final bar = br.length >= 2 ? mk(br, [...br, ...ds.where((d) => !_isBroth(d))]) : null;
   if (!isCafe(place)) return baseOf(b, iso, place, meal, si) != null ? null : bar;

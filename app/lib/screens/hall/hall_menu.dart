@@ -6,6 +6,7 @@ import '../../core/m2/bowl.dart' show Syn, synOf;
 import '../../core/m2/bowl_builder.dart' show BowlSpec;
 import '../../core/m2/menu_view.dart';
 import '../../core/m2/plate.dart';
+import '../../core/m2/variants.dart' show familiesOf, shownOf;
 import '../../core/hours.dart' show openSpan;
 import '../../core/occupancy.dart';
 import '../../core/m2/places.dart' show Roster, hallKeyOfTitle;
@@ -299,7 +300,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     setState(() => _here = null);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final i = _items.indexWhere((x) => x.kind == ItemKind.dish && x.dish!.key == key);
+      final i = _items.indexWhere((x) => x.kind == ItemKind.dish && x.holds(key));
       if (i < 0) return;
       setState(() => _here = _items[i].id);
       WidgetsBinding.instance.addPostFrameCallback((_) => mounted && _sc.hasClients ? _scrollTo(_keys.dish, i, lead: M2Layout.hereLead, instant: instant) : null);
@@ -339,7 +340,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     var y = _hh + _th + _sw;
     for (var i = 0; i < index && i < _items.length; i++) {
       final it = _items[i];
-      y += switch (it.kind) { ItemKind.head => M2Size.stationRow, ItemKind.syn => M2Size.row, ItemKind.dish => it.dish!.dishName.length > 26 ? M2Layout.rowTall : M2Size.row, _ => M2Layout.noteRow };
+      y += switch (it.kind) { ItemKind.head => M2Size.stationRow, ItemKind.syn => M2Size.row, ItemKind.dish => it.title.length > 26 ? M2Layout.rowTall : M2Size.row, _ => M2Layout.noteRow };
     }
     return y;
   }
@@ -541,7 +542,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
       },
       onOpen: (d) => widget.onOpenDish != null ? widget.onOpenDish!(d, place: place, meal: _effectiveMeal, day: _day) : _openDish(d),
       onAdd: (d) {
-        plate.add(pm(), d.dishName, {place: d});
+        plate.add(pm(), shownOf(familiesOf(fx), d), {place: d}, null, d.key);
         Haptics.add();
       },
       onInc: (d) {

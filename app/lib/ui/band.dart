@@ -34,13 +34,15 @@ class Band extends StatelessWidget {
   final String? status;
   final Widget? busy, photo, letter;
   final bool compact, ghost;
+  /// a favourite is served here (M2 `.bstar`); named for a screen reader, never captioned
+  final bool star;
   /// Search's hall card: a band at 76 dp, with no letter, its status and busy meter on one line
   final bool card;
   final VoidCallback? onTap;
   final BandParts? parts;
   /// the status and busy fade in on this when they arrive late (a slow load or a retry)
   final Animation<double>? fade;
-  const Band({super.key, required this.name, this.status, this.busy, this.photo, this.letter, this.compact = false, this.card = false, this.ghost = false, this.onTap, this.fade, this.parts});
+  const Band({super.key, required this.name, this.status, this.busy, this.photo, this.letter, this.compact = false, this.card = false, this.ghost = false, this.star = false, this.onTap, this.fade, this.parts});
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +59,16 @@ class Band extends StatelessWidget {
           Positioned(
             left: M2Space.gutter, top: card ? M2Layout.cardTextTop : compact ? M2Space.pinTextTop : M2Space.bandTextTop,
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(name, key: parts?.name, style: (small ? M2Text.pinName : M2Text.bandName).style(M2Color.white)),
+              if (star && !ghost)
+                Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(name, key: parts?.name, style: (small ? M2Text.pinName : M2Text.bandName).style(M2Color.white)),
+                  Padding(
+                    padding: EdgeInsets.only(left: M2Layout.starGap, top: card ? M2Layout.starTopCard : M2Layout.starTopBand),
+                    child: Text('★', style: M2Layout.starText.copyWith(color: M2Color.gold)),
+                  ),
+                ])
+              else
+                Text(name, key: parts?.name, style: (small ? M2Text.pinName : M2Text.bandName).style(M2Color.white)),
               if (card) ...[
                 if ((status != null && status!.isNotEmpty) || busy != null)
                   Padding(
@@ -85,7 +96,7 @@ class Band extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: M2Layout.seam),
       child: Semantics(
-        container: true, button: true, label: [name, ?status].join(', '),
+        container: true, button: true, label: [name, if (star) 'Serves a favorite', ?status].join(', '),
         child: Press(onTap: onTap, overlay: M2Color.pressBand, child: ExcludeSemantics(child: body)),
       ),
     );

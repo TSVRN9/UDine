@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../core/m2/board.dart' show MenuItem, M2MenuItem, clockMeal, dishKey, halls;
 import '../../core/saved_food.dart';
+import '../../core/serving_text.dart';
 import '../dish/food_sheet.dart';
 import '../../core/m2/plate.dart' show hallLabel;
 import '../../core/m2/rank.dart';
@@ -111,11 +112,12 @@ class _FavoritesPageState extends State<FavoritesPage> {
           final f = prefs.favorites.toList();
           if (f.isEmpty) return const Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [NotifyRow(), _Empty("Star a dish from its details and it shows up here, with where it's served today.")]);
           String? line(String n) {
+            if (n.startsWith('f:')) return null; // (a family is served at cafés, whose menus this page does not read)
             final at = _lunch?[dishKey(n)];
             return _lunch == null ? null : at == null ? 'Not on lunch today' : 'At lunch now at ${hallLabel(fx, at)}';
           }
 
-          return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [const NotifyRow(), for (final (i, n) in f.indexed) LRow(title: n, subtitle: line(n), chevron: false, last: i == f.length - 1)]);
+          return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [const NotifyRow(), for (final (i, n) in f.indexed) LRow(title: n.startsWith('f:') ? n.substring(2) : n, subtitle: line(n), chevron: false, last: i == f.length - 1)]);
         },
       ),
     );
@@ -141,7 +143,7 @@ class FoodsPage extends StatelessWidget {
           return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             for (final (i, f) in foods.indexed)
               LRow(
-                title: f.name, subtitle: '${fc(f.nutrition.calories)} cal, ${f.serving}', last: i == foods.length - 1,
+                title: f.name, subtitle: '${fc(f.nutrition.calories)} cal, ${servingText(f.serving)}', last: i == foods.length - 1,
                 onTap: () => openFoodSheet(context, food: f, meal: clockMeal(scope.repo.now())),
               ),
           ]);

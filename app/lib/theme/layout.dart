@@ -185,6 +185,10 @@ abstract final class M2Layout {
   static const chipPadX = 14.0, chipGap = 6.0; // `.chip` padding 0 14, gap 6
   static const chipRing = Color.fromRGBO(110, 98, 102, 0.4); // `.chip` inset ring: not in design-tokens/m2.json
   static const checkMarkW = 10.0, checkMarkH = 5.0, checkMarkStroke = 2.0, checkMarkRight = 2.0, checkMarkLift = 3.0; // `.chip[aria-pressed=true]::before`
+  // round 12 (`.vpick .chip`): a variant picker wraps its chips 8 apart and 8 under the name; a chip is 44 or more with 10 x 14 padding and wraps
+  // its text at 1.25; a second group starts a section gap (`.vpick+.vpick`) below
+  static const tokenDrop = 2.0; // `.vt`: a family row's token on the figures' baseline
+  static const vpickGap = 8.0, vpickGroupGap = 24.0, vpickPadY = 10.0, vpickLine = 1.25;
   static const areaHeadTop = 16.0, areaHeadBottom = 6.0; // `.ahd` padding 16 0 6
   static const thumbW = 64.0, thumbH = 34.0, thumbGap = 12.0; // `.thumb`, `.lrow .lt`
   static const h3Gap = 24.0; // `.cbody .h3` margin-top
@@ -219,6 +223,8 @@ abstract final class M2Layout {
   static const vsName = M2Type(22.0, 25.3, 'Oswald', FontWeight.w600, tabular: true); // `.vs button`: 600 22/1.15 Oswald
   static const placeRowMin = 60.0, placeRowPadV = 8.0, placeRowGap = 12.0, placeTextTop = 2.0; // `.prow2`
   static const placeStatus = M2Type(14.0, null, 'LibreFranklin', FontWeight.w500); // `.prow2 .r`
+  static const starText = TextStyle(fontSize: 22, height: 1); // `.bstar` font: 400 22px/1
+  static const starGap = 8.0, starTopBand = 7.0, starTopCard = 0.0; // `.bstar` (round 13): size, margin-left, and its top within `.nm` (32 / 24 high)
   static const cardH = 76.0, cardTextTop = 13.0, cardMeterGap = 10.0; // `.band.hcard`, `.hcard .bt`, `.st` gap
   static const cardsTop = 4.0, cardsBottom = 8.0; // `.hcards` margin
   static const laneMin = 66.0; // `.lane` min-height

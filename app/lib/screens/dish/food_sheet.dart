@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../../core/m2/board.dart' show Macro;
 import '../../core/m2/dish_sheet.dart';
 import '../../core/saved_food.dart';
+import '../../core/serving_text.dart';
 import '../../core/types.dart' show NutritionFacts;
 import '../../shell/app_scope.dart';
 import '../../shell/shell_scope.dart';
@@ -135,7 +136,7 @@ class _FoodSheetState extends State<FoodSheet> {
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: M2Space.gutter),
                             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                              if (f.serving.isNotEmpty) Padding(padding: const EdgeInsets.only(top: M2Layout.dsvTop), child: Text(f.serving, style: M2Text.date.style(M2Color.slate))),
+                              if (f.serving.isNotEmpty) Padding(padding: const EdgeInsets.only(top: M2Layout.dsvTop), child: Text(servingText(f.serving), style: M2Text.date.style(M2Color.slate))),
                               if (marks.isNotEmpty)
                                 Padding(
                                   padding: const EdgeInsets.only(top: M2Layout.marksTop),
