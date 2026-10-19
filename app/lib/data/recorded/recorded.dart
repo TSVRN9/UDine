@@ -67,6 +67,7 @@ Future<Repository> recordedRepository(RecordedFlags f, Database db, {
     locations: await recordedLocations(read),
     events: f.noEvents ? '{"events":[]}' : await read('events-raw.json'),
     pdf: readPdf,
+    busyDelay: f.busyLate ? defaultSlow : null,
   );
   final net = NetClient(client, f.net == NetMode.offline ? NetMode.ok : f.net, slow ?? defaultSlow);
   final at = f.at;

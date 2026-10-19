@@ -138,58 +138,6 @@ void main() {
       });
     }
 
-    testWidgets('the busy row settling into place moves the name over the settle token, not in one frame, at $n dp', (t) async {
-      Photos.enabled = false;
-      phone(t, w: w);
-      final busy = ValueNotifier<HallBusyView?>(null);
-      await t.pumpWidget(Directionality(
-        textDirection: TextDirection.ltr,
-        child: MediaQuery(
-          data: MediaQueryData(size: Size(w, 844)),
-          child: Align(alignment: Alignment.topLeft, child: HallHeader(place: 'F', name: 'Franklin', top: 24, status: ValueNotifier('Open until 9 PM'), progress: kAlwaysCompleteAnimation, scroll: ValueNotifier(0), dayFade: kAlwaysCompleteAnimation, busy: busy)),
-        ),
-      ));
-      await t.pumpAndSettle();
-      double y() => t.getRect(find.text('Franklin')).top;
-      final y0 = y();
-      busy.value = view([b('12:00:00', 400, 1, 2)], 400); // no extra line: the row is shorter than its room
-      await t.pump();
-      await t.pump(const Duration(milliseconds: 16));
-      final ys = [y()];
-      for (var ms = 16; ms < M2Motion.settle.ms; ms += 16) {
-        await t.pump(const Duration(milliseconds: 16));
-        ys.add(y());
-      }
-      await t.pumpAndSettle();
-      final y1 = y();
-      expect(y1 - y0, greaterThan(10), reason: 'the name moves down as the row gives its room back');
-      expect(ys.first, lessThan(y1 - 5), reason: 'not at its place after one frame');
-      expect([for (var i = 1; i < ys.length; i++) ys[i] >= ys[i - 1]].every((x) => x), isTrue, reason: 'smooth, never back');
-      expect(ys.where((x) => x > y0 && x < y1).length, greaterThan(3), reason: 'several frames in between');
-    });
-
-    testWidgets('under reduced motion the row settles at once at $n dp', (t) async {
-      Photos.enabled = false;
-      phone(t, w: w);
-      final busy = ValueNotifier<HallBusyView?>(null);
-      await t.pumpWidget(Directionality(
-        textDirection: TextDirection.ltr,
-        child: MediaQuery(
-          data: MediaQueryData(size: Size(w, 844), disableAnimations: true),
-          child: Align(alignment: Alignment.topLeft, child: HallHeader(place: 'F', name: 'Franklin', top: 24, status: ValueNotifier('Open until 9 PM'), progress: kAlwaysCompleteAnimation, scroll: ValueNotifier(0), dayFade: kAlwaysCompleteAnimation, busy: busy)),
-        ),
-      ));
-      await t.pumpAndSettle();
-      final y0 = t.getRect(find.text('Franklin')).top;
-      busy.value = view([b('12:00:00', 400, 1, 2)], 400);
-      await t.pump();
-      await t.pump();
-      final y1 = t.getRect(find.text('Franklin')).top;
-      await t.pumpAndSettle();
-      expect(t.getRect(find.text('Franklin')).top, y1);
-      expect(y1, greaterThan(y0 + 10));
-    });
-
     testWidgets('another day keeps the room and draws nothing at $n dp', (t) async {
       await openHall(t, await bootRecorded(t), '/hall/worcester?meal=lunch&day=2026-10-12', w: w);
       expect((find.text('Calmer around 1:30 PM').hitTestable().evaluate().length, find.byType(BusyBoard).evaluate().length), (0, 0));

@@ -80,9 +80,13 @@ conversation that created the task.
 - Rendered output changed → `mobile/scripts/screenshot.sh <route>` per state the brief lists
   (`--wait-for TEXT` on any live-data screen, `--record N --tap/--swipe/--longpress` for motion,
   `--stress long-names` for wrapping/overflow claims, `mobile/scripts/measure-alignment.py` for
-  any alignment claim). Capture **after your last code commit** — the sidecar records the sha and
-  the gate rejects a stale one. Commit the PNG(s) + `.json` under `docs/pr-review-media/<branch>/`.
-- `app/` diffs: `cd app && flutter analyze && flutter test --concurrency=2`; screenshot with
+  any alignment claim). Capture **after your last code commit** — the sidecar fingerprints the branch's own
+  pixel-path hunks and the gate rejects a capture they've changed since (a rebase or a merge of main doesn't). Commit the
+  PNG(s) + `.json` under `docs/pr-review-media/<branch>/` and name each in the PR body's Screenshots: line; composites and
+  crops go in `docs/pr-review-media/<branch>/derived/` (no sidecar). Stale after a fix: `app/tool/recapture.sh <pr>` retakes
+  every named capture from its sidecar (taps and swipes included) and commits; captures taken by hand it lists for you.
+- `app/` diffs: `cd app && flutter analyze && tool/test.sh <the test dirs your diff touches> test/core/m2` (the 4G cap; a
+  bare `flutter test` is blocked). Not the full suite: the orchestrator runs it once, on the merged tree, before merge. Screenshot with
   `app/tool/screenshot.sh <route> [--serial S]` in recorded mode (`?data=recorded&at=2026-10-08T12:41`)
   and compare to M2's own render at the same width (see pr-reviewer.md §4 for the command; Playwright/Chromium
   is a heavy job). One heavy job at a time: Gradle, an emulator and

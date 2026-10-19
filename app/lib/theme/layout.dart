@@ -1,5 +1,6 @@
 import 'package:flutter/painting.dart';
 import 'kinds.dart';
+import 'm2_tokens.g.dart' show M2Text;
 
 // Layout numbers the token file does not carry, each named for the M2 rule (src.html) it is copied from. A number that
 // is in design-tokens/m2.json lives there (m2_tokens.g.dart), not here.
@@ -35,6 +36,9 @@ abstract final class M2Layout {
   static const statusGapBand = 7.0, statusGapPin = 6.0;
   static const busyTopBand = 6.0, busyTopHeader = 8.0; // `.bz`
   static const busyMaxHeader = 230.0;
+  // the header's busy block (M2 `#mbz` and its 8 dp margin): the meter's line, and the second line under it (5 run gap + 17). M2 `LATE_D`: 25 for a
+  // hall with no second line (Franklin), 47 with one.
+  static const busyBlock = busyTopHeader + 17.0, busyBlockExtra = busyBlock + busyRunGap + 17.0;
   static const busyGap = 8.0, busyRunGap = 5.0;
   // `.meter`
   static const lampW = 5.0, lampH = 12.0, lampGap = 2.0, lampRadius = 1.0;
@@ -121,6 +125,11 @@ abstract final class M2Layout {
   static const dsvTop = 4.0, dalTop = 8.0, dadd = 16.0, whereTop = 24.0, whereTopOff = 16.0, wlGap = 16.0, wtBottom = 8.0, labelTop = 24.0, gradesTop = 12.0; // `.dsv`, `.dal`, `.dadd`, `.where`, `.wl+.wl`, `.wt`, `.facts`, `.facts.grades`
   static const ingTop = 24.0, ingBottom = 8.0, ingLines = 3.0, ingMore = 44.0, ingMoreTop = 2.0; // `.ingh`, `.ing`, `.ingmore` (40 in M2: 44 here, a touch target)
   static const dishMidGuess = 0.55; // the resting height before the label is measured (a fraction of the frame)
+  /// One "where it is served" line, reserved at open and held empty until the answer lands (owner, 2026-10-18): the group's heading
+  /// (`.wt`, sheetHead's line), its gap, and one row of chips (`.hchip`). One group fills it exactly; a second is added below.
+  static double get whereLine => M2Text.sheetHead.line! + wtBottom + hchipH;
+  /// The longest `SheetHandle.settled` waits on a sheet that keeps moving (retargets, a drag): what loads behind it then goes ahead.
+  static const sheetRestCap = Duration(seconds: 1);
   static const plateLabelGap = 12.0; // `.sh1` gap
   // the plate label's heading (`.sh1 h2` at 28 dp, line 1.1) and its item list (`p.kv`, 15 dp at 1.5): the engine rounds a fractional
   // line up to whole dp, so the list takes the 22 below its 22.5 and the heading's 30.8 reads 31; both stay within 1 dp of M2
