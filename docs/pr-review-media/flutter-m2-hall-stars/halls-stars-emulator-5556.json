@@ -1,10 +1,28 @@
 {
-  "sha": "9f9a3a612bb21d9db259632b2dc02d4e09de53cb",
+  "sha": "6837c7910a43bccc4d582796602d3eaca72efc71",
   "branch": "flutter/m2-hall-stars",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/m2-stars",
   "route": "/halls?data=recorded&at=2026-10-08T12:41&fav=Golden BBQ Chicken Thigh|Black Beans&photos=off",
   "device": "sdk_gphone64_x86_64",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-18T15:53:21Z"
+  "ts": "2026-10-19T05:53:58Z",
+  "own": {
+    "app/lib/boot.dart": "995a6c99f8c754a146b33ee5072d957779f456c0",
+    "app/lib/core/m2/stars.dart": "0a770b7675429f10b8e657bf97015738aa269ab9",
+    "app/lib/core/m2/where.dart": "e1b1d5a3ae4e07cfc2f25ccd176a868915d232c4",
+    "app/lib/data/repository.dart": "33ad3b7800ffa33da51d02bebee53738e20732e9",
+    "app/lib/screens/halls/halls_controller.dart": "e889cce282fea3cb4c0ade70bc9cfd433de9215f",
+    "app/lib/screens/halls/halls_model.dart": "6646687aecd2d08c2c1fbdf8cc01aa2238d14bca",
+    "app/lib/screens/halls/halls_screen.dart": "9eb9c20712bca648810eab3e4cbc8d4728f13162",
+    "app/lib/screens/search/search_controller.dart": "bab1eac0ff6e6b24b621c1420aea6bba2f1fedef",
+    "app/lib/screens/search/search_screen.dart": "1034ea632b3eba91825855dc25878e58ff410362",
+    "app/lib/theme/layout.dart": "b9f3a84857a85cdd0d2317ec7439b71e1989928d",
+    "app/lib/ui/band.dart": "03c74e9856f81a789d1f2d0c81002eeca9cf1931"
+  },
+  "argv": [
+    "/halls?data=recorded&at=2026-10-08T12:41&fav=Golden BBQ Chicken Thigh|Black Beans",
+    "--out",
+    "docs/pr-review-media/flutter-m2-hall-stars/halls-stars-emulator-5556.png"
+  ]
 }
