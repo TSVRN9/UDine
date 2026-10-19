@@ -165,6 +165,9 @@ class Repository {
 
   String get today => effectiveTodayIso(now(), defaultRolloverHour);
 
+  /// How many saved menus [savedMenus] has parsed (a test pins that none is before the first frame).
+  static int savedMenuParses = 0;
+
   /// Every menu saved on the device, parsed; nothing is fetched (what a restart can read before any board is built). An unreadable row is left out.
   Future<List<List<MenuItem>>> savedMenus() async {
     final out = <List<MenuItem>>[];
@@ -172,7 +175,10 @@ class Repository {
       try {
         final m = RegExp(r'^menu:v2:(\d+)\|(.+)$').firstMatch(r['key']! as String)!;
         final raw = (jsonDecode(r['value_json']! as String) as Map<String, dynamic>)['raw'];
-        out.add(await parseMenuResponse(int.parse(m[1]!), m[2]!, raw is Map<String, dynamic> ? raw : const <String, dynamic>{}));
+        final id = int.parse(m[1]!), date = m[2]!, map = raw is Map<String, dynamic> ? raw : const <String, dynamic>{};
+        savedMenuParses++;
+        // the parse a hall page's menu takes: off the UI isolate in the profile and release builds (every saved menu at launch would be jank)
+        out.add(await (parseOffUi ? _parseOffUi(id, date, map) : parseMenuResponse(id, date, map)));
       } catch (_) {}
     }
     return out;

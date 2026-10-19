@@ -2,7 +2,12 @@
 // the builder's add-ins, a starred family named in You > Favorites, and a family's names in history from the menus saved on the device.
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:udine/boot.dart' show Boot;
 import 'package:udine/core/m2/variants.dart';
+import 'package:udine/core/types.dart';
+import 'package:udine/data/repository.dart';
+import 'package:udine/motion/routes.dart';
+import 'package:udine/screens/you/day_page.dart';
 import 'package:udine/screens/dish/bowl_foot.dart';
 import 'package:udine/screens/dish/dish_sheet.dart';
 import 'package:udine/screens/hall/dish_row.dart';
@@ -70,6 +75,19 @@ Future<void> openFromPlate(WidgetTester t, String name) async {
   await sheetUp(t);
 }
 
+/// Starts priming (in real time: it reads the device's saved menus) and frames it until it is done.
+Future<void> prime(WidgetTester t, Boot b, {Future<void> Function()? beforeFirstFrame}) async {
+  var done = false;
+  b.primeShownNames().then((_) => done = true);
+  await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+  await beforeFirstFrame?.call();
+  for (var i = 0; i < 300 && !done; i++) {
+    await t.pump(); // (the first frame starts the work; the rest let its fake-zone steps and the store's real reads meet)
+    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+  }
+  expect(done, isTrue);
+}
+
 void main() {
   setUpAll(loadFonts);
 
@@ -129,8 +147,43 @@ void main() {
     await openPlace(t, b, 'c12'); // (the café's menu is saved on the device as it loads)
     forgetShownNames(); // the restart: nothing this session has shown yet
     expect(shownName('20 oz Cappuccino'), '20 oz Cappuccino');
-    await t.runAsync(b.primeShownNames);
+    await prime(t, b);
     expect(shownName('20 oz Cappuccino'), 'Cappuccino, 20 oz');
+    await drain(t);
+  });
+
+  testWidgets('priming waits for the first frame: no saved menu is parsed before it', (t) async {
+    final b = await bootRecorded(t);
+    await openPlace(t, b, 'c12');
+    Repository.savedMenuParses = 0;
+    await prime(t, b, beforeFirstFrame: () async => expect(Repository.savedMenuParses, 0, reason: 'no frame yet'));
+    expect(Repository.savedMenuParses, greaterThan(0));
+    await drain(t);
+  });
+
+  testWidgets('a meal opened before priming lands re-reads its names with no other action', (t) async {
+    final b = await bootRecorded(t);
+    await openPlace(t, b, 'c12');
+    forgetShownNames();
+    await t.runAsync(() async {
+      await b.store!.addEntries([
+        LogEntry(
+          id: 'c0', loggedAt: '2026-10-08T12:20:00.000', servings: 1,
+          source: const UmassMenuSource(dishName: '20 oz Cappuccino', hallTid: 1),
+          nutrition: const NutritionFacts(servingSize: '', calories: 0, caloriesFromFat: 0, totalFatG: 0, satFatG: 0, transFatG: 0, cholesterolMg: 0, sodiumMg: 0, totalCarbG: 0, dietaryFiberG: 0, sugarsG: 0, proteinG: 0),
+        ),
+      ]);
+      await b.log!.reload();
+    });
+    Nav.push<void>(t.element(find.byType(HallMenu).last), (_) => const DayPage(top: 24, day: '2026-10-08'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Lunch at Worcester'));
+    await t.pumpAndSettle();
+    expect(find.text('20 oz Cappuccino'), findsOneWidget);
+    await prime(t, b);
+    await t.pumpAndSettle();
+    expect(find.text('Cappuccino, 20 oz'), findsOneWidget);
+    expect(find.text('20 oz Cappuccino'), findsNothing);
     await drain(t);
   });
 }

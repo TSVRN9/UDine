@@ -25,6 +25,7 @@ String _row(String iso, String place, String meal, String station, String name, 
 
 void main() {
   final v = vectors['variants'] as Map<String, dynamic>;
+  setUp(forgetShownNames);
 
   test('variantOf reads a size, a milk or a base, in that order', () {
     expect(variantOf('16 oz Cappuccino'), (axis: 'size', name: 'Cappuccino', v: '16 oz', chip: '16 oz', o: 16));
@@ -176,8 +177,8 @@ void main() {
     }
   });
 
-  test('a past meal reads a family\'s variant by its name once a board has shown the family', () {
-    familiesOf(board);
+  test('a past meal reads a family\'s variant by its name once the menus have been read', () {
+    primeShownNames([for (final s in stations()) s.st]);
     expect(shownName('20 oz Cappuccino'), 'Cappuccino, 20 oz');
     expect(shownName('Boba Oat Milk'), 'Boba, Oat Milk');
     expect(shownName('Beef Brisket Noodle Bowl'), 'Beef Brisket Noodle Bowl');
