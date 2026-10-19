@@ -23,8 +23,8 @@ is routing, not deep reasoning. Read this at the start of any session that dispa
    since capture, `scripts/pixel-digest.sh`), no motion literal outside `motion.ts`, PR template fields (re-checked after
    `gh pr edit`), lanes to run, owner-gated paths flagged; on merge also the merged-tree suite stamp (step 5).
 4. **Dispatch `pr-reviewer`** with the PR number and the brief path — except for a PR that touches only docs or briefs
-   (nothing under `app/`, `mobile/`, `shared/`, `supabase/`, `scripts/`, `.claude/`, and not M2's `vectors.json`, which the
-   Flutter suite reads): the gate alone, then merge. It runs the gate, reproduces
+   (nothing under `app/`, `mobile/`, `shared/`, `supabase/`, `scripts/`, `.claude/`, `docs/design/explorations/2026-10-ui-overhaul/flows/`
+   (M2's vectors and the menu/packaged fixtures the Flutter suite reads) or `docs/design/*.dc.html` (mobile's parity tests)): the gate alone, then merge. It runs the gate, reproduces
    reds by mutation, runs the lanes, opens the screenshots, compares to the artboard, and returns
    MERGE / REWORK / ESCALATE. It re-renders any state it needs itself.
 5. **Act on the verdict.** MERGE → `app/tool/test.sh --merged N` (in the background, ~35 min: the PR's one full suite, on

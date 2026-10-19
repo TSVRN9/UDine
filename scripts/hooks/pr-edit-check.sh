@@ -4,7 +4,7 @@
 set -uo pipefail
 input="$(cat)"
 cmd="$(jq -r '.tool_input.command // ""' <<<"$input")"
-pr="$(grep -Eo '(^|[;&|])[[:space:]]*gh pr edit +[0-9]+' <<<"$cmd" | grep -Eo '[0-9]+$' | head -1 || true)"
+pr="$(grep -Eo "gh pr edit( +[^ ;&|]+)*" <<<"$cmd" | head -1 | tr ' ' '\n' | grep -Ex '[0-9]+' | head -1 || true)"
 [[ -z "$pr" ]] && exit 0
 grep -Eq -- '--body|-b |--body-file|-F ' <<<"$cmd" || exit 0
 root="$(jq -r '.cwd // empty' <<<"$input")"; root="${root:-$(pwd)}"

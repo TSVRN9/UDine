@@ -21,11 +21,14 @@ root="${root:-$(pwd)}"
 at_cmd() { grep -Eq "(^|[;&|])[[:space:]]*$1" <<<"$cmd"; }
 # gh-pages is the published privacy policy (owenwang.dev/UDine/): no shared history with main and no app code, so the gate has nothing to judge.
 base_flag() { grep -Eo '(--base|-B)[= ] *[^ ;&|]+' <<<"$cmd" | head -1 | sed -E "s/^(--base|-B)[= ] *//; s/^[\"']//; s/[\"']\$//" || true; }
+# The PR number is the first bare integer after `gh pr merge`, wherever the flags sit.
+pr_arg() { grep -Eo "gh pr $1( +[^ ;&|]+)*" <<<"$cmd" | head -1 | tr ' ' '\n' | grep -Ex '[0-9]+' | head -1 || true; }
 if at_cmd 'gh pr merge\b'; then
-  pr="$(grep -Eo 'gh pr merge +[0-9]+' <<<"$cmd" | grep -Eo '[0-9]+$' || true)"
+  pr="$(pr_arg merge)"
+  [[ -z "$pr" ]] && { echo "name the PR: gh pr merge <number> ... (the gate judges that PR, its merged-tree suite and its stacked children)" >&2; exit 2; }
   [[ -n "$pr" && "$(cd "$root" && gh pr view "$pr" --json baseRefName --jq .baseRefName 2>/dev/null)" == gh-pages ]] && exit 0
   # A stacked child's base branch must outlive the parent's merge: deleting it closes the child, which can't be reopened.
-  if [[ -n "$pr" ]] && grep -Eq -- '(^|[[:space:]])(-d|--delete-branch)\b' <<<"$cmd"; then
+  if grep -Eq -- '(^|[[:space:]])(-d|--delete-branch)\b' <<<"$cmd"; then
     head="$(cd "$root" && gh pr view "$pr" --json headRefName --jq .headRefName 2>/dev/null)"
     kids="$(cd "$root" && gh pr list --base "$head" --json number --jq '[.[].number] | join(" #")' 2>/dev/null)"
     [[ -n "$kids" ]] && { echo "#$kids is based on $head: merge #$pr without --delete-branch, retarget the child to main, then delete the branch" >&2; exit 2; }
@@ -33,7 +36,7 @@ if at_cmd 'gh pr merge\b'; then
   out="$(cd "$root" && "$root/scripts/pr-gate.sh" $pr --merge 2>&1)"; rc=$?
   if [[ $rc -ne 0 ]]; then echo "pr-gate failed -- fix before merging:"$'\n'"$out" >&2; exit 2; fi
   if grep -q 'OWNER-GATED' <<<"$out"; then echo "OWNER-GATED: this PR touches supabase/auth/sync/residency. Post the verdict; the owner merges." >&2; exit 2; fi
-elif at_cmd '(flock [^;&|]*)?(systemd-run [^;&|]*)?flutter test\b'; then
+elif grep -Eq '(^|[^[:alnum:]_./-])flutter test\b' <<<"$cmd" && ! grep -Eq '^[[:space:]]*(grep|rg|git|echo|printf|cat|sed|jq|gh)\b' <<<"$cmd"; then
   # flutter test only through app/tool/test.sh: a runaway test without the 4G cap took the host down twice (2026-10-17),
   # and full suites outside suite.lock pile up.
   if ! grep -Eq 'MemoryMax=' <<<"$cmd"; then

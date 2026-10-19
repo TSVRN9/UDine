@@ -128,13 +128,15 @@ if [[ ${#RENDERED[@]} -gt 0 ]]; then
     # merging PR #475 from an unrelated branch: every sidecar FAILed as "missing" even though all
     # three existed, committed, in the PR itself. `git show`/`git cat-file` read the object store
     # directly and don't care what's checked out locally.
-    NOW_FP="$(scripts/pixel-digest.sh "$BASE" "$HEAD_REF")"
+    NOW_FP="$(scripts/pixel-digest.sh "$BASE" "$HEAD_REF")" || { fail "scripts/pixel-digest.sh failed: cannot judge captures"; echo "GATE FAIL"; exit 1; }
+    mapfile -t PIXEL_PATHS < scripts/pixel-paths
     read_sidecar() {
       if [[ -n "$PR" ]]; then git show "$HEAD_REF:$1" 2>/dev/null; else cat "$1" 2>/dev/null; fi
     }
     for png in "${PNGS[@]}"; do
       stem="${png%.png}"; stem="${stem%/frame-[0-9][0-9][0-9]}"; stem="${stem%-frames}"
       [[ -n "${SEEN[$stem]:-}" ]] && continue; SEEN[$stem]=1
+      if [[ -n "$PR" ]] && ! git cat-file -e "$HEAD_REF:$png" 2>/dev/null; then fail "$png: named in the PR body but not in the PR's head"; continue; fi
       side="$stem.json"
       side_content="$(read_sidecar "$side")"
       if [[ -z "$side_content" ]]; then fail "$png: no sidecar $side (re-capture with the current screenshot.sh)"; continue; fi
@@ -146,12 +148,15 @@ if [[ ${#RENDERED[@]} -gt 0 ]]; then
       stale=""
       if [[ "$(jq -r 'has("own")' <<<"$side_content")" == true ]]; then
         then_fp="$(jq -r '.own | to_entries[] | "\(.key) \(.value)"' <<<"$side_content")"
-        [[ -n "$NOW_FP" ]] && stale="$(join <(sort <<<"$NOW_FP") <(sort <<<"$then_fp") -a1 -e none -o 0,1.2,2.2 | awk '$2 != $3 {printf " %s", $1}')"
+        # Both sides: a file the PR changed when captured but no longer does (reverted) is as stale as one it changed since.
+        stale="$(join <(grep . <<<"$NOW_FP" | sort) <(grep . <<<"$then_fp" | sort) -a1 -a2 -e none -o 0,1.2,2.2 | awk '$2 != $3 {printf " %s", $1}')" \
+          || { fail "$png: could not compare fingerprints"; continue; }
       elif git cat-file -e "$sha^{commit}" 2>/dev/null; then
         # A sidecar from before fingerprints: stale where the PR's own commits since the capture (not merges, not the base's) touch
         # a pixel path it changes.
-        stale="$(comm -12 <(cut -d' ' -f1 <<<"$NOW_FP" | sort -u) \
-          <(git log --no-merges --format= --name-only "$sha..$HEAD_REF" "^origin/$BASE_BRANCH" -- $(cat scripts/pixel-paths | sed "s/.*/'&'/" | xargs) | sort -u) | xargs)"
+        touched_since="$(git log --no-merges --format= --name-only "$sha..$HEAD_REF" "^origin/$BASE_BRANCH" -- "${PIXEL_PATHS[@]}")" \
+          || { fail "$png: git log failed: cannot judge the capture"; continue; }
+        stale="$(comm -12 <(cut -d' ' -f1 <<<"$NOW_FP" | sort -u) <(sort -u <<<"$touched_since") | xargs)"
         stale="${stale:+ $stale}"
       else
         fail "$png: captured at $sha, which is gone (a rebase) and the sidecar predates fingerprints -- app/tool/recapture.sh${PR:+ $PR}"; continue
