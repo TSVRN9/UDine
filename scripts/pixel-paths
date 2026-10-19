@@ -1,0 +1,14 @@
+app/lib
+app/assets
+app/pubspec.yaml
+app/pubspec.lock
+app/android/app/src/main/res
+app/ios/Runner
+mobile/src
+mobile/assets
+mobile/app.json
+mobile/plugins
+shared/src
+:(exclude)*_test.dart
+:(exclude)*.test.ts
+:(exclude)*.test.tsx

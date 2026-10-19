@@ -26,7 +26,8 @@ installing over it means uninstalling first, which wipes device-local plate/log 
 "UDine (internal)" package (`com.udinetogether.udine.internal`) side by side instead — see
 `mobile/scripts/build-internal-android.sh`'s own header for why each step exists.
 
-Flutter (`/app`): `cd app && flutter analyze && flutter test --concurrency=2`;
+Flutter (`/app`): `cd app && flutter analyze && tool/test.sh <test paths>` (4G cap; no paths = the full suite, ~35 min,
+queued on a lock; `tool/test.sh --merged <pr>` is the full run a PR needs before merge);
 `app/tool/screenshot.sh <route> [--serial S]` captures the internal profile build (recorded data:
 `?data=recorded&at=2026-10-08T12:41`).
 
@@ -138,7 +139,7 @@ addressed to a reviewer goes in the PR body.
 - Tickets are briefs: `docs/briefs/<slug>.md` (`/brief <slug>` writes one from a finished design
   conversation; `docs/briefs/TEMPLATE.md`). Dispatch prompts point at the brief; nothing is pasted.
   GitHub issues are human-filed bugs only: `docs/agents/issue-tracker.md`.
-- The gate is mechanical: `scripts/pr-gate.sh` (screenshot stamped with the merged sha, no motion
+- The gate is mechanical: `scripts/pr-gate.sh` (named screenshots fresh against the PR's own hunks, no motion
   literal outside `motion.ts`, PR template fields, lanes, owner-gated paths) runs on `gh pr create`
   and `gh pr merge` via `.claude/settings.json` hooks. Anything under `supabase/`, auth, sync, or
   the residency table is owner-merged.

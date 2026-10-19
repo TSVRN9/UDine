@@ -44,7 +44,7 @@ that counts only its default (superseded by the row that follows the plate); fad
 ## Tasks
 
 Each task is one PR a reviewer can accept or reject without the others. Common lanes for every Flutter task:
-`cd app && flutter analyze && flutter test --concurrency=2`, the task's measurement test, goldens at 360/390 for the
+`cd app && flutter analyze && tool/test.sh <touched test dirs> test/core/m2`, the task's measurement test, goldens at 360/390 for the
 changed screens, and `app/tool/screenshot.sh` frames for each state listed (recorded mode). One heavy job at a time:
 Gradle, the emulator and Playwright never run together (`flock ~/.cache/udine-scratch/heavy.lock`).
 
