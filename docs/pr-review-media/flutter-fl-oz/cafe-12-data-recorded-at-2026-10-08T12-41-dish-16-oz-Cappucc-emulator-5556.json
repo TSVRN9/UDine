@@ -1,0 +1,19 @@
+{
+  "sha": "4e77793f3df848d17b84dbbc68aacce3bda1c6c5",
+  "branch": "flutter/fl-oz",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/agent-a0124af138a452783",
+  "route": "/cafe/12?data=recorded&at=2026-10-08T12:41&dish=16+oz+Cappuccino&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-10-19T04:22:12Z",
+  "own": {
+    "app/lib/core/m2/dish_sheet.dart": "69c0bb4fb0a2d502340c1827fcd50edb09831cb1",
+    "app/lib/core/serving_text.dart": "f0f1ba6bc1db2e4d7ee3694a72c7821e6e7ade89",
+    "app/lib/screens/dish/food_sheet.dart": "d34ee04c517fbeafa09b842bd0bd4a8e0268ca25",
+    "app/lib/screens/you/settings_pages.dart": "ef90983c68396fe571c0ae10b13b5a8d49869a28"
+  },
+  "argv": [
+    "/cafe/12?data=recorded&at=2026-10-08T12:41&dish=16+oz+Cappuccino"
+  ]
+}
