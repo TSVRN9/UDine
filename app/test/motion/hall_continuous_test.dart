@@ -44,6 +44,8 @@ Future<void> settle(WidgetTester t) async {
   }
 }
 
+Matcher _near(Rect r) => predicate<Rect>((g) => (g.left - r.left).abs() < 1.5 && (g.top - r.top).abs() < 1.5 && (g.width - r.width).abs() < 1.5 && (g.height - r.height).abs() < 1.5, 'within 1.5 dp of $r');
+
 final _dom = jsonDecode(File('test/m2_dom.json').readAsStringSync()) as Map<String, dynamic>;
 
 void main() {
@@ -344,6 +346,18 @@ void main() {
       await settle(t);
       final home = header(t, hall.$1, status);
       final homeStatus = await inkOf(t, hall.$2, home.status.inflate(1), bright), homeMeter = await inkOf(t, hall.$2, home.meter.inflate(1), bright);
+      // `home` from M2's numbers, not from this render (m2_dom `head`: mts the status, mbz the busy row; Franklin has no "Calmer around" line, so both sit 22 dp lower)
+      final head = (_dom['${hall.$2.toInt()}'] as Map)['head'] as Map, mts = (head['mts'] as List).cast<num>(), mbz = (head['mbz'] as List).cast<num>();
+      final dy = hall.$1 == 'Franklin' ? 22.0 : 0.0;
+      final lamps = t.widget<Meter>(find.descendant(of: find.byType(HallHeader), matching: find.byType(Meter)).last).lit;
+      expect(lamps, greaterThan(0), reason: 'the header\'s meter has a lit lamp');
+      // the lit lamps: lit * 5 wide plus 2 gaps, 12 tall, on the busy row's first line (17 tall) at its left edge
+      expect(homeMeter, _near(Rect.fromLTWH(mbz[0].toDouble(), mbz[1] + dy + 2.5, lamps * 5.0 + (lamps - 1) * 2, 12)), reason: 'the lit lamps are where M2 draws them (mbz $mbz)');
+      expect(homeStatus.left, closeTo(mts[0] + 1, 2), reason: 'the status text starts at M2\'s left edge');
+      expect(homeStatus.top, inInclusiveRange(mts[1] + dy - 1, mts[1] + dy + mts[3]), reason: 'the status text is inside M2\'s status box');
+      expect(homeStatus.width, greaterThan(40), reason: 'the status text was found');
+      expect(cardMeter.width, greaterThan(0), reason: 'the card draws lit lamps');
+      expect(cardStatus.width, greaterThan(40), reason: 'the card draws its status text');
       await t.tap(find.byType(BackButton));
       await settle(t);
       await t.tap(find.text(hall.$1));
