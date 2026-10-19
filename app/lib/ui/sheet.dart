@@ -1,4 +1,4 @@
-import 'dart:async' show scheduleMicrotask;
+import 'dart:async' show Completer, Timer, scheduleMicrotask;
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
@@ -33,6 +33,11 @@ class SheetHandle {
   bool get closing => _s?._closing ?? false;
   /// Springs to a height in dp (a detent).
   void to(double px, {double v0 = 0}) => _s?._springTo(px, v0: v0);
+  /// Resolves once the sheet is at rest: its own motion only, so a ticker elsewhere on screen (a Spinner) never holds it. It
+  /// waits out any spring, and a rebuild of the sheet on its way (its post-frame measure is the one place a re-snap can start),
+  /// and at the latest [M2Layout.sheetRestCap] after it was asked, whatever still moves. Work that loads the UI isolate waits on this, so it never
+  /// delays a frame that moves. A sheet that has left the tree is at rest.
+  Future<void> get settled => _s?._settled() ?? Future.value();
 
   /// Android's predictive back: the sheet lowers by the gesture's distance from where it was, then closes (to its lowest height) or
   /// springs back up as Android decides.
@@ -139,6 +144,33 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
     super.didUpdateWidget(old);
     if (old.handle != widget.handle) widget.handle._s = this;
     WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
+  }
+
+  /// A rebuild of this sheet is on its way (it or an ancestor is dirty): the frame that runs it measures, and may start a re-snap.
+  bool get _rebuildComing {
+    final e = context as Element;
+    var dirty = e.dirty;
+    if (!dirty) {
+      e.visitAncestorElements((a) {
+        dirty = a.dirty;
+        return !dirty;
+      });
+    }
+    return dirty;
+  }
+
+  Future<void> _settled() async {
+    final cap = Completer<void>();
+    final t = Timer(M2Layout.sheetRestCap, cap.complete);
+    try {
+      // a spring first; else the one frame that runs the rebuild (its post-frame measure can start a re-snap, which the next turn
+      // sees running): never a loop on the scheduler, so a ticker elsewhere on screen does not hold this
+      while (mounted && !cap.isCompleted && (_spring.running || _rebuildComing)) {
+        await Future.any([_spring.running ? _spring.done : WidgetsBinding.instance.endOfFrame, cap.future]);
+      }
+    } finally {
+      t.cancel();
+    }
   }
 
   @override

@@ -706,7 +706,10 @@
    "d": 500,
    "e": "emphasized"
   },
-  "contFade": 0.3,
+  "contIn": {
+   "from": 0.2,
+   "span": 0.6
+  },
   "contBack": {
    "d": 400,
    "e": "emphasized"
@@ -991,7 +994,7 @@
   "motion.press": "MO.press",
   "motion.settle": "MO.settle",
   "motion.cont": "MO.cont",
-  "motion.contFade": "paint: fout = 1 - clamp(p/.3)",
+  "motion.contIn": "paint: fin = clamp((p - .2) / .6) (round 13)",
   "motion.contBack": "MO.contBack",
   "motion.fadeThrough": "MO.fadeThrough",
   "motion.sharedX": "MO.sharedX",

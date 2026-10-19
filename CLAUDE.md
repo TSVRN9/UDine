@@ -26,7 +26,8 @@ installing over it means uninstalling first, which wipes device-local plate/log 
 "UDine (internal)" package (`com.udinetogether.udine.internal`) side by side instead — see
 `mobile/scripts/build-internal-android.sh`'s own header for why each step exists.
 
-Flutter (`/app`): `cd app && flutter analyze && flutter test --concurrency=2`;
+Flutter (`/app`): `cd app && flutter analyze && tool/test.sh <test paths>` (4G cap; no paths = the full suite, ~35 min,
+queued on a lock; `tool/test.sh --merged <pr>` is the full run a PR needs before merge);
 `app/tool/screenshot.sh <route> [--serial S]` captures the internal profile build (recorded data:
 `?data=recorded&at=2026-10-08T12:41`).
 
@@ -63,6 +64,7 @@ explicitly exports it or opts a truncated summary in.
 | Shared stats (#94: hall completion counts, top-5 foods, hall rank order) | Server, opt-in per stat, **default ON for accounts created on/after 2026-08-26** (#248 Part C — supersedes epic #87's 2026-08-19 "default off" decision; new-accounts-only, never backfilled onto existing rows), friends-only. Un-opted stat is SQL NULL, never written ("privacy by presence", check-constrained). Opting out deletes it immediately. Never raw comparisons, counts, timestamps, or the log. Payload cut defined in `mobile/src/lib/privacySettings.ts` |
 | Favorited foods (spotted-elsewhere alerts) | Server only if signed in + notifications on. `profiles.notifications_enabled` defaults **true** for accounts created on/after 2026-08-26 (#248 Part B, a column default — not backfilled onto existing rows); the device only actually registers a push token once OS permission is granted, and the server-side RPC itself now refuses to register a token at all when the flag is off (#277) |
 | Friends, pings, profile, auth identity | Server |
+| Meals written to Health Connect / Apple Health | device OS health store, opt-in per device, write only. The record ids UDine wrote live in the device-only `health_writes` table (exported like every other table); nothing is read back from Health and no call leaves the device through UDine |
 | Dish nutrition catalog (`public.dishes`) | Server, public/read-only — deduplicated dish names + nutrition only, no per-user data; not a consumption log or a menu cache |
 | Hall occupancy history (`occupancy_samples`) | Server, public read-only via RPC — upstream crowd headcounts + thresholds per location over time, no per-user data. Like `public.dishes`: public facts about places, not anyone's behavior; works anonymously (RPC granted to `anon`) |
 
@@ -137,7 +139,7 @@ addressed to a reviewer goes in the PR body.
 - Tickets are briefs: `docs/briefs/<slug>.md` (`/brief <slug>` writes one from a finished design
   conversation; `docs/briefs/TEMPLATE.md`). Dispatch prompts point at the brief; nothing is pasted.
   GitHub issues are human-filed bugs only: `docs/agents/issue-tracker.md`.
-- The gate is mechanical: `scripts/pr-gate.sh` (screenshot stamped with the merged sha, no motion
+- The gate is mechanical: `scripts/pr-gate.sh` (named screenshots fresh against the PR's own hunks, no motion
   literal outside `motion.ts`, PR template fields, lanes, owner-gated paths) runs on `gh pr create`
   and `gh pr merge` via `.claude/settings.json` hooks. Anything under `supabase/`, auth, sync, or
   the residency table is owner-merged.

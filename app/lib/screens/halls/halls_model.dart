@@ -2,10 +2,12 @@ import '../../core/hours.dart';
 import '../../core/m2/board.dart';
 import '../../core/m2/busy.dart';
 import '../../core/m2/places.dart';
+import '../../core/m2/stars.dart';
 import '../../core/m2/status.dart';
 import '../../core/occupancy.dart';
 import '../../core/types.dart' show diningHalls;
 import '../../data/repository.dart';
+import '../hall/busy.dart' show HallBusyView;
 
 const _weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const _months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -16,10 +18,14 @@ enum NetLine { none, offline, failed }
 /// One band or pin: `status` and `lamps` are null while their data has not arrived (or, for lamps, is not live), and the band simply
 /// draws less. A café has no meter.
 class BandVM {
-  const BandVM({required this.key, required this.name, this.status, this.lamps, this.word});
+  const BandVM({required this.key, required this.name, this.status, this.lamps, this.word, this.hasExtra = false, this.star = false});
   final String key, name;
   final String? status, word;
   final int? lamps;
+  /// whether the hall's header will have a second busy line ("Calmer around"): the page it opens is that tall from its first frame
+  final bool hasExtra;
+  /// a favourite is served here in the meal on now, or the next ahead (M2 R13 §2)
+  final bool star;
   bool get isCafe => key.startsWith('c');
 }
 
@@ -49,6 +55,9 @@ HallsVM buildHalls({
   required Map<String, OccupancyRead> reads,
   required List<String> pins,
   required bool charlesRiver,
+  Board? board,
+  Set<String> favorites = const {},
+  String? day,
 }) {
   final feed = switch (state) {
     Loaded(:final value) || LoadedOffline(:final value) => value.feed,
@@ -63,11 +72,14 @@ HallsVM buildHalls({
       for (final MapEntry(:key, :value) in reads.entries) ?hallKeyOfTitle(key): value,
   };
 
+  final favKeys = {for (final f in favorites) dishKey(f)};
+
   BandVM hall(String k) {
     final r = busyBy[k], h = hallBy[k];
     return BandVM(
       key: k, name: diningHalls[halls.indexOf(k)].name, status: h == null ? null : statusText(h, now),
-      lamps: r?.lamps, word: r == null ? null : busyWord(r.level, low: r.confidence == Confidence.low),
+      star: board != null && day != null && hallStar(board, k, favKeys, day, now),
+      lamps: r?.lamps, word: r == null ? null : busyWord(r.level, low: r.confidence == Confidence.low), hasExtra: r != null && HallBusyView.of(r).extra.isNotEmpty,
     );
   }
 

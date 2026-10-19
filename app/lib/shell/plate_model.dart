@@ -9,7 +9,7 @@ import '../core/saved_food.dart';
 import '../core/m2/bowl.dart' show Bowl;
 import '../core/m2/bowl_builder.dart';
 import '../core/m2/plate.dart';
-import '../core/m2/plate.dart' as core show addBowl, updateBowl;
+import '../core/m2/plate.dart' as core show addBowl, updateBowl, updateDish;
 import '../core/store/store.dart' show Undo;
 import '../core/types.dart' show LogEntry;
 import '../theme/tokens.dart';
@@ -239,12 +239,13 @@ class PlateModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void add(String meal, String name, Map<String, MenuItem> refs, [Macro? custom]) {
+  /// `key` is the item's own when it is not its name's (a family variant reads "Cappuccino, 20 oz" and is keyed as the feed's "20 oz Cappuccino").
+  void add(String meal, String name, Map<String, MenuItem> refs, [Macro? custom, String? key]) {
     if (!tracking()) return;
     _failure = null;
     _drop(); // (M2 addDish: S.lastLog = null. Undo could otherwise put back a plate beside one it could now have joined)
     _failed = false;
-    _s = addDish(_s, meal, name, refs, custom);
+    _s = addDish(_s, meal, name, refs, custom, key);
     notifyListeners();
   }
 
@@ -259,19 +260,26 @@ class PlateModel extends ChangeNotifier {
   }
 
   /// A builder's Add (M2 `badd`): a bowl is one item named for its base; a base with nothing chosen is the plain dish.
-  void addBowl(String meal, BowlSpec spec, Bowl bowl) {
+  void addBowl(String meal, BowlSpec spec, Bowl bowl, {String? name}) {
     if (!tracking()) return;
     _failure = null;
     _drop();
     _failed = false;
-    _s = core.addBowl(_s, meal, spec, bowl, spec.place);
+    _s = core.addBowl(_s, meal, spec, bowl, spec.place, name: name);
     notifyListeners();
   }
 
   /// A builder's Update: the plate item becomes the new bowl where it is (a twin on the plate takes its servings).
-  void updateBowl(int plateId, String key, BowlSpec spec, Bowl bowl) {
+  void updateBowl(int plateId, String key, BowlSpec spec, Bowl bowl, {String? name}) {
     if (!tracking()) return;
-    _s = core.updateBowl(_s, plateId, key, bowl, spec, spec.place);
+    _s = core.updateBowl(_s, plateId, key, bowl, spec, spec.place, name: name);
+    notifyListeners();
+  }
+
+  /// A family variant's Update (M2 `vupd`): the plate item becomes that variant where it is, with its servings (a twin takes them instead).
+  void updateDish(int plateId, String oldKey, String name, MenuItem d, Map<String, MenuItem> refs) {
+    if (!tracking()) return;
+    _s = core.updateDish(_s, plateId, oldKey, name, d.key, refs);
     notifyListeners();
   }
 

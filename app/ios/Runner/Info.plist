@@ -32,6 +32,8 @@
 	<array>
 		<string>fetch</string>
 	</array>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>UDine writes the meals you log to Apple Health. It never reads from Health.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

@@ -38,6 +38,7 @@ void main() {
           await t.pump(const Duration(seconds: 2)); // the slow calls still to come
         }
       }
+      await drain(t); // the stars' menus, read once Halls is at rest
     }
 
     testWidgets('Halls at rest, 2 pins, top of the list, $n dp', (t) => shot(t, 'rest', pins: const ['Wasabi', 'Tamales']));

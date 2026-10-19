@@ -2,6 +2,7 @@ import 'dart:convert' show jsonDecode;
 import 'dart:io' show Directory;
 
 import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
+import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter/widgets.dart' show Widget;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -10,6 +11,7 @@ import 'package:sqflite/sqflite.dart';
 import 'core/hours.dart';
 import 'core/m2/bowl.dart' show Bowl;
 import 'core/m2/bowl_builder.dart' show BowlSpec, bowlNow;
+import 'core/m2/variants.dart' as core_variants;
 import 'core/m2/board.dart' show Macro, dishKey, halls, MenuItem, M2MenuItem;
 import 'core/types.dart' show MealPeriod;
 import 'core/store/db.dart';
@@ -27,6 +29,9 @@ import 'data/supabase_source.dart';
 import 'motion/routes.dart';
 import 'screens/hall/hall_controller.dart' show mealsOfItems;
 import 'core/saved_food.dart';
+import 'alerts/alerts.dart' show PlatformAlertsOs;
+import 'alerts/alerts_os.dart';
+import 'shell/alerts_model.dart';
 import 'shell/app_scope.dart';
 import 'shell/food_book.dart';
 import 'shell/plate_model.dart';
@@ -41,7 +46,7 @@ const _fivePins = ['Wasabi', 'Tamales', "Peet's Coffee & Tea", 'Harvest Market',
 /// network from the route's `?data=recorded&at=&net=`), and the preferences. Recorded mode keeps everything in a throwaway
 /// in-memory store so a capture never reads or leaves anything on the device.
 class Boot {
-  Boot(this.repo, this.store, this.prefs, {this.pdfOpen = pdfxOpen, FlyerShare? shareFlyer, this.packaged, this.lookup}) : shareFlyer = shareFlyer ?? shareFlyerFile;
+  Boot(this.repo, this.store, this.prefs, {AlertsModel? alerts, this.pdfOpen = pdfxOpen, FlyerShare? shareFlyer, this.packaged, this.lookup}) : shareFlyer = shareFlyer ?? shareFlyerFile, alerts = alerts ?? AlertsModel(store, PlatformAlertsOs());
 
   /// OpenFoodFacts / USDA and Search UMass Dining (live: the real endpoints; recorded: M2's recordings)
   final PackagedSource? packaged;
@@ -56,6 +61,8 @@ class Boot {
   /// The device store; null when the file was written by a newer build (menus only, below).
   final UdineStore? store;
   final AppPrefs prefs;
+  /// Notify me. A Boot built without one (a test) starts off, over the device's own OS calls.
+  final AlertsModel alerts;
   final hider = BandHider();
   /// The log You reads (null with no store: menus only). Held in memory, read once at launch and again after anything writes to it.
   late final LogBook? log = store == null ? null : LogBook(store!, now: repo.now);
@@ -67,8 +74,25 @@ class Boot {
   /// stays off, and nothing the user does is saved. Menus, hours and busy work as ever, cached in a throwaway in-memory database.
   bool get menusOnly => store == null;
 
+  /// M2's `VARN`, filled at load: the names of family variants in the menus saved on the device, so a logged "20 oz Cappuccino" reads
+  /// "Cappuccino, 20 oz" whatever has been opened since launch. Reads the saved menus only; nothing is fetched and the log is unchanged.
+  ///
+  /// It starts once the first frame is out (the parse is not the launch's), and once the names are in the log's screens are told, so a
+  /// You page, a day or a meal built before they landed re-reads them.
+  Future<void> primeShownNames() async {
+    try {
+      await SchedulerBinding.instance.endOfFrame;
+      for (final m in await repo.savedMenus()) {
+        core_variants.primeShownNames(mealsOfItems(m).values.expand((s) => s));
+      }
+      await log?.reload();
+    } catch (e) {
+      debugPrint('udine: saved menus not read for variant names: $e');
+    }
+  }
+
   /// [dbPath] and [read] (the recordings' reader) are test seams (the device path and the app bundle by default).
-  static Future<Boot> open(String route, {String? dbPath, Future<String> Function(String name)? read, TempDir tmp = getTemporaryDirectory}) async {
+  static Future<Boot> open(String route, {String? dbPath, Future<String> Function(String name)? read, TempDir tmp = getTemporaryDirectory, AlertsOs? alertsOs}) async {
     await clearExports(tmp: tmp); // last session's exports: plaintext copies of the log, not kept past the next start
     if (photosOff(route)) Photos.enabled = false;
     final flags = recordedFlags(route);
@@ -80,13 +104,21 @@ class Boot {
       await store?.setFirstRunSeen(!flags.firstRun);
       if (flags.avoid.isNotEmpty) await store?.setAvoid(flags.avoid);
       if (flags.onlyShow.isNotEmpty) await store?.setOnlyShow(flags.onlyShow);
+      if (Uri.parse(route).queryParameters['alerts'] == 'on') await store?.setAlertsOn(true); // Notify me stored on, as for a user who turned it on
     }
+    final alerts = await AlertsModel.load(store, alertsOs ?? PlatformAlertsOs());
     final prefs = await AppPrefs.load(store, pins: pinsFlag != null ? _fivePins.take(pinsFlag).toList() : flags != null && pinsQuery != null ? pinsQuery.split(',') : null);
+    // recorded routes only: `fav=Dish A|Dish B` starts with those favourites (the Halls stars are drawn from them)
+    if (flags != null) {
+      for (final n in (Uri.parse(route).queryParameters['fav'] ?? '').split('|').where((n) => n.isNotEmpty)) {
+        await prefs.toggleFavorite(n);
+      }
+    }
     final Repository repo;
     if (flags != null) {
       // `at` is Eastern wall-clock time, as M2 reads it, wherever the device is
       final a = flags.at;
-      repo = await recordedRepository(RecordedFlags(at: a == null ? null : easternInstant(DateTime.utc(a.year, a.month, a.day, a.hour, a.minute)), net: flags.net, savedPdfs: flags.savedPdfs, savedCafes: flags.savedCafes, noEvents: flags.noEvents), cache, pins: prefs.pins, read: read);
+      repo = await recordedRepository(RecordedFlags(at: a == null ? null : easternInstant(DateTime.utc(a.year, a.month, a.day, a.hour, a.minute)), net: flags.net, savedPdfs: flags.savedPdfs, savedCafes: flags.savedCafes, noEvents: flags.noEvents, busyLate: flags.busyLate), cache, pins: prefs.pins, read: read);
     } else {
       final client = http.Client();
       repo = Repository(UmassSource(client), cache, supabase: SupabaseSource(client), pdfs: PdfCache(Directory('${(await getApplicationSupportDirectory()).path}/pdf'), client));
@@ -95,14 +127,15 @@ class Boot {
     final Boot boot;
     if (flags != null) {
       final r = await recordedPackaged(flags, read: read);
-      boot = Boot(repo, store, prefs, packaged: r.packaged, lookup: r.lookup);
+      boot = Boot(repo, store, prefs, alerts: alerts, packaged: r.packaged, lookup: r.lookup);
     } else {
       final client = http.Client();
-      boot = Boot(repo, store, prefs, packaged: PackagedSource(client), lookup: LookupDishSource(client));
+      boot = Boot(repo, store, prefs, alerts: alerts, packaged: PackagedSource(client), lookup: LookupDishSource(client));
     }
     if (flags != null && flags.seedFoods) await boot.seedFoods(read);
     await boot.log?.reload();
     await boot.foods?.reload();
+    if (flags == null) boot.primeShownNames(); // (not awaited, and after the first frame: past meals read a family's names once the saved menus are read)
     if (flags != null) await boot.seedLog(route);
     if (flags != null) await boot.seedPlate(route); // (recorded data only: a live menu might never arrive)
     return boot;
@@ -172,5 +205,5 @@ class Boot {
     }
   }
 
-  Widget wrap(Widget child) => AppScope(repo: repo, store: store, log: log, foods: foods, packaged: packaged, lookup: lookup, prefs: prefs, hider: hider, plate: plate, pdfOpen: pdfOpen, share: share, shareFlyer: shareFlyer, child: child);
+  Widget wrap(Widget child) => AppScope(repo: repo, store: store, log: log, foods: foods, packaged: packaged, lookup: lookup, prefs: prefs, alerts: alerts, hider: hider, plate: plate, pdfOpen: pdfOpen, share: share, shareFlyer: shareFlyer, child: child);
 }

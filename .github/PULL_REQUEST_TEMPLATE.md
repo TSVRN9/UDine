@@ -1,7 +1,7 @@
 Brief: docs/briefs/<slug>.md · task <n>   (or "none: <one line why>")
 Closes #   (only for a human-filed issue)
 Artboard: docs/design/<File>.dc.html   (or for app/: M2 R<n> §<k> / src.html function, or "none")
-Screenshots: docs/pr-review-media/<branch>/…png   (rendered-output diffs; sidecar .json alongside)
+Screenshots: docs/pr-review-media/<branch>/…png   (rendered-output diffs: name every capture the gate should check; sidecar .json alongside; composites in derived/)
 Red:
 ```
 <the failing test line, verbatim, before the change>

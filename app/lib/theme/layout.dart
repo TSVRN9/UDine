@@ -1,5 +1,6 @@
 import 'package:flutter/painting.dart';
 import 'kinds.dart';
+import 'm2_tokens.g.dart' show M2Text;
 
 // Layout numbers the token file does not carry, each named for the M2 rule (src.html) it is copied from. A number that
 // is in design-tokens/m2.json lives there (m2_tokens.g.dart), not here.
@@ -35,6 +36,9 @@ abstract final class M2Layout {
   static const statusGapBand = 7.0, statusGapPin = 6.0;
   static const busyTopBand = 6.0, busyTopHeader = 8.0; // `.bz`
   static const busyMaxHeader = 230.0;
+  // the header's busy block (M2 `#mbz` and its 8 dp margin): the meter's line, and the second line under it (5 run gap + 17). M2 `LATE_D`: 25 for a
+  // hall with no second line (Franklin), 47 with one.
+  static const busyBlock = busyTopHeader + 17.0, busyBlockExtra = busyBlock + busyRunGap + 17.0;
   static const busyGap = 8.0, busyRunGap = 5.0;
   // `.meter`
   static const lampW = 5.0, lampH = 12.0, lampGap = 2.0, lampRadius = 1.0;
@@ -88,6 +92,7 @@ abstract final class M2Layout {
   static const sheetMaxFrac = 0.86; // contentH is capped at 86% of the frame
   static const chevronShadow = Color.fromRGBO(36, 10, 14, 0.65); // not in design-tokens/m2.json
   static const chevronShadowDy = 1.0, chevronShadowSigma = 1.0; // `#mctl .icon svg{filter: drop-shadow(0 1px 2px rgba(36,10,14,.65))}`: blur 2 = sigma 1
+  static const hangTop = 10.0, hangBox = 5.0, hangGap = 12.0, hangFoot = 14.0; // `.hrow:has(.obtn) .check` padding-top and its box margin-top; `.check+.obtn.dk` margin-top, `.obtn.dk` margin-bottom
   static const checkSize = 26.0, checkRadius = 6.0, checkRing = 2.0, checkStroke = 2.5, checkW = 12.0, checkH = 7.0, checkLift = 2.0; // `.check i`
   static const pageTitleGap = 2.0; // `.pbar` gap
   // the hall header's title block (`.mt`) and the compact bar (`paint`: NB, NS)
@@ -120,6 +125,11 @@ abstract final class M2Layout {
   static const dsvTop = 4.0, dalTop = 8.0, dadd = 16.0, whereTop = 24.0, whereTopOff = 16.0, wlGap = 16.0, wtBottom = 8.0, labelTop = 24.0, gradesTop = 12.0; // `.dsv`, `.dal`, `.dadd`, `.where`, `.wl+.wl`, `.wt`, `.facts`, `.facts.grades`
   static const ingTop = 24.0, ingBottom = 8.0, ingLines = 3.0, ingMore = 44.0, ingMoreTop = 2.0; // `.ingh`, `.ing`, `.ingmore` (40 in M2: 44 here, a touch target)
   static const dishMidGuess = 0.55; // the resting height before the label is measured (a fraction of the frame)
+  /// One "where it is served" line, reserved at open and held empty until the answer lands (owner, 2026-10-18): the group's heading
+  /// (`.wt`, sheetHead's line), its gap, and one row of chips (`.hchip`). One group fills it exactly; a second is added below.
+  static double get whereLine => M2Text.sheetHead.line! + wtBottom + hchipH;
+  /// The longest `SheetHandle.settled` waits on a sheet that keeps moving (retargets, a drag): what loads behind it then goes ahead.
+  static const sheetRestCap = Duration(seconds: 1);
   static const plateLabelGap = 12.0; // `.sh1` gap
   // the plate label's heading (`.sh1 h2` at 28 dp, line 1.1) and its item list (`p.kv`, 15 dp at 1.5): the engine rounds a fractional
   // line up to whole dp, so the list takes the 22 below its 22.5 and the heading's 30.8 reads 31; both stay within 1 dp of M2
@@ -175,6 +185,10 @@ abstract final class M2Layout {
   static const chipPadX = 14.0, chipGap = 6.0; // `.chip` padding 0 14, gap 6
   static const chipRing = Color.fromRGBO(110, 98, 102, 0.4); // `.chip` inset ring: not in design-tokens/m2.json
   static const checkMarkW = 10.0, checkMarkH = 5.0, checkMarkStroke = 2.0, checkMarkRight = 2.0, checkMarkLift = 3.0; // `.chip[aria-pressed=true]::before`
+  // round 12 (`.vpick .chip`): a variant picker wraps its chips 8 apart and 8 under the name; a chip is 44 or more with 10 x 14 padding and wraps
+  // its text at 1.25; a second group starts a section gap (`.vpick+.vpick`) below
+  static const tokenDrop = 2.0; // `.vt`: a family row's token on the figures' baseline
+  static const vpickGap = 8.0, vpickGroupGap = 24.0, vpickPadY = 10.0, vpickLine = 1.25;
   static const areaHeadTop = 16.0, areaHeadBottom = 6.0; // `.ahd` padding 16 0 6
   static const thumbW = 64.0, thumbH = 34.0, thumbGap = 12.0; // `.thumb`, `.lrow .lt`
   static const h3Gap = 24.0; // `.cbody .h3` margin-top
@@ -209,6 +223,8 @@ abstract final class M2Layout {
   static const vsName = M2Type(22.0, 25.3, 'Oswald', FontWeight.w600, tabular: true); // `.vs button`: 600 22/1.15 Oswald
   static const placeRowMin = 60.0, placeRowPadV = 8.0, placeRowGap = 12.0, placeTextTop = 2.0; // `.prow2`
   static const placeStatus = M2Type(14.0, null, 'LibreFranklin', FontWeight.w500); // `.prow2 .r`
+  static const starText = TextStyle(fontSize: 22, height: 1); // `.bstar` font: 400 22px/1
+  static const starGap = 8.0, starTopBand = 7.0, starTopCard = 0.0; // `.bstar` (round 13): size, margin-left, and its top within `.nm` (32 / 24 high)
   static const cardH = 76.0, cardTextTop = 13.0, cardMeterGap = 10.0; // `.band.hcard`, `.hcard .bt`, `.st` gap
   static const cardsTop = 4.0, cardsBottom = 8.0; // `.hcards` margin
   static const laneMin = 66.0; // `.lane` min-height

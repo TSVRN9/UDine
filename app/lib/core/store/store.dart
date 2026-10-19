@@ -243,6 +243,24 @@ class UdineStore {
   Future<List<({String dishName, String day})>> alertsSent() async =>
       [for (final r in await db.rawQuery('SELECT dish_name, day FROM alert_sent ORDER BY rowid')) (dishName: r['dish_name']! as String, day: r['day']! as String)];
 
+  // ---- Health Connect / Apple Health: the record ids written for a meal (never read back from Health) ----
+
+  Future<List<String>> healthIds(String mealId, String platform) async {
+    final r = await db.query('health_writes', columns: ['record_ids_json'], where: 'meal_id = ? AND platform = ?', whereArgs: [mealId, platform]);
+    return r.isEmpty ? const [] : List<String>.from(jsonDecode(r.single['record_ids_json']! as String) as List);
+  }
+
+  Future<void> setHealthIds(String mealId, String platform, List<String> ids) =>
+      db.insert('health_writes', {'meal_id': mealId, 'platform': platform, 'record_ids_json': jsonEncode(ids)}, conflictAlgorithm: ConflictAlgorithm.replace);
+
+  Future<void> removeHealthIds(String mealId, String platform) =>
+      db.delete('health_writes', where: 'meal_id = ? AND platform = ?', whereArgs: [mealId, platform]);
+
+  Future<List<HealthWrite>> healthWrites() async => [
+        for (final r in await db.rawQuery('SELECT meal_id, platform, record_ids_json FROM health_writes ORDER BY rowid'))
+          (mealId: r['meal_id']! as String, platform: r['platform']! as String, recordIds: List<String>.from(jsonDecode(r['record_ids_json']! as String) as List)),
+      ];
+
   // ---- export: every device-local user table, through core/export.dart ----
 
   Future<Map<String, String>> exportJson() async => {
@@ -253,6 +271,7 @@ class UdineStore {
         'udine-custom-foods.json': exportCustomFoodsAsJson(await customFoods()),
         'udine-saved-foods.json': exportSavedFoodsAsJson(await savedFoods()),
         'udine-alert-sent.json': exportAlertSentAsJson(await alertsSent()),
+        'udine-health-writes.json': exportHealthWritesAsJson(await healthWrites()),
       };
 
   Future<Map<String, String>> exportCsv() async => {
@@ -263,5 +282,6 @@ class UdineStore {
         'udine-custom-foods.csv': exportCustomFoodsAsCsv(await customFoods()),
         'udine-saved-foods.csv': exportSavedFoodsAsCsv(await savedFoods()),
         'udine-alert-sent.csv': exportAlertSentAsCsv(await alertsSent()),
+        'udine-health-writes.csv': exportHealthWritesAsCsv(await healthWrites()),
       };
 }
