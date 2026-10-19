@@ -27,39 +27,38 @@ class _CheckPainter extends CustomPainter {
 }
 
 /// `.check`: a 56 dp checkbox row. The 26 dp box is a ring when off and filled maroon with a white tick when on. `lead` sits before
-/// the label (a score tile on "Show on dishes"); `line` is the quiet line under the label.
+/// the label (a score tile on "Show on dishes"); `line` is the quiet line under the label. `hang`: a button hangs under the row
+/// (`.hrow:has(.obtn) .check`), so the row has no minimum height, 10 dp above the label, the box 5 dp down.
 class CheckRow extends StatelessWidget {
   final String label;
   final String? line;
   final Widget? lead;
-  final bool on, last;
-  /// `.hrow:has(.obtn) .check`: a button hangs under the row, so the text starts 10 from the top and the box 15, with no minimum height
-  final bool anchored;
+  final bool on, last, hang;
   final ValueChanged<bool> onChanged;
-  const CheckRow({super.key, required this.label, required this.on, required this.onChanged, this.line, this.lead, this.last = false, this.anchored = false});
+  const CheckRow({super.key, required this.label, required this.on, required this.onChanged, this.line, this.lead, this.last = false, this.hang = false});
   @override
   Widget build(BuildContext context) => Semantics(
         checked: on, label: label, inMutuallyExclusiveGroup: false,
         child: Press(
           overlay: M2Color.pressRow, semantics: false, onTap: () => onChanged(!on),
           child: Container(
-            constraints: anchored ? null : const BoxConstraints(minHeight: M2Layout.areaRowMin),
-            padding: anchored ? const EdgeInsets.only(top: M2Layout.hrowTop) : null,
+            constraints: hang ? null : const BoxConstraints(minHeight: M2Layout.areaRowMin),
+            padding: hang ? const EdgeInsets.only(top: M2Layout.hangTop) : null,
             decoration: BoxDecoration(border: last ? null : const Border(bottom: BorderSide(color: M2Color.hair))),
             child: ExcludeSemantics(
-              child: Row(crossAxisAlignment: anchored ? CrossAxisAlignment.start : CrossAxisAlignment.center, children: [
+              child: Row(crossAxisAlignment: hang ? CrossAxisAlignment.start : CrossAxisAlignment.center, children: [
                 Expanded(
                   child: Row(children: [
                     if (lead != null) ...[lead!, const SizedBox(width: M2Space.panel)],
                     Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      child: Padding(padding: const EdgeInsets.only(right: M2Space.panel), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(label, style: M2Text.rowName.style(M2Color.ink)),
                         if (line != null) Padding(padding: const EdgeInsets.only(top: M2Layout.areaMetaGap), child: Text(line!, style: M2Text.meta.style(M2Color.slate))),
-                      ]),
+                      ])),
                     ),
                   ]),
                 ),
-                Padding(padding: EdgeInsets.only(top: anchored ? M2Layout.hrowBoxTop : 0), child: CustomPaint(size: const Size.square(M2Layout.checkSize), painter: _CheckPainter(on))),
+                Padding(padding: EdgeInsets.only(top: hang ? M2Layout.hangBox : 0), child: CustomPaint(size: const Size.square(M2Layout.checkSize), painter: _CheckPainter(on))),
               ]),
             ),
           ),

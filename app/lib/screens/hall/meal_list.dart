@@ -5,6 +5,7 @@ import '../../core/m2/menu_view.dart';
 import '../../core/m2/plate.dart';
 import '../../core/m2/schedule.dart' show eventOn;
 import '../../core/m2/status.dart';
+import '../../core/m2/variants.dart';
 import '../../core/m2/where.dart' show fmtT;
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
@@ -43,8 +44,19 @@ class ListItem {
   final String? text;
   final TimeWindow? grab;
   final int ev;
-  const ListItem(this.kind, {this.si = -1, this.dish, this.contains = const [], this.text, this.grab, this.ev = -1});
-  String get id => switch (kind) { ItemKind.head => 'h$si', ItemKind.syn => 's$si', ItemKind.dish => '$si.${dish!.key}', ItemKind.event => 'e$ev', _ => kind.name };
+
+  /// a family's row (round 12): one row where its first member was, for the variants the preferences leave; [dish] is the first of them
+  final Family? fam;
+  final List<Variant> vis;
+
+  /// the avoided allergens each visible variant lists, when revealed
+  final Map<MenuItem, List<String>> containsBy;
+  const ListItem(this.kind, {this.si = -1, this.dish, this.contains = const [], this.text, this.grab, this.ev = -1, this.fam, this.vis = const [], this.containsBy = const {}});
+
+  /// (a family's id is its own, so the row keeps its element when it comes to stand for another variant)
+  String get id => switch (kind) { ItemKind.head => 'h$si', ItemKind.syn => 's$si', ItemKind.dish => '$si.${fam?.key ?? dish!.key}', ItemKind.event => 'e$ev', _ => kind.name };
+  String get title => fam?.name ?? dish!.dishName;
+  bool holds(String key) => dish!.key == key || vis.any((v) => v.dish.key == key);
 }
 
 /// What the list says for a place's meal on a day (M2 `renderMenuList`): the Grab 'N Go note, the line over a filtered list, station
@@ -70,6 +82,7 @@ List<ListItem> mealItems(Board fx, Prefs prefs, String place, String name, int d
     if (eventOn(fx, fx.events[i], place, day)) out.add(ListItem(ItemKind.event, text: fx.events[i].title, ev: i));
   }
   var si = -1;
+  final ix = familiesOf(fx), famAt = <String, int>{};
   for (final it in menuItems(view, prefs, reveal, '')) {
     switch (it.t) {
       case 'note':
@@ -81,7 +94,18 @@ List<ListItem> mealItems(Board fx, Prefs prefs, String place, String name, int d
         final y = day == 0 && track ? synOf(fx, iso, place, meal, si) : null;
         if (y != null) out.add(ListItem(ItemKind.syn, si: si, text: y.label));
       case 'dish':
-        out.add(ListItem(ItemKind.dish, si: si, dish: it.dish, contains: it.contains));
+        final d = it.dish!, f = ix.familyOf(d);
+        if (f == null) {
+          out.add(ListItem(ItemKind.dish, si: si, dish: d, contains: it.contains));
+        } else if (famAt['$si.${f.key}'] case final at?) {
+          // (the later members of a family are no rows of their own)
+          final row = out[at];
+          row.vis.add(ix.variantIn(d)!);
+          row.containsBy[d] = it.contains;
+        } else {
+          famAt['$si.${f.key}'] = out.length;
+          out.add(ListItem(ItemKind.dish, si: si, dish: d, contains: it.contains, fam: f, vis: [ix.variantIn(d)!], containsBy: {d: it.contains}));
+        }
     }
   }
   return out;
@@ -116,9 +140,12 @@ Widget buildItem(BuildContext context, ListItem it, {required Board fx, required
         key: ValueKey(it.id), label: it.text!, name: TextSpan(text: it.text), onTap: () => actions.onSyn(it.si), control: const Chevron(),
       );
     case ItemKind.dish:
-      final d = it.dish!, pm = plateMeal(fx, place, meal, fx.clock);
+      final pm = plateMeal(fx, place, meal, fx.clock), f = it.fam;
+      // a family's row stands for the variant last added to the plate (the first of them while another day's, or none)
+      final x = f == null ? null : standing(it.vis, (x) => day == 0 ? findItem(plate, pm, x.dish.key, place)?.item.at : null, (_) => true)!, d = x?.dish ?? it.dish!;
       return DishRow(
-        key: keys?.keyFor(it.id, here == it.id) ?? ValueKey(it.id), dish: d, scores: scores, contains: it.contains, here: here == it.id, track: track, favorite: favorites.contains(d.dishName),
+        key: keys?.keyFor(it.id, here == it.id) ?? ValueKey(it.id), dish: d, scores: scores, contains: f == null ? it.contains : it.containsBy[d] ?? const [], here: here == it.id, track: track,
+        favorite: favorites.contains(f == null ? d.dishName : favoriteOf(f)), family: f?.name, chip: x?.chip,
         code: day == 0 ? rowCode(plate, pm, d.key, place) : null,
         onOpen: () => actions.onOpen(d), onAdd: () => actions.onAdd(d), onInc: () => actions.onInc(d), onDec: () => actions.onDec(d),
       );

@@ -49,8 +49,8 @@ void main() {
     final bad = <String>[];
     for (final d in ['lib/shell', 'lib/screens', 'lib/motion']) {
       for (final f in Directory(d).listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart'))) {
-        // prefs.dart, food_book.dart, health_book.dart and app_scope.dart are the holders; they do nothing with a null store (Boot makes no HealthBook)
-        if (f.path.endsWith('prefs.dart') || f.path.endsWith('food_book.dart') || f.path.endsWith('health_book.dart') || f.path.endsWith('app_scope.dart')) continue;
+        // prefs.dart, food_book.dart, health_book.dart, alerts_model.dart and app_scope.dart are the holders; they do nothing with a null store (Boot makes no HealthBook)
+        if (f.path.endsWith('prefs.dart') || f.path.endsWith('food_book.dart') || f.path.endsWith('health_book.dart') || f.path.endsWith('alerts_model.dart') || f.path.endsWith('app_scope.dart')) continue;
         for (final l in f.readAsLinesSync()) {
           if (reach.hasMatch(l.replaceFirst(RegExp(r'//.*'), ''))) bad.add('${f.path}: ${l.trim()}');
         }

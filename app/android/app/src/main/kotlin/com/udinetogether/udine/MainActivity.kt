@@ -1,8 +1,10 @@
 package com.udinetogether.udine
 
+import android.app.ActivityManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import androidx.activity.result.ActivityResultLauncher
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
@@ -48,6 +50,25 @@ class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "udine/health").setMethodCallHandler { call, result -> handle(call, result) }
+        // Notify me's two questions of the OS that no plugin answers (lib/alerts/alerts.dart, PlatformAlertsOs).
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.udinetogether.udine/alerts").setMethodCallHandler { call, result ->
+            when (call.method) {
+                // battery use set to "Restricted": the OS will not run the check
+                "backgroundRestricted" ->
+                    result.success(Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && (getSystemService(ACTIVITY_SERVICE) as ActivityManager).isBackgroundRestricted)
+                // "notifications": the app's notification page. "background": App info, where Battery is set (no public page of its own)
+                "openSettings" -> {
+                    val intent = if (call.arguments == "notifications") {
+                        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                    } else {
+                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+                    }
+                    startActivity(intent)
+                    result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
     }
 
     private fun perms(call: MethodCall): Set<String> = call.argument<List<String>>("permissions")!!.toSet()

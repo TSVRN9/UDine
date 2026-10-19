@@ -107,6 +107,15 @@ void main() {
     await drain(t);
   });
 
+  testWidgets('the Cappuccino sheet shows its serving as 16 fl oz, never the feed\'s ozl', (t) async {
+    await openHall(t, await bootRecorded(t), '/cafe/12?dish=${Uri.encodeQueryComponent('16 oz Cappuccino')}');
+    await sheetUp(t);
+    final sheet = find.byType(DishSheet);
+    expect(find.descendant(of: sheet, matching: find.textContaining('16 fl oz', findRichText: true)), findsWidgets);
+    expect(find.descendant(of: sheet, matching: find.textContaining('ozl', findRichText: true)), findsNothing);
+    await drain(t);
+  });
+
   testWidgets('Show all opens the ingredients and Show less closes them', (t) async {
     await openHall(t, await bootRecorded(t), dishRoute('Golden BBQ Chicken Thigh'));
     await sheetUp(t);

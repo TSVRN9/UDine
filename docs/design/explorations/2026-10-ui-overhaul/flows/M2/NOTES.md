@@ -2672,3 +2672,4 @@ blocks fold at the same time (their content has faded by then); not staggered.
   without a re-snap (the Calories rule then sits one line lower than the measured rest, accepted); "Not on the menu again today or
   tomorrow" fills the same line. A sheet opened with the answer already known looks the same at rest. `src.html` and `test.js`
   are unchanged; the Flutter measurements (`app/test/m2_dom*.json`) still hold for a one-group dish.
+- **Liquid servings (owner, 2026-10-18).** The feed spells a drink serving "16 ozl"; M2 shows it unchanged. The Flutter app displays "ozl" as "fl oz" (the label's Serving size row, the dish sheet's price line, saved foods) and the log, the export and the menu cache keep the feed's string. No M2 measurement depends on it: `m2_dom*.json` has no "ozl", and the Cappuccino sheet's serving is a single line either way.

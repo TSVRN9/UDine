@@ -7,6 +7,7 @@ import '../data/packaged.dart';
 import '../data/pdf_pages.dart';
 import '../data/repository.dart';
 import '../motion/routes.dart';
+import 'alerts_model.dart';
 import 'food_book.dart';
 import 'health_book.dart';
 import 'plate_model.dart';
@@ -16,7 +17,7 @@ import 'share.dart';
 /// What every screen under the shell reads: the repository (live or recorded), the device store, the preferences and which band a
 /// card is open from. The members are the notifiers; the scope itself never changes.
 class AppScope extends InheritedWidget {
-  const AppScope({super.key, required this.repo, required this.store, this.log, this.foods, this.health, this.packaged, this.lookup, required this.prefs, required this.hider, required this.plate, this.pdfOpen = pdfxOpen, this.share = shareFiles, this.shareFlyer = shareFlyerFile, required super.child});
+  const AppScope({super.key, required this.repo, required this.store, this.log, this.foods, this.health, this.packaged, this.lookup, required this.prefs, required this.alerts, required this.hider, required this.plate, this.pdfOpen = pdfxOpen, this.share = shareFiles, this.shareFlyer = shareFlyerFile, required super.child});
   final Repository repo;
   /// null when a newer build owns the database: menus only, nothing is written
   final UdineStore? store;
@@ -30,6 +31,8 @@ class AppScope extends InheritedWidget {
   final PackagedSource? packaged;
   final LookupDishSource? lookup;
   final AppPrefs prefs;
+  /// Notify me: the wish and what the OS says of it
+  final AlertsModel alerts;
   final BandHider hider;
   /// the plates being built: in memory until Log
   final PlateModel plate;

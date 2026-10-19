@@ -25,10 +25,10 @@ class HealthRow extends StatelessWidget {
             _ => 'Each meal you log',
           };
           return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            CheckRow(label: 'Write to ${health.name}', line: line, on: st == HealthRowState.allowed, last: true, anchored: stuck, onChanged: (_) { Haptics.selection(); health.tap(); }),
+            CheckRow(label: 'Write to ${health.name}', line: line, on: st == HealthRowState.allowed, last: true, hang: stuck, onChanged: (_) { Haptics.selection(); health.tap(); }),
             if (stuck)
               Padding(
-                padding: const EdgeInsets.only(top: M2Layout.hrowBtnTop, bottom: M2Layout.hrowBtnBottom),
+                padding: const EdgeInsets.only(top: M2Layout.hangGap, bottom: M2Layout.hangFoot),
                 child: Align(alignment: Alignment.centerLeft, child: Button(kind: ButtonKind.outlineDark, label: health.settingsLabel, onTap: health.openSettings)),
               ),
           ]);

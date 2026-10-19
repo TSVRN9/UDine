@@ -135,13 +135,10 @@ void main() {
   });
 
   group('M2 vectors.json search cases', () {
-    // M2 round 12 groups size and milk variants into one row (`f:` keys); these cases go green with
-    // docs/briefs/m2-round-12-13.md Task 1, which removes this list
-    const variantFamilies = {'green', 'apple', 'chicken', '(idle) protein', '(idle) light', '(idle) veg', '(idle) plant', '(idle) halal', '(idle) lowc'};
     for (final v in vectors['search'] as List) {
       final lenses = {for (final l in (v['lens'] as List? ?? const [])) Lens.values.byName(l)};
       final name = '${v['q'].isEmpty ? '(idle)' : v['q']}${lenses.isEmpty ? '' : ' ${lenses.map((l) => l.name).join('+')}'}${v['newton'] == true ? ' (Charles River on)' : ''}';
-      test(name, skip: variantFamilies.contains(name) ? 'M2 round 12 variant families: m2-round-12-13 Task 1' : false, () {
+      test(name, () {
         final e = searchEntries(
           raw: run(v['q'], lenses: lenses, newton: v['newton'] == true), query: v['q'], lenses: lenses, meal: 'lunch', prefs: noPrefs, reveal: false, track: false);
         final groups = <Map<String, Object?>>[];
