@@ -45,7 +45,8 @@ flutter analyze --no-fatal-infos >"$LOG" 2>&1 || { tail -20 "$LOG"; echo "analyz
 if flock "$SCRATCH/suite.lock" bash -c "$(declare -f capped); capped" >>"$LOG" 2>&1; then
   for i in "${!STEPS[@]}"; do
     read -r _ k _ <<<"${STEPS[$i]}"
-    { echo "#${*:1:i+1} merged in order into $(git -C "$ROOT" rev-parse --short origin/main) passed $(date -u +%FT%TZ)" | sed 's/ / #/g; s/^#//'; tail -1 "$LOG"; } > "$SCRATCH/suite-pass/$k"
+    { printf '#%s ' "${@:1:i+1}"; echo "merged in order into $(git -C "$ROOT" rev-parse --short origin/main) passed $(date -u +%FT%TZ)"; tail -1 "$LOG"; } > "$SCRATCH/suite-pass/$k.tmp"
+    mv "$SCRATCH/suite-pass/$k.tmp" "$SCRATCH/suite-pass/$k"
   done
   cat "$SCRATCH/suite-pass/$KEY"
 else
