@@ -1,0 +1,21 @@
+{
+  "sha": "1a2188658e00dad168e07ec4ed8759a45f702869",
+  "branch": "flutter/dish-sheet-pinned-assert",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/flutter-dish-sheet-pinned-assert",
+  "route": "/cafe/12?data=recorded&at=2026-10-08T12:41&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-10-20T17:42:29Z",
+  "own": {
+    "app/lib/screens/dish/dish_sheet.dart": "aa49cf5ea7d467153ea3e6c15aa745a5bd0fe541"
+  },
+  "argv": [
+    "/cafe/12?data=recorded&at=2026-10-08T12:41",
+    "--tap",
+    "300",
+    "1300",
+    "--settle",
+    "4"
+  ]
+}
