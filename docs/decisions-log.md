@@ -1531,3 +1531,23 @@ being ported to Flutter on the M2 design.**
   - iOS is still unseen by agents until the new UI is complete (no store-track builds before then).
 - **Rejected:** keeping RN with the workarounds above, and a NativeWind/Uniwind variant. Adherence was not
   RN's problem; motion cost was.
+
+## Favorite-dish alerts by FCM topic (2026-10-17)
+
+Flutter's "Notify me" alerts arrive as one visible push per dish per day, posted by the `send-dish-alerts`
+edge function to that dish's FCM topic (`dish-` + first 16 hex of sha256 of the `dishKey`-normalized name).
+Brief: `docs/briefs/flutter-port-alert-push.md`.
+
+- **What lives where:** the device holds Notify me and the favorites, and follows a topic per favorited
+  dish. Google/FCM holds the topic follows. Our server holds no list of who follows what: its only new
+  state is `public.dish_alerts_sent (dish_key, day)`, a per-day claim on a public dish key, with no user and
+  no token, RLS on with no policies, `select, insert, delete` granted to `service_role` only
+  (`20261017120000_dish_alerts_sent.sql`). Rows older than three days are swept at the end of a run.
+- **Why topics:** a per-device send would need the server to store a token and a favorites list, which the
+  residency rule forbids for Flutter. The RN path (`push_tokens`, `favorited_foods`,
+  `check-favorited-foods`) is untouched and still requires an account.
+- **Disclosed cost:** the hash of a public dish name is reversible with the public menu, so Google can tell
+  which dishes an install follows. The privacy policy (gh-pages) says so. FCM auto-init stays off until
+  Notify me is first on; turning it off unsubscribes every topic and deletes the token.
+- **Not done by this entry:** the function, cron job and Flutter sync are separate tasks of the brief;
+  none is live until the owner applies the migrations and sets the FCM secrets.
