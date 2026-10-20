@@ -90,9 +90,9 @@ class PushSync {
     _wired = true;
     void log(Object e) => debugPrint('push: $e'); // e.g. no Play services on a relaunch
     _m.onOpened.listen((n) => tapAlert(n.route), onError: log);
-    _m.onForeground.listen((n) => unawaited(_show(n).catchError((Object e) => log(e))), onError: log);
+    _m.onForeground.listen((n) => unawaited(_show(n).catchError((Object e) { log(e); })), onError: log);
     unawaited(_m.initialMessage().then((n) {
       if (n != null) tapAlert(n.route);
-    }).catchError((Object e) => log(e)));
+    }).catchError((Object e) { log(e); }));
   }
 }
