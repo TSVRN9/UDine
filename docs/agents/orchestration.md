@@ -27,7 +27,7 @@ is routing, not deep reasoning. Read this at the start of any session that dispa
    (M2's vectors and the menu/packaged fixtures the Flutter suite reads) or `docs/design/*.dc.html` (mobile's parity tests)): the gate alone, then merge. It runs the gate, reproduces
    reds by mutation, runs the lanes, opens the screenshots, compares to the artboard, and returns
    MERGE / REWORK / ESCALATE. It re-renders any state it needs itself.
-5. **Act on the verdict.** MERGE → `app/tool/test.sh --merged N` (in the background, ~35 min: the PR's one full suite, on
+5. **Act on the verdict.** MERGE → `app/tool/test.sh --merged N` (in the background, ~9 min: the PR's one full suite, on
    the tree the merge makes; author and reviewer ran only the dirs the diff touches), then `gh pr merge N --squash
    --delete-branch` (the hook refuses without that run's stamp, and refuses `--delete-branch` while a PR is based on the branch;
    a SENSITIVE PR — `supabase/`, auth, sync, residency — merges the same way, owner 2026-10-20). REWORK → findings back to the same `issue-solver`.
