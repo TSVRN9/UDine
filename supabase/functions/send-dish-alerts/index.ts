@@ -40,6 +40,7 @@ async function fetchMeals(tid: number, mdy: string, fetchImpl: typeof fetch): Pr
       const meal = MEAL_OF[period.toLowerCase()];
       if (!meal) continue;
       for (const html of Object.values(cats ?? {})) {
+        if (typeof html !== "string") continue; // one bad category drops only itself
         for (const m of html.matchAll(/data-dish-name="([^"]*)"/g)) (out[meal] ??= []).push(decode(m[1]).trim());
       }
     }
@@ -118,8 +119,8 @@ export async function handle(
       now: deps.now ?? new Date(), fetchImpl: deps.fetchImpl ?? fetch, db: deps.db, serviceAccountJson, projectId, test: dish ? { dish } : undefined,
     });
     return json(200, r);
-  } catch (e) {
-    console.error("send-dish-alerts failed:", (e as Error).message);
+  } catch {
+    console.error("send-dish-alerts run failed"); // never e.message: a bad service-account secret can echo into it
     return json(500, { error: "send failed" });
   }
 }
@@ -132,7 +133,10 @@ Deno.serve((req) => {
       const { data, error } = await t().upsert({ dish_key, day }, { onConflict: "dish_key,day", ignoreDuplicates: true }).select("dish_key");
       return !error && (data?.length ?? 0) > 0;
     },
-    release: async (dish_key, day) => void (await t().delete().eq("dish_key", dish_key).eq("day", day)),
+    release: async (dish_key, day) => {
+      const { error } = await t().delete().eq("dish_key", dish_key).eq("day", day);
+      if (error) console.error(`dish_alerts_sent release failed: ${error.code ?? ""} ${error.message}`);
+    },
     sweep: async (before) => void (await t().delete().lt("day", before)),
   };
   return handle(req, { env: Deno.env.toObject(), db });

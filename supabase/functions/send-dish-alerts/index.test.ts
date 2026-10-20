@@ -134,3 +134,41 @@ Deno.test("handle refuses without the cron secret and never logs the key or toke
   const all = logs.join("\n");
   if (all.includes("PRIVATE KEY") || all.includes(TOKEN) || all.includes("fake@fake")) throw new Error("secret logged");
 });
+
+Deno.test("the gate follows Eastern time across DST: EST (Dec) and EDT (Oct)", async () => {
+  const cases: [string, number][] = [
+    ["2026-12-15T11:00:00Z", 0], ["2026-12-15T12:00:00Z", 1], // 6 AM / 7 AM EST
+    ["2026-10-20T11:00:00Z", 1], ["2026-10-20T13:00:00Z", 0], // 7 AM / 9 AM EDT
+  ];
+  for (const [at, want] of cases) {
+    const w = world({ 1: lunch("Pizza") });
+    await w.run(new Date(at));
+    if (count(w.sent) !== want) throw new Error(`${at}: sent ${w.sent.length}, want ${want}`);
+    if (!want && w.log.length) throw new Error(`${at}: fetched while gated`);
+  }
+});
+
+Deno.test("test hook with a dish on no menu sends once with the off-menu body and no claim", async () => {
+  const w = world({ 1: lunch("Pizza") });
+  await w.run(SIX_AM, { dish: "Ghost Dish" });
+  if (count(w.sent) !== 1 || w.sent[0].topic !== dishTopic("Ghost Dish") || w.sent[0].notification.body !== "Not on today's menu" || count(w.claims)) {
+    throw new Error(JSON.stringify(w.sent));
+  }
+});
+
+Deno.test("test hook never releases a claim, even when FCM fails", async () => {
+  const w = world({ 1: lunch("Pizza") }, () => 500);
+  await w.run(SIX_AM, { dish: "Pizza" });
+  if (count(w.sent) !== 1 || count(w.released)) throw new Error("hook released a claim");
+});
+
+Deno.test("a malformed feed (non-string category, null meal, null body) drops only its own piece", async () => {
+  const w = world({
+    1: { lunch: { Bad: 123 as unknown as string, Entrees: html("Pizza") }, dinner: null as unknown as Record<string, string> },
+    2: null as unknown as Record<string, Record<string, string>>,
+    3: lunch("Soup"),
+  });
+  await w.run(EIGHT_AM);
+  const topics = w.sent.map((m) => m.topic).sort();
+  if (JSON.stringify(topics) !== JSON.stringify([dishTopic("Pizza"), dishTopic("Soup")].sort())) throw new Error(JSON.stringify(topics));
+});
