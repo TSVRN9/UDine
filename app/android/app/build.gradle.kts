@@ -4,6 +4,7 @@ plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.gms.google-services") // reads google-services.json (both packages: one file serves both flavors)
 }
 
 // The internal flavor signs with the key outside the repo (app/tool/build-internal-android.sh); without it, it keeps Flutter's debug key.

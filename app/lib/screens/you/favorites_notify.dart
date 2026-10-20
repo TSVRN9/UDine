@@ -15,11 +15,11 @@ class NotifyRow extends StatelessWidget {
     return ListenableBuilder(
       listenable: m,
       builder: (context, _) {
-        final ios = defaultTargetPlatform == TargetPlatform.iOS, button = m.denied || m.backgroundOff;
+        final button = m.denied || (m.backgroundOff && defaultTargetPlatform != TargetPlatform.iOS); // iOS: a visible push doesn't need Background App Refresh
         final line = m.denied
             ? 'Notifications are off for UDine'
-            : m.backgroundOff
-                ? ios ? "Background App Refresh is off, so UDine can't check menus" : "Battery use is restricted, so UDine can't check menus"
+            : button
+                ? "Battery use is restricted, so UDine can't check menus"
                 : "When a favorite is on today's menu";
         return Container(
           margin: const EdgeInsets.only(bottom: M2Space.part),

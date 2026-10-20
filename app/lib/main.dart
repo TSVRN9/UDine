@@ -12,6 +12,7 @@ Future<void> main() async {
   if (boot.store case final store? when !route.contains('data=recorded')) {
     try {
       await startAlerts(on: await store.alertsOn());
+      await boot.alerts.refresh(); // topic sync at launch
     } catch (e) {
       debugPrint('alerts unavailable: $e');
     }

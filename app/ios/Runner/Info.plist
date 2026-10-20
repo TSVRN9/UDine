@@ -31,7 +31,10 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
+		<string>remote-notification</string>
 	</array>
+	<key>FirebaseMessagingAutoInitEnabled</key>
+	<false/>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>UDine writes the meals you log to Apple Health. It never reads from Health.</string>
 	<key>LSRequiresIPhoneOS</key>

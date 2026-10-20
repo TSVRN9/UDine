@@ -1,20 +1,22 @@
 import 'package:flutter/foundation.dart';
 
 import '../alerts/alerts_os.dart';
+import '../alerts/push.dart';
 import '../core/store/store.dart';
 
 /// Notify me (M2 R11 §2): the wish (stored on the device) and what the OS says of it. Loaded before the first frame, so the row never
 /// pops in; re-read when the app returns and when You or Favorites is shown, which is how a permission revoked in system settings is found.
 class AlertsModel extends ChangeNotifier {
-  AlertsModel(this._store, this._os, {bool on = false, bool allowed = true, bool restricted = false}) : _on = on, _allowed = allowed, _restricted = restricted; // ignore: prefer_initializing_formals
+  AlertsModel(this._store, this._os, {bool on = false, bool allowed = true, bool restricted = false, this.push}) : _on = on, _allowed = allowed, _restricted = restricted; // ignore: prefer_initializing_formals
   final UdineStore? _store;
   final AlertsOs _os;
+  final PushSync? push;
   bool _on, _allowed, _restricted;
   bool _refused = false; // the OS said no to the last tap (the wish stays as it was)
 
-  static Future<AlertsModel> load(UdineStore? store, AlertsOs os) async {
+  static Future<AlertsModel> load(UdineStore? store, AlertsOs os, {PushSync? push}) async {
     final on = await store?.alertsOn() ?? false, allowed = await os.allowed();
-    return AlertsModel(store, os, on: on, allowed: allowed, restricted: on && allowed && await os.backgroundRestricted());
+    return AlertsModel(store, os, on: on, allowed: allowed, restricted: on && allowed && await os.backgroundRestricted(), push: push);
   }
 
   /// The check is filled: wished for and allowed.
@@ -28,6 +30,7 @@ class AlertsModel extends ChangeNotifier {
 
   Future<void> refresh() async {
     final allowed = await _os.allowed(), restricted = _on && allowed && await _os.backgroundRestricted();
+    await push?.sync(on: _on && allowed); // launch and resume: the topics follow the favourites and the permission
     if (allowed == _allowed && restricted == _restricted) return;
     _allowed = allowed;
     _restricted = restricted;
@@ -50,6 +53,7 @@ class AlertsModel extends ChangeNotifier {
     notifyListeners();
     await _store?.setAlertsOn(on);
     await _os.schedule(on);
+    await push?.sync(on: checked);
   }
 
   Future<void> openSettings() => _os.openSettings(denied ? AlertsSettings.notifications : AlertsSettings.background);
