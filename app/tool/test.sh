@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Four test files at a time: the heavy screen goldens peak at 2.1G together (2026-10-20), ~3.8x faster than one at a time.
 # flutter test under the host's memory rules: a runaway test is killed alone at 4G (it took the whole host down twice on
 # 2026-10-17), and only one full suite runs at a time.
 #
 #   app/tool/test.sh test/screens/foo_test.dart test/core/m2   # the dirs/files a diff touches; any flutter test flags pass through
-#   app/tool/test.sh                                           # the full suite (~35 min), queued behind any other on suite.lock
+#   app/tool/test.sh                                           # the full suite (~9 min), queued behind any other on suite.lock
 #   app/tool/test.sh --merged <pr>                             # the full suite on <pr> merged into its base, in a scratch worktree
 #   app/tool/test.sh --merged <pr> <pr>...                     # a merge train: one run on all of them merged in that order
 #
@@ -17,7 +18,7 @@ set -euo pipefail
 
 SCRATCH="$HOME/.cache/udine-scratch"
 mkdir -p "$SCRATCH/suite-pass"
-capped() { systemd-run --user --scope -q -p MemoryMax=4G -p MemorySwapMax=0 flutter test --concurrency=1 "$@"; }
+capped() { systemd-run --user --scope -q -p MemoryMax=4G -p MemorySwapMax=0 flutter test --concurrency=4 "$@"; }
 
 if [[ "${1:-}" != --merged ]]; then
   cd "$(git rev-parse --show-toplevel)/app"

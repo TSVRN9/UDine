@@ -26,7 +26,7 @@ installing over it means uninstalling first, which wipes device-local plate/log 
 "UDine (internal)" package (`com.udinetogether.udine.internal`) side by side instead — see
 `mobile/scripts/build-internal-android.sh`'s own header for why each step exists.
 
-Flutter (`/app`): `cd app && flutter analyze && tool/test.sh <test paths>` (4G cap; no paths = the full suite, ~35 min,
+Flutter (`/app`): `cd app && flutter analyze && tool/test.sh <test paths>` (4G cap; no paths = the full suite, ~9 min,
 queued on a lock; `tool/test.sh --merged <pr>` is the full run a PR needs before merge);
 `app/tool/screenshot.sh <route> [--serial S]` captures the internal profile build (recorded data:
 `?data=recorded&at=2026-10-08T12:41`).
