@@ -13,4 +13,12 @@ void main() {
     expect(servingText('2 ozlike'), '2 ozlike');
     expect(servingText(''), '');
   });
+
+  test('the feed\'s EA reads each, in any case; words containing ea don\'t', () {
+    expect(servingText('1 EA'), '1 each');
+    expect(servingText('2 ea'), '2 each');
+    expect(servingText('1 each'), '1 each');
+    expect(servingText('1 meal'), '1 meal');
+    expect(servingText('1 ea (12 ozl)'), '1 each (12 fl oz)');
+  });
 }

@@ -1,0 +1,16 @@
+{
+  "sha": "c1feabfbca54ea7655fb707aff24959c8777cd77",
+  "branch": "flutter/serving-each",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/serving-each",
+  "route": "/hall/worcester?meal=lunch&dish=Black%20Bean%20Burger&data=recorded&at=2026-10-08T12:41&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-10-19T13:36:55Z",
+  "own": {
+    "app/lib/core/serving_text.dart": "8e9fa59a4de27891246160637e72eda11779106b"
+  },
+  "argv": [
+    "/hall/worcester?meal=lunch&dish=Black%20Bean%20Burger&data=recorded&at=2026-10-08T12:41"
+  ]
+}
