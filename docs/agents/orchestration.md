@@ -26,9 +26,11 @@ is routing, not deep reasoning. Read this at the start of any session that dispa
    (nothing under `app/`, `mobile/`, `shared/`, `supabase/`, `scripts/`, `.claude/`, `docs/design/explorations/2026-10-ui-overhaul/flows/`
    (M2's vectors and the menu/packaged fixtures the Flutter suite reads) or `docs/design/*.dc.html` (mobile's parity tests)): the gate alone, then merge. It runs the gate, reproduces
    reds by mutation, runs the lanes, opens the screenshots, compares to the artboard, and returns
-   MERGE / REWORK / ESCALATE. It re-renders any state it needs itself.
-5. **Act on the verdict.** MERGE → `app/tool/test.sh --merged N` (in the background, ~9 min: the PR's one full suite, on
-   the tree the merge makes; author and reviewer ran only the dirs the diff touches), then `gh pr merge N --squash
+   MERGE / REWORK / ESCALATE. It re-renders any state it needs itself. Start `app/tool/test.sh --merged N` in the
+   background at the same time (~9 min: the PR's one full suite, on the tree the merge makes; author and reviewer run only
+   the dirs the diff touches), so the stamp is waiting when the verdict lands; a REWORK push that changes `app/` needs a
+   new run, one that doesn't keeps the stamp.
+5. **Act on the verdict.** MERGE → `gh pr merge N --squash
    --delete-branch` (the hook refuses without that run's stamp, and refuses `--delete-branch` while a PR is based on the branch;
    a SENSITIVE PR — `supabase/`, auth, sync, residency — merges the same way, owner 2026-10-20). REWORK → findings back to the same `issue-solver`.
    ESCALATE → see gates below. Stacked children: merge parent first, then the child rebases.
