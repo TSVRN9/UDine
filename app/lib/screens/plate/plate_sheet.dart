@@ -177,6 +177,7 @@ class _PlateSheetState extends State<PlateSheet>
     openDishSheet(
       context, dish: bowl == null ? dish : bowl.spec.syn != null ? bowl.spec.parts.first : bowl.spec.base!, place: place, meal: p.meal, day: 0, fx: c.board, cafeIds: c.cafeIds, refs: it.refs, onClosed: c.dispose,
       build: bowl?.spec, sel: bowl == null ? null : selOf(bowl.spec, bowl.bowl), edit: bowl == null ? null : (plateId: p.id, key: it.key), plain: bowl == null,
+      update: bowl == null ? (plateId: p.id, key: it.key) : null,
       onServe: (to, g) => _handle.away(() => ShellScope.of(context).openPlace(to, meal: g.meal, day: g.day, dish: dish.key)),
     );
   }
@@ -268,10 +269,10 @@ class _PlateSheetState extends State<PlateSheet>
                 vertical: M2Layout.factsMargin,
               ),
               child: Facts(
-                cal: t.cal.toDouble(),
-                p: t.p.toDouble(),
-                c: t.c.toDouble(),
-                f: t.f.toDouble(),
+                cal: t.cal,
+                p: t.p,
+                c: t.c,
+                f: t.f,
               ),
             ),
             CustomButton(

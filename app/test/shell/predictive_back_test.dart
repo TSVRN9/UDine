@@ -139,6 +139,26 @@ void main() {
       await drain(t);
     });
 
+    testWidgets('a back while the sheet is still leaving goes to the page under it, not into the closing sheet', (t) async {
+      await openWorcester(t);
+      final page = find.byType(HallPage);
+      await t.tap(find.byType(DishRow).first);
+      await until(t, () => find.byType(DishSheet).evaluate().isNotEmpty);
+      await t.pumpAndSettle();
+      await start(t);
+      await move(t, 82);
+      await commit(t);
+      await t.pump(const Duration(milliseconds: 60)); // the sheet is on its way out, and still in the tree
+      expect(find.byType(DishSheet), findsOneWidget);
+      await start(t);
+      await move(t, 42);
+      await commit(t);
+      await t.pumpAndSettle();
+      expect(find.byType(DishSheet), findsNothing);
+      expect(page, findsNothing);
+      await drain(t);
+    });
+
     testWidgets('an open plate lowers with the gesture and a commit puts it into the bar; Halls stays', (t) async {
       await openPlate(t);
       await t.tap(inBar(find.textContaining(RegExp(r'items?$'))));

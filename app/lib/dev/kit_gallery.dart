@@ -76,6 +76,8 @@ class KitGallery extends StatelessWidget {
                   const FilterChipButton(label: 'Open now', selected: true),
                   const FilterChipButton(label: 'Halal', selected: false, glyph: Glyph.halal),
                   const FilterChipButton(label: 'Low carbon', selected: true, glyph: Glyph.carbon),
+                  VariantPicker(name: 'Size', labels: const ['16 oz', '20 oz'], chosen: 0, onPick: (_) {}),
+                  const SettleFade(value: 0, child: Text('Cappuccino')),
                   const ColoredBox(color: M2Color.vm, child: Row(mainAxisSize: MainAxisSize.min, children: [PinButton(pinned: false), PinButton(pinned: true)])),
                 ]),
               ]),

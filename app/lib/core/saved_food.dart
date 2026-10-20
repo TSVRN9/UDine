@@ -1,4 +1,4 @@
-import 'm2/board.dart' show Macro;
+import 'm2/board.dart' show Macro, M2Nutrition;
 import 'm2/menu_view.dart' show allergens;
 import 'packaged_food.dart';
 import 'types.dart';
@@ -8,7 +8,6 @@ enum FoodKind { custom, pack, umass }
 /// M2's diet bits from a lookup's tags (`MenuItem.diet`): 1 vegetarian, 2 plant based, 4 halal, 8 local.
 int dietBits(Iterable<String> tags) => const [('Vegetarian', 1), ('Plant Based', 2), ('Halal', 4), ('Local', 8)].fold(0, (b, e) => tags.contains(e.$1) ? b | e.$2 : b);
 
-num _r1(num x) => (x * 10).round() / 10;
 
 /// OFF's allergen tags, title-cased by the mapping the vectors check ("Soybeans", "Nuts"), as M2's eleven (M2 `OFFALG`), in Dietary
 /// preferences' order; a tag M2 has no row for is left out. A UMass lookup's own allergens already are the feed's and pass through.
@@ -56,7 +55,7 @@ class SavedFood {
   /// M2's plate key (`'food:'+id`)
   String get key => 'food:$id';
   bool get per100g => nutrition.servingSize == per100;
-  Macro get macro => Macro(nutrition.calories.round(), _r1(nutrition.proteinG), _r1(nutrition.totalCarbG), _r1(nutrition.totalFatG));
+  Macro get macro => nutrition.macro;
 
   /// The same food after the form's Save (M2 `Object.assign(f, {n, cal, p, c, f})`): name and the four figures, nothing else.
   SavedFood edited({required String name, required num cal, required num p, required num c, required num f}) {
@@ -82,7 +81,7 @@ class SavedFood {
 CustomFood customFromForm({required String id, required String name, required Macro m}) => CustomFood(
       id: id, name: name, servingSize: '1 serving',
       nutrition: NutritionFacts(
-        servingSize: '1 serving', calories: m.cal, caloriesFromFat: 0, totalFatG: m.f, satFatG: 0, transFatG: 0, cholesterolMg: 0, sodiumMg: 0,
-        totalCarbG: m.c, dietaryFiberG: 0, sugarsG: 0, proteinG: m.p,
+        servingSize: '1 serving', calories: m.cal ?? 0, caloriesFromFat: 0, totalFatG: m.f ?? 0, satFatG: 0, transFatG: 0, cholesterolMg: 0, sodiumMg: 0,
+        totalCarbG: m.c ?? 0, dietaryFiberG: 0, sugarsG: 0, proteinG: m.p ?? 0,
       ),
     );

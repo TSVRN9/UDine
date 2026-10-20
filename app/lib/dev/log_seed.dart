@@ -33,3 +33,11 @@ final seedBowl = [
     ]),
   ),
 ];
+
+/// `?history=chai`: the full history and a 20 oz Chai logged (every figure unknown, M2 R12c) beside a recorded 0, one Wednesday meal.
+final seedChai = [
+  LogEntry(
+    id: 'k0', loggedAt: '2026-10-07T15:30:00.000', source: const UmassMenuSource(dishName: '20 oz Chai', hallTid: 1), servings: 1,
+    nutrition: _n(0, 0, 0, 0).withBlank(const {'calories', 'proteinG', 'totalCarbG', 'totalFatG'}),
+  ),
+];

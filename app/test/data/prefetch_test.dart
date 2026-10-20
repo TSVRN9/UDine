@@ -59,6 +59,26 @@ void main() {
     expect(got[(4, '2026-10-13')], isEmpty);
   });
 
+  test('a prefetch parses on its own isolate (profile and release) and answers what the UI isolate would', () async {
+    final here = await repo.prefetchMenus(pairs);
+    await db.delete('preferences_kv');
+    Repository.parseOffUi = true;
+    addTearDown(() => Repository.parseOffUi = false);
+    final off = await make().prefetchMenus(pairs);
+    expect(off.keys.toSet(), here.keys.toSet());
+    expect([for (final e in off.entries) e.value.length], [for (final e in off.entries) here[e.key]!.length]);
+    expect([for (final d in off[(1, '2026-10-13')]!) d.dishName], [for (final d in here[(1, '2026-10-13')]!) d.dishName]);
+  });
+
+  test('a menu a hall page asks for (not a prefetch) parses off the UI isolate too when the flag is on', () async {
+    Repository.parseOffUi = true;
+    addTearDown(() => Repository.parseOffUi = false);
+    final before = Repository.offUiParses;
+    final fg = await make().menu(1, '2026-10-13').toList();
+    expect((fg.last as Loaded).value, isNotEmpty);
+    expect(Repository.offUiParses, greaterThan(before));
+  });
+
   test('a second ask, from the same repository or after a restart, makes no request for a place-day already had (empty ones included)', () async {
     await repo.prefetchMenus(pairs);
     calls.clear();

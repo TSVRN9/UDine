@@ -1,5 +1,6 @@
 // The seam between the repository's per-day streams and the book `core/m2` reads (HallController.board): checked against M2's own
 // recording, and against M2's `vectors.json` `saved` cases, so the screen's states follow what the phone has saved.
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -145,6 +146,42 @@ void main() {
     expect(second.board!.days[c.isos[0]]!.keys.length, first.board!.days[c.isos[0]]!.keys.length);
     first.dispose();
     second.dispose();
+    c.dispose();
+  });
+
+  test('WhereBook loads only while the sheet rests: nothing until `settled` resolves, the halls publish, then no café request until it resolves again', () async {
+    final c = await worcester();
+    await Future<void>.delayed(const Duration(milliseconds: 100)); // (the controller's own events call, if still going)
+    final gates = <Completer<void>>[];
+    Future<void> settled() {
+      gates.add(Completer<void>());
+      return gates.last.future;
+    }
+    final book = WhereBook(repo, c.board, c.cafeIds, false)..start(settled: settled);
+    final sends0 = counting.sends;
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    expect(gates.length, 1, reason: 'the halls wait for the sheet to rest');
+    expect(counting.sends, sends0, reason: 'nothing is asked while the sheet moves');
+    expect(book.board, isNull);
+    gates[0].complete();
+    for (var i = 0; i < 400 && book.board == null; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    expect(book.board!.days[c.isos[0]]!.keys, containsAll(['W', 'B']), reason: 'the halls are published first');
+    expect(counting.sends, greaterThan(sends0));
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    expect(gates.length, 2, reason: 'the cafés wait for the sheet to rest again (its height changes when the halls land)');
+    expect(book.complete, isFalse);
+    final sends1 = counting.sends;
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    expect(counting.sends, sends1, reason: 'no café is asked while the sheet re-snaps');
+    gates[1].complete();
+    for (var i = 0; i < 1500 && !book.complete; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    expect(book.complete, isTrue);
+    expect(counting.sends, greaterThan(sends1));
+    book.dispose();
     c.dispose();
   });
 

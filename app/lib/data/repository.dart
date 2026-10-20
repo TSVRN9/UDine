@@ -1,7 +1,8 @@
 import 'dart:async';
+import 'dart:isolate' show Isolate;
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show debugPrint, kReleaseMode;
+import 'package:flutter/foundation.dart' show debugPrint, kProfileMode, kReleaseMode;
 import 'package:sqflite/sqflite.dart';
 
 import '../core/content.dart';
@@ -164,12 +165,36 @@ class Repository {
 
   String get today => effectiveTodayIso(now(), defaultRolloverHour);
 
+  /// How many saved menus [savedMenus] has parsed (a test pins that none is before the first frame).
+  static int savedMenuParses = 0;
+
+  /// Every menu saved on the device, parsed; nothing is fetched (what a restart can read before any board is built). An unreadable row is left out.
+  Future<List<List<MenuItem>>> savedMenus() async {
+    final out = <List<MenuItem>>[];
+    for (final r in await db.query('preferences_kv', columns: ['key', 'value_json'], where: "key LIKE 'menu:v2:%'")) {
+      try {
+        final m = RegExp(r'^menu:v2:(\d+)\|(.+)$').firstMatch(r['key']! as String)!;
+        final raw = (jsonDecode(r['value_json']! as String) as Map<String, dynamic>)['raw'];
+        final id = int.parse(m[1]!), date = m[2]!, map = raw is Map<String, dynamic> ? raw : const <String, dynamic>{};
+        savedMenuParses++;
+        // the parse a hall page's menu takes: off the UI isolate in the profile and release builds (every saved menu at launch would be jank)
+        out.add(await (parseOffUi ? _parseOffUi(id, date, map) : parseMenuResponse(id, date, map)));
+      } catch (_) {}
+    }
+    return out;
+  }
+
   /// Menu for a hall (tid 1-4) or a café's foodpro location id.
   Stream<DataState<List<MenuItem>>> menu(int locationId, String date, {bool background = false}) => _load(
     background: background,
     key: _menuKey(locationId, date),
     fetch: () => source.menu(locationId, date),
-    parse: (raw, _) => parseMenuResponse(locationId, date, raw is Map<String, dynamic> ? raw : const {}),
+    // a menu parses off the UI isolate, a prefetch's (dozens of place-days at once) and a hall page's alike: a hall's ~28 ms parse (A53) landed
+    // between the tap and the card's first frame and was the 50-85 ms hole in the open
+    parse: (raw, _) {
+      final r = raw is Map<String, dynamic> ? raw : const <String, dynamic>{};
+      return parseOffUi ? _parseOffUi(locationId, date, r) : parseMenuResponse(locationId, date, r);
+    },
     quietWithin: menuFresh,
     isEmpty: (items) => items.isEmpty,
     isFinal: (items, fetchedAt) => items.isNotEmpty && !fetchedAt.isBefore(_dayStart(date)),
@@ -178,6 +203,12 @@ class Repository {
 
   /// Menus fetched in this session by place-day (an empty one included: it is never final on disk, but it is not asked for again).
   final _fetched = <String, List<MenuItem>>{};
+
+  /// A prefetch's parse runs on its own isolate in the profile and release builds. (A debug build, which is what `flutter test` is,
+  /// parses where it is: a real isolate's answer never arrives inside a widget test's fake clock.)
+  static bool parseOffUi = kProfileMode || kReleaseMode;
+  /// How many menus have been sent to that isolate (a test reads it: the isolate's answer is the same as the UI isolate's).
+  static int offUiParses = 0;
   /// Every (location id, date) given, once, through the one door Search and the dish sheet share: a place-day this session has had is
   /// not asked for again, a saved final one asks for nothing (both as [menu] does), and every fetch goes through [_pooled] as background work, so at most
   /// [maxInFlight] are in flight (and a fetch the user asks for meanwhile goes first) and, once the network is known to be down, none are asked and what is saved answers. A place-day with
@@ -419,6 +450,9 @@ class Repository {
     return saved ?? const [];
   }
 
+  /// The last readings busyReads computed, per location title: what a page opened with no card guesses its busy block from.
+  final lastBusy = <String, OccupancyRead>{};
+
   /// Live busy x typical curve per location title. Absent entirely without a live reading (offline, no sensor): the live
   /// reading is never read from the cache, only the curve is.
   Future<Map<String, OccupancyRead>> busyReads(HoursData h) async {
@@ -440,6 +474,7 @@ class Repository {
           if (r != null) out[key] = r;
         }(),
     ]);
+    lastBusy.addAll(out);
     return out;
   }
 
@@ -449,7 +484,7 @@ class Repository {
     String? key,
     required Future<Object?> Function() fetch,
     Object? Function(Object? raw)? strip,
-    required T Function(Object? raw, bool live) parse,
+    required FutureOr<T> Function(Object? raw, bool live) parse,
     bool Function(T value)? isEmpty,
     bool Function(T value, DateTime fetchedAt)? isFinal,
     Duration quietWithin = Duration.zero,
@@ -468,13 +503,14 @@ class Repository {
           if (rows.isNotEmpty) {
             try {
               final e = jsonDecode(rows.first['value_json']! as String) as Map<String, dynamic>;
-              final value = parse(e['raw'], false);
+              final value = await parse(e['raw'], false);
               final fetchedAt = DateTime.parse(e['fetchedAt'] as String);
               if (isEmpty == null || !isEmpty(value)) {
                 saved = value;
                 savedAge = now().difference(fetchedAt);
                 c.add(Loaded(value));
                 if (isFinal != null && isFinal(value, fetchedAt)) {
+                  onFetched?.call(value); // a final copy is as good as a fetch: the next ask is answered from memory
                   return;
                 }
               }
@@ -492,7 +528,7 @@ class Repository {
         }
         try {
           final raw = await _pooled(fetch, background: background);
-          final value = parse(raw, true);
+          final value = await parse(raw, true);
           onFetched?.call(value);
           slow?.cancel();
           if (saved != null && isEmpty != null && isEmpty(value)) {
@@ -529,4 +565,10 @@ class Repository {
 
 class _SkippedOffline implements Exception {
   const _SkippedOffline();
+}
+
+// (top level, so the closure sent to the isolate captures no repository)
+Future<List<MenuItem>> _parseOffUi(int locationId, String date, Map<String, dynamic> raw) {
+  Repository.offUiParses++;
+  return Isolate.run(() => parseMenuResponse(locationId, date, raw));
 }

@@ -58,8 +58,9 @@ def dish(x):
     # always matches its CR1..CR5 code.
     hc = [int(c[1]) for c in g('recipe-webcode').split() if re.fullmatch(r'H[0-7]', c)]
     cr = g('carbon-list')
-    return [g('dish-name').strip(), round(num(g('calories')) or 0), round(num(g('protein')) or 0, 1), round(num(g('total-carb')) or 0, 1),
-            round(num(g('total-fat')) or 0, 1), diet(g('clean-diet-str'), g('recipe-webcode')), g('serving-size').strip().lower(),
+    return [g('dish-name').strip(), None if num(g('calories')) is None else round(num(g('calories'))),   # blank is unknown (None, drawn "–"); a recorded 0 stays 0
+            None if num(g('protein')) is None else round(num(g('protein')), 1), None if num(g('total-carb')) is None else round(num(g('total-carb')), 1),
+            None if num(g('total-fat')) is None else round(num(g('total-fat')), 1), diet(g('clean-diet-str'), g('recipe-webcode')), g('serving-size').strip().lower(),
             n, re.sub(r'\s+', ' ', g('ingredient-list')).strip(), allergens(g('allergens')),
             hc[0] if hc else None, cr if cr in ('A', 'B', 'C', 'D', 'E') else None, x.get('price') or None,
             # the feed's raw data-healthfulness, kept only for vectors.js (a number with no H code is unscored and never drawn)
@@ -122,6 +123,16 @@ for iso in DAYS:
     MD.append(day)
 DISHES = [None] * len(used)
 for i, j in used.items(): DISHES[j] = dish(MENUS['dishes'][i])
+# round 12 (owner, 2026-10-16): every dining commons has fountain drinks, and the feed lists none for a hall. One synthetic record
+# (the café's own "Fountain Drink": 1 each, every nutrient blank), a last station "Beverages" in each hall menu at every meal the hall
+# posts except Grab 'N Go (packaged items, no stations).
+FOUNTAIN = len(DISHES); DISHES.append(dish({'dish-name': 'Fountain Drink', 'serving-size': '1 each'}))
+# (no diet marks: it is a drink, not food; the page's rule `ALWAYS` keeps every diet preference from hiding it)
+for day in MD:
+    for h, meals in day.items():
+        if h in HALLLOC:
+            for mk, ss in meals.items():
+                if mk != 'grab': ss.append(['Beverages', [FOUNTAIN]])
 CAFEMENU = sorted({k for d in MD for k in d if k[0] == 'c'}, key=lambda k: int(k[1:]))
 assert len(CAFEMENU) == 18, CAFEMENU
 assert MD[2] == {}, 'Oct 10 is empty everywhere'

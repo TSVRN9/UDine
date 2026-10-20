@@ -28,6 +28,12 @@ set -euo pipefail
 # and in particular with the default docs/pr-review-media output.
 # Galaxy A53 (R5CT40V5AME): Do Not Disturb is switched on for the capture and off after.
 
+# The sidecar keeps the capture's own arguments (less --apk/--serial) for app/tool/recapture.sh, and a fingerprint of each pixel
+# path this branch changes (scripts/pixel-digest.sh), so the gate can tell a stale capture from a rebased or merged one.
+ARGV=()
+for ((i = 1; i <= $#; i++)); do
+  case "${!i}" in --apk|--serial) ((i++)) ;; *) ARGV+=("${!i}") ;; esac
+done
 PKG=com.udinetogether.udine.internal
 ACT=$PKG/com.udinetogether.udine.MainActivity
 ROUTE="${1:?usage: screenshot.sh <route> [flags]}"; shift
@@ -120,9 +126,12 @@ PY
 DIRTY=false
 [[ -n "$(git status --porcelain -- . ':(exclude)docs/pr-review-media')" ]] && DIRTY=true
 DEVICE="$("${A[@]}" shell getprop ro.product.model | tr -d '\r' | tr ' ' '-')"
+OWN="$("$REPO_ROOT/scripts/pixel-digest.sh" "$(git merge-base origin/main HEAD)" HEAD | jq -Rn '[inputs | split(" ") | {(.[0]): .[1]}] | add // {}')"
+ARGJ="$(jq -cn '$ARGS.positional' --args -- "${ARGV[@]}")"
 jq -n --arg sha "$(git rev-parse HEAD)" --arg branch "$GIT_BRANCH" --arg worktree "$REPO_ROOT" \
   --arg route "$ROUTE" --arg device "$DEVICE" --arg stress "" --argjson dirty "$DIRTY" \
   --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  '{sha:$sha, branch:$branch, worktree:$worktree, route:$route, device:$device, stress:$stress, dirty:$dirty, ts:$ts}' \
+  --argjson own "$OWN" --argjson argv "$ARGJ" \
+  '{sha:$sha, branch:$branch, worktree:$worktree, route:$route, device:$device, stress:$stress, dirty:$dirty, ts:$ts, own:$own, argv:$argv}' \
   > "$STEM.json"
 echo "$STEM.png"

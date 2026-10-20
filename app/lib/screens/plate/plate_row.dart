@@ -8,7 +8,7 @@ import '../../ui/ui.dart';
 /// item leaves the plate (M2: nothing to travel to, the plate is where it was); `onDec` runs once it has closed.
 class PlateRow extends StatefulWidget {
   final PlateItem item;
-  final num cal;
+  final num? cal;
   final VoidCallback? onOpen;
   final VoidCallback onInc, onDec;
 

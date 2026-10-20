@@ -6,7 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
 /// Schema version this build knows. 0 is RN's schema (never stamped a version).
-const kUserVersion = 2; // == _migrations.length
+const kUserVersion = 5; // == _migrations.length
 
 /// RN's schema, copied from mobile/src/lib/db.ts. Never alter these; new
 /// migrations add tables/columns/keys only.
@@ -41,9 +41,15 @@ const _rnSchema = [
 /// Additive-only steps; index i migrates user_version i -> i+1.
 /// 0 -> 1: stamps the version (RN's tables are created above if missing).
 /// 1 -> 2: saved_foods, the packaged and lookup foods added to the plate (custom_foods stays RN's alone).
+/// 2 -> 3: alert_sent, the favourite-dish alerts already posted (day is the effective day, 2 AM rollover; RN's food_sighting_dedup stays RN's alone).
+/// 3 -> 4: health_writes, the Health Connect / Apple Health record ids of each meal (meal_id is its loggedAt), so an edit or delete finds its record without reading Health.
+/// 4 -> 5: health_writes.content_sig, a digest of what was written (name, time, nutrients), so a reconcile can tell a record is out of date without reading Health.
 const _migrations = <List<String>>[
   [],
   ['CREATE TABLE IF NOT EXISTS saved_foods (id TEXT PRIMARY KEY NOT NULL, food_json TEXT NOT NULL)'],
+  ['CREATE TABLE IF NOT EXISTS alert_sent (dish_name TEXT NOT NULL, day TEXT NOT NULL, PRIMARY KEY (dish_name, day))'],
+  ['CREATE TABLE IF NOT EXISTS health_writes (meal_id TEXT NOT NULL, platform TEXT NOT NULL, record_ids_json TEXT NOT NULL, PRIMARY KEY (meal_id, platform))'],
+  ['ALTER TABLE health_writes ADD COLUMN content_sig TEXT'],
 ];
 
 sealed class StoreOpen {}
@@ -78,24 +84,26 @@ Future<int> _version(DatabaseExecutor db) async =>
 /// Opens [path] in place (SQLite replays any -wal itself; nothing is copied).
 /// The newer-version probe is a normal read-only open: it reads user_version
 /// through the WAL and changes no data, though SQLite may create -shm.
-/// [migrations]/[onOpen] are test seams.
+/// [singleInstance] false gives this call its own connection: sqflite's default shares one native handle per path across the process (not
+/// reference-counted), so a second engine (the background check) closing "its" db would close the app's. [migrations]/[onOpen] are test seams.
 Future<StoreOpen> openStore(
   String path, {
   DatabaseFactory? factory,
+  bool singleInstance = true,
   @visibleForTesting List<List<String>> migrations = _migrations,
   @visibleForTesting void Function(Database)? onOpen,
 }) async {
   final f = factory ?? databaseFactory;
   final target = migrations.length;
   if (File(path).existsSync()) {
-    final probe = await f.openDatabase(path, options: OpenDatabaseOptions(readOnly: true));
+    final probe = await f.openDatabase(path, options: OpenDatabaseOptions(readOnly: true, singleInstance: singleInstance));
     final found = await _version(probe);
     await probe.close();
     if (found > target) return StoreNewerVersion(found, target);
   } else {
     Directory(p.dirname(path)).createSync(recursive: true);
   }
-  final db = await f.openDatabase(path);
+  final db = await f.openDatabase(path, options: OpenDatabaseOptions(singleInstance: singleInstance));
   onOpen?.call(db);
   try {
     await db.transaction((tx) async {

@@ -18,10 +18,10 @@ class FoodRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final n = food.nutrition;
     return ListRow(
-      label: food.per100g ? '${food.name}, ${fc(n.calories)} calories per 100 grams' : '${food.name}, ${fc(n.calories)} calories, ${f1(n.proteinG)} grams protein',
+      label: food.per100g ? '${food.name}, ${fc(n.knownCal)} calories per 100 grams' : '${food.name}, ${fc(n.knownCal)} calories, ${f1(n.knownProtein)} grams protein',
       onTap: onOpen,
       name: Badge.name(food.name, M2Text.rowName.style(M2Color.ink), badge: Badge.forDiet(food.diet)),
-      meta: food.per100g ? CalPer100(cal: n.calories) : CalProtein(cal: n.calories, protein: n.proteinG),
+      meta: food.per100g ? CalPer100(cal: n.knownCal) : CalProtein(cal: n.knownCal, protein: n.knownProtein),
       // (`.lane` min-height 66: the control at its top, so a food's row is the size of a dish's)
       control: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: M2Layout.laneMin),

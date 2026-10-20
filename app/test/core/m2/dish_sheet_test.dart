@@ -66,6 +66,10 @@ void main() {
       expect(labelRows(dish('Golden BBQ Chicken Thigh')).rows[0].right, startsWith('Fat cal.'));
       expect(labelRows(dish('Golden BBQ Chicken Thigh')).serving, '1 each');
     });
+    test('the label\'s Serving size row reads fl oz for a liquid serving, never the feed\'s ozl', () {
+      expect(dish('16 oz Cappuccino').nutrition.servingSize, '16 ozl'); // the model keeps the feed's string
+      expect(labelRows(dish('16 oz Cappuccino')).serving, '16 fl oz');
+    });
   });
 
   test('a blank nutrient reads "–" with no %DV, from the real parser (Green Chile Posole in the capture)', () {

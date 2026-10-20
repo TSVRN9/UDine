@@ -1,9 +1,12 @@
+import 'dart:async' show Timer;
+
 import 'package:flutter/widgets.dart';
 import '../../core/m2/board.dart';
-import '../../core/m2/bowl.dart' show Bowl;
+import '../../core/m2/bowl.dart' show Bowl, Syn;
 import '../../core/m2/bowl_builder.dart';
 import '../../core/m2/dish_sheet.dart';
 import '../../core/m2/plate.dart';
+import '../../core/m2/variants.dart';
 import '../../core/m2/where.dart';
 import '../../shell/app_scope.dart';
 import '../../shell/shell_scope.dart';
@@ -34,14 +37,17 @@ SheetHandle openDishSheet(
   Sel? sel,
   ({int plateId, String key})? edit,
   bool plain = false,
+
+  /// a plain family variant opened from its plate row: the action reads Update and moves that item to the variant picked
+  ({int plateId, String key})? update,
   VoidCallback? onClosed,
 }) {
   // today's dish that builds opens its builder (the row's + still adds it plain); a plate row of a plain dish opens as itself
   // (tracking off: a build station's dishes are just dishes, M2 CONCEPT R10 §2)
   build = !AppScope.of(context).prefs.track ? null : build ?? (day == 0 && !plain ? buildFor(fx, place, meal, dish) : null);
-  final book = WhereBook(AppScope.of(context).repo, fx, cafeIds);
+  final book = WhereBook(AppScope.of(context).repo, fx, cafeIds, false);
   return ShellScope.of(context).pushSheet((handle, done) => DishSheet(
-        handle: handle, dish: dish, place: place, meal: meal, day: day, fx: fx, book: book, avoid: avoid, refs: refs, onServe: onServe, build: build, sel: sel, edit: edit,
+        handle: handle, dish: dish, place: place, meal: meal, day: day, fx: fx, book: book, avoid: avoid, refs: refs, onServe: onServe, build: build, sel: sel, edit: edit, update: update,
         onClosed: () {
           book.dispose();
           onClosed?.call();
@@ -68,36 +74,114 @@ class DishSheet extends StatefulWidget {
   /// The builder this sheet is (M2 `openDish` with a build): the add-ins chosen so far, and the plate item being edited (Update).
   final BowlSpec? build;
   final Sel? sel;
-  final ({int plateId, String key})? edit;
+  final ({int plateId, String key})? edit, update;
   const DishSheet({
     super.key, required this.handle, required this.dish, required this.place, required this.meal, required this.day, required this.fx,
-    required this.book, this.avoid = const [], this.refs, required this.onServe, required this.onClosed, this.build, this.sel, this.edit,
+    required this.book, this.avoid = const [], this.refs, required this.onServe, required this.onClosed, this.build, this.sel, this.edit, this.update,
   });
   @override
   State<DishSheet> createState() => _DishSheetState();
 }
 
 class _DishSheetState extends State<DishSheet> {
-  final _cal = GlobalKey();
+  final _cal = GlobalKey(), _whereLine = GlobalKey();
   bool _stuck = false, _ingOpen = false;
   /// the sheet's height now (the star rides its pinned header)
   final _px = ValueNotifier<double>(0);
   late Sel _sel = {...?widget.sel};
+  /// What the sheet is of now: a family's picker moves the variant (and its builder, and the places' servings), a pho's moves what is chosen.
+  late MenuItem _d = widget.dish;
+  late BowlSpec? _spec = widget.build;
+  late Map<String, MenuItem>? _refs = widget.refs;
+  late final FamilyIndex _ix = familiesOf(widget.fx);
+  /// a two-picker pho: the protein and the broth chosen so far (read from the pho already chosen, when a plate item reopens)
+  late ({String? p, String? b}) _pk = _phoPicks();
   final _rowKeys = List.generate(4, (_) => GlobalKey());
+  Timer? _whereTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // the sheet slides in first; "where it is served" (every hall's and café's menus) loads only while the sheet rests: after the slide,
+    // and again after the halls' answer has moved it
+    _whereTimer = Timer(M2Motion.cont.duration, () => widget.book.start(settled: () => widget.handle.settled));
+  }
 
   @override
   void dispose() {
+    _whereTimer?.cancel();
     _px.dispose();
     super.dispose();
   }
 
-  MenuItem get d => widget.dish;
+  MenuItem get d => _d;
+  Family? get _fam => _ix.familyOf(_d);
+
+  ({String? p, String? b}) _phoPicks() {
+    final spec = widget.build, y = spec?.syn;
+    if (y == null || y.axes == null) return (p: null, b: null);
+    for (final e in (widget.sel ?? const {}).entries) {
+      final m = RegExp(r'^(.+?) Pho w/(.+) Broth$').firstMatch(spec!.parts[e.key].dishName);
+      if (m != null && e.key < y.choices.length) return (p: m[1], b: m[2]);
+    }
+    return (p: null, b: null);
+  }
+
+  /// The place's serving of the variant `x` for each place the sheet counts (M2 `sameVar`).
+  Map<String, MenuItem>? _remap(Variant x) {
+    final r = _refs;
+    if (r == null) return null;
+    return {
+      for (final e in r.entries) e.key: (() {
+        final f = _ix.familyOf(e.value);
+        return f?.vars.where((y) => y.v == x.v).firstOrNull?.dish ?? e.value;
+      })(),
+    };
+  }
+
+  /// A family chip: the sheet becomes that variant's, the builder keeps its add-ins (M2 `pickVar`).
+  void _pick(int i) {
+    final x = _fam!.vars[i];
+    if (identical(x.dish, _d)) return;
+    setState(() {
+      final old = _spec;
+      _refs = _remap(x) ?? {widget.place: x.dish};
+      if (old != null) {
+        final nb = buildFor(widget.fx, widget.place, widget.meal, x.dish);
+        if (nb != null) {
+          _sel = {for (final e in _sel.entries) if (nb.parts.indexWhere((p) => identical(p, old.parts[e.key])) case final j when j >= 0) j: e.value};
+        }
+        _spec = nb;
+      }
+      _d = x.dish;
+    });
+    Haptics.selection();
+  }
+
+  /// A hall bar's or a plain café's broth chip: that one is chosen, the last one put back.
+  void _pickChoice(int i) {
+    setState(() => _sel = stepPart(_spec!, _sel, i, 1));
+    Haptics.selection();
+  }
+
+  /// A café's protein (axis 'p') or broth chip; a pho is chosen once both are (its feed dish names the bowl).
+  void _pickAxis(String axis, String v) {
+    final y = _spec!.syn!, pk = axis == 'p' ? (p: v, b: _pk.b) : (p: _pk.p, b: v);
+    if (pk == _pk) return;
+    setState(() {
+      _pk = pk;
+      _sel = {..._sel}..removeWhere((k, _) => k < y.choices.length);
+      final dish = pk.p == null || pk.b == null ? null : y.axes!.dish(pk.p!, pk.b!);
+      if (dish != null) _sel[_spec!.parts.indexWhere((x) => identical(x, dish))] = 1;
+    });
+    Haptics.selection();
+  }
 
   double _mid(SheetMetrics m, double st) {
-    final spec = widget.build;
+    final spec = _spec;
     if (spec != null) {
       final sc = m.body?.findRenderObject() as RenderBox?;
-      final rows = [for (final k in _rowKeys.take(spec.parts.length)) k.currentContext?.findRenderObject() as RenderBox?];
+      final rows = [for (final k in _rowKeys.take(_drawn(spec).length)) k.currentContext?.findRenderObject() as RenderBox?];
       if (sc == null || rows.isEmpty || rows.any((r) => r == null || !r.hasSize)) return m.height * M2Layout.dishMidGuess;
       return buildMid(
         grab: M2Layout.grabH, rowsBottom: [for (final r in rows) r!.localToGlobal(Offset(0, r.size.height), ancestor: sc).dy - M2Layout.grabH],
@@ -107,30 +191,46 @@ class _DishSheetState extends State<DishSheet> {
     final scroll = m.body?.findRenderObject() as RenderBox?, cal = _cal.currentContext?.findRenderObject() as RenderBox?;
     if (scroll == null || cal == null || !cal.hasSize) return m.height * M2Layout.dishMidGuess;
     final bottom = cal.localToGlobal(Offset(0, cal.size.height), ancestor: scroll).dy; // under the pinned grab, to the rule under Calories
-    return restingSnap(calBottom: bottom - M2Layout.grabH, grab: M2Layout.grabH, winH: m.height, top: st);
+    // the where line is reserved at open and never moves the sheet: an answer taller than its line (a second group, chips on two
+    // rows) pushes the label down, and the rest stays where one line put it (owner, 2026-10-18)
+    final where = _whereLine.currentContext?.findRenderObject() as RenderBox?;
+    final over = where == null || !where.hasSize ? 0.0 : (where.size.height - M2Layout.whereLine).clamp(0.0, double.infinity);
+    return restingSnap(calBottom: bottom - M2Layout.grabH - over, grab: M2Layout.grabH, winH: m.height, top: st);
   }
 
   void _add(AppScope scope, String pm) {
-    final refs = widget.refs ?? {widget.place: d};
+    final refs = _refs ?? {widget.place: d}, name = shownOf(_ix, d), key = d.key;
     widget.handle.away(() {
-      scope.plate.add(pm, d.dishName, refs);
+      scope.plate.add(pm, name, refs, null, key);
       Haptics.add();
     });
   }
 
+  /// M2 `vupd`: the plate item becomes the variant now picked, keeping its servings.
+  void _vupd(AppScope scope) {
+    final u = widget.update!, refs = _refs ?? {widget.place: d}, name = shownOf(_ix, d), dish = d;
+    widget.handle.away(() {
+      scope.plate.updateDish(u.plateId, u.key, name, dish, refs);
+      Haptics.add();
+    });
+  }
+
+  /// The parts a builder draws as add-in rows: all but a pho's choices, which are the picker's chips.
+  List<int> _drawn(BowlSpec spec) => [for (var i = 0; i < spec.parts.length; i++) if (!(spec.syn != null && spec.syn!.pho && i < spec.syn!.choices.length)) i];
+
   void _step(int i, int dir) {
-    setState(() => _sel = stepPart(widget.build!, _sel, i, dir));
+    setState(() => _sel = stepPart(_spec!, _sel, i, dir));
     dir > 0 ? Haptics.add() : Haptics.remove();
   }
 
   /// M2 `badd`: the sheet goes down; the bowl lands on the plate (or replaces the one being edited) where the bar can show it.
   void _badd(AppScope scope, String pm, Bowl bowl) {
-    final spec = widget.build!, edit = widget.edit;
+    final spec = _spec!, edit = widget.edit, name = spec.base == null ? null : shownOf(_ix, spec.base!);
     widget.handle.away(() {
       if (edit != null) {
-        scope.plate.updateBowl(edit.plateId, edit.key, spec, bowl);
+        scope.plate.updateBowl(edit.plateId, edit.key, spec, bowl, name: name);
       } else {
-        scope.plate.addBowl(pm, spec, bowl);
+        scope.plate.addBowl(pm, spec, bowl, name: name);
       }
       Haptics.add();
     });
@@ -162,10 +262,10 @@ class _DishSheetState extends State<DishSheet> {
   }
 
   /// `.brow`: a compact add-in row under the builder's heading: its name, calories (and a café's price), the row's stepper.
-  Widget _brow(int i, Bowl bowl) {
-    final x = widget.build!.parts[i], cafe = isCafe(widget.place), n = M2Text.metaNum.style(M2Color.ink), u = M2Text.meta.style(M2Color.slate);
+  Widget _brow(int i, int at, Bowl bowl) {
+    final x = _spec!.parts[i], cafe = isCafe(widget.place), n = M2Text.metaNum.style(M2Color.ink), u = M2Text.meta.style(M2Color.slate);
     return KeyedSubtree(
-      key: i < _rowKeys.length ? _rowKeys[i] : null,
+      key: at < _rowKeys.length ? _rowKeys[at] : null,
       child: Container(
         key: ValueKey('brow:$i'),
         constraints: const BoxConstraints(minHeight: M2Layout.browMin),
@@ -178,7 +278,7 @@ class _DishSheetState extends State<DishSheet> {
                 Padding(
                   padding: const EdgeInsets.only(top: M2Layout.browMetaTop),
                   child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
-                    Text(fc(x.nutrition.calories), style: n), const SizedBox(width: M2Layout.numSpace), Text('cal', style: u),
+                    Text(fc(x.nutrition.knownCal), style: n), const SizedBox(width: M2Layout.numSpace), Text('cal', style: u),
                     if (cafe && x.price != null) ...[const SizedBox(width: M2Layout.numSpace + M2Layout.browPriceGap), Text(x.price!, style: n)],
                   ]),
                 ),
@@ -194,7 +294,7 @@ class _DishSheetState extends State<DishSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final scope = AppScope.of(context), st = safeTop(context), spec = widget.build;
+    final scope = AppScope.of(context), st = safeTop(context), spec = _spec;
     return ListenableBuilder(
       listenable: Listenable.merge([scope.prefs, scope.plate, widget.book]),
       builder: (context, _) {
@@ -204,7 +304,11 @@ class _DishSheetState extends State<DishSheet> {
         final marks = head == null ? null : sheetMarks(head, scope.prefs.scores), label = labelRows(item);
         final price = spec == null ? shownPrice(widget.place, d) : (isCafe(widget.place) ? item.price : null);
         final serving = spec == null ? label.serving : (head == null ? null : labelRows(head).serving);
-        final board = widget.book.board, name = bowl?.name ?? d.dishName;
+        final board = widget.book.board, fam = _fam;
+        // a built family member reads as its variant (M2 `nameOf`)
+        final name = bowl == null ? shownOf(_ix, d) : spec!.base != null ? shownOf(_ix, spec.base!) : bowl.name;
+        final y = spec?.syn != null && spec!.syn!.pho ? spec.syn : null, pickers = _pickers(fam, y, spec);
+        final sig = Object.hash(_d, _pk, y == null ? null : [for (var i = 0; i < y.choices.length; i++) i].where(_sel.containsKey).firstOrNull);
         return NotificationListener<ScrollNotification>(
           onNotification: (n) {
             if (n.metrics.axis == Axis.vertical) {
@@ -223,9 +327,12 @@ class _DishSheetState extends State<DishSheet> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: M2Space.gutter),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    if (pickers.isNotEmpty) Padding(padding: const EdgeInsets.only(top: M2Layout.vpickGap), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: pickers)),
+                    // (everything under the chips is the pick's own and comes back from 0.4 in place)
+                    _Under(fade: pickers.isNotEmpty, value: sig, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                     if (price != null || serving != null)
                       Padding(
-                        padding: const EdgeInsets.only(top: M2Layout.dsvTop),
+                        padding: EdgeInsets.only(top: pickers.isNotEmpty ? M2Layout.vpickGap : M2Layout.dsvTop),
                         child: Text.rich(TextSpan(style: M2Text.date.style(M2Color.slate), children: [
                           if (price != null) ...[
                             TextSpan(text: price, style: M2Text.price.style(M2Color.ink)),
@@ -267,20 +374,33 @@ class _DishSheetState extends State<DishSheet> {
                       Padding(
                         padding: EdgeInsets.only(top: spec.syn != null ? M2Layout.bpartsSynTop : 0),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                          for (var i = 0; i < spec.parts.length; i++) ...[
-                            if (spec.syn?.topHead != null && i == spec.syn!.choices.length)
+                          for (final (at, i) in _drawn(spec).indexed) ...[
+                            // (a café pho's add-ons heading leads the rows once its choices are chips)
+                            if (spec.syn?.topHead != null && at == 0)
                               Padding(padding: const EdgeInsets.only(top: M2Layout.bhTop, bottom: M2Layout.bhBottom), child: Text(spec.syn!.topHead!, style: M2Text.sheetHead.style(M2Color.dm))),
-                            _brow(i, bowl!),
+                            _brow(i, at, bowl!),
                           ],
                         ]),
                       ),
                     ] else if (widget.day == 0 && scope.prefs.track)
-                      Padding(padding: const EdgeInsets.only(top: M2Layout.dadd), child: Button(kind: ButtonKind.primary, label: on ? 'Add another' : 'Add to plate', expand: true, onTap: () => _add(scope, pm))),
-                    // tracking off: "where it's served" takes the action's place, 16 after the identity group
-                    if (board != null && head != null) Padding(padding: EdgeInsets.only(top: scope.prefs.track ? M2Layout.whereTop : M2Layout.whereTopOff), child: _where(board, head)),
+                      widget.update != null && fam != null
+                          ? Padding(padding: const EdgeInsets.only(top: M2Layout.dadd), child: Button(kind: ButtonKind.primary, label: 'Update', expand: true, onTap: () => _vupd(scope)))
+                          : Padding(padding: const EdgeInsets.only(top: M2Layout.dadd), child: Button(kind: ButtonKind.primary, label: on ? 'Add another' : 'Add to plate', expand: true, onTap: () => _add(scope, pm))),
+                    // tracking off: "where it's served" takes the action's place, 16 after the identity group. One line of it is
+                    // reserved from the first frame and held empty until the answer fills it in place
+                    if (head != null)
+                      Padding(
+                        padding: EdgeInsets.only(top: scope.prefs.track ? M2Layout.whereTop : M2Layout.whereTopOff),
+                        child: ConstrainedBox(
+                          key: _whereLine,
+                          constraints: BoxConstraints(minHeight: M2Layout.whereLine),
+                          child: KeyedSubtree(key: const ValueKey('where-line'), child: board == null ? const SizedBox.shrink() : _where(board, head)),
+                        ),
+                      ),
                     Padding(padding: const EdgeInsets.only(top: M2Layout.labelTop), child: NutritionLabel(label: label, calKey: _cal)),
                     if (head != null && (head.health != null || head.carbon != null)) Padding(padding: const EdgeInsets.only(top: M2Layout.gradesTop), child: RatingsPanel(health: head.health, carbon: head.carbon)),
                     if (head?.ingredients?.isNotEmpty ?? false) DishIngredients(text: head!.ingredients!, open: _ingOpen, onToggle: () => setState(() => _ingOpen = !_ingOpen)),
+                    ])),
                   ]),
                 ),
               ),
@@ -291,7 +411,7 @@ class _DishSheetState extends State<DishSheet> {
                 valueListenable: _px,
                 builder: (_, px, _) => Positioned(
                   top: frame.maxHeight - px + M2Layout.grabH + M2Layout.favUp, right: M2Space.gutter - M2Layout.favOut,
-                  child: FavoriteStar(on: scope.prefs.isFavorite(head.dishName), onTap: () => _favorite(scope, head)),
+                  child: FavoriteStar(on: scope.prefs.isFavorite(fam == null ? head.dishName : favoriteOf(fam)), onTap: () => _favorite(scope, fam == null ? head.dishName : favoriteOf(fam))),
                 ),
               ),
             if (spec != null)
@@ -302,7 +422,7 @@ class _DishSheetState extends State<DishSheet> {
                   return Positioned(
                     left: 0, right: 0, height: h, top: frame.maxHeight - (px < h ? px : h),
                     child: BowlFoot(
-                      cal: item.nutrition.calories, protein: item.nutrition.proteinG, update: widget.edit != null, off: addOff(spec, bowl!), onTap: () => _badd(scope, pm, bowl),
+                      cal: item.nutrition.knownCal, protein: item.nutrition.knownProtein, update: widget.edit != null, off: addOff(spec, bowl!), onTap: () => _badd(scope, pm, bowl),
                     ),
                   );
                 },
@@ -313,9 +433,33 @@ class _DishSheetState extends State<DishSheet> {
     );
   }
 
-  void _favorite(AppScope scope, MenuItem head) {
+  /// The chip groups under the name (`vpickHTML`): a family's variants; a pho's broths, or its protein then its broth (round 12b, 24 apart).
+  List<Widget> _pickers(Family? fam, Syn? y, BowlSpec? spec) {
+    if (y != null) {
+      final ax = y.axes;
+      if (ax != null) {
+        return [
+          VariantPicker(name: 'Protein', labels: [for (final (_, l) in ax.p) l], chosen: _some(ax.p.indexWhere((e) => e.$1 == _pk.p)), onPick: (i) => _pickAxis('p', ax.p[i].$1)),
+          const SizedBox(height: M2Layout.vpickGroupGap),
+          VariantPicker(name: 'Broth', labels: [for (final (_, l) in ax.b) l], chosen: _some(ax.b.indexWhere((e) => e.$1 == _pk.b)), onPick: (i) => _pickAxis('b', ax.b[i].$1)),
+        ];
+      }
+      return [
+        VariantPicker(
+          name: y.label, labels: [for (final c in y.choices) c.dishName],
+          chosen: [for (var i = 0; i < y.choices.length; i++) i].where(_sel.containsKey).firstOrNull, onPick: _pickChoice,
+        ),
+      ];
+    }
+    if (fam == null) return const [];
+    return [VariantPicker(name: fam.name, labels: [for (final x in fam.vars) x.chip], chosen: _some(fam.vars.indexWhere((x) => identical(x.dish, _d))), onPick: _pick)];
+  }
+
+  static int? _some(int i) => i < 0 ? null : i;
+
+  void _favorite(AppScope scope, String stored) {
     Haptics.light();
-    scope.prefs.toggleFavorite(head.dishName).catchError((Object e) => debugPrint('favorite not saved: $e'));
+    scope.prefs.toggleFavorite(stored).catchError((Object e) => debugPrint('favorite not saved: $e'));
   }
 }
 
@@ -389,4 +533,14 @@ class DishIngredients extends StatelessWidget {
       ]);
     });
   }
+}
+
+/// What is under a picker's chips (only a sheet with a picker fades; the others are drawn as they always were).
+class _Under extends StatelessWidget {
+  const _Under({required this.fade, required this.value, required this.child});
+  final bool fade;
+  final Object? value;
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => fade ? SettleFade(value: value, child: child) : child;
 }

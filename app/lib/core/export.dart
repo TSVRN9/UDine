@@ -36,13 +36,13 @@ String _json(Object? v) => _enc(v, '');
 String _num(num v) => jsNum(v);
 
 /// Quote and escape one field; a leading = + - @ gets a tab prefix against spreadsheet formula injection.
-String _field(Object value) {
-  final s = value is num ? _num(value) : value.toString();
+String _field(Object? value) {
+  final s = value == null ? '' : value is num ? _num(value) : value.toString();
   final safe = RegExp(r'^[=+\-@]').hasMatch(s) ? '\t$s' : s;
   return '"${safe.replaceAll('"', '""')}"';
 }
 
-String _csv(List<String> columns, Iterable<List<Object>> rows) => [columns.join(','), for (final r in rows) r.map(_field).join(',')].join('\n');
+String _csv(List<String> columns, Iterable<List<Object?>> rows) => [columns.join(','), for (final r in rows) r.map(_field).join(',')].join('\n');
 
 String exportEntriesAsJson(List<LogEntry> entries) => _json([for (final e in entries) e.toJson()]);
 
@@ -60,10 +60,10 @@ String exportEntriesAsCsv(List<LogEntry> entries) => _csv(
               CustomSource(:final productName) => productName,
             },
             e.servings,
-            e.nutrition.calories,
-            e.nutrition.proteinG,
-            e.nutrition.totalCarbG,
-            e.nutrition.totalFatG,
+            e.nutrition.knownCal,
+            e.nutrition.knownProtein,
+            e.nutrition.knownCarb,
+            e.nutrition.knownFat,
           ],
       ],
     );
@@ -97,7 +97,7 @@ String exportCustomFoodsAsCsv(List<CustomFood> foods) => _csv(
       ['id', 'name', 'servingSize', 'calories', 'proteinG', 'totalCarbG', 'totalFatG', 'ingredients'],
       [
         for (final f in foods)
-          [f.id, f.name, f.servingSize, f.nutrition.calories, f.nutrition.proteinG, f.nutrition.totalCarbG, f.nutrition.totalFatG, f.ingredients ?? ''],
+          [f.id, f.name, f.servingSize, f.nutrition.knownCal, f.nutrition.knownProtein, f.nutrition.knownCarb, f.nutrition.knownFat, f.ingredients ?? ''],
       ],
     );
 
@@ -107,6 +107,16 @@ String exportSavedFoodsAsCsv(List<PackagedFood> foods) => _csv(
       ['id', 'name', 'servingSize', 'calories', 'proteinG', 'totalCarbG', 'totalFatG', 'ingredients'],
       [
         for (final f in foods)
-          [f.id, f.displayName, f.nutrition.servingSize, f.nutrition.calories, f.nutrition.proteinG, f.nutrition.totalCarbG, f.nutrition.totalFatG, f.ingredients ?? ''],
+          [f.id, f.displayName, f.nutrition.servingSize, f.nutrition.knownCal, f.nutrition.knownProtein, f.nutrition.knownCarb, f.nutrition.knownFat, f.ingredients ?? ''],
       ],
     );
+
+String exportAlertSentAsJson(List<({String dishName, String day})> sent) => _json([for (final a in sent) {'dishName': a.dishName, 'day': a.day}]);
+
+String exportAlertSentAsCsv(List<({String dishName, String day})> sent) => _csv(['dishName', 'day'], [for (final a in sent) [a.dishName, a.day]]);
+
+typedef HealthWrite = ({String mealId, String platform, List<String> recordIds, String? contentSig});
+
+String exportHealthWritesAsJson(List<HealthWrite> w) => _json([for (final h in w) {'mealId': h.mealId, 'platform': h.platform, 'recordIds': h.recordIds, 'contentSig': h.contentSig}]);
+
+String exportHealthWritesAsCsv(List<HealthWrite> w) => _csv(['mealId', 'platform', 'recordIds', 'contentSig'], [for (final h in w) [h.mealId, h.platform, h.recordIds.join(' '), h.contentSig ?? '']]);

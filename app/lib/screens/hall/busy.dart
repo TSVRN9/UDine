@@ -10,7 +10,20 @@ class HallBusyView {
   final int lamps, nowHour;
   final String word, extra;
   final List<({int hour, int lamps})>? board;
-  const HallBusyView({required this.lamps, required this.word, required this.extra, required this.board, required this.nowHour});
+  const HallBusyView({required this.lamps, required this.word, required this.extra, required this.board, required this.nowHour}) : hasExtra = false;
+
+  /// What the band the page opened from already showed (the meter and its word), until the page's own reading lands: the meter is part of
+  /// the card that travels, so it is there from the first frame. It has no second line and no board.
+  /// [hasExtra]: whether the card's hall has a second line ("Calmer around"), so the header opens at the height it will keep (M2 `LATE_D`).
+  const HallBusyView.seed({required this.lamps, required this.word, this.hasExtra = false})
+      : extra = '',
+        board = null,
+        nowHour = -1;
+  bool get seed => nowHour < 0;
+  final bool hasExtra;
+
+  /// The busy block's height in the header (M2 `LATE_D`): the lines and the 8 dp above them.
+  double get block => (seed ? hasExtra : extra.isNotEmpty) ? M2Layout.busyBlockExtra : M2Layout.busyBlock;
 
   /// [span] (whole hours [start, end) from [openSpan]) lays the board across the opening hours, as M2's `TYPICAL` does; an hour the curve has no usable
   /// bucket for (absent, or under the sample floor) is an unlit column, which is not a measured quiet hour. Without a span the board is the hours the curve holds.
@@ -29,14 +42,17 @@ class HallBusyView {
 /// stretched to the width (`preserveAspectRatio="none"`).
 class BusyBoard extends StatelessWidget {
   final HallBusyView view;
-  const BusyBoard({super.key, required this.view});
+  /// the board fades by its colours' alpha, which is the same pixels as an Opacity without an offscreen layer
+  final double opacity;
+  const BusyBoard({super.key, required this.view, this.opacity = 1});
   @override
-  Widget build(BuildContext context) => ExcludeSemantics(child: CustomPaint(painter: _BoardPainter(view)));
+  Widget build(BuildContext context) => ExcludeSemantics(child: CustomPaint(painter: _BoardPainter(view, opacity)));
 }
 
 class _BoardPainter extends CustomPainter {
   final HallBusyView v;
-  const _BoardPainter(this.v);
+  final double opacity;
+  const _BoardPainter(this.v, this.opacity);
   @override
   void paint(Canvas canvas, Size size) {
     final cols = v.board;
@@ -52,12 +68,12 @@ class _BoardPainter extends CustomPainter {
         final lit = now ? v.lamps : cols[i].lamps;
         canvas.drawRRect(
           RRect.fromRectAndRadius(Rect.fromLTWH(i * (bw + M2Layout.boardGap), y, bw, lh), const Radius.circular(M2Layout.boardRadius)),
-          Paint()..color = k >= lit ? M2Color.boardOff : now ? M2Color.gold : M2Color.boardOn,
+          Paint()..color = (k >= lit ? M2Color.boardOff : now ? M2Color.gold : M2Color.boardOn).withValues(alpha: (k >= lit ? M2Color.boardOff : now ? M2Color.gold : M2Color.boardOn).a * opacity),
         );
       }
     }
   }
 
   @override
-  bool shouldRepaint(_BoardPainter o) => o.v != v;
+  bool shouldRepaint(_BoardPainter o) => o.v != v || o.opacity != opacity;
 }

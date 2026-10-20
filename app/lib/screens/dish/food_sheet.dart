@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../../core/m2/board.dart' show Macro;
 import '../../core/m2/dish_sheet.dart';
 import '../../core/saved_food.dart';
+import '../../core/serving_text.dart';
 import '../../core/types.dart' show NutritionFacts;
 import '../../shell/app_scope.dart';
 import '../../shell/shell_scope.dart';
@@ -72,7 +73,7 @@ class _FoodSheetState extends State<FoodSheet> {
   }
 
   void _save(AppScope scope, String name, Macro m) {
-    final next = _food.edited(name: name, cal: m.cal, p: m.p, c: m.c, f: m.f);
+    final next = _food.edited(name: name, cal: m.cal ?? 0, p: m.p ?? 0, c: m.c ?? 0, f: m.f ?? 0);
     scope.foods!.edit(_food, next).then((_) {
       if (!mounted) return;
       setState(() {
@@ -123,7 +124,7 @@ class _FoodSheetState extends State<FoodSheet> {
               slivers: _edit
                   ? [
                       FoodFormSliver(
-                        key: const ValueKey('form'), title: 'Edit food', primary: 'Save', name: f.name, cal: fc(f.macro.cal), p: f1(f.macro.p), c: f1(f.macro.c), f: f1(f.macro.f),
+                        key: const ValueKey('form'), title: 'Edit food', primary: 'Save', name: f.name, cal: _fill(f.macro.cal, fc), p: _fill(f.macro.p), c: _fill(f.macro.c), f: _fill(f.macro.f),
                         fadeFrom: M2Layout.editFadeFrom, onSubmit: (name, m) => _save(scope, name, m), onDelete: () => _delete(scope),
                       ),
                     ]
@@ -135,7 +136,7 @@ class _FoodSheetState extends State<FoodSheet> {
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: M2Space.gutter),
                             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                              if (f.serving.isNotEmpty) Padding(padding: const EdgeInsets.only(top: M2Layout.dsvTop), child: Text(f.serving, style: M2Text.date.style(M2Color.slate))),
+                              if (f.serving.isNotEmpty) Padding(padding: const EdgeInsets.only(top: M2Layout.dsvTop), child: Text(servingText(f.serving), style: M2Text.date.style(M2Color.slate))),
                               if (marks.isNotEmpty)
                                 Padding(
                                   padding: const EdgeInsets.only(top: M2Layout.marksTop),
@@ -176,3 +177,6 @@ class _FoodSheetState extends State<FoodSheet> {
     );
   }
 }
+
+/// An unknown figure opens the Edit form empty, not as "–".
+String _fill(num? x, [String Function(num?) fmt = f1]) => x == null ? '' : fmt(x);
