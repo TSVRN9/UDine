@@ -32,10 +32,10 @@ Future<void> reveal(WidgetTester t, Finder f) async {
 }
 
 Future<void> away(WidgetTester t) async {
-  // (coarse steps: the sheet goes away through heights where Flutter's pinned header asserts on a frame it lands on)
   await t.pump();
-  await t.pump(const Duration(seconds: 1));
-  await t.pump(const Duration(seconds: 1));
+  for (var i = 0; i < 120; i++) {
+    await t.pump(const Duration(milliseconds: 16));
+  }
 }
 
 Future<void> chip(WidgetTester t, String label) async {

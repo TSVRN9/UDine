@@ -44,10 +44,10 @@ Future<Finder> chai20(WidgetTester t) async {
 Future<void> addFromSheet(WidgetTester t) async {
   final foot = find.descendant(of: find.byType(BowlFoot), matching: find.byType(Button));
   await t.tap(foot.evaluate().isNotEmpty ? foot : inSheet(find.text('Add to plate')));
-  // (coarse steps: the sheet goes away through heights where Flutter's pinned header asserts on a frame it lands on)
   await t.pump();
-  await t.pump(const Duration(seconds: 1));
-  await t.pump(const Duration(seconds: 1));
+  for (var i = 0; i < 120; i++) {
+    await t.pump(const Duration(milliseconds: 16));
+  }
   await t.pumpAndSettle();
 }
 
