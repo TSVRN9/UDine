@@ -49,6 +49,7 @@ void main() {
       }
       await t.pumpWidget(const SizedBox());
       await t.pump(const Duration(seconds: 2));
+      await writesLanded(t);
     }, skip: m == null);
 
     for (final (name, id) in [('Tamales', 'c4'), ('Newman Café', 'c17'), ('Paciugo', 'c0'), ("People's Organic Coffee", 'c9')]) {
@@ -66,6 +67,7 @@ void main() {
         near('pin', r(t, inPage(find.byType(PinButton))), p['pin']);
         await t.pumpWidget(const SizedBox());
         await t.pump(const Duration(seconds: 2));
+        await writesLanded(t);
       }, skip: m == null);
     }
   }

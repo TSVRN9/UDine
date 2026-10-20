@@ -30,6 +30,7 @@ void main() {
       await expectLater(find.byType(UdineApp), matchesGoldenFile('../goldens/$name$n.png'));
       await t.pumpWidget(const SizedBox());
       await t.pump(const Duration(seconds: 2));
+      await writesLanded(t);
     }
 
     testWidgets('Cafés & markets, Open now on (7:30), $n dp', (t) => shot(t, 'cafes_on_', '/cafes', at: early));

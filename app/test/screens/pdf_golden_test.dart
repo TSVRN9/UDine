@@ -40,6 +40,7 @@ void main() {
       await expectLater(find.byType(UdineApp), matchesGoldenFile('../goldens/$name$n.png'));
       await t.pumpWidget(const SizedBox());
       await t.pump(const Duration(seconds: 2));
+      await writesLanded(t);
     }
 
     Future<void> doubleTap(WidgetTester t, Offset p) async {

@@ -373,10 +373,20 @@ class Repository {
     }
   }
 
-  Future<void> _putKv(String key, Object value) => db.insert('preferences_kv', {
-    'key': key,
-    'value_json': jsonEncode({'fetchedAt': now().toUtc().toIso8601String(), 'raw': value}),
-  }, conflictAlgorithm: ConflictAlgorithm.replace);
+  // cache writes not yet answered by the database isolate
+  final _writes = <Future<Object?>>{};
+
+  /// True when no cache write is in flight (a test's teardown waits for it, so no database timer outlives the test).
+  bool get idle => _writes.isEmpty;
+
+  Future<void> _putKv(String key, Object value) {
+    final w = db.insert('preferences_kv', {
+      'key': key,
+      'value_json': jsonEncode({'fetchedAt': now().toUtc().toIso8601String(), 'raw': value}),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    _writes.add(w);
+    return w.whenComplete(() => _writes.remove(w));
+  }
 
   /// Saved on the same (rollover-adjusted) day as now.
   bool _fetchedToday(Map<String, dynamic> e) => effectiveTodayIso(DateTime.parse(e['fetchedAt'] as String).toLocal(), defaultRolloverHour) == today;
@@ -536,10 +546,7 @@ class Repository {
           }
           c.add(Loaded(value));
           if (key != null) {
-            await db.insert('preferences_kv', {
-              'key': key,
-              'value_json': jsonEncode({'fetchedAt': now().toUtc().toIso8601String(), 'raw': strip == null ? raw : strip(raw)}),
-            }, conflictAlgorithm: ConflictAlgorithm.replace);
+            await _putKv(key, (strip == null ? raw : strip(raw))!);
           }
         } on Unreachable {
           slow?.cancel();

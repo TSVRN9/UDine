@@ -27,6 +27,7 @@ void main() {
         await body(t);
         await t.pumpWidget(const SizedBox());
         await t.pump(const Duration(seconds: 2));
+        await writesLanded(t);
       });
   /// A pushed café page is done when its slide has ended and its menu is in (the spinner turns until then).
   Future<void> pushed(WidgetTester t) async {
