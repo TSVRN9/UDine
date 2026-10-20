@@ -45,6 +45,7 @@ void main() {
       near('btn', r(t, find.byType(Button)), c['btn']);
       await t.pumpWidget(const SizedBox());
       await t.pump(const Duration(seconds: 2));
+      await writesLanded(t);
     }, skip: m == null);
 
     testWidgets('the menu page at $w dp: bar, the first page and the unsaved and failed lines match M2 within 1 dp', (t) async {
@@ -56,6 +57,7 @@ void main() {
       near('page 0', r(t, find.byType(Image).first), (p['pages'] as List).first);
       await t.pumpWidget(const SizedBox());
       await t.pump(const Duration(seconds: 2));
+      await writesLanded(t);
     }, skip: m == null);
 
     testWidgets('the unsaved and failed lines at $w dp start where M2\'s do, and Try again is M2\'s rect', (t) async {
@@ -66,6 +68,7 @@ void main() {
       expect([line[0], line[1]], [closeTo((u['empty'] as List)[0], 1.0), closeTo((u['empty'] as List)[1], 1.0)], reason: 'unsaved line ours $line, M2 ${u['empty']} at $w dp');
       await t.pumpWidget(const SizedBox());
       await t.pump(const Duration(seconds: 2));
+      await writesLanded(t);
       await openApp(t, await bootRecorded(t, pages: (await syntheticPages(t)).call, pdfsLinked: false), route: '/cafe/29/menu/0', w: w.toDouble());
       await until(t, () => find.textContaining("didn't load").evaluate().isNotEmpty);
       final fl = r(t, find.text(f['emptyText'] as String));
@@ -73,6 +76,7 @@ void main() {
       near('Try again', r(t, find.byType(Button)), f['retry']);
       await t.pumpWidget(const SizedBox());
       await t.pump(const Duration(seconds: 2));
+      await writesLanded(t);
     }, skip: m == null);
   }
 }

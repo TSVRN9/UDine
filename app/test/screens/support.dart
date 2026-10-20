@@ -25,7 +25,7 @@ import 'package:udine/screens/halls/hall_page.dart';
 import 'package:udine/screens/hall/dish_row.dart';
 import 'package:udine/screens/hall/hall_menu.dart';
 import 'package:udine/core/m2/board.dart' show isCafe;
-import 'package:udine/data/repository.dart' show HoursData;
+import 'package:udine/data/repository.dart' show HoursData, Repository;
 import 'package:udine/data/states.dart';
 import 'package:udine/ui/ui.dart' show Photos;
 
@@ -36,6 +36,8 @@ Future<String> readRecorded(String name) => File('assets/recorded/$name').readAs
 
 /// The app's `Boot` over M2's recordings and a throwaway store, as `Boot.open` builds it for a recorded route. Real I/O (sqlite on an
 /// isolate) runs under `runAsync`.
+Repository? _booted;
+
 Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? at, List<String> pins = const [], bool charlesRiver = false, Duration? slow, bool health = false, bool carbon = false, bool track = true, bool firstRun = false, Set<String> savedCafes = const {}, bool persistPins = false, List<String> avoid = const [], List<String> onlyShow = const [], PdfOpen? pages, bool pdfsLinked = true, Future<String> Function(String)? read, Future<void> Function(String)? shareFlyer, bool foods = false, LookupMode lookup = LookupMode.found, bool packFail = false, bool busyLate = false, HangingClient? hangLookup, CountingClient? count, AlertsOs? alertsOs, bool alertsOn = false}) async {
   forgetShownNames(); // (a family's names are the session's: no test reads what an earlier one learned)
   return (await t.runAsync(() async {
@@ -54,6 +56,7 @@ Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? a
     final pdfDir = Directory.systemTemp.createTempSync('udine-test-pdf');
     addTearDown(() => pdfDir.deleteSync(recursive: true));
     final repo = await recordedRepository(RecordedFlags(at: at ?? lunch, net: net, savedCafes: savedCafes, busyLate: busyLate), db.db, read: read ?? readRecorded, slow: slow, pins: pins, readPdf: (_) async => pdfsLinked ? utf8.encode('%PDF-1.4\n%synthetic\n') : throw 'not linked', pdfDir: pdfDir);
+    _booted = repo;
     final flags = RecordedFlags(at: at ?? lunch, net: net, lookup: lookup, packFail: packFail);
     final r = await recordedPackaged(flags, read: read ?? readRecorded, wrap: count == null ? null : (inner) => count..inner = inner);
     await store.setAlertsOn(alertsOn);
@@ -94,7 +97,12 @@ Future<void> drain(WidgetTester t) async {
     await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 60)));
     await t.pump();
   }
+  await writesLanded(t);
 }
+
+/// Waits until the last booted repository has no cache write in flight (real time for the isolate, a frame for the fake-zone side), so no
+/// sqflite timer is left pending however slow the host. Call it after the last pump that lets a fetch land.
+Future<void> writesLanded(WidgetTester t) => until(t, () => _booted?.idle ?? true, tries: 400);
 
 /// Lets a hall's busy reading land when one is coming (today's, at a hall with a live headcount): its header is the short one until it
 /// does (M2 R13 `LATE_D`), and a test of the loaded page looks at the loaded one. Nothing waits for a café, another day or a page with no hours.
