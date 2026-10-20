@@ -31,7 +31,9 @@ sidecar sha matches the code, motion-literal and parity-test findings, whether t
 SENSITIVE (supabase/, auth, sync, residency: check grants, RLS, `search_path` and the residency table). A FAIL is a REWORK on its own; you still review the rest so the author gets one round.
 
 Then `gh pr view <n> --comments` + `gh pr diff <n>` (local: `git diff $(git merge-base origin/main
-HEAD)...HEAD`). Acceptance criteria come from the brief the PR names (`docs/briefs/<slug>.md`),
+HEAD)...HEAD`). To run or mutate the code, check the head out in your own worktree
+(`git worktree add --detach .claude/worktrees/review-<n> origin/<head>`), never in the repo root: the
+root is the orchestrator's checkout and merges pull into it. Acceptance criteria come from the brief the PR names (`docs/briefs/<slug>.md`),
 not from the PR description. Read `CLAUDE.md`; `CONTEXT.md` / `docs/adr/*` if pointed at; the
 decisions-log / auth-status sections only if the diff touches `supabase/` or auth.
 
