@@ -6,6 +6,7 @@ import '../../ui/label_model.dart' show fq;
 import '../types.dart';
 import 'board.dart';
 import 'menu_view.dart' show allergens;
+import 'variants.dart' show PhoAxes, phoAxes;
 
 /// A station's name as M2 shows it: "Salad Bar $11.50/LB" -> "Salad Bar", "Cold Bar Items" -> "Cold Bar".
 String stName(String st) => st.replaceFirst(RegExp(r'\s*\$.*$'), '').replaceFirst(RegExp(r'\s+Items$'), '').replaceFirst('Salad Bar/Dressings', 'Salad Bar').trim();
@@ -41,7 +42,7 @@ MenuItem? baseOf(Board b, String iso, String place, String meal, int si) {
 /// A synthetic base: a station with no dish of its own to build on. [label] names the bowl until a pho's base is chosen.
 class Syn {
   const Syn({required this.label, required this.head, required this.iso, required this.place, required this.meal, required this.si,
-      required this.parts, this.pho = false, this.choices = const [], this.topHead});
+      required this.parts, this.pho = false, this.choices = const [], this.topHead, this.axes});
   final String label, head, iso, place, meal;
   final int si;
   final List<MenuItem> parts;
@@ -50,20 +51,23 @@ class Syn {
   /// A pho builder's bases (a bar's broths, or a café's phos): one is picked and names the bowl.
   final List<MenuItem> choices;
 
+  /// A café's phos that are a whole protein x broth grid: picked by protein, then broth (round 12b), the grid's dishes being the [choices]
+  final PhoAxes? axes;
+
   /// A café pho builder's add-ons heading ("Add-ons"), where the choices are the station's own heading.
   final String? topHead;
 }
 
 Syn? _phoOf(Board b, String iso, String place, String meal, int si, List<MenuItem> ds) {
   Syn mk(List<MenuItem> choices, List<MenuItem> parts, [String? topHead]) =>
-      Syn(label: 'Noodle Bowl', head: 'Noodle Bowl', iso: iso, place: place, meal: meal, si: si, pho: true, choices: choices, parts: parts, topHead: topHead);
+      Syn(label: 'Noodle Bowl', head: 'Noodle Bowl', iso: iso, place: place, meal: meal, si: si, pho: true, choices: choices, parts: parts, topHead: topHead, axes: topHead == null ? null : phoAxes(choices));
   final br = ds.where(_isBroth).toList();
   final bar = br.length >= 2 ? mk(br, [...br, ...ds.where((d) => !_isBroth(d))]) : null;
   if (!isCafe(place)) return baseOf(b, iso, place, meal, si) != null ? null : bar;
   // a café's add-ons first: Whitmore's "Beef Pho w/Spicy Green Curry Broth" names a broth but is a whole pho
   final ss = b.days[iso]![place]![meal]!;
   final add = [for (var j = 0; j < ss.length; j++) if (_addOns.hasMatch(ss[j].name.trim())) j];
-  final tops = [for (final j in add) ...ss[j].dishes.where((x) => x.nutrition.calories > 0)];
+  final tops = [for (final j in add) ...ss[j].dishes.where((x) => x.nutrition.knownCal == null || x.nutrition.calories > 0)];
   return tops.isNotEmpty ? mk(ds, [...ds, ...tops], {for (final j in add) ss[j].name.trim()}.join(' and ')) : bar;
 }
 
@@ -105,7 +109,7 @@ Build? buildOf(Board b, String iso, String place, String meal, int si, int di) {
   }
   if (_addOns.hasMatch(ss[si].name.trim())) return null;
   final adds = [for (final s2 in ss) if (_addOns.hasMatch(s2.name.trim())) s2];
-  final parts = [for (final s2 in adds) ...s2.dishes.where((x) => x.nutrition.calories > 0)];
+  final parts = [for (final s2 in adds) ...s2.dishes.where((x) => x.nutrition.knownCal == null || x.nutrition.calories > 0)];
   return parts.isEmpty ? null : Build(head: {for (final s2 in adds) s2.name.trim()}.join(' and '), parts: parts, base: d);
 }
 
@@ -134,8 +138,9 @@ Bowl bowlDish(MenuItem? base, List<Qty> parts, {Syn? syn, required String place}
   assert(base != null || syn != null); // (a synthetic bowl with nothing chosen is the sheet's 0 cal foot)
   num sum(num Function(NutritionFacts) f) => all.fold<num>(0, (a, e) => a + f(e.$1.nutrition) * e.$2);
   final blank = <String>{
-    for (final f in const ['caloriesFromFat', 'totalFatG', 'satFatG', 'transFatG', 'cholesterolMg', 'sodiumMg', 'totalCarbG', 'dietaryFiberG', 'sugarsG', 'proteinG'])
-      if (all.every((e) => e.$1.nutrition.blank.contains(f))) f,
+    for (final f in const ['calories', 'caloriesFromFat', 'totalFatG', 'satFatG', 'transFatG', 'cholesterolMg', 'sodiumMg', 'totalCarbG', 'dietaryFiberG', 'sugarsG', 'proteinG'])
+      // (a bowl with nothing chosen is the 0 cal foot, not unknown)
+      if (all.every((e) => e.$1.nutrition.blank.contains(f)) && (all.isNotEmpty || !const {'calories', 'proteinG', 'totalCarbG', 'totalFatG'}.contains(f))) f,
   };
   final pr = all.fold<double>(0, (a, e) => a + _cents(e.$1.price) * e.$2);
   final algs = {for (final e in all) ...e.$1.allergens}.toList()..sort((a, b) => allergens.indexOf(a) - allergens.indexOf(b));

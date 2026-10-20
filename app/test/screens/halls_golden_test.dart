@@ -38,6 +38,7 @@ void main() {
           await t.pump(const Duration(seconds: 2)); // the slow calls still to come
         }
       }
+      await drain(t); // the stars' menus, read once Halls is at rest
     }
 
     testWidgets('Halls at rest, 2 pins, top of the list, $n dp', (t) => shot(t, 'rest', pins: const ['Wasabi', 'Tamales']));
@@ -56,7 +57,8 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.text('Hampshire'));
     await t.pump();
-    await t.pump(const Duration(milliseconds: 16));
+    await t.pump(const Duration(milliseconds: 16)); // the page's first frame
+    await t.pump(const Duration(milliseconds: 16)); // the tick the curve starts on
     await t.pump(const Duration(milliseconds: 200));
     await expectLater(find.byType(UdineApp), matchesGoldenFile('../goldens/halls_xf_mid_390.png'));
     await until(t, () => find.byType(DishRow).evaluate().isNotEmpty);

@@ -8,17 +8,17 @@ abstract final class Photos {
 
 const _aspect = 640 / 341;
 
-// CSS `grayscale(1) contrast(1.12)`: luminance, then 1.12 about the middle (clamped by the filter's own output).
-final _grayContrast = ColorFilter.matrix(<double>[
-  for (final c in const [0.2126, 0.7152, 0.0722]) ...[c * 1.12, c * 1.12, c * 1.12, 0, 255 * 0.5 * (1 - 1.12)],
-  0, 0, 0, 1, 0,
-]);
-
-/// A per-channel affine of the gray: `multiply #c4434b`, then `screen dm`: out = g * m * (1 - d) + d.
-ColorFilter _tone() {
+// CSS `grayscale(1) contrast(1.12)` then `multiply #c4434b` and `screen dm`, as one matrix (one offscreen layer, not two): luminance,
+// 1.12 about the middle, then the per-channel affine out = g * m * (1 - d) + d. (M2 clamps between the two steps; the clamp only matters
+// for luminance under 5% or over 95%, where the one matrix reads a hair brighter.) `a` is the layer's own opacity, in the alpha row.
+ColorFilter _duotone(double a) {
   const m = M2Color.duoTint, d = M2Color.dm;
-  List<double> row(double mc, double dc) => [mc * (1 - dc), 0, 0, 0, 255 * dc]; // reads the gray from the R channel
-  return ColorFilter.matrix(<double>[...row(m.r, d.r), ...row(m.g, d.g), ...row(m.b, d.b), 0, 0, 0, 1, 0]);
+  const k = 1.12, off = 0.5 * (1 - k); // contrast about the middle
+  List<double> row(double mc, double dc) {
+    final s = mc * (1 - dc) * k;
+    return [s * 0.2126, s * 0.7152, s * 0.0722, 0, 255 * (mc * (1 - dc) * off + dc)];
+  }
+  return ColorFilter.matrix(<double>[...row(m.r, d.r), ...row(m.g, d.g), ...row(m.b, d.b), 0, 0, 0, a, 0]);
 }
 
 /// A UMass photo, cover-fitted to the box with horizontal focus `pos` (CSS background-position x), in full colour with M2's
@@ -39,10 +39,13 @@ class Photo extends StatelessWidget {
             left: (c.maxWidth - w) * pos, top: 0, width: w, height: h,
             child: Image.asset(path, fit: BoxFit.fill, gaplessPlayback: true, errorBuilder: (_, _, _) => const SizedBox.shrink()),
           );
-      final layer = Stack(fit: StackFit.expand, children: [
-        ColorFiltered(colorFilter: _tone(), child: ColorFiltered(colorFilter: _grayContrast, child: Stack(fit: StackFit.expand, children: [img()]))),
-      ]);
-      return ClipRect(child: Stack(fit: StackFit.expand, children: [img(), duo == null ? layer : FadeTransition(opacity: duo!, child: layer)]));
+      Widget layer(double a) => ColorFiltered(colorFilter: _duotone(a), child: Stack(fit: StackFit.expand, children: [img()]));
+      return ClipRect(
+        child: Stack(fit: StackFit.expand, children: [
+          img(),
+          duo == null ? layer(1) : AnimatedBuilder(animation: duo!, builder: (_, _) => layer(duo!.value.clamp(0.0, 1.0))),
+        ]),
+      );
     });
   }
 }

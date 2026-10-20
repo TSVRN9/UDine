@@ -1,6 +1,7 @@
 import '../hours.dart';
 import '../types.dart';
 import 'board.dart';
+import 'variants.dart';
 
 class WhereGroup {
   final String st; // now | later | tomorrow
@@ -16,7 +17,8 @@ class WhereGroup {
 
 const _standard = {'breakfast': HallMealPeriod.breakfast, 'lunch': HallMealPeriod.lunch, 'dinner': HallMealPeriod.dinner, 'late': HallMealPeriod.latenight};
 
-int _toMin(String t) {
+/// Minutes after midnight of an "H:MM AM" time.
+int toMin(String t) {
   final m = RegExp(r'^(\d+):(\d+)\s*(AM|PM)$', caseSensitive: false).firstMatch(t)!;
   return (int.parse(m[1]!) % 12 + (m[3]!.toUpperCase() == 'PM' ? 12 : 0)) * 60 + int.parse(m[2]!);
 }
@@ -33,7 +35,7 @@ String _fmtMin(int m) => '${((m ~/ 60 + 11) % 12) + 1}:${(m % 60).toString().pad
   }
   if (meal == 'all' || meal == 'grab') return h.general == null ? null : (h.general!.openTime, h.general!.closeTime);
   if (h.general == null) return null;
-  final m = _toMin(h.general!.openTime);
+  final m = toMin(h.general!.openTime);
   final wall = easternWall(now);
   final w = effectiveMealWindow(h, _standard[meal]!, easternInstant(DateTime.utc(wall.year, wall.month, wall.day, m ~/ 60, m % 60)));
   return w == null ? null : (w.openTime, w.closeTime);
@@ -52,7 +54,8 @@ class _Acc {
 /// Every group a dish is served in, soonest first (M2 `wherePlan`). `instant` is any DateTime; it is read as Eastern wall time.
 List<WhereGroup> wherePlan(Board fx, String dish, DateTime instant, {bool newton = false}) {
   final now = easternWall(instant);
-  final key = dishKey(dish), today = _localIso(now), nowMin = now.hour * 60 + now.minute;
+  // a family (`f:Boba`) is served wherever any of its variants is
+  final key = dish.startsWith('f:') ? 'f:${dishKey(dish.substring(2))}' : dishKey(dish), fam = familiesOf(fx), today = _localIso(now), nowMin = now.hour * 60 + now.minute;
   final inNewton = {for (final p in fx.places) if (p.area == 4) p.key};
   final groups = <String, _Acc>{};
   // Yesterday's menus count too, for a window that crossed midnight and is still open.
@@ -62,10 +65,10 @@ List<WhereGroup> wherePlan(Board fx, String dish, DateTime instant, {bool newton
     for (final MapEntry(key: place, value: meals) in (fx.days[days[rel + 1]] ?? const <String, Map<String, List<Station>>>{}).entries) {
       if (inNewton.contains(place) && !newton) continue;
       for (final MapEntry(key: meal, value: stations) in meals.entries) {
-        if (!stations.any((s) => s.dishes.any((d) => d.key == key))) continue;
+        if (!stations.any((s) => s.dishes.any((d) => d.key == key || fam.familyOf(d)?.key == key))) continue;
         final win = mealWindow(fx, place, meal, instant);
         if (win == null) continue;
-        final w = (_toMin(win.$1), _toMin(win.$2));
+        final w = (toMin(win.$1), toMin(win.$2));
         final crosses = w.$2 <= w.$1; // a close at or before its open is the next day's
         final end = crosses ? w.$2 + 1440 : w.$2;
         final st = rel == 1 ? 'tomorrow' : rel == -1 ? (crosses && nowMin < w.$2 ? 'now' : 'past') : nowMin >= end ? 'past' : nowMin >= w.$1 ? 'now' : 'later';
@@ -107,7 +110,7 @@ List<WhereGroup> whereAnswer(Board fx, String dish, DateTime instant, {bool newt
 }
 
 String fmtT(String t) {
-  final m = _toMin(t);
+  final m = toMin(t);
   if (m >= 1439) return 'midnight';
   if (m == 720) return 'noon';
   return '${((m ~/ 60 + 11) % 12) + 1}${m % 60 != 0 ? ':${(m % 60).toString().padLeft(2, '0')}' : ''} ${m < 720 ? 'AM' : 'PM'}';

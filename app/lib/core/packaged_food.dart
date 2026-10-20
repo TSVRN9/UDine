@@ -50,7 +50,7 @@ class PackagedFood {
         'source': source.toJson(),
         'productName': productName,
         if (brand != null) 'brand': brand,
-        'nutrition': nutrition.toJson(),
+        'nutrition': nutrition.toLogJson(),
         if (ingredients != null) 'ingredients': ingredients,
         if (allergens != null) 'allergens': allergens,
         if (nutrition.blank.isNotEmpty) 'blank': nutrition.blank.toList()..sort(),

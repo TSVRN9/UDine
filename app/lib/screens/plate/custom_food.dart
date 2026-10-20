@@ -64,9 +64,9 @@ SheetHandle openCustomFood(
   final n = name.trim();
   if (n.isEmpty || cal.trim().isEmpty) return null;
   num v(String s) => num.tryParse(s.trim().replaceAll(',', '.')) ?? 0;
-  final m = Macro(v(cal), v(p), v(c), v(f));
+  final (kc, kp, kcarb, kf) = (v(cal), v(p), v(c), v(f));
   // (a negative would take calories off the day's total)
-  return m.cal < 0 || m.p < 0 || m.c < 0 || m.f < 0 ? null : (n, m);
+  return kc < 0 || kp < 0 || kcarb < 0 || kf < 0 ? null : (n, Macro(kc, kp, kcarb, kf));
 }
 
 /// `#cform` in `#isheet`: the custom food form raised in its own sheet, at its top detent.

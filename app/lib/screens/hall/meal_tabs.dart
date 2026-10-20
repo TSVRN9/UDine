@@ -25,7 +25,10 @@ class _MealTabsState extends State<MealTabs> {
     WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? setState(() => _placed = true) : null);
   }
 
-  TextStyle _style(bool sel) => M2Text.mealTab.style(sel ? M2Color.white : M2Color.onDm).copyWith(fontWeight: sel ? FontWeight.w600 : FontWeight.w500);
+  TextStyle _style(bool sel, [double alpha = 1]) {
+    final c = sel ? M2Color.white : M2Color.onDm;
+    return M2Text.mealTab.style(alpha == 1 ? c : c.withValues(alpha: c.a * alpha)).copyWith(fontWeight: sel ? FontWeight.w600 : FontWeight.w500);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,11 +61,8 @@ class _MealTabsState extends State<MealTabs> {
                   semantics: false, scale: true, onTap: () => w.onTap(w.meals[i]), // `.mts button.down` scales; it has no tint
                   child: ExcludeSemantics(
                     child: Center(
-                      child: AnimatedBuilder(
-                        animation: w.fade,
-                        builder: (_, child) => Opacity(opacity: w.fade.value, child: child),
-                        child: Text(labels[i], style: _style(i == sel), maxLines: 1),
-                      ),
+                      // (a label fades by its colour's alpha: the same pixels as an Opacity, no offscreen layer)
+                      child: AnimatedBuilder(animation: w.fade, builder: (_, _) => Text(labels[i], style: _style(i == sel, w.fade.value), maxLines: 1)),
                     ),
                   ),
                 ),
@@ -72,7 +72,7 @@ class _MealTabsState extends State<MealTabs> {
             AnimatedPositioned(
               duration: _placed ? ul.duration : Duration.zero, curve: ul.curve,
               left: lefts[sel] + M2Layout.underInset, width: ws[sel] - 2 * M2Layout.underInset, bottom: 0, height: M2Layout.underH,
-              child: IgnorePointer(child: AnimatedBuilder(animation: w.fade, builder: (_, child) => Opacity(opacity: w.fade.value, child: child), child: const ColoredBox(color: M2Color.gold))), // `.mts .ul` is inside `.mts`: it fades with the labels
+              child: IgnorePointer(child: AnimatedBuilder(animation: w.fade, builder: (_, _) => ColoredBox(color: M2Color.gold.withValues(alpha: w.fade.value)))), // `.mts .ul` is inside `.mts`: it fades with the labels
             ),
         ]);
       }),
@@ -94,8 +94,9 @@ class StationRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cont = resolveAnim(context, M2Motion.cont);
-    Widget label(Widget child) => AnimatedBuilder(animation: fade, builder: (_, c) => Opacity(opacity: fade.value, child: c), child: child);
-    final chevron = AnimatedRotation(turns: open ? 0.5 : 0, duration: cont.duration, curve: cont.curve, child: const _GoldChevron());
+    // the labels fade by their colour's alpha (text and a stroke that do not overlap: the same pixels as an Opacity, no offscreen layer)
+    Widget label(Widget Function(Color gold) child) => AnimatedBuilder(animation: fade, builder: (_, _) => child(M2Color.gold.withValues(alpha: fade.value)));
+    Widget chevron(Color c) => AnimatedRotation(turns: open ? 0.5 : 0, duration: cont.duration, curve: cont.curve, child: _GoldChevron(c));
     return Container(
       decoration: BoxDecoration(color: M2Color.dm, border: topRule ? const Border(top: BorderSide(color: M2Color.swRule)) : null),
       child: Row(children: [
@@ -108,10 +109,10 @@ class StationRow extends StatelessWidget {
                 height: M2Layout.rowH,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: M2Space.gutter),
-                  child: label(Row(children: [
-                    Flexible(child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: M2Text.station.style(M2Color.gold))),
+                  child: label((gold) => Row(children: [
+                    Flexible(child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: M2Text.station.style(gold))),
                     const SizedBox(width: M2Layout.swGap),
-                    chevron,
+                    chevron(gold),
                   ])),
                 ),
               ),
@@ -124,10 +125,10 @@ class StationRow extends StatelessWidget {
             height: M2Layout.rowH,
             padding: const EdgeInsets.fromLTRB(M2Layout.dayPadL, 0, M2Layout.dayPadR, 0),
             decoration: const BoxDecoration(border: Border(left: BorderSide(color: M2Color.divider))),
-            child: label(Row(mainAxisSize: MainAxisSize.min, children: [
-              Text(dayLabel, maxLines: 1, style: M2Text.day.style(M2Color.gold)),
+            child: label((gold) => Row(mainAxisSize: MainAxisSize.min, children: [
+              Text(dayLabel, maxLines: 1, style: M2Text.day.style(gold)),
               const SizedBox(width: M2Layout.dayGap),
-              const _GoldChevron(),
+              _GoldChevron(gold),
             ])),
           ),
         ),
@@ -137,19 +138,21 @@ class StationRow extends StatelessWidget {
 }
 
 class _GoldChevron extends StatelessWidget {
-  const _GoldChevron();
+  const _GoldChevron(this.color);
+  final Color color;
   @override
-  Widget build(BuildContext context) => CustomPaint(size: const Size.square(M2Layout.chev18), painter: _P());
+  Widget build(BuildContext context) => CustomPaint(size: const Size.square(M2Layout.chev18), painter: _P(color));
 }
 
 class _P extends CustomPainter {
-  const _P();
+  const _P(this.color);
+  final Color color;
   @override
   void paint(Canvas canvas, Size s) {
     canvas.scale(s.width / 18); // viewBox 18: M4 7l5 5 5-5
-    canvas.drawPath(Path()..moveTo(4, 7)..relativeLineTo(5, 5)..relativeLineTo(5, -5), Paint()..color = M2Color.gold..style = PaintingStyle.stroke..strokeWidth = M2Layout.chevThick..strokeCap = StrokeCap.round..strokeJoin = StrokeJoin.round);
+    canvas.drawPath(Path()..moveTo(4, 7)..relativeLineTo(5, 5)..relativeLineTo(5, -5), Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = M2Layout.chevThick..strokeCap = StrokeCap.round..strokeJoin = StrokeJoin.round);
   }
 
   @override
-  bool shouldRepaint(_P o) => false;
+  bool shouldRepaint(_P o) => o.color != color;
 }

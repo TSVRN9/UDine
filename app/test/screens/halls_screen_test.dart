@@ -12,6 +12,7 @@ import '../fonts.dart';
 import 'support.dart';
 
 void main() {
+  tabReturn();
   setUpAll(loadFonts);
 
   Finder band(String name) => find.text(name);
@@ -207,7 +208,20 @@ void main() {
       expect(scales.any((s) => s > M2Motion.fadeThroughScale && s < 1), isTrue);
       await t.pump(const Duration(milliseconds: 200));
       expect(find.text('Worcester'), findsNothing); // gone from the screen once You is in
+      await drain(t);
     });
+  });
+
+  testWidgets('Halls settles on its own: the bands and meters are at rest before the stars\' menus are read, and the stars follow', (t) async {
+    final boot = await bootRecorded(t);
+    await t.runAsync(() => boot.prefs.toggleFavorite('Golden BBQ Chicken Thigh'));
+    await openApp(t, boot);
+    await ready(t);
+    await t.pumpAndSettle(); // returns: nothing keeps scheduling frames while the menus load
+    expect(find.text('★'), findsNothing);
+    await until(t, () => find.text('★').evaluate().isNotEmpty);
+    await t.pumpAndSettle();
+    await drain(t);
   });
 
   group('network states', () {
@@ -226,6 +240,8 @@ void main() {
       expect(fading, isNotEmpty);
       await t.pumpAndSettle();
       expect(lamps(t), [5, 3, 2, 5]);
+      await t.pump(const Duration(seconds: 10)); // the stars' menus, asked for last and as slowly
+      await drain(t);
     });
 
     testWidgets('offline: the saved hours stay, no meter, "You\'re offline" under the date, no button', (t) async {
@@ -288,4 +304,29 @@ class UdineAppWith extends StatelessWidget {
         pageRouteBuilder: <T>(settings, builder) => PageRouteBuilder<T>(settings: settings, pageBuilder: (c, _, _) => builder(c)),
         home: boot.wrap(Shell(plateBar: plate)) as Widget,
       );
+}
+
+void tabReturn() {
+  testWidgets('Halls does not fade its status and busy lines in again when the tab is returned to', (t) async {
+    await openApp(t, await bootRecorded(t));
+    await until(t, () => find.byType(Meter).evaluate().isNotEmpty);
+    await t.pumpAndSettle();
+    double fade() => t.widget<Band>(find.byType(Band).first).fade!.value;
+    expect(fade(), 1);
+    await t.tap(find.text('Search'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Halls'));
+    for (var i = 0; i < 12; i++) {
+      await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30))); // the cached hours and the busy reads land
+      await t.pump(const Duration(milliseconds: 16));
+      expect(find.byType(Band), findsWidgets);
+      expect(fade(), 1, reason: 'frame $i after the return: the lines are fading in again');
+    }
+    await t.pumpAndSettle();
+    for (var i = 0; i < 20; i++) {
+      await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 60)));
+      await t.pump(const Duration(seconds: 2));
+    }
+    await drain(t);
+  });
 }

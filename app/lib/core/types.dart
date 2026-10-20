@@ -67,10 +67,15 @@ class NutritionFacts {
   final String servingSize;
   final num calories, caloriesFromFat, totalFatG, satFatG, transFatG, cholesterolMg, sodiumMg;
   final num totalCarbG, dietaryFiberG, sugarsG, proteinG;
-  /// Not in the TS type and not in toJson/fromJson: the figures the feed left empty (data-sat-fat=""), by field name
-  /// ("satFatG"), which the numbers above read as 0. Only the nutrition label tells blank from a real 0; plate and log sums
-  /// keep treating blanks as 0, as TS does.
+  /// Not in the TS type (only the four tracked figures round-trip, as null): the figures the feed left empty (data-sat-fat=""), by field name
+  /// ("satFatG"), which the numbers above read as 0. Calories, protein, carbs and fat that are blank are unknown (M2 R12c): the plate, log and export carry them
+  /// as null (see the `known*` getters); the label tells any blank from a real 0.
   final Set<String> blank;
+  /// The four figures the plate, log and export carry, null when the feed left them blank (M2 R12c): unknown, never 0.
+  num? get knownCal => blank.contains('calories') ? null : calories;
+  num? get knownProtein => blank.contains('proteinG') ? null : proteinG;
+  num? get knownCarb => blank.contains('totalCarbG') ? null : totalCarbG;
+  num? get knownFat => blank.contains('totalFatG') ? null : totalFatG;
   final Dv? totalFatDv, satFatDv, cholesterolDv, sodiumDv, totalCarbDv, dietaryFiberDv, sugarsDv, proteinDv;
 
   /// The same figures with [blank] as the ones the source left empty (a saved packaged food reads them back from its row).
@@ -82,19 +87,23 @@ class NutritionFacts {
           cholesterolDv: cholesterolDv, sodiumDv: sodiumDv, totalCarbDv: totalCarbDv, dietaryFiberDv: dietaryFiberDv, sugarsDv: sugarsDv, proteinDv: proteinDv, blank: blank,
         );
 
+  /// A log row reads the four tracked figures as unknown when they are null (M2 R12c); see [toLogJson].
+  static const _nullable = ['calories', 'totalFatG', 'totalCarbG', 'proteinG'];
+
   factory NutritionFacts.fromJson(Map<String, dynamic> j) => NutritionFacts(
+        blank: {for (final k in _nullable) if (j[k] == null) k},
         servingSize: j['servingSize'] as String,
-        calories: j['calories'] as num,
+        calories: (j['calories'] as num?) ?? 0,
         caloriesFromFat: j['caloriesFromFat'] as num,
-        totalFatG: j['totalFatG'] as num,
+        totalFatG: (j['totalFatG'] as num?) ?? 0,
         satFatG: j['satFatG'] as num,
         transFatG: j['transFatG'] as num,
         cholesterolMg: j['cholesterolMg'] as num,
         sodiumMg: j['sodiumMg'] as num,
-        totalCarbG: j['totalCarbG'] as num,
+        totalCarbG: (j['totalCarbG'] as num?) ?? 0,
         dietaryFiberG: j['dietaryFiberG'] as num,
         sugarsG: j['sugarsG'] as num,
-        proteinG: j['proteinG'] as num,
+        proteinG: (j['proteinG'] as num?) ?? 0,
         totalFatDv: _dv(j, 'totalFatDv'),
         satFatDv: _dv(j, 'satFatDv'),
         cholesterolDv: _dv(j, 'cholesterolDv'),
@@ -104,6 +113,16 @@ class NutritionFacts {
         sugarsDv: _dv(j, 'sugarsDv'),
         proteinDv: _dv(j, 'proteinDv'),
       );
+
+  /// What anything the device keeps or exports writes (log rows and parts, saved and custom foods): [toJson] with the four tracked figures null when unknown (M2 R12c). [toJson] itself stays the
+  /// TS contract's (a blank is 0 there; shared/vectors).
+  Map<String, dynamic> toLogJson() => {
+        ...toJson(),
+        'calories': knownCal == null ? null : jsonNum(calories),
+        'totalFatG': knownFat == null ? null : jsonNum(totalFatG),
+        'totalCarbG': knownCarb == null ? null : jsonNum(totalCarbG),
+        'proteinG': knownProtein == null ? null : jsonNum(proteinG),
+      };
 
   Map<String, dynamic> toJson() => {
         'servingSize': servingSize,
@@ -223,7 +242,7 @@ class LogPart {
         nutrition: NutritionFacts.fromJson(j['nutrition'] as Map<String, dynamic>),
       );
 
-  Map<String, dynamic> toJson() => {'name': name, 'servings': jsonNum(servings), 'nutrition': nutrition.toJson()};
+  Map<String, dynamic> toJson() => {'name': name, 'servings': jsonNum(servings), 'nutrition': nutrition.toLogJson()};
 }
 
 class UmassMenuSource extends LogSource {
@@ -282,7 +301,7 @@ class LogEntry {
         'loggedAt': loggedAt,
         'source': source.toJson(),
         'servings': jsonNum(servings),
-        'nutrition': nutrition.toJson(),
+        'nutrition': nutrition.toLogJson(),
       };
 }
 
@@ -304,7 +323,7 @@ class CustomFood {
         'id': id,
         'name': name,
         'servingSize': servingSize,
-        'nutrition': nutrition.toJson(),
+        'nutrition': nutrition.toLogJson(),
         if (ingredients != null) 'ingredients': ingredients,
       };
 }

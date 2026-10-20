@@ -9,9 +9,11 @@ import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:udine/core/serving_text.dart';
 import 'package:udine/screens/dish/dish_sheet.dart';
 import 'package:udine/screens/dish/full_label.dart';
 import 'package:udine/screens/hall/hall_menu.dart';
+import 'package:udine/theme/tokens.dart';
 import 'package:udine/core/m2/board.dart';
 import 'package:udine/ui/ui.dart';
 import '../fonts.dart';
@@ -36,12 +38,20 @@ void flush() {
   expect(m, isEmpty, reason: m.join('\n'));
 }
 
-void near(String what, List<double> got, Object? want, int w, {bool block = false, bool origin = false}) {
+void near(String what, List<double> got, Object? want, int w, {bool block = false, bool origin = false, double dy = 0}) {
   final v = (want as List).cast<num>();
   for (var i = 0; i < 4; i++) {
     if ((block && i == 2) || (origin && i > 1)) continue;
-    if ((got[i] - v[i]).abs() > 1.0) _misses.add('$what[${const ['left', 'top', 'width', 'height'][i]}] ours $got, M2 $v at $w dp');
+    if ((got[i] - v[i] - (i == 1 ? dy : 0)).abs() > 1.0) _misses.add('$what[${const ['left', 'top', 'width', 'height'][i]}] ours $got, M2 $v${dy == 0 ? '' : ' + $dy'} at $w dp');
   }
+}
+
+/// How much lower than M2's measured rest the sheet sits for this state: M2 lays the whole where answer out before the sheet opens and
+/// rests under Calories; ours reserves one line (`M2Layout.whereLine`) and never moves for what the answer adds below it (owner,
+/// 2026-10-18), so a second group puts every block that much lower on screen.
+double whereBelowLine(Map<String, dynamic> m) {
+  final where = (m['where'] as List?)?.cast<num>();
+  return where == null ? 0 : (where[3] - M2Layout.whereLine).clamp(0, double.infinity).toDouble();
 }
 
 /// A rect's left and top, for a block compared by its position only.
@@ -52,27 +62,28 @@ List<double> left(Object? r) => [(r as List)[0].toDouble(), r[1].toDouble()];
 void compareSheet(WidgetTester t, int w, Map<String, dynamic> m) {
   const frame = 844.0;
   final sheet = t.widget<M2Sheet>(find.byType(M2Sheet).last);
-  if ((frame - sheet.handle.px - ((m['sheet'] as List)[1] as num)).abs() > 1.0) _misses.add('resting top ours ${frame - sheet.handle.px}, M2 ${m['sheet']}');
-  near('grab', rect(t, find.byType(SheetGrab)), m['grab'], w);
+  final dy = whereBelowLine(m);
+  if ((frame - sheet.handle.px - ((m['sheet'] as List)[1] as num) - dy).abs() > 1.0) _misses.add('resting top ours ${frame - sheet.handle.px}, M2 ${m['sheet']}${dy == 0 ? '' : ' + $dy'}');
+  near('grab', rect(t, find.byType(SheetGrab)), m['grab'], w, dy: dy);
   final name = find.byType(DishSheet).evaluate().isEmpty ? 'Your plate' : t.widget<DishSheet>(find.byType(DishSheet)).dish.dishName;
-  near('dn', rect(t, find.descendant(of: find.byType(M2Sheet).last, matching: find.text(name))), m['dn'] ?? m['sh1h2'], w, block: true);
+  near('dn', rect(t, find.descendant(of: find.byType(M2Sheet).last, matching: find.text(name))), m['dn'] ?? m['sh1h2'], w, block: true, dy: dy);
   if (m['dsv'] != null && find.byType(DishSheet).evaluate().isNotEmpty) {
-    final serving = t.widget<DishSheet>(find.byType(DishSheet)).dish.nutrition.servingSize.trim().toLowerCase();
-    near('dsv', rect(t, find.byWidgetPredicate((x) => x is RichText && x.text.toPlainText().endsWith(serving) && !x.text.toPlainText().contains('Nutrition'))), m['dsv'], w, block: true);
+    final serving = servingText(t.widget<DishSheet>(find.byType(DishSheet)).dish.nutrition.servingSize.trim()).toLowerCase(); // (as shown: the feed's "1 EA" reads "1 each")
+    near('dsv', rect(t, find.byWidgetPredicate((x) => x is RichText && x.text.toPlainText().endsWith(serving) && !x.text.toPlainText().contains('Nutrition'))), m['dsv'], w, block: true, dy: dy);
   }
-  if (m['mks'] != null) near('mks', rect(t, find.byType(MarkPatch)), m['mks'], w, block: true);
-  if (m['dal'] != null) near('dal', rect(t, find.textContaining('Contains', findRichText: true)), m['dal'], w, block: true);
-  if (m['dadd'] != null) near('dadd', rect(t, find.byType(Button)), m['dadd'], w);
-  if (m['where'] != null) near('where', rect(t, find.textContaining(RegExp(r'now|Tomorrow|from', caseSensitive: false), findRichText: true)), m['where'], w, origin: true);
+  if (m['mks'] != null) near('mks', rect(t, find.byType(MarkPatch)), m['mks'], w, block: true, dy: dy);
+  if (m['dal'] != null) near('dal', rect(t, find.textContaining('Contains', findRichText: true)), m['dal'], w, block: true, dy: dy);
+  if (m['dadd'] != null) near('dadd', rect(t, find.byType(Button)), m['dadd'], w, dy: dy);
+  if (m['where'] != null) near('where', rect(t, find.textContaining(RegExp(r'now|Tomorrow|from', caseSensitive: false), findRichText: true)), m['where'], w, origin: true, dy: dy);
   if (m['hchip'] != null && (m['hchip'] as List).isNotEmpty) {
     final c = m['hchip'] as List; // one rect (m2_dom.json) or every chip's (m2_dom_dish.json)
-    near('hchip', rect(t, find.byType(HallChip)), c.first is List ? c.first : c, w);
+    near('hchip', rect(t, find.byType(HallChip)), c.first is List ? c.first : c, w, dy: dy);
   }
-  if (m['kv'] != null) near('kv', rect(t, find.textContaining('Beef Brisket', findRichText: true).last), m['kv'], w, block: true);
-  near('label', rect(t, find.byType(NutritionLabel)), m['label'], w);
-  near('cal', rect(t, find.ancestor(of: find.text('Calories'), matching: find.byType(Container))), m['cal'], w);
-  if (m['grades'] != null) near('grades', rect(t, find.byType(RatingsPanel)), m['grades'], w);
-  if (m['ingh'] != null) near('ingh', rect(t, find.text('Ingredients')), m['ingh'], w, block: true);
+  if (m['kv'] != null) near('kv', rect(t, find.textContaining('Beef Brisket', findRichText: true).last), m['kv'], w, block: true, dy: dy);
+  near('label', rect(t, find.byType(NutritionLabel)), m['label'], w, dy: dy);
+  near('cal', rect(t, find.ancestor(of: find.text('Calories'), matching: find.byType(Container))), m['cal'], w, dy: dy);
+  if (m['grades'] != null) near('grades', rect(t, find.byType(RatingsPanel)), m['grades'], w, dy: dy);
+  if (m['ingh'] != null) near('ingh', rect(t, find.text('Ingredients')), m['ingh'], w, block: true, dy: dy);
   flush();
 }
 

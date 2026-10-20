@@ -11,7 +11,7 @@ void main() {
   setUpAll(loadFonts);
   final shown = <Type>[
     ScreenHeader, Band, BandGrade, Arrive, SheetGrab, RatingsPanel, BusyRow, Meter, ListRow, LRow, CheckRow, Button, TextAction, CustomButton, Stepper, AddButton, PlusMinus, RowControl,
-    ScoreBadge, Badge, MarkPatch, MarkGlyph, HallChip, HallLetter, Chevron, BackButton, Spinner, NutritionLabel, Facts, SheetOption, M2TabBar, Felt, FilterChipButton, PinButton, Thumb, FavoriteStar, StarMark, HallTags, SearchField, CustomFoodButton, PlaceRow,
+    ScoreBadge, Badge, MarkPatch, MarkGlyph, HallChip, HallLetter, Chevron, BackButton, Spinner, NutritionLabel, Facts, SheetOption, M2TabBar, Felt, FilterChipButton, PinButton, Thumb, FavoriteStar, StarMark, HallTags, SearchField, CustomFoodButton, PlaceRow, VariantPicker, SettleFade,
   ];
 
   for (final w in [360.0, 390.0]) {
@@ -41,8 +41,8 @@ void main() {
       names.addAll(exported.allMatches(f.readAsStringSync()).map((m) => m[1]!));
     }
     final onGallery = shown.map((t) => t.toString()).toSet();
-    // wrappers and sheet internals: Press, NegMargin, BaselineAt; Photo needs a bundled photo; M2Sheet is a modal (sheet_test.dart)
-    const internal = {'Press', 'Photo', 'NegMargin', 'BaselineAt', 'M2Sheet'};
+    // wrappers and sheet internals: Press, NegMargin, BaselineAt, PatchLetter (inside HallChip and HallTags); Photo needs a bundled photo; M2Sheet is a modal (sheet_test.dart)
+    const internal = {'Press', 'Photo', 'NegMargin', 'BaselineAt', 'M2Sheet', 'PatchLetter'};
     expect(names.difference(onGallery).difference(internal), isEmpty);
   });
 }

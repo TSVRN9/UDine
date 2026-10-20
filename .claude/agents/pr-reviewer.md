@@ -92,7 +92,9 @@ live only on the owner's machine: copy `../../local/flows/M2/assets/` into `flow
 `./photos.sh` first (`flows/M2/.gitignore` keeps `index.html`, `assets/`, `build/` and `tmp-*.png` out of
 git; never commit a render). Chromium is a heavy job, never alongside Gradle or an emulator. Values come from the `m2_dom.json` measurement tests and the 360/390 goldens, not copied
 numbers; durations/curves/colours come from `app/lib/theme` / `app/lib/motion` (the gate flags
-literals). Lanes: `cd app && flutter analyze && flutter test --concurrency=2`. One heavy job at a
+literals). Lanes: `cd app && flutter analyze && tool/test.sh <the test dirs the diff touches> test/core/m2`, plus your
+mutants — not the full suite: the orchestrator runs it once on the merged tree before merge (`tool/test.sh --merged`,
+which the merge hook requires). One heavy job at a
 time: Gradle, an emulator and Playwright never run together (host memory). Run `gh pr merge` and
 `scripts/pr-gate.sh` from the repo root, each in its own Bash call. Kill a stuck `flutter_tester` by
 PID (`pgrep -x flutter_tester`), never `pkill -f`.

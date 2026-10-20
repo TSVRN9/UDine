@@ -6,9 +6,10 @@ import '../../core/m2/bowl.dart' show Syn, synOf;
 import '../../core/m2/bowl_builder.dart' show BowlSpec;
 import '../../core/m2/menu_view.dart';
 import '../../core/m2/plate.dart';
+import '../../core/m2/variants.dart' show familiesOf, shownOf;
 import '../../core/hours.dart' show openSpan;
 import '../../core/occupancy.dart';
-import '../../core/m2/places.dart' show Roster;
+import '../../core/m2/places.dart' show Roster, hallKeyOfTitle;
 import '../../core/m2/schedule.dart' show schedule, statusLine;
 import '../../data/repository.dart' show resolveCafeMenu;
 import '../cafes/cafe_body.dart';
@@ -50,6 +51,10 @@ class HallMenu extends StatefulWidget {
   final BandRect? band;
   /// the band's own copy, drawn over the photo while the container opens
   final Widget? ghost;
+  final BandParts? parts;
+  /// the status line and the meter the band showed, drawn until the page's own arrive (they travel with the card from its first frame)
+  final String? seedStatus;
+  final ({int lamps, String word, bool extra})? seedBusy;
   /// an index into the 15 days (0 today); `meal` is M2's key (`lunch`, `late`, `grab`), kept if the day has it
   final int day;
   final String? meal;
@@ -64,7 +69,7 @@ class HallMenu extends StatefulWidget {
   /// down is claimed before the list's own (M2 decides the axis itself, on its first move).
   final Widget Function(Widget child)? dragWrap;
   const HallMenu({
-    super.key, required this.place, required this.top, required this.height, this.progress = kAlwaysCompleteAnimation, this.band, this.ghost,
+    super.key, required this.place, required this.top, required this.height, this.progress = kAlwaysCompleteAnimation, this.band, this.ghost, this.parts, this.seedStatus, this.seedBusy,
     this.day = 0, this.meal, required this.onBack, this.onOpenDish, this.dish, this.landOn, this.onEvent, this.dragWrap,
   });
   @override
@@ -93,6 +98,25 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
   final _status = ValueNotifier<String>('');
   final _busy = ValueNotifier<HallBusyView?>(null);
   OccupancyRead? _busyRead;
+  // M2 R13 `LATE_D` / `busyStep`: the header is as tall as the busy block it has plus [_h0]; a reading landing grows the block (and the header, the
+  // tabs and the list with it) over the first part of `settle`, then its text and chart fade in. The title is anchored by the header's foot, so
+  // it never moves. `_late` is linear time over `settle`; a header opened with its reading (or the card's) is whole at 1.
+  late final AnimationController _late = AnimationController(vsync: this, value: 1, duration: M2Motion.settle.duration, animationBehavior: AnimationBehavior.preserve)..addListener(_onLate);
+  double _h0 = 0, _blockFrom = 0, _blockTo = 0;
+  bool _synced = false, _lateGrows = true;
+  double _seenBlock = 0;
+  void _onLate() {
+    if (!mounted) return;
+    // a header that has been scrolled away keeps its collapse: the list rides down by what the block adds, so the offset goes with it (M2's
+    // pushed hall has its block from the start; here it can land after the scroll to the dish)
+    final b = _block, d = b - _seenBlock;
+    _seenBlock = b;
+    if (d != 0 && _sc.hasClients && _sc.offset > 0) _sc.jumpTo(_sc.offset + d);
+    setState(() {});
+  }
+
+  /// the busy block's height now
+  double get _block => _blockFrom + (_blockTo - _blockFrom) * lateStep(_late.value, reduced: reducedMotion(context)).grow;
   final _keys = ListKeys();
   final _listKey = GlobalKey(), _pagerKey = GlobalKey<SharedAxisLayerState>();
   List<ListItem> _items = const [];
@@ -114,7 +138,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
   bool get _oneMeal => _cafe && _dishMenu && _state == MenuState.ok && isOneMeal(fx, place);
   double get _th => (_cafe && !_dishMenu) || _oneMeal ? 0 : M2Layout.stationRowH;
   double get _sw => _cafe && !_dishMenu ? 0 : M2Layout.stationRowH;
-  double get _hh => headerHeight(widget.top);
+  double get _hh => _cafe ? headerHeight(widget.top) : _h0 + _block;
   double get _ch => widget.top + M2Layout.barH;
   double get _r => _hh - _ch;
   double get _pin => _ch + _th + _sw;
@@ -158,21 +182,51 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     _jumpC.dispose();
     _station.dispose();
     _status.dispose();
+    _late.dispose();
     _busy.dispose();
     super.dispose();
   }
 
   void _syncStatus() {
     // busy is live: today's, and only while the reading is
+    final before = _busy.value;
     final r = _day == 0 ? c.busy : null;
     if (!identical(r, _busyRead)) {
       _busyRead = r;
       _busy.value = r == null ? null : HallBusyView.of(r, span: c.placeHours == null ? null : openSpan(c.placeHours!));
     }
+    if (r == null && _day == 0 && widget.seedBusy != null && _busy.value?.seed != true) _busy.value = HallBusyView.seed(lamps: widget.seedBusy!.lamps, word: widget.seedBusy!.word, hasExtra: widget.seedBusy!.extra);
+    _syncBlock(before);
     final h = c.placeHours;
     final iso = _iso;
     // hours are not known until they arrive; another day's span only with its menu
-    _status.value = h == null || (_day > 0 && c.state(_day) != MenuState.ok) || !fx.hours.containsKey(place) || iso.isEmpty ? '' : statusLine(fx, place, _day);
+    _status.value = h == null && _day == 0 ? widget.seedStatus ?? '' : h == null || (_day > 0 && c.state(_day) != MenuState.ok) || !fx.hours.containsKey(place) || iso.isEmpty ? '' : statusLine(fx, place, _day);
+  }
+
+  /// The block follows the view: none until a reading (or the card's) is there, then its lines; other days and offline keep what is held.
+  /// The header opens at the height it will keep if the block is already known (the card's reading, with or without its second line) and
+  /// otherwise as if it will have both lines: the title stays where it is when the block lands, whichever it turns out to be.
+  void _syncBlock(HallBusyView? before) {
+    final v = _busy.value, to = v?.block ?? _blockTo;
+    if (!_synced) {
+      _synced = true;
+      _blockFrom = _blockTo = _seenBlock = to;
+      // no card: what Halls (or any earlier read) found for this hall; with none at all, a hall with a second line
+      final known = _cafe || v != null ? null : AppScope.of(context).repo.lastBusy.entries.where((e) => hallKeyOfTitle(e.key) == place).firstOrNull?.value;
+      // ponytail: a cold deep link has no earlier read, so a live hall without a second line ends 22 dp shorter than M2's
+      _h0 = _cafe ? 0 : headerHeight(widget.top) - (v?.block ?? (known == null ? M2Layout.busyBlockExtra : HallBusyView.of(known).block));
+      return;
+    }
+    if (v == null || (identical(v, before))) return;
+    final lands = !v.seed && (before == null || before.seed);
+    if (to == _blockTo && !lands) return;
+    final rm = reducedMotion(context);
+    _blockFrom = _block;
+    _blockTo = to;
+    _lateGrows = to != _blockFrom;
+    _late
+      ..duration = rm ? M2Motion.rmFade.duration : M2Motion.settle.duration
+      ..forward(from: 0);
   }
 
   /// The data moved: a menu that was not showing is now, and arrives; anything else just redraws.
@@ -247,7 +301,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     setState(() => _here = null);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final i = _items.indexWhere((x) => x.kind == ItemKind.dish && x.dish!.key == key);
+      final i = _items.indexWhere((x) => x.kind == ItemKind.dish && x.holds(key));
       if (i < 0) return;
       setState(() => _here = _items[i].id);
       WidgetsBinding.instance.addPostFrameCallback((_) => mounted && _sc.hasClients ? _scrollTo(_keys.dish, i, lead: M2Layout.hereLead, instant: instant) : null);
@@ -287,7 +341,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
     var y = _hh + _th + _sw;
     for (var i = 0; i < index && i < _items.length; i++) {
       final it = _items[i];
-      y += switch (it.kind) { ItemKind.head => M2Size.stationRow, ItemKind.syn => M2Size.row, ItemKind.dish => it.dish!.dishName.length > 26 ? M2Layout.rowTall : M2Size.row, _ => M2Layout.noteRow };
+      y += switch (it.kind) { ItemKind.head => M2Size.stationRow, ItemKind.syn => M2Size.row, ItemKind.dish => it.title.length > 26 ? M2Layout.rowTall : M2Size.row, _ => M2Layout.noteRow };
     }
     return y;
   }
@@ -489,7 +543,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
       },
       onOpen: (d) => widget.onOpenDish != null ? widget.onOpenDish!(d, place: place, meal: _effectiveMeal, day: _day) : _openDish(d),
       onAdd: (d) {
-        plate.add(pm(), d.dishName, {place: d});
+        plate.add(pm(), shownOf(familiesOf(fx), d), {place: d}, null, d.key);
         Haptics.add();
       },
       onInc: (d) {
@@ -540,7 +594,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
         Positioned.fill(
           child: AnimatedBuilder(
             animation: Listenable.merge([p, _arrive, _dayFade, _flash]),
-            builder: (_, c) => Opacity(
+            builder: (_, c) => ChalkFade(
               key: const ValueKey('fade-list'), opacity: (incomingOpacity(p.value) * _arrive.value * _dayFade.value * _flash.value).clamp(0.0, 1.0),
               child: Transform.scale(
                 key: const ValueKey('day-scale'), alignment: Alignment(0, (_pin + (h - _pin) / 2) / h * 2 - 1),
@@ -579,7 +633,8 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
               child: Stack(clipBehavior: Clip.none, children: [
                 HallHeader(
                   key: const ValueKey('header'), place: place, name: c.name, top: top, status: _status, busy: _busy, progress: p, scroll: _scrollY, dayFade: _dayFade, band: widget.band,
-                  ghost: widget.ghost, onStatus: _status.value.isEmpty ? null : _openSchedule,
+                  hh: hh, block: _cafe ? null : _block, lateK: _late, lateGrows: _lateGrows,
+                  ghost: widget.ghost, parts: widget.parts, onStatus: _status.value.isEmpty ? null : _openSchedule,
                 ),
                 if (th > 0)
                   Positioned(
@@ -670,4 +725,20 @@ class _FadeProduct extends Animation<double> with AnimationLocalListenersMixin, 
     day.removeListener(notifyListeners);
     arrive.removeListener(notifyListeners);
   }
+}
+
+/// `opacity` of `child` over the chalk ground, drawn as a chalk veil of the remaining alpha over it instead of an `Opacity`: the same
+/// pixels (the screen's ground is chalk), without compositing the whole scroll view into an offscreen texture on every frame of the
+/// container transform.
+class ChalkFade extends StatelessWidget {
+  const ChalkFade({super.key, required this.opacity, required this.child});
+  final double opacity;
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => opacity >= 1
+      ? child
+      : Stack(fit: StackFit.passthrough, children: [
+          child,
+          if (opacity > 0) Positioned.fill(child: IgnorePointer(child: ColoredBox(color: M2Color.chalk.withValues(alpha: 1 - opacity)))) else Positioned.fill(child: IgnorePointer(child: ColoredBox(color: M2Color.chalk))),
+        ]);
 }

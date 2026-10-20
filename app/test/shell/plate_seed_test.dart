@@ -12,7 +12,7 @@ void main() {
     expect(p.items.map((i) => [i.name, i.qty]), [['Beef Brisket Noodle Bowl', 1], ['Golden BBQ Chicken Thigh', 2]]);
     expect(plateHalls(p), ['W']);
     final tot = totals(p);
-    expect([tot.cal, double.parse(tot.p.toStringAsFixed(1))], [404, 38.9]);
+    expect([tot.cal, double.parse(tot.p!.toStringAsFixed(1))], [404, 38.9]);
   });
 
   testWidgets('any other route seeds nothing', (t) async {

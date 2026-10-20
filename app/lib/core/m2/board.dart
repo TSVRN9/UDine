@@ -7,12 +7,17 @@ import '../types.dart';
 
 export '../types.dart' show MenuItem, DiningHallHours, TimeWindow;
 
+/// The plate's four figures; null is unknown (M2 R12c), never 0.
 class Macro {
-  final num cal, p, c, f;
+  final num? cal, p, c, f;
   const Macro(this.cal, this.p, this.c, this.f);
 }
 
-num _r1(num x) => (x * 10).round() / 10;
+num? _r1(num? x) => x == null ? null : (x * 10).round() / 10;
+
+extension M2Nutrition on NutritionFacts {
+  Macro get macro => Macro(knownCal?.round(), _r1(knownProtein), _r1(knownCarb), _r1(knownFat));
+}
 
 /// A name the way M2 matches dishes: lower-case, apostrophes dropped, every other run of non-alphanumerics a single space.
 String dishKey(String name) => name.toLowerCase().replaceAll(RegExp('[’\']'), '').replaceAll(RegExp('[^a-z0-9]+'), ' ').trim();
@@ -25,7 +30,7 @@ extension M2MenuItem on MenuItem {
       .fold(0, (bits, e) => dietTags.contains(e.$1) || dietCodes.contains(e.$2) ? bits | e.$3 : bits);
 
   /// The plate's per-serving macros as M2 sums them: calories whole, grams to a tenth.
-  Macro get macro => Macro(nutrition.calories.round(), _r1(nutrition.proteinG), _r1(nutrition.totalCarbG), _r1(nutrition.totalFatG));
+  Macro get macro => nutrition.macro;
 }
 
 class Station {

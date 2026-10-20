@@ -98,6 +98,18 @@ void main() {
       expect(m.receipt!.ids, mine.map((e) => e.id));
     });
 
+    test('a plate of only unknown calories leaves the receipt\'s day total unknown; a known item beside it is the known sum', () async {
+      m.add('lunch', '20 oz Chai', {'c12': dishes.firstWhere((d) => d.dishName == '20 oz Chai')});
+      expect(await m.log(), isTrue);
+      expect(m.receipt!.dayCal, isNull);
+      final stored = jsonDecode((await raw(store)).last['nutrition_json']! as String) as Map;
+      expect([stored['calories'], stored['proteinG'], stored['totalCarbG'], stored['totalFatG']], [null, null, null, null], reason: 'the log row on disk');
+      expect((await store.allEntries()).last.nutrition.knownCal, isNull);
+      m.add('lunch', '16 oz Chai', {'c12': dishes.firstWhere((d) => d.dishName == '16 oz Chai')});
+      expect(await m.log(), isTrue);
+      expect(m.receipt!.dayCal, 211);
+    });
+
     test('Log at a place the plate allows writes that place; the plate leaves, the next plate comes to the front', () async {
       m.add('lunch', brisket, refs('lunch', brisket, ['W', 'B']));
       m.add('dinner', bbq, refs('lunch', bbq, ['W']));

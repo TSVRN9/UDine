@@ -62,6 +62,18 @@ void main() {
       expect(f.onlyShow, ['Halal']);
       expect(recordedFlags('/?data=recorded')!.avoid, isEmpty);
     });
+    test('os and health are M2\'s flags; device is the real store; anything else is allow on android', () {
+      final f = recordedFlags('/you?data=recorded&os=ios&health=revoked')!;
+      expect((f.os, f.health), ('ios', 'revoked'));
+      expect(recordedFlags('/you?data=recorded&health=device')!.health, 'device');
+      final d = recordedFlags('/you?data=recorded&os=x&health=nope')!;
+      expect((d.os, d.health), ('android', 'allow'));
+    });
+
+    test('busy=late holds the occupancy curve back (M2\'s own flag)', () {
+      expect(recordedFlags('/?data=recorded&busy=late')!.busyLate, isTrue);
+      expect(recordedFlags('/?data=recorded')!.busyLate, isFalse);
+    });
     test('no data flag, no switch', () => expect(recordedFlags('/hall/worcester?net=fail'), isNull));
   });
 
@@ -106,7 +118,7 @@ void main() {
         s = addDish(s, 'lunch', n, {'W': lunch.firstWhere((i) => i.dishName == n)});
       }
       final t = totals(s.plates[0]);
-      expect((t.cal, double.parse(t.p.toStringAsFixed(1))), (404, 38.9));
+      expect((t.cal, double.parse(t.p!.toStringAsFixed(1))), (404, 38.9));
     });
 
     test('a café is served by its location id; hours carry busy', () async {
@@ -204,7 +216,7 @@ void main() {
         'nut': [for (final k in nut.keys) n(d[k])],
         'blank': {
           for (final e in nut.entries)
-            if (e.key != 'calories' && !RegExp(r'-?\d').hasMatch(d[e.key])) e.value,
+            if (!RegExp(r'-?\d').hasMatch(d[e.key])) e.value,
         },
         'dv': [for (final k in ['total-fat-dv', 'sat-fat-dv', 'cholesterol_dv', 'sodium-dv', 'total-carb-dv', 'dietary-fiber-dv', 'sugars-dv', 'protein-dv']) dv(d, k)],
       };

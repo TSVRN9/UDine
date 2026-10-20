@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import '../alerts/alerts.dart' show alertTaps, takeHeldTap;
 import '../core/m2/history.dart' show cafeIdsOf;
 import '../core/store/log_book.dart';
 import '../data/repository.dart' show DataState, HoursData, Loaded, LoadedOffline;
@@ -40,7 +41,8 @@ class Shell extends StatefulWidget {
 }
 
 class _Sheet {
-  _Sheet(this.build);
+  _Sheet(this.build, {this.onboarding = false});
+  final bool onboarding;
   final SheetHandle handle = SheetHandle();
   final Widget Function(SheetHandle, VoidCallback) build;
 }
@@ -54,6 +56,7 @@ class ShellState extends State<Shell> with WidgetsBindingObserver implements She
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _tab.addListener(_tabChanged);
     // `/custom?name=&meal=` (a screenshot route): the custom food form over Halls; `cal`, `p`, `c` and `f` fill the macros
     final u = Uri.parse(widget.initialRoute), q = u.queryParameters;
     // `/food?name=Chobani[&edit=1]` (a screenshot route): that saved food's sheet over Halls, in Edit with `edit=1`
@@ -64,17 +67,34 @@ class ShellState extends State<Shell> with WidgetsBindingObserver implements She
         if (f != null) openFoodSheet(navigator.currentContext!, food: f, meal: 'lunch', startEdit: q['edit'] == '1');
       });
     }
+    // A tap on a favourite-alert notification: Halls home. One launched by it was held until now.
+    _taps = alertTaps.stream.listen(_landAlert);
+    if (takeHeldTap() case final route?) WidgetsBinding.instance.addPostFrameCallback((_) => _landAlert(route));
     if (u.path == '/custom') {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) openCustomFood(navigator.currentContext!, name: q['name'] ?? '', meal: q['meal'] ?? 'lunch', cal: q['cal'] ?? '', p: q['p'] ?? '', c: q['c'] ?? '', f: q['f'] ?? '');
       });
     }
   }
+  StreamSubscription<String>? _taps;
+
+  /// A notification tap lands on Halls home, with nothing pushed: favourites show there themselves. Every sheet closes the normal way, except
+  /// first run: onboarding the user has not finished stays over Halls, and dismissing it is theirs to do.
+  void _landAlert(String _) {
+    if (!mounted) return;
+    for (final s in [..._sheets]) {
+      if (!s.onboarding) s.handle.close();
+    }
+    _plateBack?.call()?.close();
+    navigator.currentState?.popUntil((r) => r.isFirst);
+    _tab.value = 0;
+  }
+
   final _sheets = <_Sheet>[];
 
   @override
-  SheetHandle pushSheet(Widget Function(SheetHandle handle, VoidCallback done) build) {
-    final s = _Sheet(build);
+  SheetHandle pushSheet(Widget Function(SheetHandle handle, VoidCallback done) build, {bool onboarding = false}) {
+    final s = _Sheet(build, onboarding: onboarding);
     setState(() => _sheets.add(s));
     return s.handle;
   }
@@ -119,9 +139,24 @@ class ShellState extends State<Shell> with WidgetsBindingObserver implements She
     }, onError: (Object _) {});
   }
 
+  /// Health Connect is asked again when the app comes back (a permission is granted or revoked in system settings) and when You is shown;
+  /// Notify me's permission is read again on coming back too, as it may have been revoked in system settings.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    AppScope.of(context).health?.refresh();
+    AppScope.of(context).alerts.refresh();
+  }
+
+  void _tabChanged() {
+    if (_tab.value == 2) AppScope.of(context).health?.refresh();
+  }
+
   @override
   void dispose() {
+    _tab.removeListener(_tabChanged);
     WidgetsBinding.instance.removeObserver(this);
+    _taps?.cancel();
     _hours?.cancel();
     _book?.removeListener(_wantCafeIds);
     _tab.dispose();
@@ -148,14 +183,17 @@ class ShellState extends State<Shell> with WidgetsBindingObserver implements She
     return page == null ? null : BaseRoute<void>(settings: RouteSettings(name: route), builder: (_) => page);
   }
 
+
   void _select(int i) {
     Haptics.selection();
+    if (i == 2) AppScope.of(context).alerts.refresh();
     navigator.currentState?.popUntil((r) => r.isFirst);
     _tab.value = i;
   }
 
   /// The sheet back closes first: the last one pushed, else the plate while it is up.
-  SheetHandle? _backSheet() => _sheets.isNotEmpty ? _sheets.last.handle : _plateBack?.call();
+  /// A sheet already on its way out (its spring runs for a while before it leaves `_sheets`) is passed over: a second back goes to what is under it.
+  SheetHandle? _backSheet() => [..._sheets.reversed.map((s) => s.handle), ?_plateBack?.call()].where((h) => !h.closing).firstOrNull;
 
   /// The page back pops, when there is one over the tab that moves.
   StackRoute<dynamic>? _backPage() {

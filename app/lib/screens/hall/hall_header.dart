@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import '../../core/m2/board.dart';
 import '../../motion/container_math.dart';
 import '../../motion/container_transform.dart';
+import '../../motion/travel.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import 'busy.dart';
@@ -30,6 +31,13 @@ class HallHeader extends StatefulWidget {
   /// today's busy at a hall; null (another day, offline, loading) keeps the row's room and draws nothing
   final ValueListenable<HallBusyView?>? busy;
   final Animation<double> progress;
+  /// the header's height now (it is as tall as the busy block it has, M2 `setHH`); null is the full `headerHeight`
+  final double? hh;
+  /// the busy block's height now, and the linear time (0..1 over `settle`) of a reading landing: the line and the chart fade in after the box is
+  /// whole (M2 `busyStep`). Null `block` lets the row take its own height.
+  final double? block;
+  final Animation<double> lateK;
+  final bool lateGrows;
 
   /// scroll offset d = clamp(y, 0, HH - CH)
   final ValueListenable<double> scroll;
@@ -37,6 +45,7 @@ class HallHeader extends StatefulWidget {
   final BandRect? band;
   /// the band's own copy, drawn over the photo while the container opens (the caller builds it from what the band showed)
   final Widget? ghost;
+  final BandParts? parts;
   final VoidCallback? onStatus;
   const HallHeader({
     super.key,
@@ -47,9 +56,14 @@ class HallHeader extends StatefulWidget {
     required this.progress,
     required this.scroll,
     required this.dayFade,
+    this.hh,
+    this.block,
+    this.lateK = kAlwaysCompleteAnimation,
+    this.lateGrows = true,
     this.busy,
     this.band,
     this.ghost,
+    this.parts,
     this.onStatus,
   });
   @override
@@ -59,26 +73,26 @@ class HallHeader extends StatefulWidget {
 class HallHeaderState extends State<HallHeader> {
   /// How many times this header's own build has run (tests).
   static int builds = 0;
-  final _name = GlobalKey(), _head = GlobalKey();
-  double _drop = 0; // NB: how far the collapsed name falls into the compact bar
+  final _name = GlobalKey(), _head = GlobalKey(), _letterKey = GlobalKey(), _statusText = GlobalKey(), _meter = GlobalKey();
+  // the reading was there when the page opened: its row and chart are part of the card, not news (they fade in only when they arrive late)
+  bool _lateBusy = false;
+  double _nameBottom = 0; // the name's bottom in the header, which the busy block's growth does not move
   double? _madeFor;
+  late final _fin = _Fin(widget.progress);
   late Widget? _photo;
-  late Widget _grades, _title, _bandGrade;
   Widget? _letter;
   late M2Type _nameStyle;
 
-  double get hh => headerHeight(widget.top);
+  double get hh => widget.hh ?? headerHeight(widget.top);
+  double get _drop => widget.top + M2Layout.nameBarTop - (_nameBottom - r); // how far the collapsed name falls into the compact bar
   double get r => hh - (widget.top + M2Layout.barH); // R = HH - CH
 
   void _measure() {
     final n = _name.currentContext?.findRenderObject() as RenderBox?, h = _head.currentContext?.findRenderObject() as RenderBox?;
     if (n == null || h == null || !n.hasSize) return;
     final bottom = n.localToGlobal(Offset(0, n.size.height), ancestor: h).dy; // the name's bottom in the header
-    final drop = widget.top + M2Layout.nameBarTop - (bottom - r);
-    if ((drop - _drop).abs() > 0.05) setState(() => _drop = drop);
+    if ((bottom - _nameBottom).abs() > 0.05) setState(() => _nameBottom = bottom);
   }
-
-  void _remeasure() => WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? _measure() : null);
 
   @override
   void initState() {
@@ -108,16 +122,7 @@ class HallHeaderState extends State<HallHeader> {
     _photo = path == null
         ? null
         : IgnorePointer(child: Photo(path: path, pos: compact ? 0.5 : photoPos[place]!, duo: w.band != null ? _Reverse(w.progress) : const AlwaysStoppedAnimation(0.0)));
-    LinearGradient g(({List<Color> colors, List<double> stops}) x) => LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: x.colors, stops: x.stops);
-    _grades = IgnorePointer(
-      child: Stack(children: [
-        Positioned(left: 0, right: 0, top: 0, height: top + M2Layout.topGradH, child: DecoratedBox(decoration: BoxDecoration(gradient: g(M2Gradient.headTop)))),
-        Positioned(left: 0, right: 0, bottom: 0, height: M2Layout.bottomGradH, child: DecoratedBox(decoration: BoxDecoration(gradient: g(M2Gradient.headBottom)))),
-      ]),
-    );
-    _letter = compact ? null : IgnorePointer(child: Stack(children: [HallLetter(letter: place, x: hallLx[place]!, top: top + M2Layout.letterTop)]));
-    _bandGrade = const IgnorePointer(child: BandGrade());
-    _title = Semantics(header: true, child: Text(name, style: nameStyle.style(M2Color.white), maxLines: 1));
+    _letter = compact ? null : IgnorePointer(child: Stack(children: [HallLetter(key: _letterKey, letter: place, x: hallLx[place]!, top: top + M2Layout.letterTop)]));
   }
 
   @override
@@ -128,16 +133,26 @@ class HallHeaderState extends State<HallHeader> {
     final w = widget, place = w.place, compact = isCafe(place), band = w.band, p = w.progress;
     final ns = M2Collapse.nameSize / _nameStyle.size;
     double c() => (w.scroll.value.clamp(0.0, r)) / r;
-    // M2 `fin * fade`: the status line, busy row and board leave with the scroll and come with the container
+    // M2 R13: a band's letter, title, status line and busy meter are one card with the header's: each is drawn at full opacity along the
+    // line from where the card drew it (the copy laid out, never painted, below) to where the header does (reduced motion crossfades).
+    final travels = band != null && w.parts != null && w.ghost != null && !reducedMotion(context);
+    Widget travel(GlobalKey? card, Widget child, {GlobalKey? anchor, bool scale = false}) =>
+        travels ? Travel(progress: p, header: _head, card: card, anchor: anchor, scale: scale, lift: w.scroll, child: child) : child;
+    // an element the card did not draw has nothing to travel from: it comes in with the page (M2 `sh && sh.k ? 1 : fin`)
+    Widget own(bool onCard, Widget child) => !travels || onCard
+        ? child
+        : AnimatedBuilder(animation: p, child: child, builder: (_, ch) => Opacity(opacity: incomingOpacity(p.value), child: ch));
+    // M2 `fade`: the status line and busy row leave with the scroll
     Widget faded(Widget child) => AnimatedBuilder(
-          animation: Listenable.merge([p, w.scroll, w.dayFade]), child: child,
+          animation: Listenable.merge([w.scroll, w.dayFade]), child: child,
           builder: (_, ch) {
-            final o = incomingOpacity(p.value) * (1 - _clamp(c() / M2Collapse.fadeEnd));
+            final o = 1 - _clamp(c() / M2Collapse.fadeEnd);
             return Opacity(opacity: (o * w.dayFade.value).clamp(0.0, 1.0), child: IgnorePointer(ignoring: o <= 0.5, child: ch));
           },
         );
-    // The busy row's room: M2 keeps it (invisible) when there is no live reading, held at the 39 dp of a hall with its "Calmer around" line.
-    const room = ExcludeSemantics(child: Opacity(opacity: 0, child: IgnorePointer(child: BusyRow(lamps: 0, word: 'Busy', extra: 'Calmer around', header: true))));
+    final rm = reducedMotion(context);
+    // M2 `busyStep`: what a reading adds fades in only once its box is whole
+    double lateFade() => lateStep(w.lateK.value, reduced: rm, grows: w.lateGrows).fade;
     final busy = w.busy ?? const AlwaysStoppedAnimation<HallBusyView?>(null);
     return SizedBox(
       key: _head,
@@ -151,8 +166,23 @@ class HallHeaderState extends State<HallHeader> {
               builder: (_, ch) => Positioned(left: 0, right: 0, top: w.scroll.value.clamp(0.0, r) * M2Collapse.parallax, height: hh, child: ch!),
             ),
           // the header's grades develop with the photo (dev = p from a band, whole from a push)
+          // (the grades fade by their colours' alpha: the same pixels as an Opacity, with no offscreen layer)
           Positioned.fill(
-            child: AnimatedBuilder(animation: p, child: _grades, builder: (_, ch) => Opacity(key: const ValueKey('fade-headerGrade'), opacity: band != null ? p.value : 1, child: ch)),
+            child: AnimatedBuilder(
+              animation: p,
+              builder: (_, _) {
+                final o = band != null ? p.value : 1.0;
+                LinearGradient g(({List<Color> colors, List<double> stops}) x) =>
+                    LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [for (final c in x.colors) c.withValues(alpha: c.a * o)], stops: x.stops);
+                return IgnorePointer(
+                  key: const ValueKey('fade-headerGrade'),
+                  child: Stack(children: [
+                    Positioned(left: 0, right: 0, top: 0, height: widget.top + M2Layout.topGradH, child: DecoratedBox(decoration: BoxDecoration(gradient: g(M2Gradient.headTop)))),
+                    Positioned(left: 0, right: 0, bottom: 0, height: M2Layout.bottomGradH, child: DecoratedBox(decoration: BoxDecoration(gradient: g(M2Gradient.headBottom)))),
+                  ]),
+                );
+              },
+            ),
           ),
           Positioned.fill(
             child: AnimatedBuilder(
@@ -160,78 +190,122 @@ class HallHeaderState extends State<HallHeader> {
               builder: (_, ch) => Opacity(opacity: _clamp((c() - M2Collapse.solidStart) / M2Collapse.solidSpan), child: ch),
             ),
           ),
+          // the band's own grade, under the letter as the card has it, fades with 1 - p
+          if (band != null && w.ghost != null)
+            Positioned(
+              left: 0, right: 0, top: band.off, height: band.height,
+              child: AnimatedBuilder(animation: p, builder: (_, _) => BandGrade(key: const ValueKey('fade-bandGrade'), opacity: _clamp(1 - p.value))),
+            ),
           if (_letter != null)
             Positioned.fill(
               child: AnimatedBuilder(
-                animation: Listenable.merge([p, w.scroll]), child: _letter,
-                builder: (_, ch) => Opacity(key: const ValueKey('fade-headerLetter'), opacity: (incomingOpacity(p.value) * (1 - _clamp(c() / M2Collapse.letterEnd))).clamp(0.0, 1.0), child: ch),
+                animation: Listenable.merge([if (travels && !w.parts!.hasLetter) p, w.scroll]), child: travel(w.parts?.letter, _letter!, anchor: _letterKey, scale: true),
+                builder: (_, ch) => Opacity(
+                  key: const ValueKey('fade-headerLetter'),
+                  opacity: ((travels && !w.parts!.hasLetter ? incomingOpacity(p.value) : 1) * (1 - _clamp(c() / M2Collapse.letterEnd))).clamp(0.0, 1.0),
+                  child: ch,
+                ),
               ),
             ),
-          // the band's copy: its grade fades with 1 - p, its text and letter with the early fade
-          if (band != null && w.ghost != null) ...[
-            Positioned(
-              left: 0, right: 0, top: band.off, height: band.height,
-              child: AnimatedBuilder(animation: p, child: _bandGrade, builder: (_, ch) => Opacity(key: const ValueKey('fade-bandGrade'), opacity: _clamp(1 - p.value), child: ch)),
-            ),
-            Positioned(
-              left: 0, right: 0, top: band.off, height: band.height,
-              child: AnimatedBuilder(animation: p, child: w.ghost, builder: (_, ch) => Opacity(key: const ValueKey('fade-ghost'), opacity: outgoingOpacity(p.value).clamp(0.0, 1.0), child: ch)),
-            ),
-          ],
+          // the band's copy is only laid out, never painted: the shared elements read where the card drew each part from it
+          if (band != null && w.ghost != null) Positioned(left: 0, right: 0, top: band.off, height: band.height, child: Offstage(child: w.ghost!)),
           if (!compact)
             Positioned(
               left: M2Space.gutter, right: M2Space.gutter, bottom: M2Layout.histBottom, height: M2Layout.histH,
-              child: faded(ValueListenableBuilder<HallBusyView?>(
+              child: ValueListenableBuilder<HallBusyView?>(
                 valueListenable: busy,
-                builder: (_, v, _) => v?.board == null ? const SizedBox.shrink() : Arrive(key: const ValueKey('busy-board'), child: BusyBoard(view: v!)),
-              )),
+                builder: (_, v, _) {
+                  if (v?.board == null) return const SizedBox.shrink();
+                  // what the card has no counterpart for: `fin`, the scroll's and the day's fades, all by alpha
+                  final board = AnimatedBuilder(
+                    animation: Listenable.merge([p, w.scroll, w.dayFade, w.lateK]),
+                    builder: (_, _) => BusyBoard(view: v!, opacity: (incomingOpacity(p.value) * (1 - _clamp(c() / M2Collapse.fadeEnd)) * w.dayFade.value * lateFade()).clamp(0.0, 1.0)),
+                  );
+                  return KeyedSubtree(key: const ValueKey('busy-board'), child: board);
+                },
+              ),
             ),
-          // the title block: name (it travels into the bar), status line, busy row; all fade in after the container's early fade
+          // the title block: name (it travels into the bar), status line, busy row
           Positioned(
             left: M2Space.gutter, bottom: compact ? M2Layout.titleBottomCafe : M2Layout.titleBottom,
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
               AnimatedBuilder(
-                animation: Listenable.merge([p, w.scroll, w.dayFade]), child: _title,
-                builder: (_, ch) {
-                  final cc = c();
+                animation: Listenable.merge([p, w.scroll, w.dayFade]),
+                builder: (_, _) {
+                  final cc = travels && p.value < 1 ? 0.0 : c(); // (M2: while it travels it is not also collapsing)
+                  // the name fades by its colour's alpha (one run of text: the same pixels as an Opacity, no offscreen layer)
+                  final o = w.dayFade.value.clamp(0.0, 1.0);
                   return IgnorePointer(
-                    child: Opacity(
-                      key: const ValueKey('fade-title'), opacity: (incomingOpacity(p.value) * w.dayFade.value).clamp(0.0, 1.0),
-                      child: Transform(
-                        key: _name, // measured on the Transform's own box, which its transform does not move
-                        alignment: Alignment.bottomLeft,
-                        transform: Matrix4.translationValues(M2Collapse.nameDx * cc, _drop * cc, 0)..scaleByDouble(1 - (1 - ns) * cc, 1 - (1 - ns) * cc, 1, 1),
-                        child: ch,
-                      ),
+                    child: Transform(
+                      key: _name, // measured on the Transform's own box, which its transform does not move
+                      alignment: Alignment.bottomLeft,
+                      transform: Matrix4.translationValues(M2Collapse.nameDx * cc, _drop * cc, 0)..scaleByDouble(1 - (1 - ns) * cc, 1 - (1 - ns) * cc, 1, 1),
+                      child: Semantics(header: true, child: travel(w.parts?.name, scale: true, Text(w.name, key: const ValueKey('fade-title'), style: _nameStyle.style(M2Color.white.withValues(alpha: o)), maxLines: 1))),
                     ),
                   );
                 },
               ),
-              // the status text is the only part of this row a day change touches
-              faded(ValueListenableBuilder<String>(
-                valueListenable: w.status,
-                builder: (_, text, _) => _StatusLine(text: text, onTap: w.onStatus),
-              )),
-              // a café has no busy row, but the empty one keeps its margin (M2 `#mbz`, 0 tall, 8 under the status)
-              if (compact) const SizedBox(height: M2Layout.busyTopHeader),
-              if (!compact)
-                // the row takes its own height as it lands: the name settles over `settle` (at once under reduced motion) and the row fades in
-                faded(ValueListenableBuilder<HallBusyView?>(
-                  valueListenable: busy,
-                  builder: (_, v, _) {
-                    final row = v == null ? room : Arrive(key: const ValueKey('busy-live'), child: BusyRow(lamps: v.lamps, word: v.word, extra: v.extra, header: true));
-                    if (reducedMotion(context)) {
-                      _remeasure(); // (AnimatedSize cannot run for no time)
-                      return row;
-                    }
-                    return AnimatedSize(alignment: Alignment.topLeft, duration: M2Motion.settle.duration, curve: M2Motion.settle.curve, onEnd: _remeasure, child: row);
-                  },
-                )),
+              // the status line and the busy row take one fade between them (one layer, not one each)
+              faded(Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                  // the status text is the only part of this row a day change touches
+                  ValueListenableBuilder<String>(
+                    valueListenable: w.status,
+                    builder: (_, text, _) => own(w.parts?.hasStatus ?? true, travel(w.parts?.status, anchor: _statusText, _StatusLine(textKey: _statusText, chevronFade: _fin, text: text, onTap: w.onStatus))),
+                  ),
+                  // a café has no busy row, but the empty one keeps its margin (M2 `#mbz`, 0 tall, 8 under the status)
+                  if (compact) const SizedBox(height: M2Layout.busyTopHeader),
+                  if (!compact)
+                    // the block has the height the header gives it; a reading that lands late fills it once the box is whole (M2 `busyStep`)
+                    ValueListenableBuilder<HallBusyView?>(
+                      valueListenable: busy,
+                      builder: (_, v, _) {
+                        if (v == null) _lateBusy = true;
+                        final live = v == null ? null : own(w.parts?.hasMeter ?? true, travel(w.parts?.meter, anchor: _meter, BusyRow(lamps: v.lamps, word: v.word, extra: v.extra, header: true, meterKey: _meter, extraFade: _LateFin(_fin, w.lateK, () => lateFade()))));
+                        final row = live == null
+                            ? const SizedBox.shrink()
+                            : _lateBusy && !v!.seed
+                                ? AnimatedBuilder(animation: w.lateK, child: live, builder: (_, ch) => Opacity(key: const ValueKey('busy-live'), opacity: lateFade(), child: ch))
+                                : KeyedSubtree(key: const ValueKey('busy-live'), child: live);
+                        return w.block == null ? row : SizedBox(width: M2Layout.busyMaxHeader, height: w.block, child: OverflowBox(alignment: Alignment.topLeft, minHeight: 0, maxHeight: double.infinity, child: row));
+                      },
+                    ),
+              ])),
             ]),
           ),
         ]),
       ),
     );
+  }
+}
+
+/// `fin` of the container's progress: what a shared element adds to the card's version of itself comes in over this.
+class _Fin extends Animation<double> with AnimationWithParentMixin<double> {
+  _Fin(this.parent);
+  @override
+  final Animation<double> parent;
+  @override
+  double get value => incomingOpacity(parent.value);
+}
+
+/// `fin` of the container's progress times the late reading's fade: the second line comes in with the page and, when the reading is late, after its box.
+class _LateFin extends Animation<double> with AnimationLocalListenersMixin, AnimationLocalStatusListenersMixin {
+  _LateFin(this.fin, this.k, this.late);
+  final Animation<double> fin, k;
+  final double Function() late;
+  @override
+  double get value => fin.value * late();
+  @override
+  AnimationStatus get status => AnimationStatus.forward;
+  @override
+  void didRegisterListener() {
+    fin.addListener(notifyListeners);
+    k.addListener(notifyListeners);
+  }
+
+  @override
+  void didUnregisterListener() {
+    fin.removeListener(notifyListeners);
+    k.removeListener(notifyListeners);
   }
 }
 
@@ -248,7 +322,9 @@ class _Reverse extends Animation<double> with AnimationWithParentMixin<double> {
 class _StatusLine extends StatelessWidget {
   final String text;
   final VoidCallback? onTap;
-  const _StatusLine({required this.text, this.onTap});
+  final Key? textKey;
+  final Animation<double> chevronFade;
+  const _StatusLine({required this.text, required this.chevronFade, this.textKey, this.onTap});
   @override
   Widget build(BuildContext context) {
     final has = text.isNotEmpty;
@@ -263,10 +339,10 @@ class _StatusLine extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(has ? text : ' ', style: M2Text.status.style(M2Color.onDmSoft)),
+          Text(has ? text : ' ', key: textKey, style: M2Text.status.style(M2Color.onDmSoft)),
           if (has) ...[
             const SizedBox(width: M2Layout.statusGapH),
-            const _StatusChevron(),
+            _StatusChevron(chevronFade),
           ],
         ],
       ),
@@ -286,11 +362,15 @@ class _StatusLine extends StatelessWidget {
 }
 
 class _StatusChevron extends StatelessWidget {
-  const _StatusChevron();
+  const _StatusChevron(this.fade);
+  final Animation<double> fade;
   @override
-  Widget build(BuildContext context) => CustomPaint(
-    size: const Size.square(M2Layout.statusChevron),
-    painter: _ChevPainter(M2Color.onDmQuiet, M2Layout.statusChevronStroke),
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: fade,
+    builder: (_, _) => CustomPaint(
+      size: const Size.square(M2Layout.statusChevron),
+      painter: _ChevPainter(M2Color.onDmQuiet.withValues(alpha: M2Color.onDmQuiet.a * fade.value), M2Layout.statusChevronStroke),
+    ),
   );
 }
 
