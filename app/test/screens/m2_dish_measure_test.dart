@@ -9,6 +9,7 @@ import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:udine/core/serving_text.dart';
 import 'package:udine/screens/dish/dish_sheet.dart';
 import 'package:udine/screens/dish/full_label.dart';
 import 'package:udine/screens/hall/hall_menu.dart';
@@ -67,7 +68,7 @@ void compareSheet(WidgetTester t, int w, Map<String, dynamic> m) {
   final name = find.byType(DishSheet).evaluate().isEmpty ? 'Your plate' : t.widget<DishSheet>(find.byType(DishSheet)).dish.dishName;
   near('dn', rect(t, find.descendant(of: find.byType(M2Sheet).last, matching: find.text(name))), m['dn'] ?? m['sh1h2'], w, block: true, dy: dy);
   if (m['dsv'] != null && find.byType(DishSheet).evaluate().isNotEmpty) {
-    final serving = t.widget<DishSheet>(find.byType(DishSheet)).dish.nutrition.servingSize.trim().toLowerCase();
+    final serving = servingText(t.widget<DishSheet>(find.byType(DishSheet)).dish.nutrition.servingSize.trim()).toLowerCase(); // (as shown: the feed's "1 EA" reads "1 each")
     near('dsv', rect(t, find.byWidgetPredicate((x) => x is RichText && x.text.toPlainText().endsWith(serving) && !x.text.toPlainText().contains('Nutrition'))), m['dsv'], w, block: true, dy: dy);
   }
   if (m['mks'] != null) near('mks', rect(t, find.byType(MarkPatch)), m['mks'], w, block: true, dy: dy);
