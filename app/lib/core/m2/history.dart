@@ -42,7 +42,7 @@ class LoggedMeal {
   /// The standard meal window the time falls in; a log between midnight and the rollover belongs to the evening before.
   String get meal {
     final h = int.parse(loggedAt.substring(11, 13)), m = int.parse(loggedAt.substring(14, 16));
-    return mealOfMinute((h < defaultRolloverHour ? h + 24 : h) * 60 + m);
+    return mealOfMinute(boardMinuteOf(h, m));
   }
 
   /// The place the first menu item was served at: a hall by its tid, or a café whose get_infov2 `location_id` is that number

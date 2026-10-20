@@ -3,6 +3,9 @@
 /// Late Night runs past midnight, so "today" flips here instead of at 00:00.
 const defaultRolloverHour = 2;
 
+/// Minutes into the board's day: before the rollover the clock still counts as the evening before (00:40 is 24:40).
+int boardMinuteOf(int hour, int minute) => (hour < defaultRolloverHour ? hour + 24 : hour) * 60 + minute;
+
 final _isoDate = RegExp(r'^(\d{4})-(\d{2})-(\d{2})$');
 
 String _pad(int n, [int width = 2]) => n.toString().padLeft(width, '0');

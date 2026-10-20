@@ -2,19 +2,10 @@
 // meals, the next meal still ahead on the board's day. After the hall's last meal there is none. The board leads with yesterday until
 // 02:00, so the clock is read as minutes on that board day (00:40 is 24:40) and the menus are the board day's, [iso] (`repo.today`), not
 // the Eastern calendar day: a device in another zone keys its board by its own day.
-import '../date.dart' show defaultRolloverHour;
-import '../hours.dart';
 import 'board.dart';
 import 'where.dart' show mealWindow, toMin;
 
 const _meals = ['breakfast', 'lunch', 'dinner', 'late'];
-
-/// The Eastern wall clock as minutes on the board's day (00:40 is 24:40 until the rollover).
-// ponytail: the third copy of the 02:00 rollover (clockMeal in board.dart, history.dart:44); the shared clock-module PR replaces all three.
-int boardMinute(DateTime instant) {
-  final w = easternWall(instant);
-  return (w.hour < defaultRolloverHour ? w.hour + 24 : w.hour) * 60 + w.minute;
-}
 
 /// The meal the hall is in at [instant] on the board's day [iso], else the next one ahead, else null.
 String? hallMeal(Board fx, String hall, String iso, DateTime instant) {
