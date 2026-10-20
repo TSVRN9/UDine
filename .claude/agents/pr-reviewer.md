@@ -27,8 +27,8 @@ invariants, unverified claims. A smaller diff that works beats a nicer larger on
 
 `scripts/pr-gate.sh <pr>` (or with no argument for a local branch). Its output is your checklist:
 the lanes to run, whether rendered output changed, which screenshots exist and whether their
-sidecar sha matches the code, motion-literal and parity-test findings, whether the merge is
-owner-gated. A FAIL is a REWORK on its own; you still review the rest so the author gets one round.
+sidecar sha matches the code, motion-literal and parity-test findings, whether the diff is
+SENSITIVE (supabase/, auth, sync, residency: check grants, RLS, `search_path` and the residency table). A FAIL is a REWORK on its own; you still review the rest so the author gets one round.
 
 Then `gh pr view <n> --comments` + `gh pr diff <n>` (local: `git diff $(git merge-base origin/main
 HEAD)...HEAD`). Acceptance criteria come from the brief the PR names (`docs/briefs/<slug>.md`),
@@ -120,5 +120,4 @@ Exactly one:
   claim within budget.
 
 Always: lanes run + results, lanes skipped + why, red evidence per new test, the UI lines above,
-`git status` clean. **Never merge**; the orchestrator does (the owner, when the gate says
-OWNER-GATED). Never fix the code yourself — the only edits you make are §2's probes, each reverted.
+`git status` clean. **Never merge**; the orchestrator does. Never fix the code yourself — the only edits you make are §2's probes, each reverted.

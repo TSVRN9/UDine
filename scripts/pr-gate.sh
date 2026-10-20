@@ -83,10 +83,10 @@ touched '^app/'                && echo "  cd app && flutter analyze && tool/test
 touched '^supabase/functions/' && echo "  deno test --node-modules-dir=none --allow-env --allow-read=shared/vectors supabase/functions"
 touched '^supabase/(migrations|tests)/' && echo "  supabase start && supabase test db"
 
-# --- owner-gated merge ---------------------------------------------------------------
+# --- sensitive paths (owner, 2026-10-20: no longer owner-merged; the reviewer checks them) ---------------------------------------------------------------
 echo
 if touched '^supabase/|^app/lib/core/store/|^shared/src/sync\.ts|privacySettings|/auth[A-Za-z]*\.(ts|tsx)$|auth-status'; then
-  echo "OWNER-GATED MERGE: diff touches supabase/, auth, sync, or the residency table. Reviewer posts a verdict; the owner merges."
+  echo "SENSITIVE: diff touches supabase/, auth, sync, or the residency table -- review it against CLAUDE.md's Backend and Data residency sections."
 fi
 
 # --- rendered output -----------------------------------------------------------------
