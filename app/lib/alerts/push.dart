@@ -76,6 +76,7 @@ class PushSync {
           await _store.setPushTopics(applied.toList());
         }
         await _m.deleteToken();
+        await _m.setAutoInit(false); // the native flag set by setAutoInit(true) outlives the manifest's false
         await _store.setPushActive(false);
       }
     } catch (e) {
@@ -87,10 +88,11 @@ class PushSync {
   void _wire() {
     if (_wired) return;
     _wired = true;
-    _m.onOpened.listen((n) => tapAlert(n.route));
-    _m.onForeground.listen((n) => unawaited(_show(n).catchError((Object e) => debugPrint('push show: $e'))));
+    void log(Object e) => debugPrint('push: $e'); // e.g. no Play services on a relaunch
+    _m.onOpened.listen((n) => tapAlert(n.route), onError: log);
+    _m.onForeground.listen((n) => unawaited(_show(n).catchError((Object e) => log(e))), onError: log);
     unawaited(_m.initialMessage().then((n) {
       if (n != null) tapAlert(n.route);
-    }));
+    }).catchError((Object e) => log(e)));
   }
 }

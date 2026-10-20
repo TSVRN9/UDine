@@ -15,11 +15,13 @@ import 'package:udine/core/types.dart';
 class FakeMessaging implements Messaging {
   final calls = <String>[];
   Object? failWith;
+  String? failOnly; // a call name ('subscribe', 'unsubscribe', ...): only that call throws
   final opened = StreamController<PushNotice>.broadcast(), foreground = StreamController<PushNotice>.broadcast();
   PushNotice? initial;
+  bool initialFails = false;
 
   Future<void> _do(String c) async {
-    if (failWith != null) throw failWith!;
+    if (failWith != null && (failOnly == null || c.startsWith(failOnly!))) throw failWith!;
     calls.add(c);
   }
 
@@ -32,7 +34,7 @@ class FakeMessaging implements Messaging {
   @override
   Future<void> deleteToken() => _do('deleteToken');
   @override
-  Future<PushNotice?> initialMessage() async => initial;
+  Future<PushNotice?> initialMessage() async => initialFails ? throw StateError('no play services') : initial;
   @override
   Stream<PushNotice> get onOpened => opened.stream;
   @override
@@ -94,10 +96,47 @@ void main() {
     m.calls.clear();
     await p.sync(on: false);
     expect(m.calls.where((c) => c.startsWith('unsub:')).toSet(), {'unsub:$a', 'unsub:$b'});
-    expect(m.calls.last, 'deleteToken');
+    expect(m.calls.last, 'autoInit:false');
+    expect(m.calls, contains('deleteToken'));
     m.calls.clear();
     await p.sync(on: false);
     expect(m.calls, isEmpty);
+  });
+
+  test('a failed subscribe is not recorded as applied, and the next sync retries it', () async {
+    final store = await _store(['Pizza']), m = FakeMessaging(), p = PushSync(store, m);
+    m..failWith = StateError('offline')..failOnly = 'sub:';
+    await p.sync(on: true);
+    expect(await store.pushTopics(), isEmpty);
+    m.failWith = null;
+    m.calls.clear();
+    await p.sync(on: true);
+    expect(m.calls, ['sub:$a']);
+    expect(await store.pushTopics(), [a]);
+  });
+
+  test('a failed unsubscribe stays applied, and the next sync retries it', () async {
+    final store = await _store(['Pizza']), m = FakeMessaging(), p = PushSync(store, m);
+    await p.sync(on: true);
+    await store.removeFavorite(const DishFavorite('Pizza'));
+    m..failWith = StateError('offline')..failOnly = 'unsub:';
+    await p.sync(on: true);
+    expect(await store.pushTopics(), [a]);
+    m.failWith = null;
+    m.calls.clear();
+    await p.sync(on: true);
+    expect(m.calls, ['unsub:$a']);
+    expect(await store.pushTopics(), isEmpty);
+  });
+
+  test('a messaging source that errors does not escape as an unhandled error', () async {
+    final m = FakeMessaging()..initialFails = true;
+    await runZonedGuarded(() async {
+      await PushSync(await _store(['Pizza']), m).sync(on: true);
+      m.opened.addError(StateError('x'));
+      m.foreground.addError(StateError('y'));
+      await Future<void>.delayed(Duration.zero);
+    }, (e, _) => fail('unhandled: $e'));
   });
 
   test('off with a failing delete is retried next time', () async {
@@ -108,7 +147,7 @@ void main() {
     await p.sync(on: false);
     m.failWith = null;
     await p.sync(on: false);
-    expect(m.calls, ['unsub:$a', 'deleteToken']);
+    expect(m.calls, ['unsub:$a', 'deleteToken', 'autoInit:false']);
   });
 
   test('the wanted set is capped at 2000 topics', () async {
