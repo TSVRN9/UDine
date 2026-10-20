@@ -140,9 +140,10 @@ addressed to a reviewer goes in the PR body.
   conversation; `docs/briefs/TEMPLATE.md`). Dispatch prompts point at the brief; nothing is pasted.
   GitHub issues are human-filed bugs only: `docs/agents/issue-tracker.md`.
 - The gate is mechanical: `scripts/pr-gate.sh` (named screenshots fresh against the PR's own hunks, no motion
-  literal outside `motion.ts`, PR template fields, lanes, owner-gated paths) runs on `gh pr create`
+  literal outside `motion.ts`, PR template fields, lanes, sensitive paths) runs on `gh pr create`
   and `gh pr merge` via `.claude/settings.json` hooks. Anything under `supabase/`, auth, sync, or
-  the residency table is owner-merged.
+  the residency table is flagged SENSITIVE for the reviewer and merges on MERGE like any other PR
+  (owner, 2026-10-20). Merging is not deploying: migrations and functions still go live by hand.
 - Loop, escalation gates, stalls, and `scripts/agent-usage.py` (is the agent system paying for
   itself): `docs/agents/orchestration.md`. Domain docs (`CONTEXT.md`, `docs/adr/`), emulator pool,
   design audit: `docs/agents/`.

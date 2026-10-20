@@ -29,9 +29,8 @@ is routing, not deep reasoning. Read this at the start of any session that dispa
    MERGE / REWORK / ESCALATE. It re-renders any state it needs itself.
 5. **Act on the verdict.** MERGE → `app/tool/test.sh --merged N` (in the background, ~35 min: the PR's one full suite, on
    the tree the merge makes; author and reviewer ran only the dirs the diff touches), then `gh pr merge N --squash
-   --delete-branch` (the hook refuses without that run's stamp, refuses `--delete-branch` while a PR is based on the branch, and
-   refuses when the gate printed OWNER-GATED: anything under `supabase/`, auth, sync, residency — post the
-   verdict and leave it for the owner). REWORK → findings back to the same `issue-solver`.
+   --delete-branch` (the hook refuses without that run's stamp, and refuses `--delete-branch` while a PR is based on the branch;
+   a SENSITIVE PR — `supabase/`, auth, sync, residency — merges the same way, owner 2026-10-20). REWORK → findings back to the same `issue-solver`.
    ESCALATE → see gates below. Stacked children: merge parent first, then the child rebases.
    The gate diffs a PR against its own base branch (`gh pr create --base X` → `pr-gate.sh --base X`;
    `pr-gate.sh <pr>` reads the PR's `baseRefName`), so a stacked child is judged only on its own files.
