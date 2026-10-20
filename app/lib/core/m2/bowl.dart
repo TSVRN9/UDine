@@ -67,7 +67,7 @@ Syn? _phoOf(Board b, String iso, String place, String meal, int si, List<MenuIte
   // a café's add-ons first: Whitmore's "Beef Pho w/Spicy Green Curry Broth" names a broth but is a whole pho
   final ss = b.days[iso]![place]![meal]!;
   final add = [for (var j = 0; j < ss.length; j++) if (_addOns.hasMatch(ss[j].name.trim())) j];
-  final tops = [for (final j in add) ...ss[j].dishes.where((x) => x.nutrition.calories > 0)];
+  final tops = [for (final j in add) ...ss[j].dishes.where((x) => x.nutrition.knownCal == null || x.nutrition.calories > 0)];
   return tops.isNotEmpty ? mk(ds, [...ds, ...tops], {for (final j in add) ss[j].name.trim()}.join(' and ')) : bar;
 }
 
@@ -109,7 +109,7 @@ Build? buildOf(Board b, String iso, String place, String meal, int si, int di) {
   }
   if (_addOns.hasMatch(ss[si].name.trim())) return null;
   final adds = [for (final s2 in ss) if (_addOns.hasMatch(s2.name.trim())) s2];
-  final parts = [for (final s2 in adds) ...s2.dishes.where((x) => x.nutrition.calories > 0)];
+  final parts = [for (final s2 in adds) ...s2.dishes.where((x) => x.nutrition.knownCal == null || x.nutrition.calories > 0)];
   return parts.isEmpty ? null : Build(head: {for (final s2 in adds) s2.name.trim()}.join(' and '), parts: parts, base: d);
 }
 
@@ -138,8 +138,9 @@ Bowl bowlDish(MenuItem? base, List<Qty> parts, {Syn? syn, required String place}
   assert(base != null || syn != null); // (a synthetic bowl with nothing chosen is the sheet's 0 cal foot)
   num sum(num Function(NutritionFacts) f) => all.fold<num>(0, (a, e) => a + f(e.$1.nutrition) * e.$2);
   final blank = <String>{
-    for (final f in const ['caloriesFromFat', 'totalFatG', 'satFatG', 'transFatG', 'cholesterolMg', 'sodiumMg', 'totalCarbG', 'dietaryFiberG', 'sugarsG', 'proteinG'])
-      if (all.every((e) => e.$1.nutrition.blank.contains(f))) f,
+    for (final f in const ['calories', 'caloriesFromFat', 'totalFatG', 'satFatG', 'transFatG', 'cholesterolMg', 'sodiumMg', 'totalCarbG', 'dietaryFiberG', 'sugarsG', 'proteinG'])
+      // (a bowl with nothing chosen is the 0 cal foot, not unknown)
+      if (all.every((e) => e.$1.nutrition.blank.contains(f)) && (all.isNotEmpty || !const {'calories', 'proteinG', 'totalCarbG', 'totalFatG'}.contains(f))) f,
   };
   final pr = all.fold<double>(0, (a, e) => a + _cents(e.$1.price) * e.$2);
   final algs = {for (final e in all) ...e.$1.allergens}.toList()..sort((a, b) => allergens.indexOf(a) - allergens.indexOf(b));

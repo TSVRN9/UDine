@@ -143,7 +143,7 @@ class FoodsPage extends StatelessWidget {
           return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             for (final (i, f) in foods.indexed)
               LRow(
-                title: f.name, subtitle: '${fc(f.nutrition.calories)} cal, ${servingText(f.serving)}', last: i == foods.length - 1,
+                title: f.name, subtitle: '${fc(f.nutrition.knownCal)} cal, ${servingText(f.serving)}', last: i == foods.length - 1,
                 onTap: () => openFoodSheet(context, food: f, meal: clockMeal(scope.repo.now())),
               ),
           ]);

@@ -20,7 +20,7 @@ class SecHead extends StatelessWidget {
 /// `.lrow .mc`: the figure, "cal" and the chevron.
 class CalTrailing extends StatelessWidget {
   const CalTrailing(this.cal, {super.key});
-  final num cal;
+  final num? cal;
   @override
   Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
         Text(fc(cal), style: M2Layout.mealCalNum.style(M2Color.ink)),

@@ -20,7 +20,7 @@ void main() {
 
   test('the benchmark plate (Beef Brisket Noodle Bowl x1, Golden BBQ Chicken Thigh x2) is 404 cal and 38.9 g of protein', () {
     final t = totals(plate);
-    expect((t.cal, (t.p * 10).round() / 10), (404, 38.9));
+    expect((t.cal, (t.p! * 10).round() / 10), (404, 38.9));
     final l = plateLabelRows(plate);
     expect(l.cal, '404');
     expect(l.rows.firstWhere((r) => r.name == 'Protein').value, '38.9g');

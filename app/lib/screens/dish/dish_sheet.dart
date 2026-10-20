@@ -278,7 +278,7 @@ class _DishSheetState extends State<DishSheet> {
                 Padding(
                   padding: const EdgeInsets.only(top: M2Layout.browMetaTop),
                   child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
-                    Text(fc(x.nutrition.calories), style: n), const SizedBox(width: M2Layout.numSpace), Text('cal', style: u),
+                    Text(fc(x.nutrition.knownCal), style: n), const SizedBox(width: M2Layout.numSpace), Text('cal', style: u),
                     if (cafe && x.price != null) ...[const SizedBox(width: M2Layout.numSpace + M2Layout.browPriceGap), Text(x.price!, style: n)],
                   ]),
                 ),
@@ -422,7 +422,7 @@ class _DishSheetState extends State<DishSheet> {
                   return Positioned(
                     left: 0, right: 0, height: h, top: frame.maxHeight - (px < h ? px : h),
                     child: BowlFoot(
-                      cal: item.nutrition.calories, protein: item.nutrition.proteinG, update: widget.edit != null, off: addOff(spec, bowl!), onTap: () => _badd(scope, pm, bowl),
+                      cal: item.nutrition.knownCal, protein: item.nutrition.knownProtein, update: widget.edit != null, off: addOff(spec, bowl!), onTap: () => _badd(scope, pm, bowl),
                     ),
                   );
                 },

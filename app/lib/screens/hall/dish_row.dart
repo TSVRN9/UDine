@@ -71,7 +71,7 @@ class DishRow extends StatelessWidget {
         if (contains.isNotEmpty) Text('Contains ${andList(contains.map((a) => a.toLowerCase()).toList())}', style: M2Text.meta.style(M2Color.vm).copyWith(fontWeight: FontWeight.w600)),
         // (`.vt` shares the line's baseline with the Oswald figures, which sits below the line's centre)
         if (chip != null) Transform.translate(offset: const Offset(0, M2Layout.tokenDrop), child: Text(chip!, style: M2Text.meta.style(M2Color.slate))),
-        CalProtein(cal: d.nutrition.calories, protein: d.nutrition.proteinG),
+        CalProtein(cal: d.nutrition.knownCal, protein: d.nutrition.knownProtein),
         if (sc != null)
           // `.row .m .sc{margin-block:-1px}`: a 22.5 tile rides in the 22 line without growing it
           NegMargin(
@@ -87,7 +87,7 @@ class DishRow extends StatelessWidget {
     );
     final badge = Badge.forDiet(d.diet);
     return ListRow(
-      label: '${family ?? d.dishName}${chip == null ? '' : ', $chip'}, ${fc(d.nutrition.calories)} calories, ${f1(d.nutrition.proteinG)} grams protein',
+      label: '${family ?? d.dishName}${chip == null ? '' : ', $chip'}, ${d.nutrition.knownCal == null ? 'calories not listed' : '${fc(d.nutrition.knownCal)} calories'}, ${d.nutrition.knownProtein == null ? 'protein not listed' : '${f1(d.nutrition.knownProtein)} grams protein'}',
       here: here, onTap: onOpen, stands: chip == null ? null : d,
       name: Badge.name(family ?? d.dishName, M2Text.rowName.style(M2Color.ink), badge: badge, star: favorite ? const StarMark() : null),
       meta: meta, metaEnd: _tagSlot,
@@ -99,13 +99,13 @@ class DishRow extends StatelessWidget {
 /// A row's "250 cal  6g protein" (M2 `meta`): the figures in Oswald, the words in slate.
 class CalProtein extends StatelessWidget {
   const CalProtein({super.key, required this.cal, required this.protein});
-  final num cal, protein;
+  final num? cal, protein;
   @override
   Widget build(BuildContext context) {
     final num = M2Text.metaNum.style(M2Color.ink), unit = M2Text.meta.style(M2Color.slate);
     const gap = SizedBox(width: M2Layout.numSpace);
     return Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
-      Text(fc(cal), style: num), gap, Text('cal', style: unit), gap, const SizedBox(width: M2Layout.numGap), gap, Text('${f1(protein)}g', style: num), gap, Text('protein', style: unit),
+      Text(fc(cal), style: num), gap, Text('cal', style: unit), gap, const SizedBox(width: M2Layout.numGap), gap, Text(fg(protein), style: num), gap, Text('protein', style: unit),
     ]);
   }
 }
@@ -113,7 +113,7 @@ class CalProtein extends StatelessWidget {
 /// A per-100 g food's "368 cal per 100 g" (M2 `.mg`): says what the figure is for, and no protein.
 class CalPer100 extends StatelessWidget {
   const CalPer100({super.key, required this.cal});
-  final num cal;
+  final num? cal;
   @override
   Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
         Text(fc(cal), style: M2Text.metaNum.style(M2Color.ink)),
@@ -137,3 +137,4 @@ class _TagsAt extends SingleChildLayoutDelegate {
   @override
   bool shouldRelayout(_TagsAt o) => o.centre != centre || o.limit != limit;
 }
+

@@ -1,8 +1,11 @@
 // What the kit prints: number formats and the Nutrition Facts rows. Building rows from a dish is the logic layer's job.
 
-String f1(num x) => ((x * 10).round() / 10).toStringAsFixed(1).replaceFirst(RegExp(r'\.0$'), '');
+/// M2 `fc` / `fg`: a missing figure (null) is "–", never 0; a recorded 0 stays 0.
+String f1(num? x) => x == null ? '–' : ((x * 10).round() / 10).toStringAsFixed(1).replaceFirst(RegExp(r'\.0$'), '');
 /// en-US thousands grouping.
-String fc(num x) => x.round().toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ',');
+String fc(num? x) => x == null ? '–' : x.round().toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ',');
+/// Grams: "12g", or "–" when unknown.
+String fg(num? x) => x == null ? '–' : '${f1(x)}g';
 /// M2 `fq`: a quantity as the stepper prints it.
 String fq(double q) => q == 0.5 ? '½' : q % 1 != 0 ? '${q.floor()}½' : q.toInt().toString();
 

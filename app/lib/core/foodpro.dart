@@ -100,7 +100,7 @@ List<MenuItem> parseCategoryItems(String html, String category, MealPeriod mealP
         proteinDv: _dv(a, 'data-protein-dv'),
         blank: {
           for (final (field, attr) in const [
-            ('caloriesFromFat', 'data-calories-from-fat'), ('totalFatG', 'data-total-fat'), ('satFatG', 'data-sat-fat'),
+            ('calories', 'data-calories'), ('caloriesFromFat', 'data-calories-from-fat'), ('totalFatG', 'data-total-fat'), ('satFatG', 'data-sat-fat'),
             ('transFatG', 'data-trans-fat'), ('cholesterolMg', 'data-cholesterol'), ('sodiumMg', 'data-sodium'),
             ('totalCarbG', 'data-total-carb'), ('dietaryFiberG', 'data-dietary-fiber'), ('sugarsG', 'data-sugars'),
             ('proteinG', 'data-protein'),

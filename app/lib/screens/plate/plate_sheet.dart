@@ -269,10 +269,10 @@ class _PlateSheetState extends State<PlateSheet>
                 vertical: M2Layout.factsMargin,
               ),
               child: Facts(
-                cal: t.cal.toDouble(),
-                p: t.p.toDouble(),
-                c: t.c.toDouble(),
-                f: t.f.toDouble(),
+                cal: t.cal,
+                p: t.p,
+                c: t.c,
+                f: t.f,
               ),
             ),
             CustomButton(

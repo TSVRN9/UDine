@@ -98,7 +98,7 @@ class UdineStore {
   Future<Undo> addEntry(LogEntry e) => _change('log_entries', 'id', [e.id], (tx) async {
         await tx.rawInsert(
           'INSERT OR REPLACE INTO log_entries (id, logged_at, source_json, servings, nutrition_json) VALUES (?, ?, ?, ?, ?)',
-          [e.id, e.loggedAt, jsonEncode(e.source.toJson()), e.servings, jsonEncode(e.nutrition.toJson())],
+          [e.id, e.loggedAt, jsonEncode(e.source.toJson()), e.servings, jsonEncode(e.nutrition.toLogJson())],
         );
       });
 
@@ -108,7 +108,7 @@ class UdineStore {
         for (final e in es) {
           await tx.rawInsert(
             'INSERT OR REPLACE INTO log_entries (id, logged_at, source_json, servings, nutrition_json) VALUES (?, ?, ?, ?, ?)',
-            [e.id, e.loggedAt, jsonEncode(e.source.toJson()), e.servings, jsonEncode(e.nutrition.toJson())],
+            [e.id, e.loggedAt, jsonEncode(e.source.toJson()), e.servings, jsonEncode(e.nutrition.toLogJson())],
           );
         }
       });

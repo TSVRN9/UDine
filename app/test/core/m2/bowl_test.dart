@@ -66,11 +66,11 @@ void main() {
     expect(b.head, 'Noodle Bowl');
     expect(b.base.dishName, 'Beef Brisket Noodle Bowl');
     expect(b.parts, isNotEmpty);
-    expect(b.base.macro.cal + 2 * 93, 404); // the benchmark plate (brisket + 2 Golden BBQ): the plain + adds the dish as it is
+    expect(b.base.macro.cal! + 2 * 93, 404); // the benchmark plate (brisket + 2 Golden BBQ): the plain + adds the dish as it is
     expect(buildOf(board, d.iso, d.place, d.meal, d.si, di == 0 ? 1 : 0), isNull); // a topping is not a base
   });
 
-  test('a café builds only from its Add-ons / Toppings, and only with dishes that have nutrition', () {
+  test('a café builds only from its Add-ons / Toppings, and only with dishes that have calories or none recorded (M2 R12c)', () {
     var built = 0;
     for (final d in stationDays(isCafe)) {
       final meals = board.days[d.iso]![d.place]![d.meal]!;
@@ -81,8 +81,8 @@ void main() {
         built++;
         expect(adds, isNotEmpty);
         expect(adds.contains(d.si), isFalse);
-        expect(b.parts.every((p) => p.nutrition.calories > 0), isTrue);
-        expect(b.parts.length, [for (final i in adds) ...meals[i].dishes.where((x) => x.nutrition.calories > 0)].length);
+        expect(b.parts.every((p) => p.nutrition.knownCal == null || p.nutrition.calories > 0), isTrue);
+        expect(b.parts.length, [for (final i in adds) ...meals[i].dishes.where((x) => x.nutrition.knownCal == null || x.nutrition.calories > 0)].length);
       }
     }
     expect(built, greaterThan(0));
@@ -150,7 +150,7 @@ void main() {
                       if (bowls[i.key] case final b?) {'parts': [for (final (x, q) in b.parts) [x.dishName, q]], 'cal': b.item.nutrition.calories, 'price': b.item.price},
                     ],
                 ],
-                'totals': {for (final e in {'cal': totals(p).cal, 'p': totals(p).p, 'c': totals(p).c, 'f': totals(p).f}.entries) e.key: (e.value * 10).round() / 10},
+                'totals': {for (final e in {'cal': totals(p).cal, 'p': totals(p).p, 'c': totals(p).c, 'f': totals(p).f}.entries) e.key: (e.value! * 10).round() / 10},
               },
           ],
           v['plates'],

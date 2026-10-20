@@ -6,15 +6,14 @@ import 'support.dart';
 
 Map<String, MenuItem> refsFor(String meal, String name, List places) =>
     {for (final p in places) p as String: servingOn(board, today, p, meal, dishKey(name))!};
-double r1(num x) => (x * 10).round() / 10;
+double? r1(num? x) => x == null ? null : (x * 10).round() / 10;
 
 void main() {
   group('plate ops match M2', () {
     for (final v in vectors['plate'] as List) {
       // Bowl ops (M2 R10 §4) are run in bowl_test.dart.
       if ((v['ops'] as List).any((op) => op[0] == 'bowl')) continue;
-      // M2 round 12c: a blank nutrient stays blank in the totals; green with docs/briefs/m2-round-12-13.md Task 2, which removes this skip
-      test(v['name'], skip: v['name'] == 'blank calories (20 oz Chai): the plate has no calorie total' ? 'M2 round 12c missing nutrients: m2-round-12-13 Task 2' : false, () {
+      test(v['name'], () {
         var s = emptyPlates;
         for (final op in v['ops'] as List) {
           if (op[0] == 'add') {
@@ -69,8 +68,8 @@ void main() {
     expect(brisket['B']!.macro.cal, isNot(brisket['W']!.macro.cal));
     final s = addDish(addDish(emptyPlates, 'lunch', 'Beef Brisket Noodle Bowl', brisket), 'lunch', 'Golden BBQ Chicken Thigh', bbq);
     expect(plateHalls(s.plates[0]), ['W']);
-    expect(totals(s.plates[0]).cal, brisket['W']!.macro.cal + bbq['W']!.macro.cal);
-    expect(totals(s.plates[0], 'B').cal, brisket['B']!.macro.cal + bbq['W']!.macro.cal);
+    expect(totals(s.plates[0]).cal, brisket['W']!.macro.cal! + bbq['W']!.macro.cal!);
+    expect(totals(s.plates[0], 'B').cal, brisket['B']!.macro.cal! + bbq['W']!.macro.cal!);
     expect(totals(s.plates[0], 'B').cal, isNot(totals(s.plates[0]).cal));
   });
 

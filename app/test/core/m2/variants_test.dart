@@ -40,12 +40,11 @@ void main() {
 
   test('families: every station-meal of the 15 days is the vector\'s, and no other', () {
     final name = {for (final p in board.places) p.key: p.name};
-    // (a blank calorie reads 0 until the missing-nutrients task parses it as null)
-    final want = [for (final f in v['families'] as List) _row(f['day'], f['place'], f['meal'], f['station'], f['name'], f['axis'], [for (final x in f['variants']) [x[0], x[1], x[2] ?? 0]])]..sort();
+    final want = [for (final f in v['families'] as List) _row(f['day'], f['place'], f['meal'], f['station'], f['name'], f['axis'], [for (final x in f['variants']) [x[0], x[1], x[2]]])]..sort();
     final got = <String>[];
     for (final s in stations()) {
       for (final f in famsAt(s.st.dishes, s.st.name)) {
-        got.add(_row(s.iso, name[s.place]!, s.meal, s.st.name, f.name, f.axis, [for (final x in f.vars) [x.v, x.dish.dishName, x.dish.nutrition.calories]]));
+        got.add(_row(s.iso, name[s.place]!, s.meal, s.st.name, f.name, f.axis, [for (final x in f.vars) [x.v, x.dish.dishName, x.dish.nutrition.knownCal]]));
       }
     }
     expect(want, hasLength(392));

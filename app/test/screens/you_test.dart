@@ -160,6 +160,37 @@ void main() {
       await drain(t);
     });
 
+    NutritionFacts unknownN({required bool blank}) => NutritionFacts(
+        servingSize: '', calories: 0, caloriesFromFat: 0, totalFatG: 0, satFatG: 0, transFatG: 0, cholesterolMg: 0, sodiumMg: 0, totalCarbG: 0, dietaryFiberG: 0, sugarsG: 0, proteinG: 0,
+        blank: blank ? const {'calories', 'proteinG', 'totalCarbG', 'totalFatG'} : const {});
+
+    Future<void> openLogged(WidgetTester t, String dish, {required bool blank}) async {
+      final b = await bootRecorded(t);
+      await t.runAsync(() async {
+        await b.store!.addEntries([
+          LogEntry(id: 'x1', loggedAt: '2026-10-07T12:20:00.000', source: UmassMenuSource(dishName: dish, hallTid: 1), servings: 1, nutrition: unknownN(blank: blank)),
+        ]);
+        await b.log!.reload();
+      });
+      await openYou(t, b, route: '/you/day/2026-10-07');
+      await t.tap(find.text('Lunch at Worcester'));
+      await t.pumpAndSettle();
+    }
+
+    testWidgets('a logged item with unknown calories reads "– cal each" and the meal\'s total is unknown', (t) async {
+      await openLogged(t, '20 oz Chai', blank: true);
+      expect(find.textContaining('– cal each', findRichText: true), findsOneWidget);
+      expect(t.widget<Facts>(find.descendant(of: find.byType(MealSheet), matching: find.byType(Facts))).cal, isNull);
+      await drain(t);
+    });
+
+    testWidgets('a legacy item stored as 0 still reads "0 cal each"', (t) async {
+      await openLogged(t, 'Legacy Zero', blank: false);
+      expect(find.textContaining('0 cal each', findRichText: true), findsOneWidget);
+      expect(t.widget<Facts>(find.descendant(of: find.byType(MealSheet), matching: find.byType(Facts))).cal, 0);
+      await drain(t);
+    });
+
     testWidgets('More and Less change the servings in the store as you go', (t) async {
       final b = await meal(t);
       final row = find.byType(PlateRow).first;

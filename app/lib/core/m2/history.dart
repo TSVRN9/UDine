@@ -13,7 +13,7 @@ class LoggedItem {
   final LogEntry entry;
   String get id => entry.id;
   double get qty => entry.servings.toDouble();
-  num get calEach => entry.nutrition.calories;
+  num? get calEach => entry.nutrition.knownCal;
   /// A bowl's parts as logged (name, servings), empty for anything else.
   List<(String, num)> get parts => switch (entry.source) {
         UmassMenuSource(parts: final p?) => [for (final x in p) (x.name, x.servings)],
@@ -76,19 +76,20 @@ Map<String, int> cafeIdsOf(DiningHoursFeed? feed) {
 
 class Totals {
   const Totals(this.cal, this.p, this.c, this.f);
-  final double cal, p, c, f;
+  final double? cal, p, c, f;
 }
 
 Totals _sum(Iterable<LoggedItem> items) {
-  double cal = 0, p = 0, c = 0, f = 0;
+  double? cal, p, c, f;
+  double? add(double? a, num? x, num q) => x == null ? a : (a ?? 0) + x * q;
   for (final i in items) {
     final n = i.entry.nutrition, q = i.qty;
-    cal += n.calories * q;
-    p += n.proteinG * q;
-    c += n.totalCarbG * q;
-    f += n.totalFatG * q;
+    cal = add(cal, n.knownCal, q);
+    p = add(p, n.knownProtein, q);
+    c = add(c, n.knownCarb, q);
+    f = add(f, n.knownFat, q);
   }
-  return Totals(cal, p, c, f);
+  return items.isEmpty ? const Totals(0, 0, 0, 0) : Totals(cal, p, c, f);
 }
 
 /// Every meal in the log, oldest first (M2 sorts a day's meals by `at`).
@@ -121,9 +122,10 @@ String deletedLine(LoggedMeal m, Board fx, Map<String, int> cafeIds) {
 Label mealLabelRows(LoggedMeal m) {
   double f(double Function(NutritionFacts n) of) => m.items.fold(0.0, (a, i) => a + of(i.entry.nutrition) * i.qty);
   return labelRowsOf(NutritionFacts(
-    servingSize: '', calories: m.total.cal, caloriesFromFat: f((n) => n.caloriesFromFat.toDouble()), totalFatG: f((n) => n.totalFatG.toDouble()),
+    servingSize: '', calories: m.total.cal ?? 0, caloriesFromFat: f((n) => n.caloriesFromFat.toDouble()), totalFatG: f((n) => n.totalFatG.toDouble()),
     satFatG: f((n) => n.satFatG.toDouble()), transFatG: f((n) => n.transFatG.toDouble()), cholesterolMg: f((n) => n.cholesterolMg.toDouble()),
     sodiumMg: f((n) => n.sodiumMg.toDouble()), totalCarbG: f((n) => n.totalCarbG.toDouble()), dietaryFiberG: f((n) => n.dietaryFiberG.toDouble()),
     sugarsG: f((n) => n.sugarsG.toDouble()), proteinG: f((n) => n.proteinG.toDouble()),
+    blank: {for (final (k, v) in [('calories', m.total.cal), ('totalFatG', m.total.f), ('totalCarbG', m.total.c), ('proteinG', m.total.p)]) if (v == null) k},
   ));
 }

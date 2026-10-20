@@ -209,7 +209,7 @@ class _PlateBarState extends State<PlateBar>
           ),
           _l2([
             (fc(t.cal), 'cal'),
-            ('${f1(t.p)}g', 'protein'),
+            (fg(t.p), 'protein'),
           ]),
         ],
       ),

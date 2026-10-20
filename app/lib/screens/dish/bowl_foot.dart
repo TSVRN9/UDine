@@ -6,8 +6,8 @@ import '../../ui/ui.dart';
 /// Add (Update for a bowl already on the plate), off at 0. The figures settle (0.4 to 1) each time the bowl changes.
 class BowlFoot extends StatelessWidget {
   const BowlFoot({super.key, required this.cal, required this.protein, required this.update, required this.off, required this.onTap});
-  final num cal;
-  final num protein;
+  final num? cal;
+  final num? protein;
   final bool update, off;
   final VoidCallback onTap;
 
@@ -26,11 +26,11 @@ class BowlFoot extends StatelessWidget {
           child: Align(
             alignment: Alignment.centerLeft,
             child: SettleFade(
-              value: '${fc(cal)}|${f1(protein)}',
+              value: '${fc(cal)}|${fg(protein)}',
               child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
                 Text(fc(cal), style: num_), const SizedBox(width: M2Layout.barNumGap), Text('cal', style: unit),
                 const SizedBox(width: M2Layout.barUnitGap),
-                Text('${f1(protein)}g', style: num_), const SizedBox(width: M2Layout.barNumGap), Text('protein', style: unit),
+                Text(fg(protein), style: num_), const SizedBox(width: M2Layout.barNumGap), Text('protein', style: unit),
               ]),
             ),
           ),

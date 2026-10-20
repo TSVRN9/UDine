@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import '../core/date.dart';
 import '../core/m2/board.dart';
 import '../core/m2/log.dart';
-import '../core/macros.dart';
 import '../core/saved_food.dart';
 import '../core/m2/bowl.dart' show Bowl;
 import '../core/m2/bowl_builder.dart';
@@ -37,7 +36,7 @@ class Receipt {
   final List<String> ids;
 
   /// what the day holds once these rows are in (the receipt's "Today")
-  final num dayCal;
+  final num? dayCal;
   final Undo _undo;
 }
 
@@ -141,10 +140,15 @@ class PlateModel extends ChangeNotifier {
       final rows = logEntries(plate, place: at, loggedAt: loggedAt);
       // (M2 logPlate: the day's total is read before the rows go in, so nothing that can fail runs after they commit; a Log whose rows
       // are in always ends in a receipt and an Undo)
-      final before = computeDailyTotals(day, await rd(day)).calories;
+      final prior = await rd(day);
       final undo = await w(rows);
       await _changed();
-      final dayCal = before + rows.fold<num>(0, (a, e) => a + e.nutrition.calories * e.servings);
+      // (M2 `dayTotal().cal`: the sum of what is known, null when nothing the day holds has calories)
+      num? dayCal;
+      for (final e in [...prior, ...rows]) {
+        final c = e.nutrition.knownCal;
+        if (c != null) dayCal = (dayCal ?? 0) + c * e.servings;
+      }
       // ponytail: the plate is taken out by id, as it was when Log was tapped; an item added to it during the write is neither logged
       // nor brought back by Undo (a few ms wide; snapshot-compare the plate and keep the difference if it ever shows)
       final index = _s.plates.indexWhere((p) => p.id == plate.id);

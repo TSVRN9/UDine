@@ -107,9 +107,9 @@
   },
   {
    "dish": "Add Crispy Chicken",
-   "cal": 0,
+   "cal": null,
    "serving": "3 oz",
-   "cals": "0",
+   "cals": "–",
    "rows": [
     [
      "",
