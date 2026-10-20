@@ -120,7 +120,7 @@ class _FoodSheetState extends State<FoodSheet> {
           },
           child: LayoutBuilder(builder: (context, frame) => Stack(children: [
             Positioned.fill(child: M2Sheet(
-              handle: widget.handle, top: st + M2Layout.sheetTop, onClosed: widget.onClosed, mid: (m) => _mid(m, st), header: const SheetGrab(), onSize: (v) => _px.value = v,
+              handle: widget.handle, top: st + M2Layout.sheetTop, onClosed: widget.onClosed, mid: (m) => _mid(m, st), header: _edit ? const SheetGrab() : null, onSize: (v) => _px.value = v,
               slivers: _edit
                   ? [
                       FoodFormSliver(
@@ -129,7 +129,7 @@ class _FoodSheetState extends State<FoodSheet> {
                       ),
                     ]
                   : [
-                      PinnedHeaderSliver(child: DishHead(name: f.name, stuck: _stuck, reserve: saved, slot: _editW)),
+                      PinnedHeaderSliver(child: Column(mainAxisSize: MainAxisSize.min, children: [const SheetGrab(), DishHead(name: f.name, stuck: _stuck, reserve: saved, slot: _editW)])),
                       SliverToBoxAdapter(
                         child: Arrive(
                           key: ValueKey(f), from: M2Layout.editFadeFrom,

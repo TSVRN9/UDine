@@ -319,10 +319,11 @@ class _DishSheetState extends State<DishSheet> {
           },
           child: LayoutBuilder(builder: (context, frame) => Stack(children: [
             Positioned.fill(child: M2Sheet(
-            handle: widget.handle, top: st + M2Layout.sheetTop, onClosed: widget.onClosed, mid: (m) => _mid(m, st), header: const SheetGrab(), onSize: (v) => _px.value = v,
+            handle: widget.handle, top: st + M2Layout.sheetTop, onClosed: widget.onClosed, mid: (m) => _mid(m, st), onSize: (v) => _px.value = v,
             bottomPad: spec == null ? null : M2Layout.footBodyPad + safeBottom(context),
             slivers: [
-              PinnedHeaderSliver(child: DishHead(name: name, stuck: _stuck)),
+              // (the grab rides in the one pinned header: a second pinned sliver after it asserts on the frames where the sheet is shorter than both)
+              PinnedHeaderSliver(child: Column(mainAxisSize: MainAxisSize.min, children: [const SheetGrab(), DishHead(name: name, stuck: _stuck)])),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: M2Space.gutter),
