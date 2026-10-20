@@ -9,13 +9,14 @@ import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import '../plate/plate_sheet.dart' show plateBoard;
 import 'day_page.dart';
+import 'health_row.dart';
 import 'meal_sheet.dart';
 import 'settings_pages.dart';
 import 'you_parts.dart';
 
 /// You: the date and the title, then Today (its totals and meals) and Earlier (one row per logged day, newest first; a row pushes the day).
 /// On a database a newer build wrote there is no log to show, and the one line says so. Then the choices: Favorites, Dietary preferences,
-/// and Export, Campus, Show on dishes. "Track what I eat" is the first section; with it off Today and Earlier go and Export stays while any history exists. The Health row goes under it (`flutter-port-health`).
+/// and Export, Campus, Show on dishes. "Track what I eat" is the first section; with it off Today and Earlier go and Export stays while any history exists.  Write to Health Connect goes under it while tracking is on.
 class YouScreen extends StatelessWidget {
   const YouScreen({super.key, required this.top});
   final double top;
@@ -87,7 +88,7 @@ class _Choices extends StatelessWidget {
       if (days > 0) ('Export my data', '$days ${days == 1 ? 'day' : 'days'}', (_) => ExportPage(top: top)),
     ];
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      if (book != null) sec([const TrackRow(last: true)]), // (the Health row goes under it: flutter-port-health)
+      if (book != null) sec([const TrackAndHealth()]),
       sec([for (final (i, r) in rows.indexed) LRow(title: r.$1, subtitle: r.$2, last: i == rows.length - 1, onTap: () => Nav.push<void>(context, r.$3))]),
       sec([
         const SecHead('Campus'),

@@ -11,7 +11,7 @@ enum LookupMode { found, none, fail, limited, inProgress }
 const recordedAvailable = !kReleaseMode;
 
 class RecordedFlags {
-  const RecordedFlags({this.at, this.net = NetMode.ok, this.scores = (health: false, carbon: false), this.avoid = const [], this.onlyShow = const [], this.savedPdfs = const {}, this.savedCafes = const {}, this.noEvents = false, this.trackOff = false, this.firstRun = false, this.lookup = LookupMode.found, this.packFail = false, this.seedFoods = false, this.busyLate = false});
+  const RecordedFlags({this.at, this.net = NetMode.ok, this.scores = (health: false, carbon: false), this.avoid = const [], this.onlyShow = const [], this.savedPdfs = const {}, this.savedCafes = const {}, this.noEvents = false, this.trackOff = false, this.firstRun = false, this.lookup = LookupMode.found, this.packFail = false, this.seedFoods = false, this.os = 'android', this.health = 'allow', this.busyLate = false});
   final DateTime? at;
   final NetMode net;
 
@@ -27,6 +27,9 @@ class RecordedFlags {
   /// `lookup=found|none|fail|limited|inprogress` (M2's `?lookup=`): what Search UMass Dining answers. `pack=fail`: the packaged search does not come back.
   final LookupMode lookup;
   final bool packFail;
+  /// `os=ios|android` and `health=allow|deny|revoked|unsupported|notinstalled` (M2's own flags, the last two ours; `device` is ours: the real Health Connect / HealthKit, for a capture on a phone): which platform names the Health row and what the simulated OS answers
+  /// (`revoked`: the switch is on and the OS no longer allows it).
+  final String os, health;
   /// `foods=seed`: M2's seeded Your foods, Chobani and the recorded Clif Bar Chocolate Chip.
   final bool seedFoods;
   /// `busy=late` (M2's own flag): the busy reading answers after [defaultSlow], so a hall opens before it and it lands late.
@@ -52,6 +55,8 @@ RecordedFlags? recordedFlags(String route, {bool available = recordedAvailable})
     lookup: switch (q['lookup']) { 'none' => LookupMode.none, 'fail' || 'offline' => LookupMode.fail, 'limited' => LookupMode.limited, 'inprogress' => LookupMode.inProgress, _ => LookupMode.found },
     packFail: q['pack'] == 'fail',
     seedFoods: q['foods'] == 'seed',
+    os: q['os'] == 'ios' ? 'ios' : 'android',
+    health: const {'deny', 'revoked', 'unsupported', 'notinstalled', 'device'}.contains(q['health']) ? q['health']! : 'allow',
     busyLate: q['busy'] == 'late',
     savedPdfs: {for (final x in (q['saved'] ?? '').split(',')) if (x.startsWith('pdf:')) x.substring(4)},
     savedCafes: {for (final x in (q['saved'] ?? '').split(',')) if (x.isNotEmpty && !x.startsWith('pdf:')) x},

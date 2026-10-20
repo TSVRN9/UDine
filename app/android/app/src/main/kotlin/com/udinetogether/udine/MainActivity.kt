@@ -24,6 +24,10 @@ import kotlinx.coroutines.launch
 
 // FlutterFragmentActivity: Health Connect's permission contract needs an ActivityResult registry, which FlutterActivity lacks.
 class MainActivity : FlutterFragmentActivity() {
+    companion object {
+        const val HEALTH_CONNECT_PACKAGE = "com.google.android.apps.healthdata"
+    }
+
     private val scope = CoroutineScope(Dispatchers.Main)
     private var pending: MethodChannel.Result? = null
     private lateinit var askForPermissions: ActivityResultLauncher<Set<String>>
@@ -69,8 +73,26 @@ class MainActivity : FlutterFragmentActivity() {
 
     private fun perms(call: MethodCall): Set<String> = call.argument<List<String>>("permissions")!!.toSet()
 
+    private fun providerInstalled(): Boolean = try {
+        packageManager.getPackageInfo(HEALTH_CONNECT_PACKAGE, 0); true
+    } catch (e: Exception) { false }
+
+    // Health Connect's home (Android 14+; MANAGE_HEALTH_PERMISSIONS is protected, Permission Denial on the A53), the provider's settings, then its Play listing when it isn't installed.
+    private fun openSettings() {
+        val intents = listOfNotNull(
+            if (Build.VERSION.SDK_INT >= 34) Intent("android.health.connect.action.HEALTH_HOME_SETTINGS") else null,
+            Intent("androidx.health.ACTION_HEALTH_CONNECT_SETTINGS"),
+            Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$HEALTH_CONNECT_PACKAGE")),
+            Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$HEALTH_CONNECT_PACKAGE")),
+        )
+        for (i in intents) {
+            try { startActivity(i); return } catch (e: Exception) { android.util.Log.w("UDineHealth", "settings intent failed", e) }
+        }
+    }
+
     // Write only: nothing here ever reads a record back.
     private fun handle(call: MethodCall, result: MethodChannel.Result) {
+        if (call.method == "openSettings") { openSettings(); result.success(null); return }
         // minSdk is 24 but Health Connect's library is 26+ (manifest overrideLibrary): no call below may run on older devices.
         if (Build.VERSION.SDK_INT < 26) {
             result.success(when (call.method) { "access" -> "unsupported"; "write" -> null; else -> false })
@@ -78,7 +100,8 @@ class MainActivity : FlutterFragmentActivity() {
         }
         val status = HealthConnectClient.getSdkStatus(this)
         if (call.method == "access" && status != HealthConnectClient.SDK_AVAILABLE) {
-            result.success(if (status == HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED) "notInstalled" else "unsupported")
+            // Android 13 and below keep Health Connect in an app: absent (or too old) it can be installed, anything else can't have it
+            result.success(if (status == HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED || !providerInstalled()) "notInstalled" else "unsupported")
             return
         }
         if (status != HealthConnectClient.SDK_AVAILABLE) { result.success(if (call.method == "write" || call.method == "delete") null else false); return }

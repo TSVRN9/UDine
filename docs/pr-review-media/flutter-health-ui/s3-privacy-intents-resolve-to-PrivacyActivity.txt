@@ -1,0 +1,7 @@
+# what Health Connect's privacy link resolves to on the A53 (build 0f89bb9d); the address-bar capture from the last round is in the PR history
+## androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE
+9 activities found:
+    com.udinetogether.udine.internal/com.udinetogether.udine.PrivacyActivity
+## android.intent.action.VIEW_PERMISSION_USAGE (category HEALTH_PERMISSIONS)
+12 activities found:
+    com.udinetogether.udine.internal/com.udinetogether.udine.ViewPermissionUsageActivity

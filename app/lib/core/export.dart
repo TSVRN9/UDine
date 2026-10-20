@@ -115,8 +115,8 @@ String exportAlertSentAsJson(List<({String dishName, String day})> sent) => _jso
 
 String exportAlertSentAsCsv(List<({String dishName, String day})> sent) => _csv(['dishName', 'day'], [for (final a in sent) [a.dishName, a.day]]);
 
-typedef HealthWrite = ({String mealId, String platform, List<String> recordIds});
+typedef HealthWrite = ({String mealId, String platform, List<String> recordIds, String? contentSig});
 
-String exportHealthWritesAsJson(List<HealthWrite> w) => _json([for (final h in w) {'mealId': h.mealId, 'platform': h.platform, 'recordIds': h.recordIds}]);
+String exportHealthWritesAsJson(List<HealthWrite> w) => _json([for (final h in w) {'mealId': h.mealId, 'platform': h.platform, 'recordIds': h.recordIds, 'contentSig': h.contentSig}]);
 
-String exportHealthWritesAsCsv(List<HealthWrite> w) => _csv(['mealId', 'platform', 'recordIds'], [for (final h in w) [h.mealId, h.platform, h.recordIds.join(' ')]]);
+String exportHealthWritesAsCsv(List<HealthWrite> w) => _csv(['mealId', 'platform', 'recordIds', 'contentSig'], [for (final h in w) [h.mealId, h.platform, h.recordIds.join(' '), h.contentSig ?? '']]);
