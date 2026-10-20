@@ -475,8 +475,32 @@ const packaged: Case[] = [
   }),
 ];
 
+// --- dish-topic -----------------------------------------------------------------------------------
+const topic = (name: string, input: string): Case => ({ kind: "topic", name, input: { name: input } });
+const dishTopicCases: Case[] = [
+  topic("plain", "Chicken Parm"),
+  topic("case", "CHICKEN parm"),
+  topic("whitespace runs and ends", "  Chicken \t  Parm\n"),
+  topic("straight apostrophe dropped", "Mom's Mac"),
+  topic("curly apostrophe dropped", "Mom\u2019s Mac"),
+  topic("ampersand is a separator", "Mac & Cheese"),
+  topic("ampersand without spaces", "Mac&Cheese"),
+  topic("punctuation runs", "Mac -- (Cheese)!"),
+  topic("precomposed accent", "Jalape\u00f1o Poppers"),
+  topic("decomposed accent keeps the n and drops the mark, so it differs from precomposed", "Jalapen\u0303o Poppers"),
+  topic("accented letter at the end is dropped, not folded", "Caf\u00e9"),
+  topic("accented e", "Cr\u00e8me Br\u00fbl\u00e9e"),
+  topic("digits kept", "2% Milk 8oz"),
+  topic("empty after normalizing", "\u2019 & \u2019"),
+];
+
 // --- write ----------------------------------------------------------------------------------------
 const FILES: Record<string, { about: string }> = {
+  "dish-topic.json": {
+    about:
+      "FCM topic for a favourited dish (dishTopic). kind=topic: input {name} -> 'dish-' + the first 16 hex of the SHA-256 of the UTF-8 normalized name. " +
+      "Inputs are feed strings as given, not Unicode-normalized. Normalization: lowercase, drop U+2019 and U+0027, every run of characters outside [a-z0-9] (all non-ASCII letters included: Caf\u00e9 -> 'caf', Jalape\u00f1o -> 'jalape o', never folded to e/n; a decomposed n + U+0303 keeps the n) becomes one space, trim.",
+  },
   "packaged.json": {
     about:
       "Packaged-food search mapping (openFoodFacts.ts, usdaFoodData.ts); the HTTP answer is fed in, no network. " +
@@ -519,7 +543,7 @@ const FILES: Record<string, { about: string }> = {
   },
 };
 
-const CASES: Record<string, Case[]> = { "foodpro.json": foodpro, "hours.json": hours, "match-query.json": matchQuery, "favorite-match.json": favoriteMatch, "export.json": exportCases, "packaged.json": packaged };
+const CASES: Record<string, Case[]> = { "foodpro.json": foodpro, "hours.json": hours, "match-query.json": matchQuery, "favorite-match.json": favoriteMatch, "dish-topic.json": dishTopicCases, "export.json": exportCases, "packaged.json": packaged };
 for (const [file, { about }] of Object.entries(FILES)) {
   const cases = CASES[file];
   const adapters = ADAPTERS[file];
