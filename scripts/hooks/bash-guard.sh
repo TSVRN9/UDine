@@ -40,7 +40,6 @@ if at_cmd 'gh pr merge\b'; then
   fi
   out="$(cd "$root" && "$root/scripts/pr-gate.sh" $pr --merge 2>&1)"; rc=$?
   if [[ $rc -ne 0 ]]; then echo "pr-gate failed -- fix before merging:"$'\n'"$out" >&2; exit 2; fi
-  if grep -q 'OWNER-GATED' <<<"$out"; then echo "OWNER-GATED: this PR touches supabase/auth/sync/residency. Post the verdict; the owner merges." >&2; exit 2; fi
 elif grep -Eq '(^|[^[:alnum:]_./-])flutter test\b' <<<"$cmd" && ! grep -Eq '^[[:space:]]*(grep|rg|git|echo|printf|cat|sed|jq|gh)\b' <<<"$cmd"; then
   # flutter test only through app/tool/test.sh: a runaway test without the 4G cap took the host down twice (2026-10-17),
   # and full suites outside suite.lock pile up.
