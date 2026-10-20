@@ -11,7 +11,7 @@ import 'support.dart';
 import 'you_support.dart';
 
 const _off = "When a favorite is on today's menu", _denied = 'Notifications are off for UDine';
-const _battery = "Battery use is restricted, so UDine can't check menus", _refresh = "Background App Refresh is off, so UDine can't check menus";
+const _battery = "Battery use is restricted, so UDine can't check menus";
 
 bool _checked(WidgetTester t) => t.widget<CheckRow>(find.widgetWithText(CheckRow, 'Notify me')).on;
 Finder get _settings => find.text('Open Settings');
@@ -137,11 +137,13 @@ void main() {
     await drain(t);
   });
 
-  testWidgets('background off on iOS: the Background App Refresh line', (t) async {
+  testWidgets('on iOS a restricted background shows no row, only the plain line', (t) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
     await _favs(t, FakeAlertsOs(permitted: true, restricted: true), on: true);
-    expect(find.text(_refresh), findsOneWidget);
+    expect(find.text(_off), findsOneWidget);
+    expect(find.textContaining('Background App Refresh'), findsNothing);
     expect(find.text(_battery), findsNothing);
+    expect(_settings, findsNothing);
     expect(_checked(t), isTrue);
     debugDefaultTargetPlatformOverride = null;
     await drain(t);

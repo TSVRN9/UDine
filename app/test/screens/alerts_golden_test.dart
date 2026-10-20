@@ -38,6 +38,5 @@ void main() {
     testWidgets('denied, $n dp', (t) => shot(t, 'denied', FakeAlertsOs(willAllow: false), tap: true));
     testWidgets('revoked, found on resume, $n dp', (t) => shot(t, 'revoked', FakeAlertsOs(), on: true));
     testWidgets('background off on Android, $n dp', (t) => shot(t, 'bg_android', FakeAlertsOs(permitted: true, restricted: true), on: true));
-    testWidgets('background off on iOS, $n dp', (t) => shot(t, 'bg_ios', FakeAlertsOs(permitted: true, restricted: true), on: true, ios: true));
   }
 }

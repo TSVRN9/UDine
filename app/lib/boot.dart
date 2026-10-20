@@ -34,6 +34,8 @@ import 'screens/hall/hall_controller.dart' show mealsOfItems;
 import 'screens/plate/plate_sheet.dart' show plateBoard;
 import 'core/saved_food.dart';
 import 'alerts/alerts.dart' show PlatformAlertsOs;
+import 'alerts/push.dart' show PushSync;
+import 'alerts/push_firebase.dart' show FirebaseMessagingClient;
 import 'alerts/alerts_os.dart';
 import 'shell/alerts_model.dart';
 import 'shell/app_scope.dart';
@@ -113,7 +115,7 @@ class Boot {
       if (flags.onlyShow.isNotEmpty) await store?.setOnlyShow(flags.onlyShow);
       if (Uri.parse(route).queryParameters['alerts'] == 'on') await store?.setAlertsOn(true); // Notify me stored on, as for a user who turned it on
     }
-    final alerts = await AlertsModel.load(store, alertsOs ?? PlatformAlertsOs());
+    final alerts = await AlertsModel.load(store, alertsOs ?? PlatformAlertsOs(), push: store != null && alertsOs == null && flags == null ? PushSync(store, FirebaseMessagingClient()) : null);
     final prefs = await AppPrefs.load(store, pins: pinsFlag != null ? _fivePins.take(pinsFlag).toList() : flags != null && pinsQuery != null ? pinsQuery.split(',') : null);
     // recorded routes only: `fav=Dish A|Dish B` starts with those favourites (the Halls stars are drawn from them)
     if (flags != null) {

@@ -24,7 +24,7 @@ class Meal {
 }
 
 /// M2 tracking/score/campus/first-run settings: new preferences_kv keys, prefixed so they never meet RN's.
-const kTrackKey = 'm2:track', kScoresKey = 'm2:scores', kCharlesRiverKey = 'm2:charles_river', kFirstRunSeenKey = 'm2:first_run_seen', kPinsKey = 'm2:pins', kAlertsKey = 'm2:alerts', kHealthKey = 'm2:health';
+const kTrackKey = 'm2:track', kScoresKey = 'm2:scores', kCharlesRiverKey = 'm2:charles_river', kFirstRunSeenKey = 'm2:first_run_seen', kPinsKey = 'm2:pins', kAlertsKey = 'm2:alerts', kHealthKey = 'm2:health', kPushTopicsKey = 'm2:push_topics', kPushActiveKey = 'm2:push_active';
 
 /// Repositories over an opened db, reading and writing RN's exact rows and JSON shapes.
 class UdineStore {
@@ -231,6 +231,11 @@ class UdineStore {
 
   Future<bool> alertsOn() async => await _kv(kAlertsKey) as bool? ?? false;
   Future<void> setAlertsOn(bool v) => _setKv(kAlertsKey, v);
+  /// The FCM topics last applied, and whether auto-init was ever switched on (and the token not yet deleted).
+  Future<List<String>> pushTopics() async => List<String>.from(await _kv(kPushTopicsKey) as List? ?? []);
+  Future<void> setPushTopics(List<String> v) => _setKv(kPushTopicsKey, v);
+  Future<bool> pushActive() async => await _kv(kPushActiveKey) as bool? ?? false;
+  Future<void> setPushActive(bool v) => _setKv(kPushActiveKey, v);
 
   /// Takes the right to post [dish] for [day]: true for the one caller that records it, false for every later one (also from another
   /// process: the primary key decides).

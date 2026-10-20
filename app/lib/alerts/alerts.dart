@@ -14,6 +14,7 @@ import '../data/repository.dart';
 import '../data/source.dart';
 import 'alert_check.dart';
 import 'alerts_os.dart';
+import 'push.dart' show PushNotice;
 
 /// The one periodic task. Android: WorkManager's unique work name (15 minutes is its floor). iOS: the BGTaskScheduler identifier,
 /// which Info.plist lists and AppDelegate registers; iOS decides when it runs, if at all.
@@ -35,6 +36,16 @@ String? takeHeldTap() {
 @visibleForTesting
 void debugTapForTest(String route) => _tapped(route);
 
+/// A tap that came from a push (launch, backgrounded); the notification's own response in the foreground lands here too.
+void tapAlert(String route) => _tapped(route);
+
+@visibleForTesting
+void debugResponseForTest(String route) => _responded(NotificationResponse(notificationResponseType: NotificationResponseType.selectedNotification, payload: route));
+
+void _responded(NotificationResponse r) {
+  if (r.payload case final route?) _tapped(route);
+}
+
 void _tapped(String route) => alertTaps.hasListener ? alertTaps.add(route) : _heldTap = route;
 
 Future<void> _initNotifications() => _notifications.initialize(
@@ -43,9 +54,7 @@ Future<void> _initNotifications() => _notifications.initialize(
         // The OS permission sheet is asked for by the Favorites row (Task 2), never at start-up.
         iOS: DarwinInitializationSettings(requestAlertPermission: false, requestBadgePermission: false, requestSoundPermission: false),
       ),
-      onDidReceiveNotificationResponse: (r) {
-        if (r.payload case final route?) _tapped(route);
-      },
+      onDidReceiveNotificationResponse: _responded,
     );
 
 /// Whether the OS will show a notification now (permission granted, not blocked).
@@ -62,6 +71,18 @@ Future<void> _post(AlertNotice n) async {
       body: n.body,
       // BigText: a body naming several places expands instead of being cut off at two lines
       notificationDetails: NotificationDetails(android: AndroidNotificationDetails('favorite_alerts', 'Favorites on the menu', styleInformation: BigTextStyleInformation(n.body)), iOS: const DarwinNotificationDetails()),
+      payload: n.route,
+    );
+}
+
+/// A push that arrived with the app in the foreground, shown here (FCM won't) under the server's own tag, so a replay collapses into it.
+Future<void> showPush(PushNotice n) async {
+  if (!await _allowed()) return;
+  await _notifications.show(
+      id: n.tag.hashCode & 0x7fffffff,
+      title: n.title,
+      body: n.body,
+      notificationDetails: NotificationDetails(android: AndroidNotificationDetails('favorite_alerts', 'Favorites on the menu', tag: n.tag, styleInformation: BigTextStyleInformation(n.body)), iOS: const DarwinNotificationDetails()),
       payload: n.route,
     );
 }

@@ -1,0 +1,28 @@
+{
+  "sha": "3a027ed7857f891e79b09d0fb416d32ddc615099",
+  "branch": "flutter/alert-push-fcm",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/flutter-alert-push-fcm",
+  "route": "/you/favs?data=recorded&at=2026-10-08T12:41&alerts=on&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-10-20T21:52:04Z",
+  "own": {
+    "app/ios/Runner/Info.plist": "c7073109d7ac4e619d02efdc4aaf9fb673a6412e",
+    "app/lib/alerts/alerts.dart": "ad4383b672a0842107d6b1c10622166a38e38736",
+    "app/lib/alerts/push.dart": "6c6080c376818d1e983452c1494239f1c4f3d33c",
+    "app/lib/alerts/push_firebase.dart": "1baf6754fda415e14ddc9eaed62acbc4ab00536c",
+    "app/lib/boot.dart": "1ed39544ca19b026359042ff5fa5bd1db37b6edc",
+    "app/lib/core/store/store.dart": "7402d9ff7f8e57b1de94519bdbd997cdb04f62dd",
+    "app/lib/main.dart": "e27fcb976163a6dc2af65faaa8beac361fb2ca87",
+    "app/lib/screens/you/favorites_notify.dart": "4c3600b79e60483d0f39ab2dbf9e5dce8fa33b26",
+    "app/lib/shell/alerts_model.dart": "2149e29ff22e6e11ec5d50b5c6110a11e4b57bf0",
+    "app/pubspec.lock": "1b870c4a4bf9139bf3f6728f63ef1f62c91c1289",
+    "app/pubspec.yaml": "fd80da563684d98eeae8940f10e4a4f06fcb4dad"
+  },
+  "argv": [
+    "/you/favs?data=recorded&at=2026-10-08T12:41&alerts=on",
+    "--out",
+    "docs/pr-review-media/flutter-alert-push-fcm/you-favs-data-recorded-at-2026-10-08T12-41-alerts-on-photos--emulator-5556.png"
+  ]
+}

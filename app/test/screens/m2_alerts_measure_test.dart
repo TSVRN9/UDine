@@ -79,6 +79,5 @@ void main() {
     testWidgets('denied at $w dp matches M2 within 1 dp', (t) => check(t, 'denied', os: FakeAlertsOs(willAllow: false), tap: true));
     testWidgets('revoked at $w dp matches M2 within 1 dp', (t) => check(t, 'revoked', os: FakeAlertsOs(permitted: false), on: true));
     testWidgets('background off on Android at $w dp matches M2 within 1 dp', (t) => check(t, 'bgAndroid', os: FakeAlertsOs(permitted: true, restricted: true), on: true));
-    testWidgets('background off on iOS at $w dp matches M2 within 1 dp', (t) => check(t, 'bgIos', os: FakeAlertsOs(permitted: true, restricted: true), on: true, ios: true));
   }
 }
