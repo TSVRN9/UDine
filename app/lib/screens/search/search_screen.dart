@@ -8,7 +8,7 @@ import '../../core/m2/search.dart';
 import '../../core/m2/status.dart';
 import '../../core/m2/variants.dart' show familiesOf, favoriteOf, shownOf;
 import '../../core/search.dart' show searchWords;
-import '../../core/m2/where.dart' show WhereGroup;
+import '../../core/m2/where.dart' show WhereGroup, boardDay;
 import '../../core/saved_food.dart';
 import '../../data/packaged_search.dart' show LookupPhase, PackPhase;
 import '../../motion/routes.dart';
@@ -172,7 +172,7 @@ class _SearchScreenState extends State<SearchScreen> {
     openDishSheet(
       context, dish: d, place: place, meal: meal, day: day, fx: fx, avoid: scope.prefs.diet.avoid, refs: refs,
       cafeIds: c.cafeIds,
-      onServe: (p, g) => ShellScope.of(context).openPlace(p, meal: g.meal, day: g.day, dish: d.key),
+      onServe: (p, g) => ShellScope.of(context).openPlace(p, meal: g.meal, day: boardDay(fx, g), dish: d.key),
     );
   }
 
@@ -249,7 +249,7 @@ class _SearchScreenState extends State<SearchScreen> {
         const SizedBox(width: M2Layout.nextToTags),
         _tags(fx, g.halls, said),
       ]),
-      onOpen: () => _open(d, place: g.halls.first, meal: g.meal, day: g.day), onAdd: () {}, onInc: () {}, onDec: () {},
+      onOpen: () => _open(d, place: g.halls.first, meal: g.meal, day: boardDay(fx, g)), onAdd: () {}, onInc: () {}, onDec: () {},
     );
   }
 

@@ -45,4 +45,15 @@ void main() {
     expect(here(t)?.dish.dishName, 'Tofu Scramble');
     await drain(t);
   });
+
+  // 00:40 on the 9th: the board still leads with the 8th (rollover 2 AM), so the 9th's breakfast is board day 1, not g.day 0
+  testWidgets('00:40: the calendar day\'s breakfast at the same place is pushed on board day 1, not scrolled to on day 0', (t) async {
+    final b = await bootRecorded(t, at: DateTime.parse('2026-10-09T00:40:00-04:00'));
+    await openHall(t, b, dishRoute('Chinese Twist Cruller', meal: 'breakfast'));
+    await sheetUp(t);
+    await tapChip(t, 'Worcester');
+    expect(find.byType(HallMenu, skipOffstage: false), findsNWidgets(2));
+    expect(top(t).debugDay, 1);
+    await drain(t);
+  });
 }

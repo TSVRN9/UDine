@@ -285,8 +285,8 @@ int _min(String t) {
 
 /// The serving that names a group: its first place's dish on the group's day and meal; for a family, its default variant's.
 MenuItem? _serving(Board fx, WhereGroup g, String key) {
-  final iso = dayIsos(fx)[g.day], fam = familiesOf(fx);
-  for (final s in fx.days[iso]?[g.halls.first]?[g.meal] ?? const <Station>[]) {
+  final fam = familiesOf(fx);
+  for (final s in fx.days[g.iso]?[g.halls.first]?[g.meal] ?? const <Station>[]) {
     for (final d in s.dishes) {
       final f = fam.familyOf(d);
       if (f == null ? d.key == key : f.key == key && identical(f.vars.first.dish, d)) return d;

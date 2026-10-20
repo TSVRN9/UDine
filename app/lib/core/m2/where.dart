@@ -9,7 +9,9 @@ class WhereGroup {
   final int day;
   final String open, close;
   final List<String> halls;
-  WhereGroup(this.st, this.meal, this.day, this.open, this.close, this.halls);
+  /// The menu day the group was found on (not in the JSON): `day` counts from the calendar date, a board counts from its first day.
+  final String iso;
+  WhereGroup(this.st, this.meal, this.day, this.open, this.close, this.halls, [this.iso = '']);
   Map<String, dynamic> toJson() => {'st': st, 'meal': meal, 'day': day, 'open': open, 'close': close, 'halls': halls};
 }
 
@@ -72,7 +74,7 @@ List<WhereGroup> wherePlan(Board fx, String dish, DateTime instant, {bool newton
         final st = rel == 1 ? 'tomorrow' : rel == -1 ? (crosses && nowMin < w.$2 ? 'now' : 'past') : nowMin >= end ? 'past' : nowMin >= w.$1 ? 'now' : 'later';
         if (st == 'past') continue;
         final gk = '$st,$meal,${w.$1},${w.$2}';
-        final acc = groups.putIfAbsent(gk, () => _Acc(WhereGroup(st, meal, day, _fmtMin(w.$1), _fmtMin(w.$2), []), w.$1, end, groups.length));
+        final acc = groups.putIfAbsent(gk, () => _Acc(WhereGroup(st, meal, day, _fmtMin(w.$1), _fmtMin(w.$2), [], days[rel + 1]), w.$1, end, groups.length));
         if (!acc.g.halls.contains(place)) acc.g.halls.add(place);
       }
     }
@@ -89,7 +91,7 @@ List<WhereGroup> wherePlan(Board fx, String dish, DateTime instant, {bool newton
     });
   final sorted = [
     for (final a in gs)
-      WhereGroup(a.g.st, a.g.meal, a.g.day, a.g.open, a.g.close, [...a.g.halls]..sort((x, y) => placeOrder(x) - placeOrder(y))),
+      WhereGroup(a.g.st, a.g.meal, a.g.day, a.g.open, a.g.close, [...a.g.halls]..sort((x, y) => placeOrder(x) - placeOrder(y)), a.g.iso),
   ];
   return sorted;
 }
@@ -102,7 +104,7 @@ List<WhereGroup> whereAnswer(Board fx, String dish, DateTime instant, {bool newt
   for (final g in sorted.skip(1)) {
     if (g.day != 0) continue;
     final rest = g.halls.where((h) => !first.halls.contains(h)).toList();
-    if (rest.isNotEmpty) return [first, WhereGroup(g.st, g.meal, g.day, g.open, g.close, rest)];
+    if (rest.isNotEmpty) return [first, WhereGroup(g.st, g.meal, g.day, g.open, g.close, rest, g.iso)];
   }
   return [first];
 }
@@ -127,4 +129,10 @@ String whenText(WhereGroup g, [WhereGroup? prev]) {
   return g.st == 'now' ? (same ? 'Until ${fmtT(g.close)}' : '${_mealName(g.meal)} now, until ${fmtT(g.close)}')
       : g.st == 'later' ? (same ? 'From ${fmtT(g.open)}' : '${_mealName(g.meal)} from ${fmtT(g.open)}')
       : 'Tomorrow, ${_mealWord(g.meal)} from ${fmtT(g.open)}';
+}
+
+/// Where the group's menu day sits in the board's days. After midnight the board can still lead with yesterday, so `g.day` is not it.
+int boardDay(Board fx, WhereGroup g) {
+  final i = fx.days.keys.toList().indexOf(g.iso);
+  return i < 0 ? g.day : i;
 }
