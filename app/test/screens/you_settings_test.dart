@@ -1,6 +1,8 @@
 // You's settings (flutter-port-you Task 2): the rows, Dietary preferences, the Charles River and score toggles, Favorites, "Which was better?"
 // and Export, as a user meets them. What each writes to RN's rows is checked against the store.
 import 'package:flutter_test/flutter_test.dart';
+import 'package:udine/core/hours.dart' show easternInstant;
+import 'package:udine/core/m2/where.dart' show notServed;
 import 'package:udine/core/types.dart' show RankedDish;
 import 'package:udine/ui/ui.dart';
 import '../fonts.dart';
@@ -168,17 +170,51 @@ void main() {
   });
 
   group('Favorites', () {
-    testWidgets('each starred dish says where it is at lunch today: the halls that serve it, or that it is not on lunch today', (t) async {
-      final b = await bootYou(t);
+    Future<void> stars(WidgetTester t, DateTime at) async {
+      final b = await bootYou(t, History.full, null, false, true, at);
       await t.runAsync(() async {
-        await b.prefs.toggleFavorite('Beef Brisket Noodle Bowl'); // Worcester and Berkshire, M2's recorded lunch
-        await b.prefs.toggleFavorite('Golden BBQ Chicken Thigh'); // Worcester only
+        await b.prefs.toggleFavorite('Beef Brisket Noodle Bowl');
+        await b.prefs.toggleFavorite('Golden BBQ Chicken Thigh');
+        await b.prefs.toggleFavorite('Black Bean Burger'); // Worcester late night, and lunch at other halls
         await b.prefs.toggleFavorite('Cheese Soufflé Not On Any Menu');
       });
       await openYou(t, b, route: '/you/favs');
-      await until(t, () => find.text('At lunch now at Worcester or Berkshire').evaluate().isNotEmpty);
-      expect(find.text('At lunch now at Worcester'), findsOneWidget);
-      expect(find.text('Not on lunch today'), findsOneWidget);
+      await until(t, () => find.text(notServed).evaluate().isNotEmpty);
+    }
+
+    testWidgets('at lunch each starred dish says the dish sheet\'s sentence: when, and the halls', (t) async {
+      await stars(t, lunch);
+      expect(find.text('Lunch now, until 4:30 PM, at Worcester and Berkshire'), findsOneWidget);
+      expect(find.text('Lunch now, until 4:30 PM, at Worcester'), findsOneWidget);
+      expect(find.text('Lunch now, until 4:30 PM, at Worcester, Franklin and Berkshire'), findsOneWidget);
+      await drain(t);
+    });
+
+    testWidgets('late at night it is the late-night sentence, not a hall that served the dish only at lunch', (t) async {
+      await stars(t, easternInstant(DateTime.utc(2026, 10, 8, 21, 12)));
+      expect(find.text('Late night now, until midnight, at Worcester'), findsOneWidget);
+      expect(find.textContaining('Lunch'), findsNothing);
+      expect(find.text(notServed), findsNWidgets(3)); // (the two lunch-only dishes, and the one on no menu)
+      await drain(t);
+    });
+
+    testWidgets('the where sentences are asked for after the page has slid in, not during the push', (t) async {
+      final b = await bootRecorded(t);
+      await t.runAsync(() => b.prefs.toggleFavorite('Golden BBQ Chicken Thigh'));
+      await openYou(t, b);
+      await t.pumpAndSettle();
+      await t.tap(find.text('Favorites'));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 40));
+      expect(find.text('Golden BBQ Chicken Thigh'), findsOneWidget); // (the page is in, mid-slide)
+      // real time for whatever has been asked for to come back, while the slide (fake time) stands still
+      for (var i = 0; i < 60; i++) {
+        await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 60)));
+        await t.pump(const Duration(milliseconds: 1));
+      }
+      expect(find.textContaining(', at '), findsNothing);
+      expect(find.text(notServed), findsNothing);
+      await until(t, () => find.textContaining(', at ').evaluate().isNotEmpty);
       await drain(t);
     });
 
@@ -189,6 +225,7 @@ void main() {
       await t.runAsync(() => b.prefs.toggleFavorite('Green Chile Posole'));
       await t.pumpAndSettle();
       expect(find.text('Green Chile Posole'), findsOneWidget);
+      await until(t, () => find.textContaining(', at ').evaluate().isNotEmpty || find.text(notServed).evaluate().isNotEmpty);
       await drain(t);
     });
   });

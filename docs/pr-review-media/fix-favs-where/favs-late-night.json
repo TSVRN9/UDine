@@ -1,0 +1,23 @@
+{
+  "sha": "9e02ca1416a0f694e36efe5c89b4c2cff33cc66d",
+  "branch": "fix/favs-where",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/fix-favs-where",
+  "route": "/you/favs?data=recorded&at=2026-10-08T21:12&fav=Beef%20Brisket%20Noodle%20Bowl|Black%20Bean%20Burger|Golden%20BBQ%20Chicken%20Thigh&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-10-21T02:37:44Z",
+  "own": {
+    "app/lib/alerts/alert_check.dart": "ddb770369b3415710f63f413d659295abbef988d",
+    "app/lib/core/m2/where.dart": "777705cad64201d1ff404dabdd12e38064307f3a",
+    "app/lib/screens/dish/dish_sheet.dart": "6af3be5159591078ee952ea1e05fb992eaa857c1",
+    "app/lib/screens/you/settings_pages.dart": "3562ed401fae6a3e4d440b4a4575a10ec071520d"
+  },
+  "argv": [
+    "/you/favs?data=recorded&at=2026-10-08T21:12&fav=Beef%20Brisket%20Noodle%20Bowl|Black%20Bean%20Burger|Golden%20BBQ%20Chicken%20Thigh",
+    "--out",
+    "docs/pr-review-media/fix-favs-where/favs-late-night.png",
+    "--out",
+    "docs/pr-review-media/fix-favs-where/favs-late-night.png"
+  ]
+}

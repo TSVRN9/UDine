@@ -20,6 +20,7 @@ Future<void> _favs(WidgetTester t, FakeAlertsOs os, {bool on = false, bool track
   final b = await bootYou(t, History.full, os, on, track);
   await t.runAsync(() => b.prefs.toggleFavorite('Golden BBQ Chicken Thigh'));
   await openYou(t, b, route: '/you/favs');
+  await placesLoaded(t);
 }
 
 Future<void> _settle(WidgetTester t) async {
