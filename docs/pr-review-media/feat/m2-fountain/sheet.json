@@ -1,12 +1,12 @@
 {
-  "sha": "376e41b706678aced1b0366b56f513b4b6330b5e",
+  "sha": "876afa5b0131a51e06ebece08b49f7a784be6adc",
   "branch": "feat/m2-fountain",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/feat-m2-fountain",
   "route": "/hall/worcester?meal=lunch&dish=Fountain+Drink&data=recorded&at=2026-10-08T12:41&photos=off",
   "device": "sdk_gphone64_x86_64",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-21T00:33:23Z",
+  "ts": "2026-10-21T00:38:24Z",
   "own": {
     "app/lib/alerts/alert_check.dart": "313c7a8041b7ca638ac5c56080831eb619d1be34",
     "app/lib/alerts/push.dart": "84ab62d8f5f9cc84e32f4d77c0ed624e3d4ff3c5",
@@ -16,10 +16,13 @@
     "app/lib/screens/dish/dish_sheet.dart": "1287996b687ca4035b45519799daf2156a40637c",
     "app/lib/screens/dish/where_book.dart": "2cace9c4b03fc73621fc9a939028455e95ecdf11",
     "app/lib/screens/hall/hall_controller.dart": "2bf7764a0a0c2b931508659d9070e915bad778c1",
-    "app/lib/screens/halls/halls_controller.dart": "1da6f42b04aa3294fa4d3effd3db715f2a557bf3"
+    "app/lib/screens/halls/halls_controller.dart": "1da6f42b04aa3294fa4d3effd3db715f2a557bf3",
+    "app/lib/shell/prefs.dart": "4fc91e552c9ff30a92726d48ea062f19cd976ba2"
   },
   "argv": [
     "/hall/worcester?meal=lunch&dish=Fountain+Drink&data=recorded&at=2026-10-08T12:41",
+    "--out",
+    "docs/pr-review-media/feat/m2-fountain/sheet.png",
     "--out",
     "docs/pr-review-media/feat/m2-fountain/sheet.png",
     "--out",
