@@ -1,0 +1,16 @@
+{
+  "sha": "2ffa3527b44327fe73a102162ee419fcce62e172",
+  "branch": "fix/favorites-where-live",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/fix-favorites-where-live",
+  "route": "/you/favs?data=recorded&at=2026-10-08T12:41&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-10-21T05:02:01Z",
+  "own": {
+    "app/lib/screens/you/settings_pages.dart": "9dbdbe140a61d3271fbf8f962b81bfbb8a3cca7e"
+  },
+  "argv": [
+    "/you/favs?data=recorded&at=2026-10-08T12:41"
+  ]
+}
