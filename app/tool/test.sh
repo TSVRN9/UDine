@@ -37,6 +37,9 @@ read -r _ KEY C <<<"${STEPS[-1]}"
 PR="$(IFS=-; echo "$*")"
 WT="$SCRATCH/merged-$PR"
 git worktree remove --force "$WT" 2>/dev/null || true
+# a run stopped mid-suite can leave files written after its trap removed the worktree: an unregistered dir `worktree add` refuses
+[[ -e $WT ]] && rm -rf -- "$WT"
+git worktree prune
 git worktree add -q --detach "$WT" "$C"
 trap 'git -C "$ROOT" worktree remove --force "$WT"' EXIT
 LOG="$SCRATCH/merged-$PR-suite.log"
