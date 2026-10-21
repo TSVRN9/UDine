@@ -234,7 +234,9 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
     _target = _clampPx(px);
     _spring.run(
       from: _px, to: _target, v0: v0, snap: reducedMotion(context),
-      onTick: _jump,
+      // a spring that starts at or below the top never carries the sheet past it: the overshoot would lift the head under the status bar
+      // (one released from the rubber band, above the top, springs back as it is)
+      onTick: _px > _max + 0.5 ? _jump : (x) => _jump(math.min(x, _max)),
       onDone: () {
         if (_target <= widget.min + 0.5 && widget.min == 0) _finishClose();
       },

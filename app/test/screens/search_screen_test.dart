@@ -173,8 +173,7 @@ void main() {
     await settle(t);
     expect(early, t.getTopLeft(row).dy, reason: 'no vertical offset under reduced motion');
     await t.enterText(find.byType(EditableText), 'brisket');
-    await t.pump();
-    await t.pump(const Duration(milliseconds: 10));
+    await t.pump(); // a new row is faded from the frame it is built (the controller runs at the system's reduced scale)
     final fade = find.ancestor(of: find.byType(DishRow).first, matching: find.byType(Opacity));
     expect(t.widget<Opacity>(fade.first).opacity, lessThan(1));
     await finish(t);

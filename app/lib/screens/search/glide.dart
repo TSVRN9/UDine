@@ -9,10 +9,13 @@ import '../../ui/ui.dart';
 class GlideTracker {
   final _live = <String, _GlideState>{};
   final _before = <String, double>{};
+  final _was = <String>{};
   bool _armed = false;
 
-  /// Call before the list is rebuilt for a new result: what is on screen now is where the rows glide from.
-  void snapshot() {
+  /// Call before the list is rebuilt for a new result, with the ids of the list on screen: what is built now is where the rows glide
+  /// from, and an id in the old list is not new even when it was below the fold and never built.
+  void snapshot(Iterable<String> ids) {
+    _was..clear()..addAll(ids);
     _before.clear();
     for (final e in _live.entries) {
       final t = e.value._top;
@@ -38,6 +41,7 @@ class _GlideState extends State<Glide> with SingleTickerProviderStateMixin {
   late int _gen;
   double _dy = 0;
   bool _fade = false;
+  late bool _arrives;
 
   double? get _top {
     final o = context.findRenderObject();
@@ -58,8 +62,17 @@ class _GlideState extends State<Glide> with SingleTickerProviderStateMixin {
     super.initState();
     _gen = widget.generation;
     widget.tracker._live[widget.id] = this;
-    // a row built because the result changed fades up (the first list on screen simply is there)
-    if (widget.tracker._armed) WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? _run(dy: 0, fade: true) : null);
+    // a row that was not in the old result fades up (the first list on screen simply is there)
+    _arrives = widget.tracker._armed && !widget.tracker._was.contains(widget.id);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_arrives) {
+      _arrives = false;
+      _run(dy: 0, fade: true); // from the first frame, so the row never shows at full opacity first
+    }
   }
 
   @override
@@ -70,9 +83,7 @@ class _GlideState extends State<Glide> with SingleTickerProviderStateMixin {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final from = widget.tracker._before[widget.id], to = _top;
-      if (from == null || to == null) {
-        _run(dy: 0, fade: true);
-      } else if ((from - to).abs() > 1) {
+      if (from != null && to != null && (from - to).abs() > 1) {
         _run(dy: from - to, fade: false);
       }
     });

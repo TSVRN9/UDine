@@ -211,7 +211,7 @@ void main() {
     expect(h.px, closeTo(400, 1));
   });
 
-  testWidgets('the release is the spring: it overshoots the detent it settles at', (t) async {
+  testWidgets('a fling to the top is the spring, and never carries the sheet past the top: its head stays under the status bar', (t) async {
     final h = SheetHandle();
     await boot(t, h);
     await t.pumpAndSettle();
@@ -221,8 +221,10 @@ void main() {
     for (var i = 0; i < 80; i++) {
       await t.pump(const Duration(milliseconds: 16));
       if (h.px > peak) peak = h.px;
+      expect(t.getTopLeft(find.byType(CustomScrollView)).dy, greaterThanOrEqualTo(32 - 0.01), reason: 'frame $i');
     }
-    expect(peak, greaterThan(844 - 32 + 1)); // zeta .84 overshoots a little, past the top, where the rubber band takes it
+    expect(peak, closeTo(844 - 32, 0.01), reason: 'it arrives at the top and no higher');
+    expect(t.getTopLeft(find.byType(CustomScrollView)).dy, closeTo(32, 0.01));
   });
 
   testWidgets('dragging past the top rubber-bands: the sheet follows the finger less and less, the body does not scroll, and it springs back', (t) async {
