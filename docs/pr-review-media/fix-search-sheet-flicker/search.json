@@ -1,16 +1,16 @@
 {
-  "sha": "5b5b0e76ce7a9111fa00c2bbf3ef2064be2c3ac7",
+  "sha": "91a1e30cbd3e0fc44bee6c645e98a69b46816b72",
   "branch": "fix/search-sheet-flicker",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/fix-search-sheet-flicker",
   "route": "/search?q=ch&data=recorded&at=2026-10-08T12:41&photos=off",
   "device": "sdk_gphone64_x86_64",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-21T02:22:47Z",
+  "ts": "2026-10-21T02:32:12Z",
   "own": {
     "app/lib/screens/search/glide.dart": "36c67859ab16d074bb8bc7f0ee290fee1c305e4a",
     "app/lib/screens/search/search_screen.dart": "4f4dc8999a9f20e042c8d99678c88d3267c781dd",
-    "app/lib/ui/sheet.dart": "5f31e43c9695367d7bd491906ef9d372a7cf0d5a"
+    "app/lib/ui/sheet.dart": "89344d10c886e910b7fea386ef552297c53d4130"
   },
   "argv": [
     "/search?q=ch&data=recorded&at=2026-10-08T12:41",
