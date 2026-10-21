@@ -1,0 +1,21 @@
+{
+  "sha": "93c4474fe5acc93ba3289dbaf05cfe4a87c8ea95",
+  "branch": "fix/hall-transition-seam",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/fix-hall-transition-seam",
+  "route": "/halls?data=recorded&at=2026-10-08T12:41&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-10-21T02:00:48Z",
+  "own": {
+    "app/lib/screens/hall/hall_header.dart": "028e3e5347738b95bb0bbbe9d8f647491e5da307",
+    "app/lib/screens/hall/hall_menu.dart": "7cff9cfcc3c35ad6844da6cab98e21f1d1ce3c2a",
+    "app/lib/ui/sheet.dart": "2a68dca219619f770587299d7753c1ccf509cc48"
+  },
+  "argv": [
+    "/halls?data=recorded&at=2026-10-08T12:41",
+    "--tap",
+    "540",
+    "900"
+  ]
+}

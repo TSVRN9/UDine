@@ -123,6 +123,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
   late final AnimationController _jumpC = AnimationController(vsync: this);
   final _station = ValueNotifier<int?>(null);
   SheetHandle? _stationsSheet;
+  static final _noSheet = ValueNotifier<bool>(false);
   // the dietary preferences You writes (device-only); read here as menus filter on them
   Prefs get _prefs => AppScope.of(context).prefs.diet;
 
@@ -646,9 +647,13 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
                     left: 0, right: 0, top: hh + th, height: sw,
                     child: ValueListenableBuilder<int?>(
                       valueListenable: _station,
-                      builder: (_, _, _) => StationRow(
-                        fade: fade, name: ok ? _stationName(meal) : '', dayLabel: dayCell(fx, _day), open: _stationsSheet != null,
-                        topRule: th > 0, onStations: _openStations, onDay: _openSchedule,
+                      builder: (_, _, _) => ValueListenableBuilder<bool>(
+                        valueListenable: _stationsSheet?.closingNow ?? _noSheet,
+                        // the chevron turns back as the sheet starts to leave, not once it has gone
+                        builder: (_, closing, _) => StationRow(
+                          fade: fade, name: ok ? _stationName(meal) : '', dayLabel: dayCell(fx, _day), open: _stationsSheet != null && !closing,
+                          topRule: th > 0, onStations: _openStations, onDay: _openSchedule,
+                        ),
                       ),
                     ),
                   ),

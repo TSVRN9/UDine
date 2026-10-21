@@ -22,6 +22,8 @@ class SheetMetrics {
 /// Drives a sheet from outside: open it, close it, run something once it is half-way out.
 class SheetHandle {
   _M2SheetState? _s;
+  /// True from the moment the sheet is sent for its lowest height (a button, a drag release, a back) until it is closed.
+  final closingNow = ValueNotifier<bool>(false);
   bool get attached => _s != null;
   /// The sheet's height now, in dp.
   double get px => _s?._px ?? 0;
@@ -239,6 +241,7 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
         if (_target <= widget.min + 0.5 && widget.min == 0) _finishClose();
       },
     );
+    widget.handle.closingNow.value = _closing;
   }
 
   bool get _closing => _closed || (_spring.running && _target <= widget.min + 0.5);
