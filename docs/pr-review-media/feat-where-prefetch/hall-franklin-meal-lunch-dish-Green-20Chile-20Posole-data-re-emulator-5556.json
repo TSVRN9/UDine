@@ -1,0 +1,23 @@
+{
+  "sha": "da5827fd99bcd654500f7bb160740229820613a0",
+  "branch": "feat/where-prefetch",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/feat-where-prefetch",
+  "route": "/hall/franklin?meal=lunch&dish=Green%20Chile%20Posole&data=recorded&at=2026-10-08T12:41&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-10-21T03:10:13Z",
+  "own": {
+    "app/lib/main.dart": "b5cfcf498e8ce5def387eede154d6f4669f4afbc",
+    "app/lib/screens/dish/dish_sheet.dart": "fda9edfeac6bf4146909516401ff1b68d8c4ce5c",
+    "app/lib/screens/dish/where_book.dart": "a423c8c42902c9938d6c11d4751e1dee8ecf70df",
+    "app/lib/screens/halls/halls_controller.dart": "cce890b7879abf54537573b0af693eb2a20779f7",
+    "app/lib/screens/search/search_controller.dart": "a03b2a259a9efa0710057f0022a11a7e08898d29",
+    "app/lib/theme/layout.dart": "0c62f59b41c0990cfff34894b4b317a362c3ff99"
+  },
+  "argv": [
+    "/hall/franklin?meal=lunch&dish=Green%20Chile%20Posole&data=recorded&at=2026-10-08T12:41",
+    "--settle",
+    "8"
+  ]
+}

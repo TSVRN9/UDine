@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import '../../core/m2/board.dart';
 import '../../core/occupancy.dart';
 import '../../core/types.dart' show diningHalls;
+import '../../core/m2/history.dart' show cafeIdsOf;
+import '../dish/where_book.dart' show WhereWarm;
 import '../hall/hall_controller.dart' show grabsOf, mealsOfItems;
 import '../../data/repository.dart';
 
@@ -67,7 +69,7 @@ class HallsController extends ChangeNotifier {
     final h = _hours;
     if (!menus || _menusAsked || h == null) return;
     _menusAsked = true;
-    unawaited(_menus(h, _run));
+    unawaited(_menus(h, _run).then((_) => WhereWarm.auto ? WhereWarm.of(repo).start(cafeIdsOf(h.feed)) : null));
   }
 
   Future<void> _menus(HoursData h, int run) async {

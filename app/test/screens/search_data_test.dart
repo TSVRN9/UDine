@@ -11,6 +11,8 @@ import 'package:udine/data/recorded/recorded_client.dart';
 import 'package:udine/data/repository.dart';
 import 'package:udine/data/source.dart';
 import 'package:udine/data/supabase_source.dart';
+import 'package:udine/core/m2/history.dart' show cafeIdsOf;
+import 'package:udine/screens/dish/where_book.dart' show WhereWarm;
 import 'package:udine/screens/halls/halls_model.dart' show NetLine;
 import 'package:udine/screens/search/search_controller.dart';
 import 'package:udine/shell/plate_model.dart';
@@ -62,6 +64,17 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 50));
     expect(net.sends, sends);
     expect(c.result.now.every((x) => x.g.name.toLowerCase().contains('pizza')), isTrue);
+  });
+
+  test('menus warmed before Search opens: the index is built at once, with the later place-days in it', () async {
+    final h = await repo.hours(repo.today).firstWhere((s) => s is Loaded<HoursData>) as Loaded<HoursData>;
+    await WhereWarm.of(repo).start(cafeIdsOf(h.value.feed), gate: () async {});
+    final c = SearchController(repo, prefs, plate);
+    addTearDown(c.dispose);
+    await ready(c);
+    expect(c.index, isNotNull);
+    c.setQuery('chicken');
+    expect(c.result.now, isNotEmpty);
   });
 
   test('nothing is fetched until a controller exists (the tab being launched is not Search opening)', () {

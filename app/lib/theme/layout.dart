@@ -60,6 +60,7 @@ abstract final class M2Layout {
   static const marksTop = 8.0, marksGap = 8.0; // `.dish .mks`, `.mks`
   static const hl = 28.0, hchipGap = 10.0, hchipPadL = 8.0, hchipPadR = 16.0; // `.hchip .hl`, `.hchip`
   static const hchipH = 44.0; // `.hchip`
+  static const hchipHolderW = 132.0; // a hall chip with a name of typical length, drawn blank while the answer loads
   static const wcGap = 8.0; // `.wc`
   // buttons (`.btn`, `.gbtn`, `.obtn`, `.dirb`)
   static const btnL = 52.0, btnM = 48.0; // `.btn`, `.gbtn` heights (`.obtn`, `.dirb`, `.tbtn` are M2Size.tap)

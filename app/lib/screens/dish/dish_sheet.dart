@@ -267,6 +267,18 @@ class _DishSheetState extends State<DishSheet> {
     ]);
   }
 
+  /// The answer not yet in: the reserved line holds blank chips (no text, no motion), and the real ones replace them in place.
+  Widget _holders() => Padding(
+        padding: EdgeInsets.only(top: M2Text.sheetHead.line! + M2Layout.wtBottom),
+        child: Wrap(key: const ValueKey('where-holders'), spacing: M2Layout.wcGap, children: [
+          for (var i = 0; i < 2; i++)
+            const SizedBox(
+              width: M2Layout.hchipHolderW, height: M2Layout.hchipH,
+              child: DecoratedBox(decoration: BoxDecoration(color: M2Color.tint, borderRadius: BorderRadius.all(Radius.circular(M2Radius.button)))),
+            ),
+        ]),
+      );
+
   /// `.brow`: a compact add-in row under the builder's heading: its name, calories (and a café's price), the row's stepper.
   Widget _brow(int i, int at, Bowl bowl) {
     final x = _spec!.parts[i], cafe = isCafe(widget.place), n = M2Text.metaNum.style(M2Color.ink), u = M2Text.meta.style(M2Color.slate);
@@ -401,7 +413,7 @@ class _DishSheetState extends State<DishSheet> {
                         child: ConstrainedBox(
                           key: _whereLine,
                           constraints: BoxConstraints(minHeight: M2Layout.whereLine),
-                          child: KeyedSubtree(key: const ValueKey('where-line'), child: board == null ? const SizedBox.shrink() : _where(board, head)),
+                          child: KeyedSubtree(key: const ValueKey('where-line'), child: board == null ? _holders() : _where(board, head)),
                         ),
                       ),
                     if (scope.prefs.track) Padding(padding: const EdgeInsets.only(top: M2Layout.labelTop), child: NutritionLabel(label: label, calKey: _cal)),

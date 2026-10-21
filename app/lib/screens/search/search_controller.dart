@@ -83,6 +83,7 @@ class SearchController extends ChangeNotifier {
       );
       _charles = prefs.charlesRiver;
       _book = WhereBook(repo, base, cafeIdsOf(h.feed))..addListener(_onBook);
+      if (_book!.board != null) _reindex(); // warmed: no publish is coming
     } else if (h == null && _book == null && (hallsData.state is Failed || hallsData.state is NotSaved)) {
       // no hours to be had: the places still match by name, from the bundled table, with no menu to find a dish in
       final fx = Board(clock: repo.now(), places: [for (var i = 0; i < halls.length; i++) Place(key: halls[i], name: diningHalls[i].name, area: -1), ...Roster.table.cafes], hours: const {}, grab: const {}, days: const {}, events: const []);

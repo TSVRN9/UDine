@@ -12,6 +12,7 @@ import 'package:udine/data/recorded/recorded_client.dart';
 import 'package:udine/data/repository.dart';
 import 'package:udine/data/source.dart';
 import 'package:udine/data/supabase_source.dart';
+import 'package:udine/screens/dish/where_book.dart' show WhereWarm;
 import 'package:udine/screens/halls/halls_controller.dart';
 import 'hall_data_test.dart' show CountingNet, lunch;
 
@@ -26,6 +27,7 @@ class _Spy extends Repository {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   sqfliteFfiInit();
   late Database db;
   late CountingNet net;
@@ -63,6 +65,28 @@ void main() {
     expect(loaded, greaterThanOrEqualTo(2), reason: 'a saved emission and a live one');
     expect(repo.asks, 1);
     c.dispose();
+  });
+
+  test('with WhereWarm.auto, loadMenus starts the where warm-up once the halls\' menus are in; without it, nothing', () async {
+    addTearDown(() => WhereWarm.auto = false);
+    Future<bool> started(bool auto) async {
+      WhereWarm.auto = auto;
+      final repo = _Spy(UmassSource(net), db, supabase: SupabaseSource(net), now: () => lunch);
+      final c = HallsController(repo);
+      var asked = 0;
+      c.addListener(() {
+        if (asked++ < 20) c.loadMenus();
+      });
+      await until(() => c.board != null);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      final warm = repo.asks > 1;
+      if (warm) await until(() => WhereWarm.of(repo).done); // (the waves read the DB: let them finish before it closes)
+      c.dispose();
+      return warm; // the stars' own ask, then the warm-up's waves
+    }
+
+    expect(await started(false), isFalse);
+    expect(await started(true), isTrue);
   });
 
   test('without loadMenus there is no board', () async {

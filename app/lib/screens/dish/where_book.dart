@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart' show SchedulerBinding;
 
 import '../../core/m2/board.dart';
 import '../../core/types.dart' show diningHalls;
@@ -15,7 +16,13 @@ class WhereBook extends ChangeNotifier {
   /// `start: false` waits for [start]: the dish sheet starts it once it has slid in, so the prefetch's parsing is not on the UI isolate
   /// while the sheet moves.
   WhereBook(this.repo, this.base, [this.cafeIds = const {}, bool start = true]) {
-    if (start) this.start();
+    // warmed at launch (WhereWarm): the whole answer is in before the first frame, nothing left to load
+    board = WhereWarm.of(repo).boardOn(base);
+    if (board != null) {
+      complete = started = true;
+    } else if (start) {
+      this.start();
+    }
   }
   final Repository repo;
   final Board base;
@@ -69,5 +76,66 @@ class WhereBook extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     super.dispose();
+  }
+}
+
+/// Every hall's and café's menus for today and tomorrow, grouped as the board keeps them, loaded once in the background after launch so a dish
+/// sheet's "where" answer is computed in its first build. One per repository. Each wave of fetches waits for the app to be idle (no animation
+/// running), so none of it lands in a transition; the parse itself is the repository's (off the UI isolate in profile and release builds).
+class WhereWarm {
+  WhereWarm._(this.repo);
+  static final _of = Expando<WhereWarm>();
+  static WhereWarm of(Repository repo) => _of[repo] ??= WhereWarm._(repo);
+
+  final Repository repo;
+  /// Halls home starts the warm-up only where this is set (main): a test that opens Halls would otherwise end with a fetch in flight.
+  static bool auto = false;
+  /// iso day -> place key -> meal -> stations; complete (halls and every café asked for) only once [done]
+  final days = <String, Map<String, Map<String, List<Station>>>>{};
+  bool done = false, _started = false;
+  List<String> _isos = const [];
+
+  /// No ticker is running: no route, sheet or fade is moving.
+  // ponytail: a looping animation anywhere holds this off; a transition-only signal if one ever does.
+  static Future<void> idle() async {
+    while (SchedulerBinding.instance.transientCallbackCount > 0) {
+      await SchedulerBinding.instance.endOfFrame;
+    }
+  }
+
+  /// Once; [gate] runs before every wave of at most four place-days.
+  Future<void> start(Map<String, int> cafeIds, {Future<void> Function() gate = idle}) async {
+    if (_started) return;
+    _started = true;
+    final today = repo.today, isos = _isos = [today, addDays(today, 1)];
+    final places = <(String, int)>[for (var i = 0; i < diningHalls.length; i++) (halls[i], diningHalls[i].tid), for (final e in cafeIds.entries) (e.key, e.value)];
+    final want = [for (final p in places) for (final iso in isos) (p.$1, p.$2, iso)];
+    for (var i = 0; i < want.length; i += Repository.maxInFlight) {
+      final wave = want.skip(i).take(Repository.maxInFlight).toList();
+      await gate();
+      final got = await repo.prefetchMenus([for (final w in wave) (w.$2, w.$3)]);
+      for (final (place, id, iso) in wave) {
+        final items = got[(id, iso)];
+        if (items != null && items.isNotEmpty) (days[iso] ??= {})[place] = mealsOfItems(items, hall: halls.contains(place));
+      }
+    }
+    done = true;
+  }
+
+  /// [base] with every warmed place-day laid under its own, or null while this is not done or [base]'s days are not the ones warmed.
+  Board? boardOn(Board base) {
+    final isos = base.days.keys.take(2).toList();
+    if (!done || base.hours.isEmpty || isos.any((iso) => !_isos.contains(iso))) return null;
+    return Board(
+      clock: base.clock, places: base.places, hours: base.hours, grab: base.grab, events: base.events,
+      days: {
+        ...base.days,
+        for (final iso in isos)
+          iso: {
+            for (final e in (days[iso] ?? const {}).entries) if (halls.contains(e.key) || base.hours.containsKey(e.key)) e.key: e.value,
+            ...?base.days[iso],
+          },
+      },
+    );
   }
 }
