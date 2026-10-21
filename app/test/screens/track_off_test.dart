@@ -9,8 +9,8 @@ import 'package:udine/screens/hall/hall_menu.dart';
 import 'package:udine/screens/hall/dish_row.dart';
 import 'package:udine/shell/prefs.dart';
 import 'package:udine/theme/tokens.dart';
+import 'package:udine/motion/track_layer.dart';
 import 'package:udine/ui/ui.dart';
-import 'package:udine/screens/hall/dish_row.dart' show CalProtein;
 import '../fonts.dart';
 import 'dish_support.dart';
 import 'plate_support.dart';
@@ -74,6 +74,28 @@ void main() {
       expect([for (final p in b.plate.state.plates) [for (final i in p.items) (i.key, i.qty)]], before);
       await finish(t);
     });
+  });
+
+  group('the plate bar lifts', () {
+    for (final reduced in [false, true]) {
+      testWidgets(reduced ? 'reduced motion: it fades in place' : 'it leaves downward while it fades', (t) async {
+        final b = await openPlate(t, reduced: reduced);
+        final y0 = t.getTopLeft(bar).dy;
+        await t.runAsync(() => b.prefs.setTrack(false, reduced: reduced));
+        await t.pump();
+        await t.pump(const Duration(milliseconds: 70));
+        final op = t.widget<Opacity>(find.ancestor(of: bar, matching: find.byType(Opacity)).first).opacity;
+        expect(op, allOf(greaterThan(0), lessThan(1)));
+        if (reduced) {
+          expect(t.getTopLeft(bar).dy, y0, reason: 'no movement');
+        } else {
+          expect(t.getTopLeft(bar).dy, greaterThan(y0));
+        }
+        await t.pump(const Duration(milliseconds: 500));
+        expect(bar, findsNothing);
+        await finish(t);
+      });
+    }
   });
 
   group('the dish sheet', () {

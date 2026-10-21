@@ -103,6 +103,17 @@ void main() {
       expect(lift.running, isFalse);
       lift.detach();
     });
+    testWidgets('a detach mid-lift snaps the layer to where it was going', (tt) async {
+      final lift = TrackLift(true);
+      lift.attach(tt);
+      lift.to(false);
+      await tt.pump();
+      await tt.pump(const Duration(milliseconds: 70));
+      expect(lift.running, isTrue);
+      lift.detach();
+      expect(lift.running, isFalse);
+      expect(lift.frame, liftGone);
+    });
     test('with no ticker a flip lands at once', () {
       final lift = TrackLift(true)..to(false);
       expect(lift.frame, liftGone);

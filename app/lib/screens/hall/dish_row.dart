@@ -5,6 +5,7 @@ import '../../core/m2/menu_view.dart' show rowScores;
 import '../../motion/track_lift.dart';
 import '../../shell/app_scope.dart';
 import '../../theme/tokens.dart';
+import '../../motion/track_layer.dart';
 import '../../ui/ui.dart';
 
 /// What a row's control shows (`rowCode`): its quantity on the plate it would join, 0 for the plain +, -1 for the ghost +.

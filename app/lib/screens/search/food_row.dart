@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../../core/saved_food.dart';
 import '../../shell/app_scope.dart';
 import '../../theme/tokens.dart';
+import '../../motion/track_layer.dart';
 import '../../ui/ui.dart';
 import '../hall/dish_row.dart' show CalPer100, CalProtein;
 

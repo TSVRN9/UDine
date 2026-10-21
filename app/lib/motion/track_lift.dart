@@ -46,9 +46,14 @@ class TrackLift extends ChangeNotifier {
 
   void attach(TickerProvider v) => _vsync = v;
   void detach() {
+    final was = running;
     _c?.dispose();
     _c = null;
     _vsync = null;
+    if (was) {
+      _ms = _end; // (a lift cut short rests where it was going; the clock outlives the tree that drove it)
+      notifyListeners();
+    }
   }
 
   /// [reduced]: the OS asks for no movement
@@ -64,7 +69,7 @@ class TrackLift extends ChangeNotifier {
       return notifyListeners();
     }
     _ms = 0;
-    (_c ??= AnimationController(vsync: v)..addListener(() {
+    (_c ??= AnimationController(vsync: v, animationBehavior: AnimationBehavior.preserve)..addListener(() {
           _ms = _c!.value * _end;
           notifyListeners();
         }))

@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import '../motion/track_lift.dart';
+import 'track_lift.dart';
 
 /// What the tracking layer is doing now (M2 R13 §3), for a widget that is part of it. With no clock (a widget built on its own) the layer is
 /// at rest: whole when [rest], gone otherwise. The builder runs on every frame of the lift and never otherwise.
