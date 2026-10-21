@@ -1,7 +1,6 @@
 // M2 `paint()`: the hall opens as one container. Nothing inside its window is a different surface from the rest of it: the band's grade
 // (`#mlg`, `inset:0`) covers the whole header, so no step in the header's ground sits at the old row's height; and a close lifts the
 // station chevron with the sheet, not after it.
-import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
