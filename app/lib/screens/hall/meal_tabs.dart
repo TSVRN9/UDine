@@ -37,9 +37,13 @@ class _MealTabsState extends State<MealTabs> {
       color: M2Color.dm,
       child: LayoutBuilder(builder: (context, c) {
         final labels = [for (final m in w.meals) mealLabel[m]!];
+        // every meal stays visible (the row cannot grow or scroll), so the labels scale with the text setting only as far as they fit
+        double textW(TextScaler k) => labels.fold(0.0, (a, l) => a + (TextPainter(text: TextSpan(text: l, style: _style(true)), textDirection: TextDirection.ltr, textScaler: k)..layout()).width);
+        final want = MediaQuery.textScalerOf(context), room = c.maxWidth - 2 * M2Layout.tabsPadX - 2 * M2Layout.tabPadX * labels.length;
+        final fit = textW(want), k = fit > room && fit > 0 ? TextScaler.linear(want.scale(1) * room / fit) : want;
         final widths = [
           for (var i = 0; i < labels.length; i++)
-            (TextPainter(text: TextSpan(text: labels[i], style: _style(w.meals[i] == w.selected)), textDirection: TextDirection.ltr)..layout()).width + 2 * M2Layout.tabPadX,
+            (TextPainter(text: TextSpan(text: labels[i], style: _style(w.meals[i] == w.selected)), textDirection: TextDirection.ltr, textScaler: k)..layout()).width + 2 * M2Layout.tabPadX,
         ];
         final free = c.maxWidth - 2 * M2Layout.tabsPadX - widths.fold(0.0, (a, b) => a + b), extra = labels.isEmpty ? 0.0 : free / labels.length;
         var x = M2Layout.tabsPadX;
@@ -62,7 +66,7 @@ class _MealTabsState extends State<MealTabs> {
                   child: ExcludeSemantics(
                     child: Center(
                       // (a label fades by its colour's alpha: the same pixels as an Opacity, no offscreen layer)
-                      child: AnimatedBuilder(animation: w.fade, builder: (_, _) => Text(labels[i], style: _style(i == sel, w.fade.value), maxLines: 1)),
+                      child: AnimatedBuilder(animation: w.fade, builder: (_, _) => Text(labels[i], style: _style(i == sel, w.fade.value), textScaler: k, maxLines: 1)),
                     ),
                   ),
                 ),

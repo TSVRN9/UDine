@@ -25,7 +25,7 @@ class VariantPicker extends StatelessWidget {
       child: Wrap(spacing: M2Layout.vpickGap, runSpacing: M2Layout.vpickGap, children: [
         for (var i = 0; i < labels.length; i++)
           Semantics(
-            container: true, inMutuallyExclusiveGroup: true, checked: i == chosen, label: labels[i],
+            inMutuallyExclusiveGroup: true, checked: i == chosen, label: labels[i],
             child: Press(
               scale: true, onTap: () => onPick(i), semantics: false,
               child: ExcludeSemantics(

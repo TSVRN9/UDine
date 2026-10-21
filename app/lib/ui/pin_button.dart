@@ -35,7 +35,7 @@ class PinButton extends StatelessWidget {
   const PinButton({super.key, required this.pinned, this.onTap});
   @override
   Widget build(BuildContext context) => Semantics(
-        container: true, button: true, toggled: pinned, label: pinned ? 'Unpin from Halls' : 'Pin to Halls',
+        button: true, toggled: pinned, label: pinned ? 'Unpin from Halls' : 'Pin to Halls',
         child: Press(
           scale: true, onTap: onTap, semantics: false,
           child: ExcludeSemantics(

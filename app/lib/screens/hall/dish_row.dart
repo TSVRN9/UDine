@@ -102,7 +102,7 @@ class DishRow extends StatelessWidget {
     final control = code == null ? null : _lane(f, RowControl(qty: code! > 0 ? code! : 0, ghost: code! < 0, onAdd: onAdd, onInc: onInc, onDec: onDec), fold: figsOnly);
     return ListRow(
       label: '${family ?? d.dishName}${chip == null ? '' : ', $chip'}${gone ? '' : ', ${d.nutrition.knownCal == null ? 'calories not listed' : '${fc(d.nutrition.knownCal)} calories'}, ${d.nutrition.knownProtein == null ? 'protein not listed' : '${f1(d.nutrition.knownProtein)} grams protein'}'}',
-      here: here, onTap: onOpen, stands: chip == null ? null : d,
+      here: here, onTap: () { Haptics.selection(); onOpen(); }, stands: chip == null ? null : d,
       name: Badge.name(family ?? d.dishName, M2Text.rowName.style(M2Color.ink), badge: badge, star: favorite ? const StarMark() : null),
       meta: meta, metaEnd: _tagSlot(figsOnly ? f.alpha : 1),
       minHeight: M2Size.rowOff + (M2Size.row - M2Size.rowOff) * f.size, metaOpen: figsOnly ? f.size : 1,

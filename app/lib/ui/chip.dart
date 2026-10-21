@@ -17,7 +17,7 @@ class FilterChipButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Semantics(
-        container: true, button: true, selected: selected, label: label,
+        button: true, selected: selected, label: label,
         child: Press(
           scale: true, onTap: onTap, semantics: false,
           child: ExcludeSemantics(

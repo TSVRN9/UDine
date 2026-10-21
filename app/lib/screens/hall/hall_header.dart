@@ -260,7 +260,7 @@ class HallHeaderState extends State<HallHeader> {
                       valueListenable: busy,
                       builder: (_, v, _) {
                         if (v == null) _lateBusy = true;
-                        final live = v == null ? null : own(w.parts?.hasMeter ?? true, travel(w.parts?.meter, anchor: _meter, BusyRow(lamps: v.lamps, word: v.word, extra: v.extra, header: true, meterKey: _meter, extraFade: _LateFin(_fin, w.lateK, () => lateFade()))));
+                        final live = v == null ? null : own(w.parts?.hasMeter ?? true, travel(w.parts?.meter, anchor: _meter, MediaQuery.withNoTextScaling(child: BusyRow(lamps: v.lamps, word: v.word, extra: v.extra, header: true, meterKey: _meter, extraFade: _LateFin(_fin, w.lateK, () => lateFade())))));
                         final row = live == null
                             ? const SizedBox.shrink()
                             : _lateBusy && !v!.seed
