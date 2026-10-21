@@ -9,7 +9,8 @@ class Host extends StatefulWidget {
   final SheetHandle handle;
   final bool Function() closed;
   final void Function()? onClosed;
-  const Host(this.handle, {super.key, required this.closed, this.onClosed});
+  final double inset;
+  const Host(this.handle, {super.key, required this.closed, this.onClosed, this.inset = 0});
   @override
   State<Host> createState() => _HostState();
 }
@@ -20,7 +21,7 @@ class _HostState extends State<Host> {
   Widget build(BuildContext context) => Directionality(
         textDirection: TextDirection.ltr,
         child: MediaQuery(
-          data: const MediaQueryData(size: Size(390, 844)),
+          data: MediaQueryData(size: const Size(390, 844), padding: EdgeInsets.only(top: widget.inset)),
           child: shut
               ? const SizedBox()
               : M2Sheet(
@@ -57,11 +58,11 @@ class GrowerState extends State<Grower> {
 }
 
 void main() {
-  Future<void> boot(WidgetTester t, SheetHandle h, {void Function()? onClosed}) async {
+  Future<void> boot(WidgetTester t, SheetHandle h, {void Function()? onClosed, double inset = 0}) async {
     t.view.physicalSize = const Size(390, 844);
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.reset);
-    await t.pumpWidget(Host(h, closed: () => false, onClosed: onClosed));
+    await t.pumpWidget(Host(h, closed: () => false, onClosed: onClosed, inset: inset));
   }
 
   testWidgets('opens on the spring from nothing to its resting height, and arrives at mount (the first frames already move)', (t) async {
@@ -211,7 +212,7 @@ void main() {
     expect(h.px, closeTo(400, 1));
   });
 
-  testWidgets('the release is the spring: it overshoots the detent it settles at', (t) async {
+  testWidgets('a fling to the top is the spring, and never carries the sheet past the top: its head stays under the status bar', (t) async {
     final h = SheetHandle();
     await boot(t, h);
     await t.pumpAndSettle();
@@ -221,8 +222,10 @@ void main() {
     for (var i = 0; i < 80; i++) {
       await t.pump(const Duration(milliseconds: 16));
       if (h.px > peak) peak = h.px;
+      expect(t.getTopLeft(find.byType(CustomScrollView)).dy, greaterThanOrEqualTo(32 - 0.01), reason: 'frame $i');
     }
-    expect(peak, greaterThan(844 - 32 + 1)); // zeta .84 overshoots a little, past the top, where the rubber band takes it
+    expect(peak, closeTo(844 - 32, 0.01), reason: 'it arrives at the top and no higher');
+    expect(t.getTopLeft(find.byType(CustomScrollView)).dy, closeTo(32, 0.01));
   });
 
   testWidgets('dragging past the top rubber-bands: the sheet follows the finger less and less, the body does not scroll, and it springs back', (t) async {
@@ -231,13 +234,32 @@ void main() {
     await t.pumpAndSettle();
     final g = await drag(t, const Offset(195, 700), -20, 35); // 700 dp up, 270 past the top
     final top = t.getTopLeft(find.byType(CustomScrollView)).dy;
-    expect(top, lessThan(32 - 50));
-    expect(top, greaterThan(32 - 270)); // (less than the finger's 270)
+    expect(top, lessThan(32 - 20)); // (the band has taken it)
+    expect(top, greaterThanOrEqualTo(0), reason: 'but never off the screen: the head stays visible');
     expect(t.state<ScrollableState>(find.byType(Scrollable)).position.pixels, 0);
     await g.up();
     await t.pumpAndSettle();
     expect(t.getTopLeft(find.byType(CustomScrollView)).dy, closeTo(32, 0.5));
     expect(h.px, closeTo(844 - 32, 1));
+  });
+
+  testWidgets('under a status bar the band stops at the status bar: a long over-pull and its release keep the head below the inset on every frame', (t) async {
+    final h = SheetHandle();
+    await boot(t, h, inset: 24); // the sheet's top is inset + 8 = 32
+    await t.pumpAndSettle();
+    double top() => t.getTopLeft(find.byType(CustomScrollView)).dy;
+    final g = await drag(t, const Offset(195, 700), -20, 50); // 1000 dp up
+    expect(top(), lessThan(32));
+    for (var i = 0; i < 5; i++) {
+      await g.moveBy(const Offset(0, -20), timeStamp: Duration(milliseconds: 16 * (51 + i)));
+      await t.pump(const Duration(milliseconds: 16));
+      expect(top(), greaterThanOrEqualTo(24 - 0.01), reason: 'held, frame $i');
+    }
+    await g.up();
+    for (var i = 0; i < 60; i++) {
+      await t.pump(const Duration(milliseconds: 16));
+      expect(top(), greaterThanOrEqualTo(24 - 0.01), reason: 'released, frame $i');
+    }
   });
 
   testWidgets('reversing past the top, the sheet follows the finger 1:1 through the rubber curve on every frame, then on down', (t) async {
@@ -247,15 +269,15 @@ void main() {
     final g = await drag(t, const Offset(195, 700), -20, 35);
     double top() => t.getTopLeft(find.byType(CustomScrollView)).dy;
     final past = 32 - top(); // how far the rubber band has taken it
-    expect(past, greaterThan(50));
+    expect(past, greaterThan(20));
     // the finger's own excess past the top: the inverse of the curve
-    final excess = 844 / M2Motion.sheetReleaseRubber * (1 / (1 - past / 844) - 1);
+    final excess = 32 / M2Motion.sheetReleaseRubber * (1 / (1 - past / 32) - 1);
     var worst = 0.0;
     for (var k = 1; k <= 60; k++) {
       await g.moveBy(const Offset(0, 10), timeStamp: Duration(milliseconds: 16 * (35 + k)));
       await t.pump(const Duration(milliseconds: 16));
       final left = excess - 10 * k;
-      final want = left > 0 ? 32 - sheetRubber(left, 844) : 32 - left; // past the unwound band it is 1:1 with the finger
+      final want = left > 0 ? 32 - sheetRubber(left, 32) : 32 - left; // past the unwound band it is 1:1 with the finger
       worst = [worst, (top() - want).abs()].reduce((a, b) => a > b ? a : b);
     }
     expect(worst, lessThan(1));
@@ -272,7 +294,7 @@ void main() {
     expect(to(790, 0, mid: 810), 812); // the mid within 4 of the top is the top
     expect(to(500, 0, mid: 810), 0); // ... and more than 80 short of it, closed
     expect(to(100, 0, mid: null), 0);
-    expect(sheetRubber(1e9, 844), lessThan(844));
-    expect(sheetRubber(270, 844), closeTo(126, 1));
+    expect(sheetRubber(1e9, 32), lessThan(32));
+    expect(sheetRubber(270, 32), closeTo(26.3, 0.1));
   });
 }

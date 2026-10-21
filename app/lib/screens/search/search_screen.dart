@@ -100,7 +100,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final c = _c!;
     if (c.generation != _gen) {
       _gen = c.generation;
-      _glide.snapshot();
+      _glide.snapshot(_entries.map((e) => e.id));
     }
     setState(() {});
   }
