@@ -38,6 +38,13 @@ void main() {
     expect([for (final f in await store.favorites()) f.key], ['location:2']);
   });
 
+  test('a Fountain Drink starred before round 12d is not a favourite any more, and the device row stays for export', () async {
+    await store.addFavorite(const DishFavorite('Fountain Drink'));
+    final prefs = await AppPrefs.load(store);
+    expect(prefs.favorites, isEmpty);
+    expect([for (final f in await store.favorites()) f.key], ['dish:Fountain Drink']);
+  });
+
   test('with no store (a newer build owns the database) the star works for the session and writes nothing', () async {
     final prefs = await AppPrefs.load(null);
     await prefs.toggleFavorite('Pizza');

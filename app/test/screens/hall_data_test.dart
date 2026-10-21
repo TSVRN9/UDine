@@ -132,7 +132,7 @@ void main() {
     return book;
   }
 
-  test('only a dining commons ends its meals with Beverages: a café\'s own board and the book\'s café days never do (round 12d)', () async {
+  test('only a dining commons gets the synthetic Fountain Drink: a café\'s own board and the book\'s café days never do (round 12d)', () async {
     final w = await worcester();
     final book = await bookOf(w);
     // (cafés have Beverages stations of their own, and a priced Fountain Drink; the synthetic one has no price)
