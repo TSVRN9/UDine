@@ -233,8 +233,8 @@ void main() {
     await t.pumpAndSettle();
     final g = await drag(t, const Offset(195, 700), -20, 35); // 700 dp up, 270 past the top
     final top = t.getTopLeft(find.byType(CustomScrollView)).dy;
-    expect(top, lessThan(32 - 50));
-    expect(top, greaterThan(32 - 270)); // (less than the finger's 270)
+    expect(top, lessThan(32 - 20)); // (the band has taken it)
+    expect(top, greaterThanOrEqualTo(0), reason: 'but never off the screen: the head stays visible');
     expect(t.state<ScrollableState>(find.byType(Scrollable)).position.pixels, 0);
     await g.up();
     await t.pumpAndSettle();
@@ -249,15 +249,15 @@ void main() {
     final g = await drag(t, const Offset(195, 700), -20, 35);
     double top() => t.getTopLeft(find.byType(CustomScrollView)).dy;
     final past = 32 - top(); // how far the rubber band has taken it
-    expect(past, greaterThan(50));
+    expect(past, greaterThan(20));
     // the finger's own excess past the top: the inverse of the curve
-    final excess = 844 / M2Motion.sheetReleaseRubber * (1 / (1 - past / 844) - 1);
+    final excess = 32 / M2Motion.sheetReleaseRubber * (1 / (1 - past / 32) - 1);
     var worst = 0.0;
     for (var k = 1; k <= 60; k++) {
       await g.moveBy(const Offset(0, 10), timeStamp: Duration(milliseconds: 16 * (35 + k)));
       await t.pump(const Duration(milliseconds: 16));
       final left = excess - 10 * k;
-      final want = left > 0 ? 32 - sheetRubber(left, 844) : 32 - left; // past the unwound band it is 1:1 with the finger
+      final want = left > 0 ? 32 - sheetRubber(left, 32) : 32 - left; // past the unwound band it is 1:1 with the finger
       worst = [worst, (top() - want).abs()].reduce((a, b) => a > b ? a : b);
     }
     expect(worst, lessThan(1));
@@ -274,7 +274,7 @@ void main() {
     expect(to(790, 0, mid: 810), 812); // the mid within 4 of the top is the top
     expect(to(500, 0, mid: 810), 0); // ... and more than 80 short of it, closed
     expect(to(100, 0, mid: null), 0);
-    expect(sheetRubber(1e9, 844), lessThan(844));
-    expect(sheetRubber(270, 844), closeTo(126, 1));
+    expect(sheetRubber(1e9, 32), lessThan(32));
+    expect(sheetRubber(270, 32), closeTo(26.3, 0.1));
   });
 }
