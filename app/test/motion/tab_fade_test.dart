@@ -30,6 +30,8 @@ void main() {
           child: RepaintBoundary(key: k, child: ColoredBox(color: M2Color.chalk, child: FadeThroughTabs(index: index, pinned: const [0, 0, 80], children: [pane('A'), pane('B'), pinnedPane('C')]))),
         ),
       );
+  // dm, give or take the 1 px antialiasing where the settling pane's own edge crosses the band (chalk is .97 red against dm's .23)
+  bool isGround(Color c) => (c.r - M2Color.dm.r).abs() < .25 && (c.g - M2Color.dm.g).abs() < .25;
   Future<Color> pixel(WidgetTester t, GlobalKey k, int x, int y) async => (await t.runAsync(() async {
         final b = k.currentContext!.findRenderObject()! as RenderRepaintBoundary, img = await b.toImage();
         final d = (await img.toByteData(format: ui.ImageByteFormat.rawRgba))!;
@@ -38,6 +40,8 @@ void main() {
       }))!;
 
   Future<void> switchTo(WidgetTester t, int from, int to, {bool checkGround = true}) async {
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.resetDevicePixelRatio);
     final k = GlobalKey(), names = ['A', 'B', 'C'];
     await t.pumpWidget(host(k, from));
     await t.pumpWidget(host(k, to));
@@ -47,8 +51,11 @@ void main() {
       expect(o < sliver || n < sliver, isTrue, reason: 'frame $i shows both: old $o, new $n');
       if (checkGround) {
         // inside the header band, clear of its text: dm at every frame, whichever pane's content is showing
-        final p = await pixel(t, k, 300, 50);
-        expect(p, M2Color.dm, reason: 'frame $i: the header band is not ground ($p)');
+        // the whole band, edges and corners included: the incoming pane settles from .97, which pulls its own edges in
+        for (final (x, y) in [(300, 50), (1, 1), (1, 60), (358, 1), (358, 60), (1, 78), (358, 78)]) {
+          final p = await pixel(t, k, x, y);
+          expect(isGround(p), isTrue, reason: 'frame $i: the header band at ($x, $y) is not ground ($p)');
+        }
       }
     }
     await t.pumpAndSettle();
@@ -59,12 +66,16 @@ void main() {
   testWidgets('Search to You: the same', (t) => switchTo(t, 2, 1));
 
   testWidgets('a pane with a pinned header keeps it when the switch starts', (t) async {
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.resetDevicePixelRatio);
     final k = GlobalKey();
     await t.pumpWidget(host(k, 2));
     await t.pumpWidget(host(k, 0));
     await t.pump();
     await t.pump(frame * 3); // the old pane's content is mostly gone
-    expect(await pixel(t, k, 300, 60), M2Color.dm);
+    for (final (x, y) in [(300, 60), (1, 1), (358, 1), (1, 60)]) {
+      expect(isGround(await pixel(t, k, x, y)), isTrue, reason: '($x, $y)');
+    }
     await t.pumpAndSettle();
   });
 

@@ -82,11 +82,18 @@ class _FadeThroughTabsState extends State<FadeThroughTabs> with SingleTickerProv
     if (me is! RenderBox || !me.attached) return;
     final shown = _c.value < M2Motion.sharedXAt ? _from : widget.index, origin = me.localToGlobal(Offset.zero), paint = Paint()..color = M2Color.dm;
     canvas.clipRect(Offset.zero & size);
-    if (shown < widget.pinned.length) canvas.drawRect(Rect.fromLTWH(0, 0, size.width, widget.pinned[shown]), paint);
+    // Unscaled geometry: the pane settles from .97 about its centre, which pulls a band's own edges in, so the ground is the band's
+    // bottom with the scale undone, full width, from the very top (the status bar included).
+    final cy = size.height / 2, scale = _scales[shown].value;
+    var bottom = shown < widget.pinned.length ? widget.pinned[shown] : 0.0;
     for (final m in _marks[shown]) {
       final b = m.findRenderObject();
-      if (b is RenderBox && b.attached && b.hasSize) canvas.drawRect((b.localToGlobal(Offset.zero) - origin) & b.size, paint);
+      if (b is RenderBox && b.attached && b.hasSize) {
+        final y = (b.localToGlobal(Offset(0, b.size.height)) - origin).dy;
+        bottom = bottom > y ? bottom : cy + (y - cy) / scale;
+      }
     }
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, bottom), paint);
   }
 
   /// Pane `i`'s content opacity at clock `v`: the old one out linearly by `sharedXAt`, the new one in after it.
