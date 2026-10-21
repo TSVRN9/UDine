@@ -2570,6 +2570,7 @@ Branch `design/m2-round-13`, off `design/m2-round-12`. Concept: `CONCEPT.md`, "R
 ### What changed (`src.html`)
 - **Landing.** `landOnHalls()`: close the dish and plate sheets, `closeAllPages()`, `hideHall()`, `setTab('halls', true)` (the new `keepOb`
   argument leaves an undismissed first run up). The notification banner's tap calls it; so does the simulated launcher.
+  **Owner, 2026-10-21 (app/ only, `src.html` unchanged):** a favourite-alert tap then opens that dish's sheet over Halls home (the sheet opened as a tap on the dish in its hall opens it; a dish not served today still opens it, its where line saying so). An empty or unreadable title lands on Halls home alone.
 - **Alerts as a server push.** `PUSHWIN` = 7:00 to 7:59; `alertRun(now)` is the push as the phone receives it and is empty outside the window, so
   a dish added after 7 AM is never alerted; the once-per-dish-per-day key stays. `BGOFF`, the "can't check menus" lines and `?alerts=bgoff`
   are gone (no on-device check any more); Open Settings stays for denied only.

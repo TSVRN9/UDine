@@ -37,6 +37,5 @@ void main() {
     testWidgets('tracking off with alerts on, $n dp', (t) => shot(t, 'trackoff', FakeAlertsOs(permitted: true), on: true, track: false));
     testWidgets('denied, $n dp', (t) => shot(t, 'denied', FakeAlertsOs(willAllow: false), tap: true));
     testWidgets('revoked, found on resume, $n dp', (t) => shot(t, 'revoked', FakeAlertsOs(), on: true));
-    testWidgets('background off on Android, $n dp', (t) => shot(t, 'bg_android', FakeAlertsOs(permitted: true, restricted: true), on: true));
   }
 }

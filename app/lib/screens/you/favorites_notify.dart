@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/widgets.dart';
 
 import '../../shell/app_scope.dart';
@@ -6,7 +5,7 @@ import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 
 /// `alertRows`: "Notify me" at the top of Favorites. A menu feature, not the ledger's, so it stays with tracking off. A tap raises the OS's own
-/// sheet; denied (or revoked) and background-off each hang an Open Settings under the line.
+/// sheet; denied (or revoked) hangs an Open Settings under the line.
 class NotifyRow extends StatelessWidget {
   const NotifyRow({super.key});
   @override
@@ -15,12 +14,8 @@ class NotifyRow extends StatelessWidget {
     return ListenableBuilder(
       listenable: m,
       builder: (context, _) {
-        final button = m.denied || (m.backgroundOff && defaultTargetPlatform != TargetPlatform.iOS); // iOS: a visible push doesn't need Background App Refresh
-        final line = m.denied
-            ? 'Notifications are off for UDine'
-            : button
-                ? "Battery use is restricted, so UDine can't check menus"
-                : "When a favorite is on today's menu";
+        final button = m.denied;
+        final line = button ? 'Notifications are off for UDine' : "When a favorite is on today's menu";
         return Container(
           margin: const EdgeInsets.only(bottom: M2Space.part),
           decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: M2Color.hair))),

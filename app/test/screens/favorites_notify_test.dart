@@ -1,9 +1,7 @@
 // The Favorites "Notify me" row (M2 R11 §2) as a user meets it: each state's words and button, what a tap asks of the OS, what Open Settings
 // opens, and when the permission is read again. The OS is a fake; the row is the page's own.
-import 'package:flutter/foundation.dart' show TargetPlatform, debugDefaultTargetPlatformOverride;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:udine/alerts/alerts_os.dart';
 import 'package:udine/ui/ui.dart';
 import '../alerts/fake_os.dart';
 import '../fonts.dart';
@@ -11,7 +9,6 @@ import 'support.dart';
 import 'you_support.dart';
 
 const _off = "When a favorite is on today's menu", _denied = 'Notifications are off for UDine';
-const _battery = "Battery use is restricted, so UDine can't check menus";
 
 bool _checked(WidgetTester t) => t.widget<CheckRow>(find.widgetWithText(CheckRow, 'Notify me')).on;
 Finder get _settings => find.text('Open Settings');
@@ -48,7 +45,6 @@ void main() {
     expect(os.requests, 1);
     expect(_checked(t), isTrue);
     expect(find.text(_off), findsOneWidget);
-    expect(os.scheduled, [true]);
     await drain(t);
   });
 
@@ -70,7 +66,7 @@ void main() {
     expect(find.text(_off), findsNothing);
     await t.tap(_settings);
     await _settle(t);
-    expect(os.opened, [AlertsSettings.notifications]);
+    expect(os.opened, 1);
     await drain(t);
   });
 
@@ -127,36 +123,22 @@ void main() {
     await drain(t);
   });
 
-  testWidgets('background off on Android: the check stays on, the battery line, Open Settings opens App info', (t) async {
-    final os = FakeAlertsOs(permitted: true, restricted: true);
-    await _favs(t, os, on: true);
-    expect(_checked(t), isTrue);
-    expect(find.text(_battery), findsOneWidget);
-    await t.tap(_settings);
-    await _settle(t);
-    expect(os.opened, [AlertsSettings.background]);
-    await drain(t);
-  });
-
-  testWidgets('on iOS a restricted background shows no row, only the plain line', (t) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-    await _favs(t, FakeAlertsOs(permitted: true, restricted: true), on: true);
+  testWidgets('a restricted battery shows no row: the plain line, no Open Settings, on either platform', (t) async {
+    await _favs(t, FakeAlertsOs(permitted: true), on: true);
     expect(find.text(_off), findsOneWidget);
-    expect(find.textContaining('Background App Refresh'), findsNothing);
-    expect(find.text(_battery), findsNothing);
+    expect(find.textContaining('Battery'), findsNothing);
+    expect(find.textContaining('check menus'), findsNothing);
     expect(_settings, findsNothing);
     expect(_checked(t), isTrue);
-    debugDefaultTargetPlatformOverride = null;
     await drain(t);
   });
 
-  testWidgets('turning it off: the check empties, and the schedule is cancelled', (t) async {
+  testWidgets('turning it off: the check empties', (t) async {
     final os = FakeAlertsOs(permitted: true);
     await _favs(t, os, on: true);
     await t.tap(find.text('Notify me'));
     await _settle(t);
     expect(_checked(t), isFalse);
-    expect(os.scheduled, [false]);
     expect(os.requests, 0);
     await drain(t);
   });

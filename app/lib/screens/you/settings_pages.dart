@@ -1,10 +1,9 @@
 import 'package:flutter/widgets.dart';
 
-import '../../alerts/alert_check.dart' show namesAnd;
 import '../../core/m2/board.dart' show Board, Place, clockMeal, halls, placeName;
 import '../../core/m2/history.dart' show cafeIdsOf;
 import '../../core/m2/places.dart' show Roster;
-import '../../core/m2/where.dart' show notServed, whenText, wherePlan;
+import '../../core/m2/where.dart' show namesAnd, notServed, whenText, wherePlan;
 import '../../data/repository.dart' show addDays;
 import '../../data/states.dart' show Loaded, LoadedOffline;
 import '../dish/where_book.dart';
