@@ -102,7 +102,9 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
   // tabs and the list with it) over the first part of `settle`, then its text and chart fade in. The title is anchored by the header's foot, so
   // it never moves. `_late` is linear time over `settle`; a header opened with its reading (or the card's) is whole at 1.
   late final AnimationController _late = AnimationController(vsync: this, value: 1, duration: M2Motion.settle.duration, animationBehavior: AnimationBehavior.preserve)..addListener(_onLate);
-  double _h0 = 0, _blockFrom = 0, _blockTo = 0;
+  // M2's header is 306 whatever its reading has: the block never ends below what the open guessed for ([_est]); a hall with no second line (or no
+  // reading at all) keeps that room, empty, under what it draws
+  double _h0 = 0, _blockFrom = 0, _blockTo = 0, _est = 0;
   bool _synced = false, _lateGrows = true;
   double _seenBlock = 0;
   void _onLate() {
@@ -208,25 +210,32 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
   /// The header opens at the height it will keep if the block is already known (the card's reading, with or without its second line) and
   /// otherwise as if it will have both lines: the title stays where it is when the block lands, whichever it turns out to be.
   void _syncBlock(HallBusyView? before) {
-    final v = _busy.value, to = v?.block ?? _blockTo;
+    final v = _busy.value;
+    // no reading is coming (another day, or today's lookup answered with none)
+    final absent = v == null && !_cafe && (_day > 0 || c.busySettled);
     if (!_synced) {
       _synced = true;
-      _blockFrom = _blockTo = _seenBlock = to;
       // no card: what Halls (or any earlier read) found for this hall; with none at all, a hall with a second line
       final known = _cafe || v != null ? null : AppScope.of(context).repo.lastBusy.entries.where((e) => hallKeyOfTitle(e.key) == place).firstOrNull?.value;
-      // ponytail: a cold deep link has no earlier read, so a live hall without a second line ends 22 dp shorter than M2's
-      _h0 = _cafe ? 0 : headerHeight(widget.top) - (v?.block ?? (known == null ? M2Layout.busyBlockExtra : HallBusyView.of(known).block));
+      _est = v?.block ?? (known == null ? M2Layout.busyBlockExtra : HallBusyView.of(known).block);
+      _h0 = _cafe ? 0 : headerHeight(widget.top) - _est;
+      _blockFrom = _blockTo = _seenBlock = v != null || absent ? _est : 0;
       return;
     }
+    if (absent && _blockTo == 0) return _growTo(_est);
     if (v == null || (identical(v, before))) return;
+    final to = math.max(_est, v.block);
     final lands = !v.seed && (before == null || before.seed);
     if (to == _blockTo && !lands) return;
-    final rm = reducedMotion(context);
+    _growTo(to);
+  }
+
+  void _growTo(double to) {
     _blockFrom = _block;
     _blockTo = to;
     _lateGrows = to != _blockFrom;
     _late
-      ..duration = rm ? M2Motion.rmFade.duration : M2Motion.settle.duration
+      ..duration = reducedMotion(context) ? M2Motion.rmFade.duration : M2Motion.settle.duration
       ..forward(from: 0);
   }
 

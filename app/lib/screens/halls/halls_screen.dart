@@ -5,7 +5,6 @@ import 'package:flutter/widgets.dart';
 import '../../core/m2/board.dart' show halls;
 import '../../core/m2/places.dart' show cafeKey, cafeTable;
 import '../../data/repository.dart' show HoursData, Loaded, LoadedOffline;
-import '../../motion/fade_through.dart' show GroundMark;
 import '../../motion/routes.dart';
 import '../../shell/app_scope.dart';
 import '../../shell/shell_scope.dart';
@@ -29,7 +28,6 @@ class HallsScreen extends StatefulWidget {
 class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStateMixin {
   // ponytail: per repository (one per boot), not persisted; a second kind of late data in one session would need its own key
   static final _faded = Expando<Set<String>>();
-  final _scroll = ScrollController();
   // M2 `fillBands(true)`: what arrives late (hours after a slow load or a retry, busy) fades in over `settle`; what was cached is simply there
   late final _arrive = AnimationController(vsync: this, value: 1)..addStatusListener((s) => s == AnimationStatus.completed ? _c?.loadMenus() : null);
   final _keys = <String, GlobalKey>{};
@@ -108,7 +106,6 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
     _c?.removeListener(_onData);
     _c?.dispose();
     _arrive.dispose();
-    _scroll.dispose();
     super.dispose();
   }
 
@@ -164,11 +161,7 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
         listenable: Listenable.merge([_c!, scope.prefs]),
         builder: (context, _) {
           final vm = buildHalls(now: scope.repo.now(), state: _c!.state, reads: _c!.reads, pins: scope.prefs.pins, charlesRiver: scope.prefs.charlesRiver, board: _c!.board, favorites: scope.prefs.favorites, day: scope.repo.today);
-          final brand = Text('UDine', style: M2Text.brand.normal().style(M2Color.gold));
-          final dateText = Text(vm.date, style: M2Text.date.style(M2Color.onDm));
-          return Stack(children: [
-            SingleChildScrollView(
-              controller: _scroll,
+          return SingleChildScrollView(
               physics: const ClampingScrollPhysics(),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                 Stack(children: [
@@ -201,22 +194,7 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
                   ]),
                 ),
               ]),
-            ),
-            Positioned(
-              left: 0, right: 0, top: 0, height: top + M2Layout.collapsedBar,
-              child: GroundMark(child: IgnorePointer(
-                child: AnimatedBuilder(
-                  animation: _scroll,
-                  builder: (_, c) => Opacity(opacity: (((_scroll.hasClients ? _scroll.offset : 0) - M2Layout.collapseStart) / M2Layout.collapseSpan).clamp(0.0, 1.0), child: c),
-                  child: Container(
-                    color: M2Color.dm,
-                    padding: EdgeInsets.fromLTRB(M2Space.gutter, top, M2Space.gutter, 0),
-                    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.center, children: [brand, dateText]),
-                  ),
-                ),
-              )),
-            ),
-          ]);
+            );
         },
       ),
     );

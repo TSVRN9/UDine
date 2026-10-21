@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 import '../theme/tokens.dart';
 import 'mark_glyph.dart';
@@ -46,18 +47,22 @@ class FilterChipButton extends StatelessWidget {
 
 class _Check extends StatelessWidget {
   const _Check();
+  // the pseudo-element's margin box: 0 2px 3px 0 around the 10 x 5 border box
   @override
-  Widget build(BuildContext context) => const SizedBox(width: M2Layout.checkMarkW, height: M2Layout.checkMarkW, child: CustomPaint(painter: _CheckPainter()));
+  Widget build(BuildContext context) => const SizedBox(
+      width: M2Layout.checkMarkW + M2Layout.checkMarkRight, height: M2Layout.checkMarkH + M2Layout.checkMarkLift, child: CustomPaint(painter: _CheckPainter()));
 }
 
-/// `border: solid; border-width: 0 0 2px 2px; transform: rotate(-45deg)` on a 10 x 5 box: a tick in the dark maroon.
+/// `border: solid; border-width: 0 0 2px 2px; transform: rotate(-45deg)` on a 10 x 5 box: its left and bottom borders, turned about the box's centre.
 class _CheckPainter extends CustomPainter {
   const _CheckPainter();
   @override
   void paint(Canvas canvas, Size s) {
-    final p = Paint()..color = M2Color.dm..style = PaintingStyle.stroke..strokeWidth = M2Layout.checkMarkStroke..strokeJoin = StrokeJoin.miter;
-    const w = M2Layout.checkMarkW, h = M2Layout.checkMarkH;
-    canvas.drawPath(Path()..moveTo(0, h)..lineTo(w * 0.35, h * 1.8)..lineTo(w, 0), p);
+    const w = M2Layout.checkMarkW, h = M2Layout.checkMarkH, b = M2Layout.checkMarkStroke;
+    canvas.translate(w / 2, h / 2);
+    canvas.rotate(-math.pi / 4);
+    canvas.translate(-w / 2, -h / 2);
+    canvas.drawPath(Path()..addRect(const Rect.fromLTWH(0, 0, b, h))..addRect(const Rect.fromLTWH(0, h - b, w, b)), Paint()..color = M2Color.dm);
   }
 
   @override

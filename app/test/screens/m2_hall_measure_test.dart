@@ -40,6 +40,16 @@ void main() {
       }
     }
 
+    for (final route in ['/hall/worcester?meal=lunch&day=2026-10-17', '/hall/franklin?meal=lunch']) {
+      testWidgets('$route at $w dp: the header is M2\'s 306 and the tabs sit at 306, with or without a busy reading', (t) async {
+        await openHall(t, await bootRecorded(t), route, w: w.toDouble());
+        await t.pump(const Duration(seconds: 1));
+        near('mhead', r(t, find.byType(HallHeader)), head['mhead']);
+        near('mtabs', r(t, find.byType(MealTabs)), head['mtabs']);
+        await drain(t);
+      });
+    }
+
     testWidgets('Worcester lunch header, tabs, station row and day cell at $w dp match M2 within 1 dp', (t) async {
       await openHall(t, await bootRecorded(t), '/hall/worcester?meal=lunch', w: w.toDouble());
       near('mhead', r(t, find.byType(HallHeader)), head['mhead']);

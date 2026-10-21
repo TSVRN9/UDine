@@ -1,6 +1,4 @@
-import 'dart:ui' as ui;
 
-import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/data/recorded/recorded.dart';
@@ -31,7 +29,7 @@ void main() {
   testWidgets('Halls at rest: the date, the meal, four bands with hours and a meter, the area rows with their counts', (t) async {
     await openApp(t, await bootRecorded(t));
     await ready(t);
-    expect(find.text('Thursday, October 8'), findsNWidgets(2)); // the header's, and the collapsed bar's
+    expect(find.text('Thursday, October 8'), findsOneWidget);
     expect(find.text('Lunch'), findsOneWidget);
     for (final n in ['Worcester', 'Franklin', 'Hampshire', 'Berkshire']) {
       expect(band(n), findsOneWidget);
@@ -215,33 +213,13 @@ void main() {
     });
   });
 
-  testWidgets('leaving a scrolled Halls keeps the maroon under the status bar: the collapsed bar is ground, so no frame goes chalk there', (t) async {
+  testWidgets('scrolled Halls draws no pinned UDine bar: the header scrolls away (M2 .hhead position:relative)', (t) async {
     await openApp(t, await bootRecorded(t));
     await ready(t);
     await t.drag(find.byType(SingleChildScrollView), const Offset(0, -3000));
-    await t.pump();
     await t.pump(const Duration(milliseconds: 500));
-    final shot = find.byType(RepaintBoundary).first;
-    Future<List<Color>> pixels(List<Offset> at) async => (await t.runAsync(() async {
-          final b = t.renderObject<RenderRepaintBoundary>(shot), img = await b.toImage(), k = img.width / b.size.width;
-          final d = (await img.toByteData(format: ui.ImageByteFormat.rawRgba))!;
-          return [
-            for (final o in at)
-              () {
-                final i = ((o.dy * k).round() * img.width + (o.dx * k).round()) * 4;
-                return Color.fromARGB(255, d.getUint8(i), d.getUint8(i + 1), d.getUint8(i + 2));
-              }(),
-          ];
-        }))!;
-    final top = M2Layout.collapsedBar / 2, spots = [Offset(200, top), const Offset(2, 2), const Offset(357, 2), Offset(2, M2Layout.collapsedBar - 3), Offset(357, M2Layout.collapsedBar - 3)];
-    await t.tap(find.text('You'));
-    await t.pump();
-    for (var i = 0; i < 20; i++) {
-      await t.pump(const Duration(milliseconds: 16));
-      for (final (j, c) in (await pixels(spots)).indexed) {
-        expect((c.r - M2Color.dm.r).abs() < .25 && (c.g - M2Color.dm.g).abs() < .25, isTrue, reason: 'frame $i, spot ${spots[j]}: $c');
-      }
-    }
+    expect(find.text('UDine'), findsOneWidget); // the header's own, scrolled off the top
+    expect(t.getRect(find.text('UDine')).bottom, lessThan(0));
     await drain(t);
   });
 
@@ -283,7 +261,7 @@ void main() {
       expect(find.text('Open until midnight'), findsNWidgets(2));
       expect(find.byType(Meter), findsNothing);
       expect(find.text('Try again'), findsNothing);
-      expect(find.text('Thursday, October 8'), findsNWidgets(2)); // the header's, and the collapsed bar's
+      expect(find.text('Thursday, October 8'), findsOneWidget);
     });
 
     testWidgets('failed: names and letters only, "Couldn\'t connect" and Try again, which asks again', (t) async {

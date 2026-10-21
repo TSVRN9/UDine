@@ -76,7 +76,7 @@ void main() {
     return out;
   }
 
-  for (final h in [('worcester', 'Worcester', 47.0), ('franklin', 'Franklin', 25.0)]) {
+  for (final h in [('worcester', 'Worcester', 47.0), ('franklin', 'Franklin', 47.0)]) { // a cold open guesses two lines; a one-line reading keeps their room, so the header ends at M2's 306
     testWidgets('${h.$2}: the reading lands late, the title and the letter never move and the tabs ride down by ${h.$3.toInt()} dp', (t) async {
       final s = await arrival(t, h.$1, h.$2);
       final first = s.first, last = s.last;
@@ -118,7 +118,7 @@ void main() {
     final base = s.first.tabs;
     for (var i = 0; i < s.length; i++) {
       expect(s[i].title, s.first.title, reason: 'frame $i: the title is where it was');
-      if (s[i].landed) expect(s[i].tabs - base, closeTo(25, 0.6), reason: 'frame $i: no growing under reduced motion');
+      if (s[i].landed) expect(s[i].tabs - base, closeTo(47, 0.6), reason: 'frame $i: no growing under reduced motion');
     }
     expect(s.last.rowOpacity, 1);
   });
