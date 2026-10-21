@@ -198,6 +198,26 @@ void main() {
       await drain(t);
     });
 
+    testWidgets('the where sentences are asked for after the page has slid in, not during the push', (t) async {
+      final b = await bootRecorded(t);
+      await t.runAsync(() => b.prefs.toggleFavorite('Golden BBQ Chicken Thigh'));
+      await openYou(t, b);
+      await t.pumpAndSettle();
+      await t.tap(find.text('Favorites'));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 40));
+      expect(find.text('Golden BBQ Chicken Thigh'), findsOneWidget); // (the page is in, mid-slide)
+      // real time for whatever has been asked for to come back, while the slide (fake time) stands still
+      for (var i = 0; i < 60; i++) {
+        await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 60)));
+        await t.pump(const Duration(milliseconds: 1));
+      }
+      expect(find.textContaining(', at '), findsNothing);
+      expect(find.text(notServed), findsNothing);
+      await until(t, () => find.textContaining(', at ').evaluate().isNotEmpty);
+      await drain(t);
+    });
+
     testWidgets('lists the starred dishes; with none, the empty line', (t) async {
       final b = await bootYou(t);
       await openYou(t, b, route: '/you/favs');
