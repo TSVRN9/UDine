@@ -9,6 +9,7 @@ import 'package:udine/screens/hall/hall_menu.dart';
 import 'package:udine/screens/hall/dish_row.dart';
 import 'package:udine/shell/prefs.dart';
 import 'package:udine/theme/tokens.dart';
+import 'package:udine/motion/track_layer.dart';
 import 'package:udine/ui/ui.dart';
 import '../fonts.dart';
 import 'dish_support.dart';
@@ -32,20 +33,30 @@ void main() {
   setUpAll(loadFonts);
 
   group('a hall menu', () {
-    testWidgets('the + and steppers go, the lane stays: every row is the height it was, and names wrap where they did', (t) async {
+    testWidgets('the figures, the + and steppers go and the control column leaves layout: rows are a name-only 48 and names take the width; on, all back', (t) async {
       final b = await bootRecorded(t);
       await openHall(t, b, '/hall/worcester?meal=lunch');
-      List<Size> sizes() => [for (final r in t.widgetList<DishRow>(find.byType(DishRow)).take(12)) t.getSize(find.byWidget(r))];
+      List<double> heights() => [for (final r in t.widgetList<DishRow>(find.byType(DishRow)).take(12)) t.getSize(find.byWidget(r)).height];
       List<double> names() => [for (final r in t.widgetList<DishRow>(find.byType(DishRow)).take(12)) t.getSize(find.descendant(of: find.byWidget(r), matching: find.byType(RichText)).first).width];
-      final on = sizes(), wrap = names();
+      final on = heights(), wrap = names();
       expect(find.byType(RowControl), findsWidgets);
+      expect(find.byType(CalProtein), findsWidgets);
+      expect(on.every((h) => h >= M2Size.row), isTrue);
       await setTrack(t, b, false);
       expect(find.byType(RowControl), findsNothing);
       expect(find.byType(AddButton), findsNothing);
-      expect(sizes(), on);
-      expect(names(), wrap);
+      expect(find.byType(CalProtein), findsNothing);
+      final off = heights().take(on.length).toList();
+      expect(off.every((h) => h >= M2Size.rowOff), isTrue);
+      expect(off.where((h) => h == M2Size.rowOff), isNotEmpty, reason: 'a name-only row is 48');
+      expect([for (var i = 0; i < off.length; i++) off[i] < on[i]], everyElement(isTrue), reason: 'every row is shorter');
+      final nm = names();
+      expect([for (var i = 0; i < wrap.length; i++) nm[i] >= wrap[i]], everyElement(isTrue));
+      expect([for (var i = 0; i < wrap.length; i++) nm[i] > wrap[i]], contains(true), reason: 'the control column no longer takes the width');
       await setTrack(t, b, true);
       expect(find.byType(RowControl), findsWidgets);
+      expect(find.byType(CalProtein), findsWidgets);
+      expect(heights().take(on.length).toList(), on);
       await drain(t);
     });
 
@@ -65,6 +76,28 @@ void main() {
     });
   });
 
+  group('the plate bar lifts', () {
+    for (final reduced in [false, true]) {
+      testWidgets(reduced ? 'reduced motion: it fades in place' : 'it leaves downward while it fades', (t) async {
+        final b = await openPlate(t, reduced: reduced);
+        final y0 = t.getTopLeft(bar).dy;
+        await t.runAsync(() => b.prefs.setTrack(false, reduced: reduced));
+        await t.pump();
+        await t.pump(const Duration(milliseconds: 70));
+        final op = t.widget<Opacity>(find.ancestor(of: bar, matching: find.byType(Opacity)).first).opacity;
+        expect(op, allOf(greaterThan(0), lessThan(1)));
+        if (reduced) {
+          expect(t.getTopLeft(bar).dy, y0, reason: 'no movement');
+        } else {
+          expect(t.getTopLeft(bar).dy, greaterThan(y0));
+        }
+        await t.pump(const Duration(milliseconds: 500));
+        expect(bar, findsNothing);
+        await finish(t);
+      });
+    }
+  });
+
   group('the dish sheet', () {
     Rect whereBlock(WidgetTester t) => t.getRect(find.ancestor(of: find.byType(HallChip).first, matching: find.byType(Column)).first);
 
@@ -75,6 +108,7 @@ void main() {
       await sheetUp(t);
       expect(find.text('Add to plate'), findsNothing);
       expect(find.text('Add another'), findsNothing);
+      expect(find.byType(NutritionLabel), findsNothing, reason: 'the label goes with the figures');
       expect(whereBlock(t).top - t.getRect(find.descendant(of: find.byType(DishSheet), matching: find.textContaining('Contains')).first).bottom, closeTo(M2Layout.whereTopOff, 0.5));
       await drain(t);
     });
@@ -84,6 +118,7 @@ void main() {
       await openHall(t, b, dishRoute('Golden BBQ Chicken Thigh'));
       await sheetUp(t);
       expect(find.text('Add to plate'), findsOneWidget);
+      expect(find.byType(NutritionLabel), findsOneWidget);
       expect(whereBlock(t).top - t.getRect(find.byType(Button).first).bottom, closeTo(M2Layout.whereTop, 0.5));
       await drain(t);
     });
@@ -127,7 +162,7 @@ void main() {
       await t.pumpAndSettle();
       expect(find.byType(RowControl), findsNothing);
       final row = t.getRect(find.byType(DishRow).first), tags = t.getRect(find.byType(HallTags).first);
-      expect(tags.top - row.top, closeTo(M2Layout.laneOffTop + M2Layout.rowPadTop, 1.0), reason: 'the letters ride at the top of the lane');
+      expect(tags.center.dy - row.center.dy, closeTo(0, 1.0), reason: 'the letters centre in the name-only row');
       await t.enterText(find.byType(EditableText), 'zzzq');
       await t.pumpAndSettle();
       expect(find.text('Nothing called “zzzq” is on any menu today or tomorrow.'), findsOneWidget);
@@ -135,14 +170,14 @@ void main() {
       await settleSearch(t);
     });
 
-    testWidgets('a row is the height it was with the + there', (t) async {
+    testWidgets('a row closes to the name-only 48 when tracking goes off', (t) async {
       final on = await bootRecorded(t);
       await openApp(t, on, route: '/search?q=brisket');
       await until(t, () => find.byType(DishRow).evaluate().isNotEmpty);
       await t.pumpAndSettle();
-      final h = t.getSize(find.byType(DishRow).first).height;
+      expect(t.getSize(find.byType(DishRow).first).height, greaterThanOrEqualTo(M2Size.row));
       await setTrack(t, on, false);
-      expect(t.getSize(find.byType(DishRow).first).height, h);
+      expect(t.getSize(find.byType(DishRow).first).height, M2Size.rowOff);
       await settleSearch(t);
     });
 
@@ -191,6 +226,34 @@ void main() {
       await wrote(t);
       expect(find.text('Today'), findsOneWidget);
       expect(find.text('Earlier'), findsOneWidget);
+      await drain(t);
+    });
+
+    testWidgets('Track off is a lift: Today fades while it keeps its height, then closes, and on, it opens then fades in', (t) async {
+      final b = await bootYou(t);
+      await openYou(t, b);
+      Finder today() => find.ancestor(of: find.text('Today'), matching: find.byType(LiftFold));
+      double alpha() => t.widget<Opacity>(find.descendant(of: today(), matching: find.byType(Opacity)).first).opacity;
+      final h0 = t.getSize(today()).height;
+      await t.ensureVisible(find.text('Track what I eat'));
+      expect(h0, greaterThan(100));
+      await t.tap(find.text('Track what I eat'));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 70));
+      expect(alpha(), allOf(greaterThan(0), lessThan(1)));
+      expect(t.getSize(today()).height, h0, reason: 'at 70 ms it has not started to close');
+      await t.pump(const Duration(milliseconds: 220));
+      expect(alpha(), 0);
+      expect(t.getSize(today()).height, allOf(greaterThan(0), lessThan(h0)), reason: 'then it closes');
+      await t.pump(const Duration(milliseconds: 200));
+      expect(today(), findsNothing);
+      await t.tap(find.text('Track what I eat'));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 40));
+      expect(t.getSize(today()).height, allOf(greaterThan(0), lessThan(h0)), reason: 'on: it opens from nothing');
+      expect(alpha(), 0, reason: 'empty while it opens');
+      await t.pump(const Duration(milliseconds: 600));
+      expect(t.getSize(today()).height, h0);
       await drain(t);
     });
 

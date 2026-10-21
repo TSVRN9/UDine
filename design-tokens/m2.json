@@ -507,6 +507,7 @@
  "size": {
   "tabBar": 56,
   "row": 64,
+  "rowOff": 48,
   "tabs": 48,
   "stationRow": 50,
   "band": 112,
@@ -744,6 +745,15 @@
    "d": 500,
    "e": "emphasized"
   },
+  "fold": {
+   "d": 250,
+   "e": [
+    0.2,
+    0,
+    0,
+    1
+   ]
+  },
   "exit": {
    "d": 150,
    "e": [
@@ -974,6 +984,7 @@
   "radius.pill": "full",
   "size.tabBar": ".tbar button{height:56px}",
   "size.row": ".row{min-height:64px}",
+  "size.rowOff": "#frame.notrack .row{min-height:48px}",
   "size.tabs": "#mtabs{height:48px}",
   "size.stationRow": ".sth{height:50px}",
   "size.band": ".band{height:112px}",
@@ -1000,6 +1011,7 @@
   "motion.sharedX": "MO.sharedX",
   "motion.scroll": "MO.scroll",
   "motion.exit": "MO.exit (150, .3 0 .8 .2)",
+  "motion.fold": "MO.fold (round 13): a block closing up or opening, the tracking layer lifting away and coming back",
   "motion.scrim": "MO.scrim",
   "motion.plateScrim": "#pscrim max opacity .5",
   "motion.revealFlash": "prefshow/prefhide: the list flashes from this opacity back to whole over settle",

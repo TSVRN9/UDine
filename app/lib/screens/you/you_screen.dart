@@ -6,6 +6,7 @@ import '../../core/store/log_book.dart';
 import '../../motion/routes.dart';
 import '../../shell/app_scope.dart';
 import '../../theme/tokens.dart';
+import '../../motion/track_layer.dart';
 import '../../ui/ui.dart';
 import '../plate/plate_sheet.dart' show plateBoard;
 import 'day_page.dart';
@@ -29,7 +30,7 @@ class YouScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scope = AppScope.of(context), prefs = scope.prefs, book = scope.log, fx = plateBoard(scope.repo.now());
+    final scope = AppScope.of(context), prefs = scope.prefs, lift = prefs.lift, book = scope.log, fx = plateBoard(scope.repo.now());
     return ColoredBox(
       color: M2Color.chalk,
       child: ListenableBuilder(
@@ -46,17 +47,17 @@ class YouScreen extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.emptyTop, M2Space.gutter, M2Layout.emptyBottom),
                     child: Text(newerDatabase, style: M2Text.empty.style(M2Color.slate)),
                   )
-                else if (prefs.track) ...[
-                  DayBlock(meals: meals, day: today, title: 'Today', titleOf: (m) => mealTitle(m, fx, book.cafeIds), onMeal: (m) => openMealSheet(context, at: m.loggedAt)),
+                else ...[
+                  LiftFold(lift: lift, rest: prefs.track, child: DayBlock(meals: meals, day: today, title: 'Today', titleOf: (m) => mealTitle(m, fx, book.cafeIds), onMeal: (m) => openMealSheet(context, at: m.loggedAt))),
                   if (earlier.isNotEmpty)
-                    Padding(
+                    LiftFold(lift: lift, rest: prefs.track, child: Padding(
                       padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.secTop, M2Space.gutter, 0),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                         const SecHead('Earlier'),
                         for (final (i, d) in earlier.indexed)
                           LRow(title: isoFull(d), trailing: CalTrailing(dayTotal(meals, d).cal), last: i == earlier.length - 1, onTap: () => Nav.push<void>(context, (_) => DayPage(top: top, day: d))),
                       ]),
-                    ),
+                    )),
                 ],
                 _Choices(top: top, book: book),
                 SizedBox(height: M2Layout.listFoot + safeBottom(context)),
@@ -80,16 +81,22 @@ class _Choices extends StatelessWidget {
   Widget build(BuildContext context) {
     final scope = AppScope.of(context), prefs = scope.prefs, foodCount = scope.foods?.foods.length ?? 0, meals = book?.meals ?? const <LoggedMeal>[], days = loggedDays(meals).length, favs = prefs.favorites.length;
     Widget sec(List<Widget> children) => Padding(padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.secTop, M2Space.gutter, 0), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children));
-    final rows = <(String, String, WidgetBuilder)>[
-      ('Favorites', favs == 0 ? 'None yet' : '$favs ${favs == 1 ? 'dish' : 'dishes'}', (_) => FavoritesPage(top: top)),
-      if (prefs.track && scope.foods != null) ('Your foods', foodCount == 0 ? 'None yet' : '$foodCount ${foodCount == 1 ? 'food' : 'foods'}', (_) => FoodsPage(top: top)),
-      ('Dietary preferences', prefSummary(prefs.diet), (_) => DietPage(top: top)),
+    final rows = <(String, String, WidgetBuilder, bool)>[
+      ('Favorites', favs == 0 ? 'None yet' : '$favs ${favs == 1 ? 'dish' : 'dishes'}', (_) => FavoritesPage(top: top), false),
+      // (Your foods is the ledger's: it lifts away with tracking)
+      if (scope.foods != null) ('Your foods', foodCount == 0 ? 'None yet' : '$foodCount ${foodCount == 1 ? 'food' : 'foods'}', (_) => FoodsPage(top: top), true),
+      ('Dietary preferences', prefSummary(prefs.diet), (_) => DietPage(top: top), false),
       // "Which was better?" is shelved (owner, 2026-10-15): RankPage stays behind the `/you/rank` route until it comes back here
-      if (days > 0) ('Export my data', '$days ${days == 1 ? 'day' : 'days'}', (_) => ExportPage(top: top)),
+      if (days > 0) ('Export my data', '$days ${days == 1 ? 'day' : 'days'}', (_) => ExportPage(top: top), false),
     ];
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (book != null) sec([const TrackAndHealth()]),
-      sec([for (final (i, r) in rows.indexed) LRow(title: r.$1, subtitle: r.$2, last: i == rows.length - 1, onTap: () => Nav.push<void>(context, r.$3))]),
+      sec([
+        for (final (i, r) in rows.indexed)
+          r.$4
+              ? LiftFold(lift: prefs.lift, rest: prefs.track, child: LRow(title: r.$1, subtitle: r.$2, last: i == rows.length - 1, onTap: () => Nav.push<void>(context, r.$3)))
+              : LRow(title: r.$1, subtitle: r.$2, last: i == rows.length - 1, onTap: () => Nav.push<void>(context, r.$3)),
+      ]),
       sec([
         const SecHead('Campus'),
         CheckRow(label: 'Charles River Campus', line: 'Newton', on: prefs.charlesRiver, last: true, onChanged: (v) { Haptics.selection(); prefs.setCharlesRiver(v); }),

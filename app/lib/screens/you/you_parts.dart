@@ -87,12 +87,14 @@ class DayBlock extends StatelessWidget {
 
 /// `checkRow('track')`: Track what I eat, the one setting that changes the app's shape. On You and in the first-run sheet alike.
 class TrackRow extends StatelessWidget {
-  const TrackRow({super.key, this.last = false});
+  const TrackRow({super.key, this.last = false, this.onYou = true});
   final bool last;
+  /// the switch is on You (the first-run sheet's is not): the bar rises after the blocks open
+  final bool onYou;
   @override
   Widget build(BuildContext context) {
     final prefs = AppScope.of(context).prefs;
-    return ListenableBuilder(listenable: prefs, builder: (_, _) => CheckRow(label: 'Track what I eat', line: 'Calories, protein, carbs and fat', on: prefs.track, last: last, onChanged: (v) { Haptics.selection(); prefs.setTrack(v); }));
+    return ListenableBuilder(listenable: prefs, builder: (_, _) => CheckRow(label: 'Track what I eat', line: 'Calories, protein, carbs and fat', on: prefs.track, last: last, onChanged: (v) { Haptics.selection(); prefs.setTrack(v, onYou: onYou, reduced: reducedMotion(context)); }));
   }
 }
 

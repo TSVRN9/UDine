@@ -32,7 +32,7 @@ class FirstRunSheet extends StatelessWidget {
                   Semantics(header: true, child: Text('You', style: M2Layout.obTitle.style(M2Color.dm))),
                   Transform.translate(offset: const Offset(M2Layout.obBleed, 0), child: TextAction('Done', onTap: handle.close)),
                 ]),
-                const TrackRow(last: true),
+                const TrackRow(last: true, onYou: false),
                 _h2('Only show'),
                 const OnlyShowRows(),
                 _h2('Avoid'),

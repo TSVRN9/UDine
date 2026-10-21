@@ -85,6 +85,24 @@ void trackTests() {
     dir.deleteSync(recursive: true);
   });
 
+  testWidgets('a second flip while the layer moves changes neither the setting nor the store', (t) async {
+    final p = (await t.runAsync(() => AppPrefs.load(store)))!;
+    p.lift.attach(t);
+    await t.runAsync(() => p.setTrack(false));
+    expect(p.lift.running, isTrue);
+    await t.runAsync(() => p.setTrack(true));
+    expect(p.track, isFalse);
+    expect(await t.runAsync(store.tracking), isFalse);
+    await t.pump();
+    await t.pump(const Duration(milliseconds: 500));
+    expect(p.lift.on, isFalse);
+    await t.runAsync(() => p.setTrack(true));
+    expect(p.track, isTrue);
+    await t.pump();
+    await t.pump(const Duration(milliseconds: 600));
+    p.lift.detach();
+  });
+
   test('tracking is on by default, off survives a restart, and a newer database never tracks', () async {
     var p = await AppPrefs.load(store);
     expect(p.track, isTrue);

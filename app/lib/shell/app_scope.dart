@@ -7,6 +7,7 @@ import '../data/packaged.dart';
 import '../data/pdf_pages.dart';
 import '../data/repository.dart';
 import '../motion/routes.dart';
+import '../motion/track_lift.dart';
 import 'alerts_model.dart';
 import 'food_book.dart';
 import 'health_book.dart';
@@ -47,6 +48,9 @@ class AppScope extends InheritedWidget {
   bool get menusOnly => store == null;
 
   static AppScope of(BuildContext context) => context.getInheritedWidgetOfExactType<AppScope>()!;
+
+  /// The tracking layer's clock, or null where no scope is mounted (a row built on its own is then drawn at rest, by its `track`).
+  static TrackLift? liftOf(BuildContext context) => context.getInheritedWidgetOfExactType<AppScope>()?.prefs.lift;
 
   @override
   bool updateShouldNotify(AppScope old) => false;

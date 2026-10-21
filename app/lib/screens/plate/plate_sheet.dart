@@ -60,7 +60,6 @@ class _PlateSheetState extends State<PlateSheet>
   PlateModel get _m => _scope.plate;
   bool get _visible =>
       _m.write != null &&
-      _scope.prefs.track &&
       (_m.state.plates.isNotEmpty || _m.receipt != null || _m.deleted != null);
   Plate? get _front => _m.state.front < _m.state.plates.length
       ? _m.state.plates[_m.state.front]
@@ -300,14 +299,16 @@ class _PlateSheetState extends State<PlateSheet>
   Widget build(BuildContext context) {
     final st = safeTop(context), fx = plateBoard(_scope.repo.now());
     return ListenableBuilder(
-      listenable: Listenable.merge([_m, _in]),
+      listenable: Listenable.merge([_m, _in, _scope.prefs.lift]),
       builder: (context, _) {
-        if (!_visible && _in.value == 0) return const SizedBox.shrink();
+        // (tracking is the layer: the bar leaves downward with `exit` and rises with `fold`; reduced motion fades it in place)
+        final bar = _scope.prefs.lift.frame.bar;
+        if (bar == 0 || (!_visible && _in.value == 0)) return const SizedBox.shrink();
         final p = _front;
-        return Transform.translate(
+        return Opacity(opacity: bar, child: Transform.translate(
           offset: Offset(
             0,
-            (1 - _in.value) * M2Layout.barMin * M2Layout.barHide,
+            ((1 - _in.value) + (reducedMotion(context) ? 0 : 1 - bar)) * M2Layout.barMin * M2Layout.barHide,
           ),
           child: Stack(
             children: [
@@ -373,7 +374,7 @@ class _PlateSheetState extends State<PlateSheet>
               ),
             ],
           ),
-        );
+        ));
       },
     );
   }

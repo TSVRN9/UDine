@@ -4,6 +4,7 @@ import '../core/m2/board.dart' show isAlways;
 import '../core/m2/menu_view.dart' show Prefs;
 import '../core/store/store.dart';
 import '../core/types.dart' show DishFavorite;
+import '../motion/track_lift.dart';
 
 /// The stored Avoid list and "Only show" tags (`food_preferences`) as the menu filters on them. A tag the menu has no filter for is ignored.
 Prefs dietPrefs(List<String> avoid, List<String> onlyShow) {
@@ -34,6 +35,9 @@ class AppPrefs extends ChangeNotifier {
 
   bool _track, _firstRunSeen;
 
+  /// The tracking layer's clock: what lifts away when [track] goes off (the bar, You's blocks, rows' figures and controls) reads it.
+  late final TrackLift lift = TrackLift(track);
+
   /// "Track what I eat": off, UDine is a menu and nothing offers to record. Never on without a store (a newer build owns the database).
   bool get track => _track && _store != null;
 
@@ -54,9 +58,11 @@ class AppPrefs extends ChangeNotifier {
         {for (final f in await store?.favorites() ?? const []) if (f is DishFavorite && !isAlways(f.dishName)) f.dishName}, await store?.tracking() ?? false, await store?.firstRunSeen() ?? true);
   }
 
-  Future<void> setTrack(bool v) {
-    if (_store == null) return Future.value();
+  /// Tracking lifts away or lays back over the screens that show it; [onYou]: the switch is on You (the bar rises after the blocks open).
+  Future<void> setTrack(bool v, {bool onYou = true, bool reduced = false}) {
+    if (_store == null || lift.running) return Future.value(); // (a flip while the layer moves is ignored, as M2's `TRK.busy`)
     _track = v;
+    lift.to(v, onYou: onYou, reduced: reduced);
     notifyListeners();
     return _store.setTracking(v);
   }

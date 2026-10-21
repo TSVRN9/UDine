@@ -2,7 +2,10 @@ import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 import '../../core/m2/board.dart';
 import '../../core/m2/menu_view.dart' show rowScores;
+import '../../motion/track_lift.dart';
+import '../../shell/app_scope.dart';
 import '../../theme/tokens.dart';
+import '../../motion/track_layer.dart';
 import '../../ui/ui.dart';
 
 /// What a row's control shows (`rowCode`): its quantity on the plate it would join, 0 for the plain +, -1 for the ghost +.
@@ -20,8 +23,7 @@ class DishRow extends StatelessWidget {
   /// null: another day's dish, which carries no control (it cannot go on today's plate)
   final RowCode? code;
   final bool here;
-  /// Track what I eat is off: the lane is kept, empty, so the row is the size it was and its name wraps where it did (`visibility:hidden`); in Search
-  /// the tags rise into the control's place
+  /// What the row is at rest when no tracking clock is mounted (a row built on its own): with tracking off it is a name and marks, a 48 high
   final bool track;
   /// a favourite dish carries a star after its name
   final bool favorite;
@@ -34,29 +36,34 @@ class DishRow extends StatelessWidget {
   final Widget? tail;
   const DishRow({super.key, required this.dish, required this.scores, this.contains = const [], this.code, this.here = false, this.track = true, this.favorite = false, this.family, this.chip, required this.onOpen, required this.onAdd, required this.onInc, required this.onDec, this.tags, this.tail});
 
-  /// M2 `.lane`: the control over the tags, both at the right edge; the tags keep clear of it by `tagRight` (a café's name by less)
-  Widget _lane(Widget control) => !track
-      ? tags == null
-          ? const SizedBox(width: M2Layout.lane, height: M2Layout.addSize)
-          : ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: M2Layout.laneMin, minWidth: M2Layout.lane),
-              child: Padding(padding: const EdgeInsets.only(top: M2Layout.laneOffTop), child: Align(alignment: Alignment.topRight, child: Padding(padding: const EdgeInsets.only(right: M2Layout.tagRight), child: tags))),
-            )
-      : tags == null
-      ? control
-      : Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [control, const SizedBox(height: M2Layout.tagSize)]);
+  /// M2 `.lane`: the control over the tags, both at the right edge; the tags keep clear of it by `tagRight` (a café's name by less). The control
+  /// is the layer's: it fades, then closes, and with tracking off it is gone from layout. [fold]: the tags rode a meta line that closes with the
+  /// figures, so they settle to the lane's centre (the line's copy fades as the figures do, the lane's comes in as it goes).
+  Widget? _lane(LiftFrame f, Widget control, {required bool fold}) {
+    final gone = f.size == 0 && f.alpha == 0;
+    final ctl = gone ? null : f.size == 1 && f.alpha == 1 ? control : ClipRect(child: Align(alignment: Alignment.topRight, heightFactor: f.size, child: Opacity(opacity: f.alpha, child: control)));
+    if (tags == null) return ctl;
+    final inLane = fold ? 1 - f.alpha : 0.0;
+    return SizedBox(
+      width: M2Layout.lane,
+      child: Stack(alignment: Alignment.centerRight, children: [
+        if (ctl != null) Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [ctl, SizedBox(height: M2Layout.tagSize * f.size)]),
+        if (inLane > 0) Opacity(opacity: inLane, child: Padding(padding: const EdgeInsets.only(right: M2Layout.tagRight), child: tags)),
+      ]),
+    );
+  }
 
   /// Search's tiles ride the meta line, not the lane's bottom (flutter-motion-fixes Task 2, owner 2026-10-17): a zero-width slot at the line's
   /// right edge, its tiles centred on the line and, as one group, on the control (a café's name keeps the lane's right edge, as it was).
-  Widget? get _tagSlot {
-    if (!track || tags == null) return null;
+  Widget? _tagSlot(double alpha) {
+    if (tags == null || alpha == 0) return null;
     final cafe = tags is HallTags && (tags as HallTags).cafe != null;
     final limit = M2Layout.rowGap + M2Layout.lane - M2Layout.tagRight; // the group's right edge never passes the lane's old one
     return SizedBox(
       width: 0, height: M2Layout.tagSize,
       child: OverflowBox(
         minWidth: 0, maxWidth: limit + (cafe ? M2Layout.tagCafeMax : 200), alignment: Alignment.centerLeft,
-        child: CustomSingleChildLayout(delegate: _TagsAt(cafe ? null : M2Layout.rowGap + M2Layout.lane - M2Layout.addSize / 2, limit), child: tags),
+        child: Opacity(opacity: alpha, child: CustomSingleChildLayout(delegate: _TagsAt(cafe ? null : M2Layout.rowGap + M2Layout.lane - M2Layout.addSize / 2, limit), child: tags)),
       ),
     );
   }
@@ -64,14 +71,20 @@ class DishRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     builds++;
-    final d = dish, sc = rowScores(d.health, d.carbon, scores);
+    return LiftBuilder(lift: AppScope.liftOf(context), rest: track, builder: (context, f, _) => _row(context, f));
+  }
+
+  Widget _row(BuildContext context, LiftFrame f) {
+    final d = dish, sc = rowScores(d.health, d.carbon, scores), gone = f.size == 0 && f.alpha == 0;
+    // a line that held only the figures closes with them (`.m:not(:has(> :not(.fig)))`)
+    final figsOnly = contains.isEmpty && chip == null && sc == null && tail == null;
     final meta = Wrap(
       spacing: tail != null ? M2Layout.laterGapX : M2Layout.metaGapX, runSpacing: M2Layout.metaGapY, crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         if (contains.isNotEmpty) Text('Contains ${andList(contains.map((a) => a.toLowerCase()).toList())}', style: M2Text.meta.style(M2Color.vm).copyWith(fontWeight: FontWeight.w600)),
         // (`.vt` shares the line's baseline with the Oswald figures, which sits below the line's centre)
         if (chip != null) Transform.translate(offset: const Offset(0, M2Layout.tokenDrop), child: Text(chip!, style: M2Text.meta.style(M2Color.slate))),
-        CalProtein(cal: d.nutrition.knownCal, protein: d.nutrition.knownProtein),
+        if (!gone) Opacity(opacity: f.alpha, child: CalProtein(cal: d.nutrition.knownCal, protein: d.nutrition.knownProtein)),
         if (sc != null)
           // `.row .m .sc{margin-block:-1px}`: a 22.5 tile rides in the 22 line without growing it
           NegMargin(
@@ -86,12 +99,14 @@ class DishRow extends StatelessWidget {
       ],
     );
     final badge = Badge.forDiet(d.diet);
+    final control = code == null ? null : _lane(f, RowControl(qty: code! > 0 ? code! : 0, ghost: code! < 0, onAdd: onAdd, onInc: onInc, onDec: onDec), fold: figsOnly);
     return ListRow(
-      label: '${family ?? d.dishName}${chip == null ? '' : ', $chip'}, ${d.nutrition.knownCal == null ? 'calories not listed' : '${fc(d.nutrition.knownCal)} calories'}, ${d.nutrition.knownProtein == null ? 'protein not listed' : '${f1(d.nutrition.knownProtein)} grams protein'}',
+      label: '${family ?? d.dishName}${chip == null ? '' : ', $chip'}${gone ? '' : ', ${d.nutrition.knownCal == null ? 'calories not listed' : '${fc(d.nutrition.knownCal)} calories'}, ${d.nutrition.knownProtein == null ? 'protein not listed' : '${f1(d.nutrition.knownProtein)} grams protein'}'}',
       here: here, onTap: onOpen, stands: chip == null ? null : d,
       name: Badge.name(family ?? d.dishName, M2Text.rowName.style(M2Color.ink), badge: badge, star: favorite ? const StarMark() : null),
-      meta: meta, metaEnd: _tagSlot,
-      control: code == null ? null : _lane(RowControl(qty: code! > 0 ? code! : 0, ghost: code! < 0, onAdd: onAdd, onInc: onInc, onDec: onDec)),
+      meta: meta, metaEnd: _tagSlot(figsOnly ? f.alpha : 1),
+      minHeight: M2Size.rowOff + (M2Size.row - M2Size.rowOff) * f.size, metaOpen: figsOnly ? f.size : 1,
+      control: control,
     );
   }
 }
