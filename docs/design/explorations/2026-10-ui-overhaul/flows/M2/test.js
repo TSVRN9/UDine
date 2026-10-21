@@ -1809,9 +1809,12 @@ from PIL import Image
 im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('L').resize((97,211))
 d=im.get_flattened_data(); print(sum(1 for v in d if v>236)/len(d))"`, { input: buf }).toString(); };
     for (const [from, to] of [['halls', 'you'], ['you', 'search'], ['search', 'halls']]) {
+      // round 14 (fade content, keep ground): every frame of the switch has at most one pane's content above 5% opacity, never both
+      await page.evaluate(([f, t]) => { const op = k => document.getElementById('tab-' + k).classList.contains('hide') ? 0 : Math.max(0, ...tabParts(document.getElementById('tab-' + k).firstElementChild).map(e => +getComputedStyle(e).opacity)); window.__both = 0; const tick = () => { if (Math.min(op(f), op(t)) > .05) { window.__both++; (window.__log ||= []).push([performance.now() | 0, op(f), op(t)].join('/')); } if (!window.__stop) requestAnimationFrame(tick); }; window.__stop = false; tick(); }, [from, to]);
       const w0 = await white(); await page.locator(`.tbar button[data-tab=${to}]`).tap(); let mx = 0;
       for (let i = 0; i < 6; i++) mx = Math.max(mx, await white());
       await page.waitForTimeout(400); const w1 = await white();
+      assert.equal(await page.evaluate(() => { window.__stop = true; return window.__both ? window.__both + ' ' + window.__log.join(' ') : 0; }), 0, `${from} -> ${to}: a frame shows both panes' content`);
       assert(mx <= Math.max(w0, w1) + .08, `${from} -> ${to}: a frame is ${(mx * 100).toFixed(0)}% white (rest ${(w0 * 100).toFixed(0)}% / ${(w1 * 100).toFixed(0)}%)`);
     }
   }

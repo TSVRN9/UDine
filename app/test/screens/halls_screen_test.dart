@@ -197,17 +197,17 @@ void main() {
   });
 
   group('tabs', () {
-    testWidgets('Halls to You is a fade through: the old tab stays drawn under the new, settling from .97', (t) async {
+    testWidgets('Halls to You is a fade through that keeps the ground: the old content goes out, then the new one settles in from .97', (t) async {
       await openApp(t, await bootRecorded(t));
       await ready(t);
       await t.tap(find.text('You'));
       await t.pump();
+      await t.pump(const Duration(milliseconds: 40));
+      expect(find.text('Worcester'), findsOneWidget); // Halls is still drawn, going out
       await t.pump(const Duration(milliseconds: 100));
-      expect(find.text('Worcester'), findsOneWidget); // Halls is still drawn
+      expect(find.text('Worcester'), findsNothing); // gone before You comes in
       final scales = t.widgetList<Transform>(find.byType(Transform)).map((x) => x.transform.storage[0]);
       expect(scales.any((s) => s > M2Motion.fadeThroughScale && s < 1), isTrue);
-      await t.pump(const Duration(milliseconds: 200));
-      expect(find.text('Worcester'), findsNothing); // gone from the screen once You is in
       await drain(t);
     });
   });

@@ -171,7 +171,7 @@ class ShellState extends State<Shell> with WidgetsBindingObserver, SingleTickerP
         settings: s,
         builder: (_) => ValueListenableBuilder<int>(
           valueListenable: _tab,
-          builder: (_, i, _) => FadeThroughTabs(index: i, children: [
+          builder: (_, i, _) => FadeThroughTabs(index: i, pinned: [0, top + M2Layout.searchHeadTop + M2Layout.fieldH + M2Layout.searchHeadBottom, 0], children: [
             HallsScreen(top: top),
             SearchScreen(top: top, tab: _tab, query: searchLaunch(widget.initialRoute)?.$1 ?? '', lenses: searchLaunch(widget.initialRoute)?.$2 ?? const {}, idle: EventsIdle(top: top)),
             YouScreen(top: top),
