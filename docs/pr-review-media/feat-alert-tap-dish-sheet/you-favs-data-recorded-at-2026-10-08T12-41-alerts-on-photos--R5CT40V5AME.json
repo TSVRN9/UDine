@@ -1,0 +1,31 @@
+{
+  "sha": "0ce5a21a412b6581fafffaa40be8ec46bc6ef922",
+  "branch": "feat/alert-tap-dish-sheet",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/feat-alert-tap-dish-sheet",
+  "route": "/you/favs?data=recorded&at=2026-10-08T12:41&alerts=on&photos=off",
+  "device": "SM-A536U1",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-10-21T05:28:07Z",
+  "own": {
+    "app/ios/Runner/AppDelegate.swift": "c259514a9555e8e5b053bd19e5e1284ba3dd7d13",
+    "app/ios/Runner/Info.plist": "256d466ba056f3ba35274edfc42e622311a1d886",
+    "app/lib/alerts/alert_check.dart": "a6b4d84470525195038f12e2be70095e7f8af337",
+    "app/lib/alerts/alerts.dart": "0c5cebbf7e336c0440c87888576655b34a2618fb",
+    "app/lib/alerts/alerts_os.dart": "9a3b49a57190cdd9a26978eab0f36a150ad9f5e3",
+    "app/lib/alerts/push.dart": "29c1386889df8afc8f33411435370c850e11e97f",
+    "app/lib/alerts/push_firebase.dart": "7e9f3c39871ed6a297dafb51decd24b4fac3f406",
+    "app/lib/core/m2/where.dart": "a52281ba90f384fccca6f574c490d52dbfb4b89c",
+    "app/lib/main.dart": "ca0dbab426069772482df13a21815cae412e2528",
+    "app/lib/screens/dish/alert_dish.dart": "0e793c27b0351a3cd763cd97e5cd409294871526",
+    "app/lib/screens/you/favorites_notify.dart": "2a0c23387ecac69d682040596820756c59cfb1b9",
+    "app/lib/screens/you/settings_pages.dart": "e40c3f6fc179bdb13a7e2673b4030c17f9ab6ce6",
+    "app/lib/shell/alerts_model.dart": "18d9887051b09a2efd1f7a1a4e4d76be9f24ba91",
+    "app/lib/shell/shell.dart": "6d8f5c7a0bf9904cc0a5e6cfc5f994279eef1d6d"
+  },
+  "argv": [
+    "/you/favs?data=recorded&at=2026-10-08T12:41&alerts=on",
+    "--settle",
+    "4"
+  ]
+}
