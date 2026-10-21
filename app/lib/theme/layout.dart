@@ -231,7 +231,6 @@ abstract final class M2Layout {
   static const obTitle = M2Type(34.0, 37.4, 'Oswald', FontWeight.w600); // `.obh h2` (first run's title): 600 34px/1.1
   static const obBleed = 8.0; // `.obh{margin:0 -8px 0 0}`: Done's padding hangs past the gutter
   static const obShadow = BoxShadow(color: Color.fromRGBO(36, 10, 14, 0.22), blurRadius: 24, offset: Offset(0, -6)); // `#obsheet` box-shadow
-  static const laneOffTop = 10.0; // `#frame.notrack .lane{padding-top:10px}`
   static const tagSize = 18.0, tagGap = 2.0, tagRight = 14.0, tagRightCafe = 4.0, tagCafeMax = 110.0, tagCafeLeft = 4.0; // `.row .tags .ht`, `.tags`, `.lane .tags`
   static const tagLetter = M2Type(12.0, 12.0, 'Oswald', FontWeight.w600); // `.row .tags .ht`: 12 dp
   static const tagCafe = M2Type(13.0, 16.9, 'LibreFranklin', FontWeight.w400); // `.tags .cnm`: 13 dp at 1.3

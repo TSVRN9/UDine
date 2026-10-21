@@ -10,6 +10,7 @@ import '../data/repository.dart' show DataState, HoursData, Loaded, LoadedOfflin
 import '../motion/fade_through.dart';
 import 'app_scope.dart';
 import '../motion/routes.dart';
+import '../motion/track_lift.dart';
 import '../screens/hall/hall_route.dart';
 import '../screens/halls/hall_page.dart';
 import '../screens/dish/food_sheet.dart';
@@ -47,7 +48,7 @@ class _Sheet {
   final Widget Function(SheetHandle, VoidCallback) build;
 }
 
-class ShellState extends State<Shell> with WidgetsBindingObserver implements ShellApi {
+class ShellState extends State<Shell> with WidgetsBindingObserver, SingleTickerProviderStateMixin implements ShellApi {
   late final _tab = ValueNotifier<int>(searchLaunch(widget.initialRoute) != null ? 1 : Uri.parse(widget.initialRoute).path.startsWith('/you') ? 2 : 0);
   SheetHandle? Function()? _plateBack;
   final navigator = GlobalKey<NavigatorState>();
@@ -56,6 +57,7 @@ class ShellState extends State<Shell> with WidgetsBindingObserver implements She
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _lift = context.getInheritedWidgetOfExactType<AppScope>()?.prefs.lift?..attach(this);
     _tab.addListener(_tabChanged);
     // `/custom?name=&meal=` (a screenshot route): the custom food form over Halls; `cal`, `p`, `c` and `f` fill the macros
     final u = Uri.parse(widget.initialRoute), q = u.queryParameters;
@@ -77,6 +79,7 @@ class ShellState extends State<Shell> with WidgetsBindingObserver implements She
     }
   }
   StreamSubscription<String>? _taps;
+  TrackLift? _lift;
 
   /// A notification tap lands on Halls home, with nothing pushed: favourites show there themselves. Every sheet closes the normal way, except
   /// first run: onboarding the user has not finished stays over Halls, and dismissing it is theirs to do.
@@ -159,6 +162,7 @@ class ShellState extends State<Shell> with WidgetsBindingObserver implements She
     _taps?.cancel();
     _hours?.cancel();
     _book?.removeListener(_wantCafeIds);
+    _lift?.detach();
     _tab.dispose();
     super.dispose();
   }

@@ -46,8 +46,14 @@ class TrackAndHealth extends StatelessWidget {
     return ListenableBuilder(
       listenable: Listenable.merge([prefs, health]),
       builder: (context, _) {
-        final shown = prefs.track && health.state != HealthRowState.hidden;
-        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [TrackRow(last: !shown), if (prefs.track) HealthRow(health: health)]);
+        // (the hairline under Track stays while the Health row lifts away or comes back)
+        return LiftBuilder(
+          lift: prefs.lift, rest: prefs.track,
+          builder: (_, f, _) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            TrackRow(last: health.state == HealthRowState.hidden || (f.size == 0 && f.alpha == 0)),
+            LiftFold(lift: prefs.lift, rest: prefs.track, child: HealthRow(health: health)),
+          ]),
+        );
       },
     );
   }

@@ -385,6 +385,8 @@ abstract final class M2Size {
   static const tabBar = 56.0;
   /// .row{min-height:64px}
   static const row = 64.0;
+  /// #frame.notrack .row{min-height:48px}
+  static const rowOff = 48.0;
   /// #mtabs{height:48px}
   static const tabs = 48.0;
   /// .sth{height:50px}
@@ -636,6 +638,8 @@ abstract final class M2Motion {
   static const sharedXFade = Anim(450, Curves.linear);
   /// MO.scroll
   static const scroll = Anim(500, emphasized);
+  /// MO.fold (round 13): a block closing up or opening, the tracking layer lifting away and coming back
+  static const fold = Anim(250, Cubic(0.2, 0.0, 0.0, 1.0));
   /// MO.exit (150, .3 0 .8 .2)
   static const exit = Anim(150, Cubic(0.3, 0.0, 0.8, 0.2));
   /// MO.scrim

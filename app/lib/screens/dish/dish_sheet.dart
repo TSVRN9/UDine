@@ -189,6 +189,12 @@ class _DishSheetState extends State<DishSheet> {
       );
     }
     final scroll = m.body?.findRenderObject() as RenderBox?, cal = _cal.currentContext?.findRenderObject() as RenderBox?;
+    if (!AppScope.of(context).prefs.track) {
+      // tracking off: no label; it rests at the end of "where" (the line reserved at open, so its answer never re-snaps the sheet)
+      final w = _whereLine.currentContext?.findRenderObject() as RenderBox?;
+      if (scroll == null || w == null || !w.hasSize) return m.height * M2Layout.dishMidGuess;
+      return restingSnap(calBottom: w.localToGlobal(Offset.zero, ancestor: scroll).dy + M2Layout.whereLine - M2Layout.grabH, grab: M2Layout.grabH, winH: m.height, top: st);
+    }
     if (scroll == null || cal == null || !cal.hasSize) return m.height * M2Layout.dishMidGuess;
     final bottom = cal.localToGlobal(Offset(0, cal.size.height), ancestor: scroll).dy; // under the pinned grab, to the rule under Calories
     // the where line is reserved at open and never moves the sheet: an answer taller than its line (a second group, chips on two
@@ -398,7 +404,7 @@ class _DishSheetState extends State<DishSheet> {
                           child: KeyedSubtree(key: const ValueKey('where-line'), child: board == null ? const SizedBox.shrink() : _where(board, head)),
                         ),
                       ),
-                    Padding(padding: const EdgeInsets.only(top: M2Layout.labelTop), child: NutritionLabel(label: label, calKey: _cal)),
+                    if (scope.prefs.track) Padding(padding: const EdgeInsets.only(top: M2Layout.labelTop), child: NutritionLabel(label: label, calKey: _cal)),
                     if (head != null && (head.health != null || head.carbon != null)) Padding(padding: const EdgeInsets.only(top: M2Layout.gradesTop), child: RatingsPanel(health: head.health, carbon: head.carbon)),
                     if (head?.ingredients?.isNotEmpty ?? false) DishIngredients(text: head!.ingredients!, open: _ingOpen, onToggle: () => setState(() => _ingOpen = !_ingOpen)),
                     ])),
