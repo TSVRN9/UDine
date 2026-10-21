@@ -65,6 +65,30 @@ void main() {
   testWidgets('Halls to You: the content goes out, then comes in; the header band stays', (t) => switchTo(t, 0, 2));
   testWidgets('Search to You: the same', (t) => switchTo(t, 2, 1));
 
+  testWidgets('the ground ends at the header band\'s own bottom: just below it, the settling pane shows through, not maroon', (t) async {
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.resetDevicePixelRatio);
+    final k = GlobalKey();
+    await t.pumpWidget(host(k, 1));
+    final bottom = t.getRect(find.byType(ScreenHeader)).bottom; // the band at rest, before any scale
+    await t.pumpWidget(host(k, 2));
+    await t.pumpWidget(host(k, 1));
+    var seen = 0;
+    for (var i = 0; i < 60; i++) {
+      await t.pump(const Duration(milliseconds: 4));
+      final n = opacityOf(t, 'content B');
+      // the pane settles from .97 about its centre, so its band reaches below `bottom`; while it is mostly transparent that strip must
+      // be what is behind it (chalk), because the ground stops at `bottom` (undoing the scale)
+      if (n > 0 && n < .4) {
+        seen++;
+        final p = await pixel(t, k, 300, bottom.round() + 2);
+        expect(isGround(p), isFalse, reason: 'frame $i (pane at $n): the ground reaches below the band ($p)');
+      }
+    }
+    expect(seen, greaterThan(2));
+    await t.pumpAndSettle();
+  });
+
   testWidgets('a pane with a pinned header keeps it when the switch starts', (t) async {
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.resetDevicePixelRatio);

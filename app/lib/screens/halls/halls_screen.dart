@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import '../../core/m2/board.dart' show halls;
 import '../../core/m2/places.dart' show cafeKey, cafeTable;
 import '../../data/repository.dart' show HoursData, Loaded, LoadedOffline;
+import '../../motion/fade_through.dart' show GroundMark;
 import '../../motion/routes.dart';
 import '../../shell/app_scope.dart';
 import '../../shell/shell_scope.dart';
@@ -203,7 +204,7 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
             ),
             Positioned(
               left: 0, right: 0, top: 0, height: top + M2Layout.collapsedBar,
-              child: IgnorePointer(
+              child: GroundMark(child: IgnorePointer(
                 child: AnimatedBuilder(
                   animation: _scroll,
                   builder: (_, c) => Opacity(opacity: (((_scroll.hasClients ? _scroll.offset : 0) - M2Layout.collapseStart) / M2Layout.collapseSpan).clamp(0.0, 1.0), child: c),
@@ -213,7 +214,7 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
                     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.center, children: [brand, dateText]),
                   ),
                 ),
-              ),
+              )),
             ),
           ]);
         },
