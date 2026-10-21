@@ -1,12 +1,12 @@
 {
-  "sha": "898e5a3f8ad1905b75ab722b3bd9a4060bcba79a",
+  "sha": "22b70249c8d6f931a49e75302f61b0d3b1bcc50e",
   "branch": "feat/m2-r13-tracking-off",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/feat-m2-r13-tracking-off",
   "route": "/you?data=recorded&at=2026-10-08T12:41&history=full&track=off&photos=off",
   "device": "sdk_gphone64_x86_64",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-21T01:15:10Z",
+  "ts": "2026-10-21T01:15:41Z",
   "own": {
     "app/lib/motion/track_layer.dart": "b9d64f2a102a31012d4e3920793696866d230c41",
     "app/lib/motion/track_lift.dart": "f5c6d6ec07123f9dc4c3c6d7d12cb4e295539127",
@@ -34,8 +34,6 @@
     "523",
     "--tap-gap",
     "1.5",
-    "--out",
-    "docs/pr-review-media/feat-m2-r13-tracking-off/you-on-390.png",
     "--out",
     "docs/pr-review-media/feat-m2-r13-tracking-off/you-on-390.png"
   ]
