@@ -16,9 +16,6 @@ abstract final class M2Layout {
   static const areaNameLine = 19.2; // `.lrow .a` inherits the body's line-height 1.2 (m2.json's rowName says 20: that is `.row .n`)
   static const areaMetaGap = 2.0; // `.lrow .b` margin-top
   static const areaCount = 4; // Newton is off in this build
-  static const collapsedBar = 44.0; // the maroon bar under the status bar
-  static const collapseStart = 40.0; // scroll offset where it begins to show
-  static const collapseSpan = 24.0; // and the distance it takes
   // the hall page header (M2 `#mhead`, `.mt`, `#mctl`)
   static const headerH = 282.0; // HH = ST + 282
   static const barH = 52.0; // CH = ST + 52: the compact bar under the status inset

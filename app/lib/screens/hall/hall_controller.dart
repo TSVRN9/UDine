@@ -90,6 +90,9 @@ class HallController extends ChangeNotifier {
 
   /// Today's live busy against the typical curve; null at a café, offline, or until the curve is in (busy is never shown stale).
   OccupancyRead? busy;
+  bool _busyPending = false;
+  /// No reading is on its way for today: the hours are in (or failed) and the busy lookup has answered, with a reading or without.
+  bool get busySettled => hours is! Loading && !_busyPending;
   Board? _board;
   bool _disposed = false;
   int _run = 0;
@@ -137,6 +140,7 @@ class HallController extends ChangeNotifier {
       if (_disposed || run != _run) return;
       hours = s;
       busy = null;
+      _busyPending = false;
       if (!cafe && s is Loaded<HoursData> && s.value.busy != null) _loadBusy(s.value, run);
       for (final d in _asked) {
         _ensure(d);
@@ -146,14 +150,16 @@ class HallController extends ChangeNotifier {
   }
 
   Future<void> _loadBusy(HoursData h, int run) async {
+    _busyPending = true;
     final mine = {for (final e in h.busy!.entries) if (hallKeyOfTitle(e.key) == place) e.key: e.value};
     OccupancyRead? r;
     try {
       r = (await repo.busyReads(HoursData(h.feed, mine, h.locationIds))).values.firstOrNull;
     } catch (_) {
-      return; // busy is the header's garnish: a store that cannot answer leaves the room empty, never the menu failed
+      r = null; // busy is the header's garnish: a store that cannot answer leaves the room empty, never the menu failed
     }
     if (_disposed || run != _run) return;
+    _busyPending = false;
     busy = r;
     notifyListeners();
   }

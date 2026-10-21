@@ -1,0 +1,22 @@
+{
+  "sha": "dc1841261531d643f004428a4ed26803bc36273f",
+  "branch": "fix/m2-static-visuals",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/fix-m2-static-visuals",
+  "route": "/hall/worcester?data=recorded&at=2026-10-08T12:41&meal=lunch&day=2026-10-17&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-10-21T16:14:34Z",
+  "own": {
+    "app/lib/screens/hall/hall_controller.dart": "a763baa3c7f201e10989695d2b1c3e8217269ee4",
+    "app/lib/screens/hall/hall_menu.dart": "df33cf335d6a8bfcb0cc9981d3f27788cc2b3de9",
+    "app/lib/screens/halls/halls_screen.dart": "80fe2c4a91f47f582a17761fd5155f6258455ad2",
+    "app/lib/theme/layout.dart": "ebc1cf538004651221381c67f74c8c09e140c08a",
+    "app/lib/ui/chip.dart": "6ee1ee65d52e7e479ec2ea76f6e6be03fa5923f3"
+  },
+  "argv": [
+    "/hall/worcester?data=recorded&at=2026-10-08T12:41&meal=lunch&day=2026-10-17",
+    "--out",
+    "docs/pr-review-media/fix-m2-static-visuals/hall-day-360.png"
+  ]
+}

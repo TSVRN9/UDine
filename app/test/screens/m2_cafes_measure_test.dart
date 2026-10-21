@@ -40,6 +40,11 @@ void main() {
       Finder inPage(Finder f) => find.descendant(of: find.byType(CafesPage), matching: f);
       near('pbar', r(t, inPage(find.byType(ScreenHeader))), on['pbar']);
       near('chip', r(t, inPage(find.byType(FilterChipButton))), on['chip'], block: true);
+      // `.chip::before`: a 10 x 5 box with 0 2px 3px 0 margin, centred in the 44: its margin box is 12 x 8, top at 18
+      final chip = t.getRect(inPage(find.byType(FilterChipButton))), check = t.getRect(find.descendant(of: inPage(find.byType(FilterChipButton)), matching: find.byType(CustomPaint)).first);
+      // the chip's width is padding 14 + check 12 + gap 6 + label + padding 14; the label's own advance is the font's (M2's 600 runs 2 dp wider)
+      expect(chip.width - t.getSize(inPage(find.text('Open now'))).width, closeTo(14 + 12 + 6 + 14, .01));
+      near('check', [check.left - chip.left, check.top - chip.top, check.width, check.height], [14, 18, 12, 8]);
       // Ours is a full-bleed pinned header with the 20 dp gutter inside; M2's box is the padded one, so left/width are the gutter's.
       final ahd = r(t, find.ancestor(of: inPage(find.text((on['ahdText'] as List).first as String)).first, matching: find.byType(Container)).first);
       near('ahd 0', [ahd[0] + 20, ahd[1], ahd[2] - 40, ahd[3]], (on['ahd'] as List).first);
