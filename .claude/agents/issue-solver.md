@@ -85,7 +85,8 @@ conversation that created the task.
   PNG(s) + `.json` under `docs/pr-review-media/<branch>/` and name each in the PR body's Screenshots: line; composites and
   crops go in `docs/pr-review-media/<branch>/derived/` (no sidecar). Stale after a fix: `app/tool/recapture.sh <pr>` retakes
   every named capture from its sidecar (taps and swipes included) and commits; captures taken by hand it lists for you.
-- `app/` diffs: `cd app && flutter analyze && tool/test.sh <the test dirs your diff touches> test/core/m2` (the 4G cap; a
+- `app/` diffs: `cd app && flutter analyze && tool/test.sh <the test dirs your diff touches> test/core/m2 test/kit_route_test.dart test/literals_test.dart` (the 4G cap; the two
+  top-level guards take seconds and catch a new kit export or literal the dirs miss; a
   bare `flutter test` is blocked). Not the full suite: the orchestrator runs it once, on the merged tree, before merge. Screenshot with
   `app/tool/screenshot.sh <route> [--serial S]` in recorded mode (`?data=recorded&at=2026-10-08T12:41`)
   and compare to M2's own render at the same width (see pr-reviewer.md §4 for the command; Playwright/Chromium
