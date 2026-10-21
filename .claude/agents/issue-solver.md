@@ -108,7 +108,8 @@ Commit, push, `gh pr create --base <base given, default main> --head <your branc
 verbatim, lanes run with results, residency row. Plus the `grep -rn` output for other call sites of
 what you changed. Never merge. Never force-push. Never skip hooks. Never `git stash`: the stash list is shared by
 every worktree, and a pop can land another agent's files in yours (2026-10-20, #646). Park work in a WIP commit instead,
-and run no git command in the repo root.
+and run no git command in the repo root. Every `gh pr edit` names your PR number: a bare one edits whichever PR the
+cwd's branch maps to, and one rework overwrote another agent's PR body that way (#646, 2026-10-20).
 
 ## 5. Report
 

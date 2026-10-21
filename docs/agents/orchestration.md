@@ -29,7 +29,8 @@ is routing, not deep reasoning. Read this at the start of any session that dispa
    MERGE / REWORK / ESCALATE. It re-renders any state it needs itself. Start `app/tool/test.sh --merged N` in the
    background at the same time (~9 min: the PR's one full suite, on the tree the merge makes; author and reviewer run only
    the dirs the diff touches), so the stamp is waiting when the verdict lands; a REWORK push that changes `app/` needs a
-   new run, one that doesn't keeps the stamp.
+   new run, one that doesn't keeps the stamp. With several PRs in flight, run `--merged A B C` in the order they'll merge:
+   a stamp is for the tree it tested, so a PR that merges first invalidates a run started without it.
 5. **Act on the verdict.** MERGE → `gh pr merge N --squash
    --delete-branch` (the hook refuses without that run's stamp, and refuses `--delete-branch` while a PR is based on the branch;
    a SENSITIVE PR — `supabase/`, auth, sync, residency — merges the same way, owner 2026-10-20). REWORK → findings back to the same `issue-solver`.
