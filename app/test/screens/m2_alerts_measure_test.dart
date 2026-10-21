@@ -27,6 +27,7 @@ void main() {
       final b = await bootYou(t, History.full, os, on);
       await t.runAsync(() => b.prefs.toggleFavorite('Golden BBQ Chicken Thigh'));
       await openYou(t, b, w: wd, route: '/you/favs');
+      await placesLoaded(t);
       if (tap) {
         await t.tap(find.text('Notify me'));
         await wrote(t);

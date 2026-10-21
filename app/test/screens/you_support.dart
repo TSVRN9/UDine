@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/alerts/alerts_os.dart';
 import 'package:udine/boot.dart';
+import 'package:udine/core/m2/where.dart' show notServed;
 import 'package:udine/dev/log_seed.dart';
 export 'package:udine/dev/log_seed.dart' show seedToday, seedEarlier;
 import 'package:udine/screens/you/day_page.dart';
@@ -37,3 +38,6 @@ Future<void> wrote(WidgetTester t) async {
     await t.pumpAndSettle();
   }
 }
+
+/// Favorites has read where its starred dishes are served (the first row's where sentence is in).
+Future<void> placesLoaded(WidgetTester t) => until(t, () => find.textContaining(', at ').evaluate().isNotEmpty || find.text(notServed).evaluate().isNotEmpty);

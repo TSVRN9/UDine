@@ -17,6 +17,7 @@ import '../../core/m2/rank.dart';
 import '../../core/ranking.dart';
 import '../../core/types.dart';
 import '../../shell/app_scope.dart';
+import '../../shell/prefs.dart' show AppPrefs;
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import 'favorites_notify.dart';
@@ -89,20 +90,47 @@ class FavoritesPage extends StatefulWidget {
 }
 
 class _FavoritesPageState extends State<FavoritesPage> {
-  late final HallsController _hours = HallsController(AppScope.of(context).repo, menus: false)..addListener(_onHours);
+  late final AppPrefs _prefs = AppScope.of(context).prefs;
+  HallsController? _hours;
   WhereBook? _book;
+  Animation<double>? _slide;
+  bool _settled = false;
 
   @override
   void initState() {
     super.initState();
-    AppScope.of(context).alerts.refresh();
-    _onHours();
+    final scope = AppScope.of(context);
+    scope.alerts.refresh();
+    _prefs.addListener(_sync);
   }
 
-  void _onHours() {
-    final repo = AppScope.of(context).repo;
-    final h = switch (_hours.state) { Loaded(:final value) || LoadedOffline(:final value) => value, _ => null };
-    if (_book != null || h == null) return;
+  /// The menus load only once the page's push has settled (the parsing is on the UI isolate), and only when a dish is starred.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_settled || _slide != null) return;
+    final a = _slide = ModalRoute.of(context)?.animation;
+    if (a == null || a.status == AnimationStatus.completed || a.status == AnimationStatus.dismissed) {
+      _settled = true;
+      _sync();
+    } else {
+      a.addStatusListener(_onSlide);
+    }
+  }
+
+  void _onSlide(AnimationStatus st) {
+    if (st != AnimationStatus.completed) return;
+    _slide?.removeStatusListener(_onSlide);
+    _settled = true;
+    _sync();
+  }
+
+  void _sync() {
+    final scope = AppScope.of(context), repo = scope.repo;
+    if (!_settled || _book != null || !scope.prefs.favorites.any((n) => !n.startsWith('f:'))) return;
+    final hc = _hours ??= HallsController(repo, menus: false)..addListener(_sync);
+    final h = switch (hc.state) { Loaded(:final value) || LoadedOffline(:final value) => value, _ => null };
+    if (h == null) return;
     final roster = Roster.fromFeed(h.feed), today = repo.today;
     final base = Board(
       clock: repo.now(),
@@ -114,7 +142,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
   @override
   void dispose() {
-    _hours.dispose();
+    _slide?.removeStatusListener(_onSlide);
+    _prefs.removeListener(_sync);
+    _hours?.dispose();
     _book?.dispose();
     super.dispose();
   }

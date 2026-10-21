@@ -251,7 +251,7 @@ class _DishSheetState extends State<DishSheet> {
 
   Widget _where(Board fx, MenuItem head) {
     final answer = whereAnswer(fx, head.dishName, widget.fx.clock, newton: AppScope.of(context).prefs.charlesRiver);
-    if (answer.isEmpty) return Text('Not on the menu again today or tomorrow', style: M2Text.sheetHead.style(M2Color.dm));
+    if (answer.isEmpty) return Text(notServed, style: M2Text.sheetHead.style(M2Color.dm));
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       for (var i = 0; i < answer.length; i++) ...[
         if (i > 0) const SizedBox(height: M2Layout.wlGap),
