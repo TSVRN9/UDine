@@ -2,7 +2,6 @@
 // real one does (a blocked app's request answers false at once).
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:udine/alerts/alerts_os.dart';
 import 'package:udine/core/store/db.dart';
 import 'package:udine/core/store/store.dart';
 import 'package:udine/shell/alerts_model.dart';
@@ -16,24 +15,22 @@ Future<UdineStore> _store() async {
 }
 
 void main() {
-  test('off: a tap raises the OS sheet; allowed fills the check, keeps it and starts the schedule', () async {
+  test('off: a tap raises the OS sheet; allowed fills the check and keeps it', () async {
     final os = FakeAlertsOs(), store = await _store(), m = await AlertsModel.load(store, os);
-    expect((m.checked, m.denied, m.backgroundOff), (false, false, false));
+    expect((m.checked, m.denied), (false, false));
     await m.toggle();
     expect(os.requests, 1);
     expect((m.checked, m.denied), (true, false));
     expect(await store.alertsOn(), isTrue);
-    expect(os.scheduled, [true]);
   });
 
-  test('denied: the check stays empty, the state is denied, nothing is kept or scheduled; Open Settings asks for the notification page', () async {
+  test('denied: the check stays empty, the state is denied, nothing is kept; Open Settings asks for the notification page', () async {
     final os = FakeAlertsOs(willAllow: false), store = await _store(), m = await AlertsModel.load(store, os);
     await m.toggle();
     expect((m.checked, m.denied), (false, true));
     expect(await store.alertsOn(), isFalse);
-    expect(os.scheduled, isEmpty);
     await m.openSettings();
-    expect(os.opened, [AlertsSettings.notifications]);
+    expect(os.opened, 1);
   });
 
   test('blocked: the OS answers at once, without a sheet, and the tap goes straight to denied (every tap)', () async {
@@ -67,24 +64,12 @@ void main() {
     expect(n, 0);
   });
 
-  test('background work off: notifications allowed, so the check stays on; Open Settings asks for the background page', () async {
-    final os = FakeAlertsOs(restricted: true), store = await _store(), m = await AlertsModel.load(store, os);
-    await m.toggle();
-    expect((m.checked, m.denied, m.backgroundOff), (true, false, true));
-    await m.openSettings();
-    expect(os.opened, [AlertsSettings.background]);
-    os.restricted = false;
-    await m.refresh();
-    expect(m.backgroundOff, isFalse);
-  });
-
-  test('on: a tap turns it off, keeps nothing, and cancels the schedule', () async {
+  test('on: a tap turns it off, and keeps nothing', () async {
     final os = FakeAlertsOs(), store = await _store(), m = await AlertsModel.load(store, os);
     await m.toggle();
     await m.toggle();
     expect(m.checked, isFalse);
     expect(await store.alertsOn(), isFalse);
-    expect(os.scheduled, [true, false]);
     expect(os.requests, 1, reason: 'turning off never asks the OS');
   });
 
@@ -92,7 +77,6 @@ void main() {
     final store = await _store();
     await store.setAlertsOn(true);
     expect((await AlertsModel.load(store, FakeAlertsOs(permitted: true))).checked, isTrue);
-    expect((await AlertsModel.load(store, FakeAlertsOs(permitted: true, restricted: true))).backgroundOff, isTrue);
   });
 
   test('with no store (a newer build owns the database) the wish lives in memory', () async {

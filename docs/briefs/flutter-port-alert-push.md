@@ -21,19 +21,21 @@ round 13, which is being designed; this brief points at it and designs nothing.
 - **Posting rules** (M2 R11 §2, unchanged): not before 7 AM Eastern; the first run that sees the dish on that
   day's menus; never once the dish's last serving that day has ended; one per dish per day across halls;
   the day rolls over at 2 AM (`defaultRolloverHour`, `app/lib/core/date.dart:4`).
-- **The tap lands on Halls home** with every sheet closed except an undismissed first run, not on the dish
-  (this replaces #605's hall-at-the-dish landing; `alertLanding`, `app/lib/screens/hall/hall_route.dart:61`
-  on that branch, goes away with it). Favourites show there via round 13.
-- **The Notify me row** keeps its states. "Battery use is restricted, so UDine can't check menus" stays on
-  Android, because Restricted blocks FCM delivery. Its wording is the one thing to revisit: nothing is
-  "checked" any more, so round 13 or the owner may reword it. On iOS the Background App Refresh row goes,
-  since a visible APNs notification doesn't depend on it.
+- **The tap opens the dish's sheet over Halls home** (owner, 2026-10-21; this replaces the 2026-10-17 landing on
+  Halls home with sheets closed, and #605's hall-at-the-dish landing). Every other sheet closes first except an
+  undismissed first run. The dish is the notification's title; `data.route` is not read, so old and new payloads
+  both work, and a title that is empty or a route (the retired check's payload) lands on Halls home alone. A dish
+  not served today still opens its sheet, whose where line says so.
+- **The Notify me row** keeps its permission states (off, allowed, denied, revoked). The battery-restricted
+  row ("Battery use is restricted, so UDine can't check menus" + Open Settings) is retired on both platforms
+  (owner, 2026-10-21): on the A53 with battery Restricted (`appops RUN_ANY_IN_BACKGROUND ignore`) FCM pushes
+  still arrived, so the warning was false. iOS's Background App Refresh row went with Task 6.
 - **Subscription follows three facts:** Notify me is on, OS permission is granted, the dish is favourited.
   Any one false means unsubscribed.
 
 Annotations: none.
-States: Notify me off, allowed, denied, restricted (existing, recaptured only if the row changes); a
-received notification with the app killed; the tap landing on Halls home from killed, backgrounded,
+States: Notify me off, allowed, denied (restricted is retired); a
+received notification with the app killed; the tap opening the dish sheet over Halls home from killed, backgrounded,
 foreground-with-a-sheet-open.
 Routes: `/halls` is the landing. Notification payload `data.route = "/halls"`. The device runs are in
 "Device verification".
@@ -113,7 +115,7 @@ Rationale:
     `flutter_local_notifications` with the same Android tag, so a message that is then replayed collapses.
   - **Tap:** `getInitialMessage()` (killed), `onMessageOpenedApp` (backgrounded), and the local
     notification's response (foreground) all go through the one existing path (`alertTaps` / `takeHeldTap`,
-    `alerts.dart:26-35`), which now lands Halls home and closes sheets (#605's `ae59f88a`).
+    `alerts.dart:26-35`), which now closes sheets, lands Halls home and opens the dish's sheet (the payload is the dish name).
   - A second `Firebase.initializeApp` isn't needed; the Google Services Gradle plugin reads the flavor's
     `google-services.json`.
   - **No contact with Google until Notify me is on.** FCM auto-init is off
@@ -130,7 +132,7 @@ Rationale:
   | `alert_sent` table and its export | Removed with the check, in Task 7 (a `user_version` migration, export test updated) |
   | `AlertsModel`, the Notify me row, permission states, `AlertsOs` (`allowed`, `request`, `backgroundRestricted`, `openSettings`) | Stay. `schedule(on)` becomes "sync topics" |
   | `flutter_local_notifications` | Stays: channel, foreground display, permission request |
-  | Tap landing at the dish (`alertLanding`) | Replaced by Halls home |
+  | Tap landing at the dish (`alertLanding`) | Replaced by Halls home with the dish's sheet over it (`openAlertDish`) |
 
 - **WorkManager: drop it once push is verified (recommended).** Keeping both has an unavoidable duplicate on
   iOS and an avoidable-only-by-luck one on Android:
@@ -197,10 +199,10 @@ Project: Firebase `udine-a6996`. `mobile/google-services.json` (the RN app, comm
   survive a thrown `firebase_messaging` — evidence: test (fake messaging)
 - [ ] A push sent to a real dish topic arrives with the app force-stopped and with the device force-idled,
   and shows the dish name and the where sentence — evidence: device recording on the A53
-- [ ] Tapping it lands on Halls home with sheets closed (first run excepted), from killed, backgrounded and
-  foreground-with-a-sheet (the landing itself comes from #605's rework) — evidence: device recording
-- [ ] Android battery use "Restricted" shows the existing row and delivers nothing — evidence: device
-  screenshot
+- [ ] Tapping it lands on Halls home with the dish's sheet open over it (other sheets closed, first run
+  excepted), from killed, backgrounded and foreground-with-a-sheet — evidence: widget tests (fake messaging) +
+  device recording
+- [x] Android battery use "Restricted" still delivers, so no battery row — evidence: A53 run 2026-10-21
 - [ ] CLAUDE.md's residency table and the published privacy policy describe the topics — evidence: diff
   (+ gh-pages PR)
 
@@ -214,8 +216,8 @@ On the internal flavor (`com.udinetogether.udine.internal`), signed in to nothin
    loaded from the owner's env file, never printed). Record the banner arriving.
 3. `adb shell dumpsys deviceidle force-idle`, call it again for the same or a second dish, record arrival;
    `adb shell dumpsys deviceidle unforce` after.
-4. Tap each: record the landing on Halls home.
-5. Set battery use to Restricted, send again, record that nothing arrives and the row shows.
+4. Tap each: record the dish's sheet opening over Halls home.
+5. Set battery use to Restricted, send again, record that it still arrives (done 2026-10-21: it does).
 DND via adb as in memory; nothing but the `com.udinetogether.*` packages is touched.
 
 **iOS is not verifiable here.** A TestFlight tester runs it from `docs/agents/ios-checklist.md` after step 5
@@ -265,6 +267,9 @@ of the owner-only list, once the release brief's TestFlight build exists; the sa
    `app/lib/core/export.dart`, `app/android/`, `app/ios/`. Reds: a v(N) to v(N+1) migration test that drops
    `alert_sent` from a seeded database, the export test without it, and a manifest test that the WorkManager
    entries are gone — lanes: flutter — blocked by: 6 verified — PR:
+   **Done 2026-10-21 (owner: "retire both"):** the WorkManager registration and dispatcher, `runAlertCheck`, `loadAlertBoard`,
+   the BGTaskScheduler entry, the battery state and row. `workmanager` stays only to cancel the old job at boot
+   (`cancelRetiredCheck`). **Left:** the `alert_sent` table, its export and the `user_version` migration (nothing writes it now).
 8. **Residency and privacy policy:** a new row in CLAUDE.md's table and a note under "Data residency";
    the `docs/decisions-log.md` entry; the policy's Permissions paragraph ("doesn't send notifications",
    gh-pages `index.html:66`) rewritten to say what is sent to Google and that our server doesn't learn which

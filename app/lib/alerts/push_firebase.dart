@@ -31,6 +31,6 @@ class FirebaseMessagingClient implements Messaging {
   static PushNotice? _notice(RemoteMessage? m) {
     final n = m?.notification;
     if (m == null || n == null) return null;
-    return PushNotice(title: n.title ?? '', body: n.body ?? '', tag: n.android?.tag ?? m.messageId ?? '', route: m.data['route'] as String? ?? '/halls');
+    return PushNotice(title: n.title ?? '', body: n.body ?? '', tag: n.android?.tag ?? m.messageId ?? '');
   }
 }

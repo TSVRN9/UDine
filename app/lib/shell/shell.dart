@@ -13,6 +13,7 @@ import '../motion/routes.dart';
 import '../motion/track_lift.dart';
 import '../screens/hall/hall_route.dart';
 import '../screens/halls/hall_page.dart';
+import '../screens/dish/alert_dish.dart';
 import '../screens/dish/food_sheet.dart';
 import '../screens/plate/custom_food.dart';
 import '../screens/halls/halls_screen.dart';
@@ -71,7 +72,7 @@ class ShellState extends State<Shell> with WidgetsBindingObserver, SingleTickerP
         if (f != null) openFoodSheet(navigator.currentContext!, food: f, meal: 'lunch', startEdit: q['edit'] == '1');
       });
     }
-    // A tap on a favourite-alert notification: Halls home. One launched by it was held until now.
+    // A tap on a favourite-alert notification: Halls home, the dish's sheet over it. One launched by it was held until now.
     _taps = alertTaps.stream.listen(_landAlert);
     if (takeHeldTap() case final route?) WidgetsBinding.instance.addPostFrameCallback((_) => _landAlert(route));
     if (u.path == '/custom') {
@@ -83,9 +84,10 @@ class ShellState extends State<Shell> with WidgetsBindingObserver, SingleTickerP
   StreamSubscription<String>? _taps;
   TrackLift? _lift;
 
-  /// A notification tap lands on Halls home, with nothing pushed: favourites show there themselves. Every sheet closes the normal way, except
-  /// first run: onboarding the user has not finished stays over Halls, and dismissing it is theirs to do.
-  void _landAlert(String _) {
+  /// A notification tap lands on Halls home, with nothing pushed, and opens [dish]'s sheet (an empty name, from a payload that names none,
+  /// leaves Halls home alone). Every sheet closes the normal way first, except first run: onboarding the user has not finished stays over
+  /// Halls, and dismissing it is theirs to do.
+  void _landAlert(String dish) {
     if (!mounted) return;
     for (final s in [..._sheets]) {
       if (!s.onboarding) s.handle.close();
@@ -93,6 +95,7 @@ class ShellState extends State<Shell> with WidgetsBindingObserver, SingleTickerP
     _plateBack?.call()?.close();
     navigator.currentState?.popUntil((r) => r.isFirst);
     _tab.value = 0;
+    if (dish.isNotEmpty) unawaited(openAlertDish(navigator.currentContext!, dish).catchError((Object e) => debugPrint('alert dish: $e')));
   }
 
   final _sheets = <_Sheet>[];

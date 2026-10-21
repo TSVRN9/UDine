@@ -11,35 +11,7 @@ import 'package:udine/core/dish_topic.dart';
 import 'package:udine/core/store/db.dart';
 import 'package:udine/core/store/store.dart';
 import 'package:udine/core/types.dart';
-
-class FakeMessaging implements Messaging {
-  final calls = <String>[];
-  Object? failWith;
-  String? failOnly; // a call name ('subscribe', 'unsubscribe', ...): only that call throws
-  final opened = StreamController<PushNotice>.broadcast(), foreground = StreamController<PushNotice>.broadcast();
-  PushNotice? initial;
-  bool initialFails = false;
-
-  Future<void> _do(String c) async {
-    if (failWith != null && (failOnly == null || c.startsWith(failOnly!))) throw failWith!;
-    calls.add(c);
-  }
-
-  @override
-  Future<void> setAutoInit(bool on) => _do('autoInit:$on');
-  @override
-  Future<void> subscribe(String topic) => _do('sub:$topic');
-  @override
-  Future<void> unsubscribe(String topic) => _do('unsub:$topic');
-  @override
-  Future<void> deleteToken() => _do('deleteToken');
-  @override
-  Future<PushNotice?> initialMessage() async => initialFails ? throw StateError('no play services') : initial;
-  @override
-  Stream<PushNotice> get onOpened => opened.stream;
-  @override
-  Stream<PushNotice> get onForeground => foreground.stream;
-}
+import 'fake_messaging.dart';
 
 Future<UdineStore> _store([List<String> favs = const []]) async {
   sqfliteFfiInit();
@@ -162,22 +134,38 @@ void main() {
     expect(m.calls.where((c) => c.startsWith('sub:')).length, 2000);
   });
 
-  test('each tap source reaches alertTaps: the launching message, a backgrounded tap, and a foreground notification response', () async {
-    final m = FakeMessaging()..initial = const PushNotice(title: 'Pizza', body: 'x', tag: 't', route: '/halls');
+  test('each tap source reaches alertTaps with the dish named by the title: the launching message, a backgrounded tap, and a foreground notification response', () async {
+    final m = FakeMessaging()..initial = const PushNotice(title: 'Pizza', body: 'x', tag: 't');
     final got = <String>[];
     final sub = alertTaps.stream.listen(got.add);
     await PushSync(await _store(['Pizza']), m).sync(on: true);
-    m.opened.add(const PushNotice(title: 'Pizza', body: 'x', tag: 't', route: '/halls?b'));
-    debugResponseForTest('/halls?c');
+    m.opened.add(const PushNotice(title: 'Tacos', body: 'x', tag: 't'));
+    debugResponseForTest('Burger');
     await Future<void>.delayed(Duration.zero);
-    expect(got, unorderedEquals(['/halls', '/halls?b', '/halls?c']));
+    expect(got, unorderedEquals(['Pizza', 'Tacos', 'Burger']));
     await sub.cancel();
+  });
+
+  test('a payload that is a route (from the retired check) names no dish', () async {
+    final got = <String>[];
+    final sub = alertTaps.stream.listen(got.add);
+    debugResponseForTest('/hall/worcester?dish=Pizza');
+    await Future<void>.delayed(Duration.zero);
+    expect(got, ['']);
+    await sub.cancel();
+  });
+
+  test('boot cancels the retired WorkManager job by its unique name, and a failing cancel is not fatal', () async {
+    final asked = <String>[];
+    await cancelRetiredCheck(cancel: (n) async => asked.add(n));
+    expect(asked, [alertTask]);
+    await cancelRetiredCheck(cancel: (_) async => throw StateError('no plugin'));
   });
 
   test('a foreground message is shown, with its tag', () async {
     final m = FakeMessaging(), shown = <PushNotice>[];
     await PushSync(await _store(['Pizza']), m, show: (n) async => shown.add(n)).sync(on: true);
-    m.foreground.add(const PushNotice(title: 'Pizza', body: 'Lunch', tag: 'dish-1-d', route: '/halls'));
+    m.foreground.add(const PushNotice(title: 'Pizza', body: 'Lunch', tag: 'dish-1-d'));
     await Future<void>.delayed(Duration.zero);
     expect(shown.single.tag, 'dish-1-d');
   });

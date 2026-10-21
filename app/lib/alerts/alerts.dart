@@ -4,29 +4,21 @@ import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import 'package:flutter/services.dart' show MethodChannel;
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:http/http.dart' as http;
-import 'package:sqflite/sqflite.dart' show DatabaseFactory;
 import 'package:workmanager/workmanager.dart';
 
-import '../core/store/db.dart';
-import '../core/store/store.dart';
-import '../data/repository.dart';
-import '../data/source.dart';
-import 'alert_check.dart';
 import 'alerts_os.dart';
 import 'push.dart' show PushNotice;
 
-/// The one periodic task. Android: WorkManager's unique work name (15 minutes is its floor). iOS: the BGTaskScheduler identifier,
-/// which Info.plist lists and AppDelegate registers; iOS decides when it runs, if at all.
+/// The retired on-device menu check's WorkManager unique name / BGTaskScheduler identifier. Installs from before the push alerts still have it scheduled.
 const alertTask = 'com.udinetogether.udine.favoriteAlerts';
 
 final _notifications = FlutterLocalNotificationsPlugin();
 
-/// A tap on a notification while the app is running; Shell (shell.dart) lands the route.
+/// A tap on a favourite-alert notification while the app is running, carrying the dish's name; Shell (shell.dart) opens its sheet.
 final alertTaps = StreamController<String>.broadcast();
 String? _heldTap;
 
-/// A tap that arrived before the app listened (the OS restarting a killed process on the notification's intent), once.
+/// A tap that arrived before the app listened (the OS restarting a killed process on the notification's intent), once: the dish's name.
 String? takeHeldTap() {
   final t = _heldTap;
   _heldTap = null;
@@ -34,19 +26,23 @@ String? takeHeldTap() {
 }
 
 @visibleForTesting
-void debugTapForTest(String route) => _tapped(route);
+void debugTapForTest(String dish) => _tapped(dish);
 
-/// A tap that came from a push (launch, backgrounded); the notification's own response in the foreground lands here too.
-void tapAlert(String route) => _tapped(route);
+/// A tap that came from a push (launch, backgrounded): [dish] is the notification's title. The foreground notification's own response lands here too.
+void tapAlert(String dish) => _tapped(dish);
 
 @visibleForTesting
-void debugResponseForTest(String route) => _responded(NotificationResponse(notificationResponseType: NotificationResponseType.selectedNotification, payload: route));
+void debugResponseForTest(String dish) => _responded(NotificationResponse(notificationResponseType: NotificationResponseType.selectedNotification, payload: dish));
 
 void _responded(NotificationResponse r) {
-  if (r.payload case final route?) _tapped(route);
+  if (r.payload case final dish?) _tapped(dish);
 }
 
-void _tapped(String route) => alertTaps.hasListener ? alertTaps.add(route) : _heldTap = route;
+// A payload from the retired check (or any old build) is a route, not a dish: it lands on Halls home like a push with no title.
+void _tapped(String payload) {
+  final dish = payload.startsWith('/') ? '' : payload;
+  alertTaps.hasListener ? alertTaps.add(dish) : _heldTap = dish;
+}
 
 Future<void> _initNotifications() => _notifications.initialize(
       settings: const InitializationSettings(
@@ -63,18 +59,6 @@ Future<bool> _allowed() async =>
     (await _notifications.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()?.checkPermissions())?.isEnabled ??
     true;
 
-Future<void> _post(AlertNotice n) async {
-  if (!await _allowed()) throw StateError('notifications are off');
-  await _notifications.show(
-      id: n.dishName.hashCode & 0x7fffffff,
-      title: n.dishName,
-      body: n.body,
-      // BigText: a body naming several places expands instead of being cut off at two lines
-      notificationDetails: NotificationDetails(android: AndroidNotificationDetails('favorite_alerts', 'Favorites on the menu', styleInformation: BigTextStyleInformation(n.body)), iOS: const DarwinNotificationDetails()),
-      payload: n.route,
-    );
-}
-
 /// A push that arrived with the app in the foreground, shown here (FCM won't) under the server's own tag, so a replay collapses into it.
 Future<void> showPush(PushNotice n) async {
   if (!await _allowed()) return;
@@ -83,49 +67,30 @@ Future<void> showPush(PushNotice n) async {
       title: n.title,
       body: n.body,
       notificationDetails: NotificationDetails(android: AndroidNotificationDetails('favorite_alerts', 'Favorites on the menu', tag: n.tag, styleInformation: BigTextStyleInformation(n.body)), iOS: const DarwinNotificationDetails()),
-      payload: n.route,
+      payload: n.title, // the dish: a tap on it opens its sheet
     );
 }
 
-/// The background check's own connection to udine.db, apart from the app's (see openStore's singleInstance).
-Future<StoreOpen> openAlertStore({String? path, DatabaseFactory? factory}) async =>
-    openStore(path ?? await udineDbPath(), factory: factory, singleInstance: false);
-
-/// The background isolate's entry: the same store and cache as the app, the repository's own offline-first reads.
-@pragma('vm:entry-point')
-void alertsDispatcher() => Workmanager().executeTask((task, _) async {
-      final opened = await openAlertStore();
-      if (opened is! StoreReady) return true; // written by a newer build: leave it alone
-      final client = http.Client();
-      try {
-        await _initNotifications();
-        final repo = Repository(UmassSource(client), opened.db);
-        await runAlertCheck(store: UdineStore(opened.db), now: repo.now, loadBoard: (day) => loadAlertBoard(repo, day), notify: _post);
-        return true;
-      } finally {
-        client.close();
-        await opened.db.close();
-      }
-    });
-
-/// Start-up: plugin set-up and the schedule following the switch. The notification that launched the app is held like any tap before the
-/// app listens, and lands the same way (Shell takes it).
-Future<void> startAlerts({required bool on}) async {
+/// Start-up: plugin set-up, and the old check cancelled. The notification that launched the app is held like any tap before the app listens,
+/// and lands the same way (Shell takes it).
+Future<void> startAlerts() async {
+  await cancelRetiredCheck();
   await _initNotifications();
-  await Workmanager().initialize(alertsDispatcher);
-  await setAlertsScheduled(on);
-  if ((await _notifications.getNotificationAppLaunchDetails())?.notificationResponse?.payload case final route?) _tapped(route);
+  if ((await _notifications.getNotificationAppLaunchDetails())?.notificationResponse?.payload case final dish?) _tapped(dish);
 }
 
-/// Notify me on registers the check (the plugin's default frequency is the 15 minutes WorkManager allows); off cancels it.
-Future<void> setAlertsScheduled(bool on) => on
-    ? Workmanager().registerPeriodicTask(alertTask, alertTask, existingWorkPolicy: ExistingPeriodicWorkPolicy.keep)
-    : Workmanager().cancelByUniqueName(alertTask);
+/// The WorkManager check Notify me used to schedule is gone; an install from before it still has the job, which would keep waking the app.
+Future<void> cancelRetiredCheck({Future<void> Function(String)? cancel}) async {
+  try {
+    await (cancel ?? Workmanager().cancelByUniqueName)(alertTask);
+  } catch (e) {
+    debugPrint('retired check: $e'); // nothing scheduled, or no plugin (a test)
+  }
+}
 
 const _os = MethodChannel('com.udinetogether.udine/alerts');
 
-/// The device's side of Notify me. Every call that fails (no plugin: a test, a recorded route) answers as "nothing known": allowed, not
-/// restricted, no settings page, no schedule.
+/// The device's side of Notify me. Every call that fails (no plugin: a test, a recorded route) answers as "nothing known": allowed, no settings page.
 class PlatformAlertsOs implements AlertsOs {
   Future<T> _try<T>(Future<T> Function() f, T otherwise) async {
     try {
@@ -148,11 +113,5 @@ class PlatformAlertsOs implements AlertsOs {
       }, false);
 
   @override
-  Future<bool> backgroundRestricted() => _try(() async => await _os.invokeMethod<bool>('backgroundRestricted') ?? false, false);
-
-  @override
-  Future<void> openSettings(AlertsSettings page) => _try(() => _os.invokeMethod<void>('openSettings', page.name), null);
-
-  @override
-  Future<void> schedule(bool on) => _try(() => setAlertsScheduled(on), null);
+  Future<void> openSettings() => _try(() => _os.invokeMethod<void>('openSettings'), null);
 }

@@ -10,10 +10,10 @@ Future<void> main() async {
   WhereWarm.auto = true;
   final route = PlatformDispatcher.instance.defaultRouteName;
   final boot = await Boot.open(route);
-  // Recorded routes (screenshots) are throwaway: no schedule, no notifications.
-  if (boot.store case final store? when !route.contains('data=recorded')) {
+  // Recorded routes (screenshots) are throwaway: no notifications.
+  if (boot.store != null && !route.contains('data=recorded')) {
     try {
-      await startAlerts(on: await store.alertsOn());
+      await startAlerts();
       await boot.alerts.refresh(); // topic sync at launch
     } catch (e) {
       debugPrint('alerts unavailable: $e');

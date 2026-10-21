@@ -119,6 +119,9 @@ String fmtT(String t) {
 String _mealName(String m) => mealLabel[m]!;
 String _mealWord(String m) => m == 'grab' ? "Grab 'N Go" : mealLabel[m]!.toLowerCase();
 
+/// "A", "A and B", "A, B and C".
+String namesAnd(List<String> n) => n.length < 2 ? n.join() : '${n.sublist(0, n.length - 1).join(', ')} and ${n.last}';
+
 /// What the sheet prints for a group; a second line for the same meal at the same moment only gives its own time.
 String whenText(WhereGroup g, [WhereGroup? prev]) {
   final same = prev != null && prev.st == g.st && prev.meal == g.meal;

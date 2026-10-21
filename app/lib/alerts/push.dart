@@ -8,10 +8,11 @@ import '../core/store/store.dart';
 import '../core/types.dart';
 import 'alerts.dart' show showPush, tapAlert;
 
-/// A favourite-alert push as the app sees it: the server's notification (title = dish, body = the where sentence) and its `data.route`.
+/// A favourite-alert push as the app sees it: the server's notification (title = dish, body = the where sentence). A tap opens the dish
+/// named by the title; the `data.route` the server also sends is not read, so an old or new payload both work.
 class PushNotice {
-  const PushNotice({required this.title, required this.body, required this.tag, required this.route});
-  final String title, body, tag, route;
+  const PushNotice({required this.title, required this.body, required this.tag});
+  final String title, body, tag;
 }
 
 /// FCM as Notify me needs it. `FirebaseMessagingClient` (push_firebase.dart) is the device's; a test hands in a recording fake.
@@ -90,10 +91,10 @@ class PushSync {
     if (_wired) return;
     _wired = true;
     void log(Object e) => debugPrint('push: $e'); // e.g. no Play services on a relaunch
-    _m.onOpened.listen((n) => tapAlert(n.route), onError: log);
+    _m.onOpened.listen((n) => tapAlert(n.title), onError: log);
     _m.onForeground.listen((n) => unawaited(_show(n).catchError((Object e) { log(e); })), onError: log);
     unawaited(_m.initialMessage().then((n) {
-      if (n != null) tapAlert(n.route);
+      if (n != null) tapAlert(n.title);
     }).catchError((Object e) { log(e); }));
   }
 }
