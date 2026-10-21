@@ -5,8 +5,9 @@ import '../ui/sheet.dart';
 /// What a screen asks of the app around it: a sheet mounts above everything, the tab bar included.
 abstract class ShellApi {
   /// Mounts a sheet; `build` receives its handle and the callback that removes it once it has closed.
+  /// `label` names the sheet for a screen reader. A push of a sheet of the same type as one already opening or open returns that one's handle (a double tap).
   /// `onboarding`: a sheet that is the user's to finish (first run); a notification tap leaves it up.
-  SheetHandle pushSheet(Widget Function(SheetHandle handle, VoidCallback done) build, {bool onboarding = false});
+  SheetHandle pushSheet(Widget Function(SheetHandle handle, VoidCallback done) build, {bool onboarding = false, String? label});
 
   /// Pushes a place's menu (a hall or a café, `W` or `c3`) onto the stack at a day and meal, already scrolled to the dish named by
   /// `dish` (its `key`): where a where-served tap goes.

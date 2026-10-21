@@ -42,8 +42,10 @@ class Shell extends StatefulWidget {
 }
 
 class _Sheet {
-  _Sheet(this.build, {this.onboarding = false});
+  _Sheet(this.build, {this.onboarding = false, this.label});
   final bool onboarding;
+  final String? label;
+  late final Type type = build(handle, () {}).runtimeType;
   final SheetHandle handle = SheetHandle();
   final Widget Function(SheetHandle, VoidCallback) build;
 }
@@ -96,8 +98,12 @@ class ShellState extends State<Shell> with WidgetsBindingObserver, SingleTickerP
   final _sheets = <_Sheet>[];
 
   @override
-  SheetHandle pushSheet(Widget Function(SheetHandle handle, VoidCallback done) build, {bool onboarding = false}) {
-    final s = _Sheet(build, onboarding: onboarding);
+  SheetHandle pushSheet(Widget Function(SheetHandle handle, VoidCallback done) build, {bool onboarding = false, String? label}) {
+    final s = _Sheet(build, onboarding: onboarding, label: label);
+    // A second push of the same kind of sheet while one is opening or open (a double tap) is the first one. Nested sheets of another kind stack.
+    // ponytail: keyed by the sheet's widget type; a sheet that must open over another of its own type needs a key param.
+    final open = _sheets.where((o) => o.type == s.type && !o.handle.closing).firstOrNull;
+    if (open != null) return open.handle;
     setState(() => _sheets.add(s));
     return s.handle;
   }
@@ -190,6 +196,7 @@ class ShellState extends State<Shell> with WidgetsBindingObserver, SingleTickerP
 
   void _select(int i) {
     Haptics.selection();
+    if (i != 1) FocusManager.instance.primaryFocus?.unfocus(); // (Search stays mounted: its field would keep the keyboard)
     if (i == 2) AppScope.of(context).alerts.refresh();
     navigator.currentState?.popUntil((r) => r.isFirst);
     _tab.value = i;
@@ -267,14 +274,16 @@ class ShellState extends State<Shell> with WidgetsBindingObserver, SingleTickerP
 
   @override
   Widget build(BuildContext context) {
-    final top = safeTop(context);
+    final top = safeTop(context), kb = MediaQuery.viewInsetsOf(context).bottom, kbUp = kb > M2Layout.kbMin;
+    // (a first-run sheet is not modal: the halls behind it stay live; any other sheet takes the page and the tab bar out of TalkBack)
+    final modal = _sheets.any((s) => !s.onboarding);
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) => didPop ? null : _back(),
       child: ColoredBox(
         color: M2Color.chalk,
         child: ShellScope(api: this, child: Stack(children: [
-          Column(children: [
+          ExcludeSemantics(excluding: modal, child: Column(children: [
           Expanded(
             child: Stack(children: [
               Positioned.fill(
@@ -284,15 +293,21 @@ class ShellState extends State<Shell> with WidgetsBindingObserver, SingleTickerP
                   onGenerateRoute: (s) => _tabs(s, top),
                 ),
               ),
-              if (widget.plateBar != null) Positioned.fill(child: widget.plateBar!),
+              // (M2 `#frame.kb #bar{bottom:var(--kb)}`: the bar rides above the on-screen keyboard)
+              if (widget.plateBar != null) Positioned.fill(child: Padding(padding: EdgeInsets.only(bottom: kbUp ? kb : 0), child: widget.plateBar!)),
             ]),
           ),
-          ValueListenableBuilder<int>(
+          // (M2 `#frame.kb .tbar{display:none}`)
+          if (!kbUp) ValueListenableBuilder<int>(
             valueListenable: _tab,
             builder: (_, i, _) => M2TabBar(selected: i, onSelect: _select, disabled: const {}, bottomInset: safeBottom(context)),
           ),
-          ]),
-          for (final s in _sheets) Positioned.fill(key: ObjectKey(s), child: s.build(s.handle, () => _remove(s))),
+          ])),
+          for (final (i, s) in _sheets.indexed)
+            Positioned.fill(key: ObjectKey(s), child: ExcludeSemantics(
+              excluding: i < _sheets.length - 1 && !s.onboarding,
+              child: Semantics(scopesRoute: true, namesRoute: s.label != null, label: s.label, explicitChildNodes: true, child: s.build(s.handle, () => _remove(s))),
+            )),
         ])),
       ),
     );
