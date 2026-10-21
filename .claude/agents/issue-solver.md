@@ -86,7 +86,9 @@ conversation that created the task.
   crops go in `docs/pr-review-media/<branch>/derived/` (no sidecar). Stale after a fix: `app/tool/recapture.sh <pr>` retakes
   every named capture from its sidecar (taps and swipes included) and commits; captures taken by hand it lists for you.
 - `app/` diffs: `cd app && flutter analyze && tool/test.sh <the test dirs your diff touches> test/core/m2 test/kit_route_test.dart test/literals_test.dart` (the 4G cap; the two
-  top-level guards take seconds and catch a new kit export or literal the dirs miss; a
+  top-level guards take seconds and catch a new kit export or literal the dirs miss; also every test file that names a
+  class, route or golden your diff changes, found with `grep -rlE 'ClassA|ClassB|/route' app/test` (#644 and #646 each
+  failed the merged suite on goldens or pending timers in files their dirs didn't cover); a
   bare `flutter test` is blocked). Not the full suite: the orchestrator runs it once, on the merged tree, before merge. Screenshot with
   `app/tool/screenshot.sh <route> [--serial S]` in recorded mode (`?data=recorded&at=2026-10-08T12:41`)
   and compare to M2's own render at the same width (see pr-reviewer.md §4 for the command; Playwright/Chromium
