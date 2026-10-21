@@ -138,6 +138,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
       hours: roster.hours, grab: grabsOf(h.feed), days: {today: const {}, addDays(today, 1): const {}}, events: const [],
     );
     _book = WhereBook(repo, base, cafeIdsOf(h.feed))..addListener(() => mounted ? setState(() {}) : null);
+    if (_book!.complete) setState(() {}); // warmed: the book was born complete and will publish nothing
   }
 
   @override

@@ -3,6 +3,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/core/hours.dart' show easternInstant;
 import 'package:udine/core/m2/where.dart' show notServed;
+import 'package:udine/core/m2/history.dart' show cafeIdsOf;
+import 'package:udine/data/repository.dart';
+import 'package:udine/screens/dish/where_book.dart' show WhereWarm;
 import 'package:udine/core/types.dart' show RankedDish;
 import 'package:udine/ui/ui.dart';
 import '../fonts.dart';
@@ -195,6 +198,19 @@ void main() {
       expect(find.text('Late night now, until midnight, at Worcester'), findsOneWidget);
       expect(find.textContaining('Lunch'), findsNothing);
       expect(find.text(notServed), findsNWidgets(3)); // (the two lunch-only dishes, and the one on no menu)
+      await drain(t);
+    });
+
+    testWidgets('menus warmed at launch: the rows say it in the page\'s first frames (a book born complete publishes nothing), at 00:55 too', (t) async {
+      final b = await bootYou(t, History.full, null, false, true, easternInstant(DateTime.utc(2026, 10, 21, 4, 55)));
+      await t.runAsync(() async {
+        await b.prefs.toggleFavorite('Golden BBQ Chicken Thigh');
+        final s = await b.repo.hours(b.repo.today).firstWhere((s) => s is Loaded<HoursData>) as Loaded<HoursData>;
+        await WhereWarm.of(b.repo).start(cafeIdsOf(s.value.feed), gate: () async {});
+      });
+      await openYou(t, b, route: '/you/favs');
+      await placesLoaded(t);
+      expect(find.textContaining(', at ').evaluate().length + find.text(notServed).evaluate().length, 1);
       await drain(t);
     });
 
