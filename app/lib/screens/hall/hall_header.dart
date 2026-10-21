@@ -190,10 +190,10 @@ class HallHeaderState extends State<HallHeader> {
               builder: (_, ch) => Opacity(opacity: _clamp((c() - M2Collapse.solidStart) / M2Collapse.solidSpan), child: ch),
             ),
           ),
-          // the band's own grade, under the letter as the card has it, fades with 1 - p
+          // the band's own grade, under the letter as the card has it, fades with 1 - p. M2's `#mlg` is `inset:0`: the whole header, so the
+          // window never shows the grade ending at the old row's height (it is a left-to-right gradient: the band's rows are unchanged)
           if (band != null && w.ghost != null)
-            Positioned(
-              left: 0, right: 0, top: band.off, height: band.height,
+            Positioned.fill(
               child: AnimatedBuilder(animation: p, builder: (_, _) => BandGrade(key: const ValueKey('fade-bandGrade'), opacity: _clamp(1 - p.value))),
             ),
           if (_letter != null)
