@@ -323,7 +323,7 @@ class _DishSheetState extends State<DishSheet> {
             bottomPad: spec == null ? null : M2Layout.footBodyPad + safeBottom(context),
             slivers: [
               // (the grab rides in the one pinned header: a second pinned sliver after it asserts on the frames where the sheet is shorter than both)
-              PinnedHeaderSliver(child: Column(mainAxisSize: MainAxisSize.min, children: [const SheetGrab(), DishHead(name: name, stuck: _stuck)])),
+              PinnedHeaderSliver(child: Column(mainAxisSize: MainAxisSize.min, children: [const SheetGrab(), DishHead(name: name, stuck: _stuck, reserve: !(head?.always ?? false))])),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: M2Space.gutter),
@@ -407,7 +407,7 @@ class _DishSheetState extends State<DishSheet> {
               ),
             ],
           )),
-            if (head != null)
+            if (head != null && !head.always)
               ValueListenableBuilder<double>(
                 valueListenable: _px,
                 builder: (_, px, _) => Positioned(
@@ -492,7 +492,7 @@ class DishHead extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(M2Space.gutter, 0, M2Space.gutter - M2Layout.favOut, 0),
+          padding: EdgeInsets.fromLTRB(M2Space.gutter, 0, reserve ? M2Space.gutter - M2Layout.favOut : M2Space.gutter, 0),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Expanded(child: Padding(padding: const EdgeInsets.only(top: M2Layout.dishHeadTop), child: Semantics(header: true, child: Text(name, style: M2Text.dishName.style(M2Color.dm))))),
             if (reserve) ...[

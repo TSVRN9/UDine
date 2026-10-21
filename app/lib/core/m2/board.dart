@@ -29,9 +29,21 @@ extension M2MenuItem on MenuItem {
   int get diet => const [('Vegetarian', 'VGT', 1), ('Plant Based', 'VGN', 2), ('Halal', 'H', 4), ('Local', 'LPR', 8), (null, 'SUS', 16)]
       .fold(0, (bits, e) => dietTags.contains(e.$1) || dietCodes.contains(e.$2) ? bits | e.$3 : bits);
 
+  /// M2 `ALWAYS`: served at every hall at every meal, so nothing to spot (no star, no alert) and not food (no diet preference hides it).
+  bool get always => key == 'fountain drink';
+
   /// The plate's per-serving macros as M2 sums them: calories whole, grams to a tenth.
   Macro get macro => nutrition.macro;
 }
+
+/// M2 R12d: the one synthetic record every dining commons menu ends with, every nutrient blank.
+MenuItem fountainDrink(MenuItem like) => MenuItem(
+      dishName: 'Fountain Drink', category: 'Beverages', mealPeriod: like.mealPeriod, hallTid: like.hallTid, date: like.date, allergens: const [], dietTags: const [],
+      nutrition: const NutritionFacts(
+        servingSize: '1 each', calories: 0, caloriesFromFat: 0, totalFatG: 0, satFatG: 0, transFatG: 0, cholesterolMg: 0, sodiumMg: 0, totalCarbG: 0, dietaryFiberG: 0, sugarsG: 0, proteinG: 0,
+        blank: {'calories', 'caloriesFromFat', 'totalFatG', 'satFatG', 'transFatG', 'cholesterolMg', 'sodiumMg', 'totalCarbG', 'dietaryFiberG', 'sugarsG', 'proteinG'},
+      ),
+    );
 
 class Station {
   final String name;

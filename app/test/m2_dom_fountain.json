@@ -1,0 +1,318 @@
+{
+ "360": {
+  "menu": {
+   "sth": [
+    0,
+    570,
+    360,
+    50
+   ],
+   "sthT": [
+    20,
+    582,
+    89.56,
+    32
+   ],
+   "sthText": "Beverages",
+   "row": [
+    0,
+    620,
+    360,
+    64
+   ],
+   "n": [
+    20,
+    629.5,
+    210,
+    20
+   ],
+   "m": [
+    20,
+    652.5,
+    210,
+    22
+   ],
+   "figs": [
+    [
+     20,
+     652.5,
+     8.38,
+     22
+    ],
+    [
+     65.66,
+     652.5,
+     8.38,
+     22
+    ]
+   ],
+   "ctl": [
+    304,
+    628,
+    48,
+    48
+   ],
+   "tg": 0,
+   "text": "– cal– protein"
+  },
+  "sheet": {
+   "sheet": [
+    0,
+    132.42,
+    360,
+    812
+   ],
+   "dhd": [
+    0,
+    154.42,
+    360,
+    40.19
+   ],
+   "dn": [
+    20,
+    158.42,
+    320,
+    32.19
+   ],
+   "favb": null,
+   "label": [
+    20,
+    701,
+    320,
+    469.38
+   ],
+   "foot": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "dadd": [
+    20,
+    228.61,
+    320,
+    52
+   ],
+   "dsv": [
+    20,
+    194.61,
+    320,
+    18
+   ],
+   "mks": null,
+   "cal": "Nutrition FactsServing size1 each Calories– % Daily Value* Total Fat –Saturated Fat –Trans Fat – Cholesterol –Sodium –Total Carbohydrate – Dietary Fiber –Total Sugars –Protein – *Percent Daily Values are based on a 2,000 calorie diet."
+  },
+  "plate": {
+   "bar": [
+    0,
+    709,
+    360,
+    68
+   ],
+   "l1": [
+    20,
+    720.5,
+    232,
+    16
+   ],
+   "l2": [
+    20,
+    738.5,
+    232,
+    27
+   ],
+   "cal": [
+    20,
+    731.5,
+    14.52,
+    39
+   ],
+   "prot": [
+    65.8,
+    731.5,
+    14.52,
+    39
+   ],
+   "gbtn": [
+    264,
+    719,
+    84,
+    48
+   ],
+   "barText": "Worcester lunch, 1 item–cal–protein",
+   "row": {
+    "row": [
+     0,
+     620,
+     360,
+     64
+    ],
+    "ctl": [
+     238,
+     630,
+     114,
+     44
+    ],
+    "text": "Fountain Drink– cal– protein1"
+   }
+  }
+ },
+ "390": {
+  "menu": {
+   "sth": [
+    0,
+    570,
+    390,
+    50
+   ],
+   "sthT": [
+    20,
+    582,
+    89.56,
+    32
+   ],
+   "sthText": "Beverages",
+   "row": [
+    0,
+    620,
+    390,
+    64
+   ],
+   "n": [
+    20,
+    629.5,
+    240,
+    20
+   ],
+   "m": [
+    20,
+    652.5,
+    240,
+    22
+   ],
+   "figs": [
+    [
+     20,
+     652.5,
+     8.38,
+     22
+    ],
+    [
+     65.66,
+     652.5,
+     8.38,
+     22
+    ]
+   ],
+   "ctl": [
+    334,
+    628,
+    48,
+    48
+   ],
+   "tg": 0,
+   "text": "– cal– protein"
+  },
+  "sheet": {
+   "sheet": [
+    0,
+    132.42,
+    390,
+    812
+   ],
+   "dhd": [
+    0,
+    154.42,
+    390,
+    40.19
+   ],
+   "dn": [
+    20,
+    158.42,
+    350,
+    32.19
+   ],
+   "favb": null,
+   "label": [
+    20,
+    701,
+    350,
+    453.19
+   ],
+   "foot": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "dadd": [
+    20,
+    228.61,
+    350,
+    52
+   ],
+   "dsv": [
+    20,
+    194.61,
+    350,
+    18
+   ],
+   "mks": null,
+   "cal": "Nutrition FactsServing size1 each Calories– % Daily Value* Total Fat –Saturated Fat –Trans Fat – Cholesterol –Sodium –Total Carbohydrate – Dietary Fiber –Total Sugars –Protein – *Percent Daily Values are based on a 2,000 calorie diet."
+  },
+  "plate": {
+   "bar": [
+    0,
+    709,
+    390,
+    68
+   ],
+   "l1": [
+    20,
+    720.5,
+    262,
+    16
+   ],
+   "l2": [
+    20,
+    738.5,
+    262,
+    27
+   ],
+   "cal": [
+    20,
+    731.5,
+    14.52,
+    39
+   ],
+   "prot": [
+    65.8,
+    731.5,
+    14.52,
+    39
+   ],
+   "gbtn": [
+    294,
+    719,
+    84,
+    48
+   ],
+   "barText": "Worcester lunch, 1 item–cal–protein",
+   "row": {
+    "row": [
+     0,
+     620,
+     390,
+     64
+    ],
+    "ctl": [
+     268,
+     630,
+     114,
+     44
+    ],
+    "text": "Fountain Drink– cal– protein1"
+   }
+  }
+ }
+}

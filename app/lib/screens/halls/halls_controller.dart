@@ -76,7 +76,7 @@ class HallsController extends ChangeNotifier {
     board = Board(
       clock: repo.now(), places: [for (var i = 0; i < halls.length; i++) Place(key: halls[i], name: diningHalls[i].name, area: -1)],
       hours: {for (final x in h.feed.halls) halls[x.hallTid - 1]: x}, grab: grabsOf(h.feed),
-      days: {day: {for (var i = 0; i < halls.length; i++) if (got[(diningHalls[i].tid, day)] case final it? when it.isNotEmpty) halls[i]: mealsOfItems(it)}}, events: const [],
+      days: {day: {for (var i = 0; i < halls.length; i++) if (got[(diningHalls[i].tid, day)] case final it? when it.isNotEmpty) halls[i]: mealsOfItems(it, hall: true)}}, events: const [],
     );
     notifyListeners();
   }

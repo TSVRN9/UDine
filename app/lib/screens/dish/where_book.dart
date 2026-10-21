@@ -45,7 +45,7 @@ class WhereBook extends ChangeNotifier {
       for (final iso in isos) {
         for (final e in ids.entries) {
           final items = got[(e.value, iso)];
-          if (items != null && items.isNotEmpty) days[iso]!.putIfAbsent(e.key, () => mealsOfItems(items));
+          if (items != null && items.isNotEmpty) days[iso]!.putIfAbsent(e.key, () => mealsOfItems(items, hall: halls.contains(e.key)));
         }
       }
     }

@@ -81,7 +81,7 @@ void main() {
         final got = board.days[iso]![place] ?? {};
         expect(got.keys.toSet(), {for (final m in meals.keys) wire[m]}, reason: '$place $iso meals');
         for (final MapEntry(key: m, value: stations) in meals.entries) {
-          final want = [for (final s in stations as List) (normalizeStationName(s[0] as String).replaceFirst(RegExp(r"^Grab n'Go\s+"), ''), [for (final i in s[1] as List) (dishes[i]['dish-name'] as String).trim()])];
+          final want = [for (final s in stations as List) (normalizeStationName(s[0] as String).replaceFirst(RegExp(r"^Grab n'Go\s+"), ''), [for (final i in s[1] as List) (dishes[i]['dish-name'] as String).trim()]), if (wire[m] != 'grab') ('Beverages', ['Fountain Drink'])]; // (round 12d)
           final have = [for (final s in got[wire[m]]!) (s.name, [for (final x in s.dishes) x.dishName])];
           expect(have.length, want.length, reason: '$place $iso $m stations');
           for (var i = 0; i < want.length; i++) {
@@ -211,9 +211,9 @@ void main() {
     final c = HallController(repo, 'W')..load(0);
     await settled(c, [0]);
     final b = c.board, iso = c.isos[0], all = b.days[iso]!['W']!['lunch']!.expand((s) => s.dishes).toList();
-    expect(all, hasLength(61)); // M2's 72 list rows are these and 11 station heads
+    expect(all, hasLength(62)); // 61 and the Fountain Drink; M2's 74 list rows are these and 12 station heads
     final halal = menuView(b, iso, 'W', 'lunch', const Prefs(halal: true), false);
-    expect(halal.sections.expand((s) => s.dishes).toList(), all.where((d) => d.diet & 4 != 0).toList());
+    expect(halal.sections.expand((s) => s.dishes).toList(), all.where((d) => d.diet & 4 != 0 || d.always).toList()); // (the Fountain Drink is no diet's to hide)
     expect(halal.hidden, 0);
     final milk = menuView(b, iso, 'W', 'lunch', const Prefs(avoid: ['Milk']), false), n = all.where((d) => d.allergens.contains('Milk')).length;
     expect(n, greaterThan(0));

@@ -20,7 +20,7 @@ const allergens = ['Milk', 'Eggs', 'Fish', 'Shellfish', 'Tree Nuts', 'Peanuts', 
 const mealOrder = ['breakfast', 'lunch', 'dinner', 'late', 'all', 'grab'];
 
 bool _dietOn(Prefs p) => p.veg || p.plant || p.halal;
-bool dietOK(Prefs p, MenuItem d) => (!p.veg || d.diet & 3 != 0) && (!p.plant || d.diet & 2 != 0) && (!p.halal || d.diet & 4 != 0);
+bool dietOK(Prefs p, MenuItem d) => d.always || (!p.veg || d.diet & 3 != 0) && (!p.plant || d.diet & 2 != 0) && (!p.halal || d.diet & 4 != 0);
 /// Whether a dish passes both the diet and the avoided allergens (M2 `prefOK`).
 bool prefOK(Prefs p, MenuItem d) => dietOK(p, d) && hits(p, d).isEmpty;
 /// The avoided allergens a dish lists. A blank list is "not listed", never "none": such a dish has no hits.
