@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 
+import '../core/m2/board.dart' show isAlways;
 import '../core/dish_topic.dart';
 import '../core/store/store.dart';
 import '../core/types.dart';
@@ -53,7 +54,7 @@ class PushSync {
       if (!on && !active) return;
       final applied = {...await _store.pushTopics()};
       if (on) {
-        final want = ({for (final f in await _store.favorites()) if (f is DishFavorite) dishTopic(f.dishName)}.toList()..sort()).take(maxTopics).toSet();
+        final want = ({for (final f in await _store.favorites()) if (f is DishFavorite && !isAlways(f.dishName)) dishTopic(f.dishName)}.toList()..sort()).take(maxTopics).toSet();
         if (!active) {
           await _m.setAutoInit(true);
           await _store.setPushActive(true);

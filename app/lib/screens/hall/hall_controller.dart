@@ -24,13 +24,19 @@ const _mealKey = {
 String _station(String category) => normalizeStationName(category).replaceFirst(RegExp(r"^Grab n'Go\s+"), '');
 
 /// A day's dishes as M2 keeps them: meal -> stations, a station being a category (its hall-code suffix dropped, `Latino 1 WOR`), in the feed's own order (the recording's order is
-/// the feed's; keyword order would put Grill before Soups).
-Map<String, List<Station>> mealsOfItems(List<MenuItem> items) {
+/// the feed's; keyword order would put Grill before Soups). A dining commons (`hall`) ends every meal but Grab 'N Go with the Fountain Drink (M2 R12d).
+Map<String, List<Station>> mealsOfItems(List<MenuItem> items, {bool hall = false}) {
   final by = <String, Map<String, List<MenuItem>>>{};
   for (final it in items) {
     ((by[_mealKey[it.mealPeriod]!] ??= {})[_station(it.category)] ??= []).add(it);
   }
-  return {for (final m in by.entries) m.key: [for (final s in m.value.entries) Station(s.key, s.value)]};
+  return {
+    for (final m in by.entries)
+      m.key: [
+        for (final s in m.value.entries) Station(s.key, s.value),
+        if (hall && m.key != 'grab') Station('Beverages', [fountainDrink(m.value.values.first.first)]),
+      ],
+  };
 }
 
 /// The events feed as M2 reads it (`build.py`): "X Hours" merged into "X" (one holiday, one card), soonest first. A merged holiday's
@@ -232,7 +238,7 @@ class HallController extends ChangeNotifier {
       places: [for (var i = 0; i < halls.length; i++) Place(key: halls[i], name: diningHalls[i].name, area: -1, address: r?.hours[halls[i]]?.address, mapAddress: r?.hours[halls[i]]?.mapAddress), ...?r?.cafes],
       hours: r?.hours ?? const {},
       grab: {for (final h in halls) h: ?grabOf(h)}, // every hall's, for where a dish is served
-      days: {for (var i = 0; i < isos.length; i++) isos[i]: {if (items(i) case final it? when it.isNotEmpty) place: mealsOfItems(it)}},
+      days: {for (var i = 0; i < isos.length; i++) isos[i]: {if (items(i) case final it? when it.isNotEmpty) place: mealsOfItems(it, hall: halls.contains(place))}},
       events: events,
     );
   }

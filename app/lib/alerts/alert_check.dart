@@ -82,7 +82,7 @@ Future<Board?> loadAlertBoard(Repository repo, String day) async {
     hours: {for (final h in hours.feed.halls) halls[h.hallTid - 1]: h},
     grab: grabsOf(hours.feed),
     days: {
-      day: {for (var i = 0; i < halls.length; i++) if (got[(diningHalls[i].tid, day)] case final it? when it.isNotEmpty) halls[i]: mealsOfItems(it)},
+      day: {for (var i = 0; i < halls.length; i++) if (got[(diningHalls[i].tid, day)] case final it? when it.isNotEmpty) halls[i]: mealsOfItems(it, hall: true)},
     },
     events: const [],
   );

@@ -87,7 +87,7 @@ void main() {
     }
 
     testWidgets('with Milk and Eggs avoided, the dietary line and every row left are the height M2 draws them at $w dp', (t) async {
-      final want = [for (final r in m['rowsHiding'] as List) if (r[0] != 'pad-b') (r[1] as num).toDouble()];
+      final want = [for (final r in m['rowsHiding'] as List) if (r[0] != 'pad-b') (r[1] as num).toDouble(), for (final r in _beverages) (r[1] as num).toDouble()];
       await openHall(t, await bootRecorded(t, avoid: const ['Milk', 'Eggs']), '/hall/worcester?meal=lunch', w: w.toDouble(), h: 8000);
       final got = listHeights(t);
       expect(got.length, want.length);
@@ -119,4 +119,7 @@ void main() {
 
 /// M2's list children for a width, without the 150 dp pad under the list (the screen's, not the list's); `rowsOn` carries no text.
 Iterable<List<Object>> m2Rows(Map<String, dynamic> m, bool on) =>
-    [for (final r in m[on ? 'rowsOn' : 'rows'] as List) if (r[0] != 'pad-b') (r as List).cast<Object>()];
+    [for (final r in m[on ? 'rowsOn' : 'rows'] as List) if (r[0] != 'pad-b') (r as List).cast<Object>(), ..._beverages];
+
+/// m2_dom.json predates round 12d: Worcester's lunch now ends with the Beverages head and the Fountain Drink's row (test/m2_dom_fountain.json).
+final _beverages = [for (final x in [50, 64]) <Object>[x == 50 ? 'sth' : 'row', x, x == 50 ? 'Beverages' : 'Fountain Drink']];

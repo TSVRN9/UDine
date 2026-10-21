@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/m2/board.dart' show isAlways;
 import '../core/m2/menu_view.dart' show Prefs;
 import '../core/store/store.dart';
 import '../core/types.dart' show DishFavorite;
@@ -50,7 +51,7 @@ class AppPrefs extends ChangeNotifier {
   static Future<AppPrefs> load(UdineStore? store, {List<String>? pins}) async {
     final sc = await store?.scores();
     return AppPrefs._(store, await store?.charlesRiver() ?? false, pins ?? await store?.pins() ?? const [], pins != null, (health: sc?.healthfulness ?? false, carbon: sc?.carbon ?? false), dietPrefs(await store?.avoid() ?? const [], await store?.onlyShow() ?? const []), await store?.onlyShow() ?? const [],
-        {for (final f in await store?.favorites() ?? const []) if (f is DishFavorite) f.dishName}, await store?.tracking() ?? false, await store?.firstRunSeen() ?? true);
+        {for (final f in await store?.favorites() ?? const []) if (f is DishFavorite && !isAlways(f.dishName)) f.dishName}, await store?.tracking() ?? false, await store?.firstRunSeen() ?? true);
   }
 
   Future<void> setTrack(bool v) {
