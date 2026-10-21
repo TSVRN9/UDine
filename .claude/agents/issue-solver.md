@@ -104,7 +104,9 @@ Commit, push, `gh pr create --base <base given, default main> --head <your branc
 ~/.cache/udine-scratch/<branch>.md, never a shared /tmp path>` with the template
 (`.github/PULL_REQUEST_TEMPLATE.md`): brief + task, artboard, screenshot paths, the red line
 verbatim, lanes run with results, residency row. Plus the `grep -rn` output for other call sites of
-what you changed. Never merge. Never force-push. Never skip hooks.
+what you changed. Never merge. Never force-push. Never skip hooks. Never `git stash`: the stash list is shared by
+every worktree, and a pop can land another agent's files in yours (2026-10-20, #646). Park work in a WIP commit instead,
+and run no git command in the repo root.
 
 ## 5. Report
 
