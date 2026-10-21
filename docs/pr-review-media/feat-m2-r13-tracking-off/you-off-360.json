@@ -1,30 +1,29 @@
 {
-  "sha": "70a4d8c9d255fe2fef50e5bcd220cca818d4d4d0",
+  "sha": "898e5a3f8ad1905b75ab722b3bd9a4060bcba79a",
   "branch": "feat/m2-r13-tracking-off",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/feat-m2-r13-tracking-off",
   "route": "/you?data=recorded&at=2026-10-08T12:41&history=full&photos=off",
   "device": "sdk_gphone64_x86_64",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-21T00:44:52Z",
+  "ts": "2026-10-21T01:14:39Z",
   "own": {
-    "app/lib/motion/track_lift.dart": "5653b6fe1d3c4d3bf8aa3078eb24b1c9ed2bcdf1",
+    "app/lib/motion/track_layer.dart": "b9d64f2a102a31012d4e3920793696866d230c41",
+    "app/lib/motion/track_lift.dart": "f5c6d6ec07123f9dc4c3c6d7d12cb4e295539127",
     "app/lib/screens/dish/dish_sheet.dart": "85664fbecdc8d7b4ede14f4dd72d61dbc37ad8e9",
-    "app/lib/screens/hall/dish_row.dart": "ff3c84ef55fa8ff22d625c8eceff4f96858441bb",
+    "app/lib/screens/hall/dish_row.dart": "74cc21a3c7d1220d42b88fb286abbfd717655541",
     "app/lib/screens/halls/first_run.dart": "cb9d94bba95427ff912c0f66de1c3d0264ffd16e",
     "app/lib/screens/plate/plate_sheet.dart": "b179ede4b1649594c4c7534d8995697016bae48e",
-    "app/lib/screens/search/food_row.dart": "05ca9a57f113c3f601864f594758c84deda5922d",
-    "app/lib/screens/you/health_row.dart": "a5077ee3693d9a28904aa55b330b2c85f18f6e41",
+    "app/lib/screens/search/food_row.dart": "ee50f35d32c50908a8c8a4185b646b30c6a7acc2",
+    "app/lib/screens/you/health_row.dart": "afab219a71f3ce503840e11d75f936e757a8664b",
     "app/lib/screens/you/you_parts.dart": "e4aeb13d2a01f0b4c209af4a2e8f4d1c984fb76e",
-    "app/lib/screens/you/you_screen.dart": "35743ad34281b00bfc977c9a9947b45a2021f610",
+    "app/lib/screens/you/you_screen.dart": "c82777dcc6198a5470b668f596c6a6b2c7029808",
     "app/lib/shell/app_scope.dart": "3260908ee62af85b609d74ad4c13c43b9ce21aa5",
     "app/lib/shell/prefs.dart": "b77f71977ce5fbc18b9f62fe90f48dc567311f73",
     "app/lib/shell/shell.dart": "9096ee6a9899c53c405cea6b3b957a931292ecd1",
     "app/lib/theme/layout.dart": "4fbed6a1189788ea2159e250c75bf296e90d2ef4",
     "app/lib/theme/m2_tokens.g.dart": "3db32e7e3ceb69fd8466a5a916db22f65d25f3f8",
-    "app/lib/ui/list_row.dart": "cc903872c0c360ba9d7ece0f8a9a1bc11be937b6",
-    "app/lib/ui/track_layer.dart": "06a80e8db4ab7e620d5be7475a701fd4dff1a07e",
-    "app/lib/ui/ui.dart": "9ed7a3b02d6c856713399212d723e11c44c23f11"
+    "app/lib/ui/list_row.dart": "cc903872c0c360ba9d7ece0f8a9a1bc11be937b6"
   },
   "argv": [
     "/you?data=recorded&at=2026-10-08T12:41&history=full",
@@ -41,6 +40,8 @@
     "928",
     "--tap-gap",
     "1.5",
+    "--out",
+    "docs/pr-review-media/feat-m2-r13-tracking-off/you-off-360.png",
     "--out",
     "docs/pr-review-media/feat-m2-r13-tracking-off/you-off-360.png"
   ]
