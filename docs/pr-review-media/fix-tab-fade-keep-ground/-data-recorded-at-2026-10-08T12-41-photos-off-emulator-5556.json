@@ -1,0 +1,33 @@
+{
+  "sha": "42c417af6a221e47c359fd76ef7db8176452c7e4",
+  "branch": "fix/tab-fade-keep-ground",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/fix-tab-fade-keep-ground",
+  "route": "/?data=recorded&at=2026-10-08T12:41&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-10-21T03:29:01Z",
+  "own": {
+    "app/lib/motion/fade_through.dart": "fe9b106c711f0897231b1084f8b671d2345cde9f",
+    "app/lib/screens/hall/meal_pager.dart": "a2a405b1a23e0e17fa67885fc59ddbb440086045",
+    "app/lib/screens/halls/halls_screen.dart": "df96338f5ab4de5b2f3a183c45fe1a6453732b22",
+    "app/lib/shell/shell.dart": "7cc4e4e3cd5ec1cfe96c141df1e6e3efe5b95206",
+    "app/lib/ui/screen_header.dart": "dabda7e5b2a7f6aabc2e90fa152004a468be397b"
+  },
+  "argv": [
+    "/?data=recorded&at=2026-10-08T12:41",
+    "--record",
+    "4",
+    "--swipe",
+    "540",
+    "1500",
+    "540",
+    "400",
+    "200",
+    "--tap",
+    "900",
+    "1820",
+    "--settle",
+    "4"
+  ]
+}

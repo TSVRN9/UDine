@@ -839,7 +839,7 @@ const MO = {
   settle:     {d:200, e:'cubic-bezier(.2,0,0,1)'},   // M3 standard easing, short4: in-place changes (underline, + -> stepper, chips, FLIP, receipt)
   cont:       {d:500, e:EMPH_CSS},                   // container transform, enter: motionDurationLong2, emphasized
   contBack:   {d:400, e:EMPH_CSS},                   // container transform, return: motionDurationMedium4 (same frames, reversed)
-  fadeThrough:{d:250, e:'cubic-bezier(0,0,0,1)', scale:.97, z:8},   // tabs, round 3: medium1, standard decelerate, an overlapped fade (no dip to the ground)
+  fadeThrough:{d:250, e:'cubic-bezier(0,0,0,1)', scale:.97, z:8},   // tabs, round 14: medium1; content out linearly over sharedX.at of d, then in on e; the ground stays (round 3's overlap is gone)
   sharedX:    {d:450, e:EMPH_CSS, at:.35, dist:30},  // MaterialSharedAxis X: long1, emphasized, 30dp slide + the same fade through
   scroll:     {d:500, e:EMPH_CSS},                   // programmatic scroll to a station or a dish
   exit:       {d:150, e:'cubic-bezier(.3,0,.8,.2)'}, // M3 emphasized accelerate, short3: things that leave (a stepper collapsing, a chip removed)
@@ -1789,7 +1789,7 @@ function closeHall(){
   menu.addEventListener('touchend',end); menu.addEventListener('touchcancel',end);
 })();
 // meal tabs: Material shared axis X. The old list slides 30px toward the side it leaves and is gone by 35%; the new list
-// slides in from the other side and fades in from 35%. The gold underline moves to the selection.
+// slides in from the other side and fades in from 35% (after the old one is gone, never over it). The gold underline moves to the selection.
 function sharedAxisX(dir, render){
   const old=$('#mlist'), sc=$('#mscroll'), X=MO.sharedX;
   if(RM){ render(); A(old,[{opacity:0},{opacity:1}],'settle'); return; }
@@ -1799,7 +1799,7 @@ function sharedAxisX(dir, render){
   gh.animate([{transform:'none'},{transform:`translateX(${-dir*X.dist}px)`}],{duration:X.d,easing:X.e,fill:'forwards'});
   gh.animate([{opacity:1},{opacity:0,offset:X.at},{opacity:0}],{duration:X.d,easing:'linear',fill:'forwards'}).finished.catch(()=>{}).then(()=>gh.remove());
   old.animate([{transform:`translateX(${dir*X.dist}px)`},{transform:'none'}],{duration:X.d,easing:X.e});
-  old.animate([{opacity:0},{opacity:1,offset:.6},{opacity:1}],{duration:X.d,easing:'linear'});   // round 3: overlaps the outgoing fade, so the list never empties to bare ground
+  old.animate([{opacity:0},{opacity:0,offset:X.at},{opacity:1}],{duration:X.d,easing:'linear'});   // round 14: starts as the outgoing list is gone, so no text is ever doubled; the header and page ground stay
 }
 function switchMeal(meal){ const ts=$$('#mtabs .mts button'), mt=ts.find(b=>b.dataset.meal===meal), dir=Math.sign(ts.indexOf(mt)-ts.findIndex(b=>b.getAttribute('aria-selected')==='true'));
   if(!mt||!dir) return; S.mmeal=meal; ts.forEach(b=>b.setAttribute('aria-selected',b===mt)); placeUL(true);
@@ -2002,32 +2002,41 @@ $('#qclear').addEventListener('click',()=>{ $('#q').value=''; S.q=''; renderSear
 for(const t of ['pointerdown','mousedown']) $('#search').addEventListener(t,e=>{ if(document.activeElement===$('#q') && e.target.closest('#sres,#lenses') && !e.target.closest('[data-act=custom]')) e.preventDefault(); });
 
 /* ---------- tabs & pages ---------- */
-// top-level tabs: a fade through with no dip to the ground (owner, round 3: "the white flash between panes is too much").
-// The outgoing tab stays drawn underneath; the incoming one fades in over it while settling from a .97 scale. The maroon
-// header region and the tab bar are never uncovered, so no frame shows bare chalk. No slides.
-// Re-tapping the tab that owns an open hall closes the hall.
+// top-level tabs: a fade through that keeps the ground (owner, round 14: "Fade content, keep ground"). The page background and the
+// maroon header bands never fade: only the content does. The old content is gone by sharedX.at of fadeThrough.d, linearly, then the new
+// content fades in (settling from .97) on fadeThrough.e. Never both at once, so no text is doubled and no frame is whiter than rest.
+// Supersedes round 3's overlapped fade. Re-tapping the tab that owns an open hall closes the hall.
+let tabTimer=0;
+const HEADS='.hhead,.yhead,.shead';
+function tabParts(root){ const out=[]; (function walk(e){ for(const c of e.children){ if(c.matches(HEADS)) out.push(...c.children); else if(c.matches('.stick')) walk(c); else out.push(c); } })(root); return out; }
 function setTab(t, keepOb){
   if(S.tab===t && S.hall && S.hallTab===t){ closeHall(); return; }
   const prev=S.tab, changed=prev!==t; S.tab=t; closeAllPages();
   if(psheet.state!=='closed') psheet.to('closed'); if(isheet.state!=='closed') isheet.to('closed'); if(obsheet.state!=='closed' && !keepOb){ markSeen(); obsheet.to('closed'); }
   const layers=k=>[$('#tab-'+k), ...(S.hall && S.hallTab===k ? [$('#menu')] : [])];
-  for(const el of [...['halls','search','you'].map(k=>$('#tab-'+k)), $('#menu')]){ el.getAnimations().forEach(a=>a.cancel()); el.style.pointerEvents=''; }
+  for(const el of [...['halls','search','you'].map(k=>$('#tab-'+k)), $('#menu')]){ el.getAnimations({subtree:true}).forEach(a=>a.cancel()); el.style.pointerEvents=''; }
   for(const k of ['halls','search','you']) $('#tab-'+k).classList.toggle('hide', k!==t);
   $('#menu').classList.toggle('hide', !(S.hall && S.hallTab===t));
   $$('.tbar button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t));
   $('.tbar .ind').style.transform=`translateX(${['halls','search','you'].indexOf(t)*100}%)`;
-  if(changed){ buzz(4); const F=MO.fadeThrough;
+  let later=[]; clearTimeout(tabTimer); document.querySelectorAll('.tab,#menu').forEach(e=>{ e.style.zIndex=e.dataset.z0||''; delete e.dataset.z0; });
+  if(changed){ buzz(4); const F=MO.fadeThrough, cut=F.d*MO.sharedX.at;
     if(RM) layers(t).forEach(el=>A(el,[{opacity:0},{opacity:1}],'settle'));
     else {
-      const out=layers(prev); out.forEach(el=>{ el.classList.remove('hide'); el.style.pointerEvents='none'; });
-      layers(t).forEach((el,i)=>{ el.dataset.z0=el.style.zIndex; el.style.zIndex=String(F.z+i);
-        el.animate([{opacity:0},{opacity:1}],{duration:F.d,easing:F.e});
-        const a=el.animate([{transform:`scale(${F.scale})`},{transform:'none'}],{duration:F.d,easing:F.e});
-        if(i===0) a.finished.then(()=>{ if(S.tab===t) out.forEach(o=>{ o.classList.add('hide'); o.style.pointerEvents=''; }); }).catch(()=>{}).finally(()=>{ layers(t).forEach(x=>x.style.zIndex=x.dataset.z0||''); }); }); } }
+      const out=layers(prev), inn=layers(t), root=el=>el.id==='menu' ? el : el.firstElementChild;
+      out.forEach((el,i)=>{ el.classList.remove('hide'); el.style.pointerEvents='none'; el.dataset.z0=el.style.zIndex; el.style.zIndex=String(F.z+2+i);   // the old pane stays on top, ground and all, until its content is gone
+        tabParts(root(el)).forEach(p=>p.animate([{opacity:1},{opacity:0}],{duration:cut,easing:'linear',fill:'forwards'})); });
+      inn.forEach((el,i)=>{ el.dataset.z0=el.style.zIndex; el.style.zIndex=String(F.z+i);
+        const o={duration:F.d-cut,delay:cut,easing:F.e,fill:'backwards'};
+        later.push(()=>tabParts(root(el)).forEach(p=>p.animate([{opacity:0},{opacity:1}],o)));   // after the renders below replace the content
+        el.animate([{transform:`scale(${F.scale})`},{transform:'none'}],o); });
+      tabTimer=setTimeout(()=>{ if(S.tab===t) out.forEach(o=>{ o.classList.add('hide'); o.style.pointerEvents=''; o.getAnimations({subtree:true}).forEach(a=>a.cancel()); }); }, cut);
+      setTimeout(()=>{ if(S.tab===t) inn.forEach(x=>{ x.style.zIndex=x.dataset.z0||''; }); }, F.d); } }
   if(t!=='search') $('#q').blur();
   if(t==='search'){ renderLenses(); renderSearch(); }
   if(t==='you') renderYou();
   if(S.hall && S.hallTab===t){ renderMenuList(); if(!S.mday) syncFront(S.hall); }
+  later.forEach(f=>f());
 }
 // You (round 10): with tracking on, Today (its totals and meals), then Earlier, one row per logged day; then the choices.
 // With tracking off, only the choices, under "You"; Export stays while there is history.

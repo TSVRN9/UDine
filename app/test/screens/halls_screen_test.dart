@@ -1,3 +1,6 @@
+import 'dart:ui' as ui;
+
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/data/recorded/recorded.dart';
@@ -197,19 +200,49 @@ void main() {
   });
 
   group('tabs', () {
-    testWidgets('Halls to You is a fade through: the old tab stays drawn under the new, settling from .97', (t) async {
+    testWidgets('Halls to You is a fade through that keeps the ground: the old content goes out, then the new one settles in from .97', (t) async {
       await openApp(t, await bootRecorded(t));
       await ready(t);
       await t.tap(find.text('You'));
       await t.pump();
+      await t.pump(const Duration(milliseconds: 40));
+      expect(find.text('Worcester'), findsOneWidget); // Halls is still drawn, going out
       await t.pump(const Duration(milliseconds: 100));
-      expect(find.text('Worcester'), findsOneWidget); // Halls is still drawn
+      expect(find.text('Worcester'), findsNothing); // gone before You comes in
       final scales = t.widgetList<Transform>(find.byType(Transform)).map((x) => x.transform.storage[0]);
       expect(scales.any((s) => s > M2Motion.fadeThroughScale && s < 1), isTrue);
-      await t.pump(const Duration(milliseconds: 200));
-      expect(find.text('Worcester'), findsNothing); // gone from the screen once You is in
       await drain(t);
     });
+  });
+
+  testWidgets('leaving a scrolled Halls keeps the maroon under the status bar: the collapsed bar is ground, so no frame goes chalk there', (t) async {
+    await openApp(t, await bootRecorded(t));
+    await ready(t);
+    await t.drag(find.byType(SingleChildScrollView), const Offset(0, -3000));
+    await t.pump();
+    await t.pump(const Duration(milliseconds: 500));
+    final shot = find.byType(RepaintBoundary).first;
+    Future<List<Color>> pixels(List<Offset> at) async => (await t.runAsync(() async {
+          final b = t.renderObject<RenderRepaintBoundary>(shot), img = await b.toImage(), k = img.width / b.size.width;
+          final d = (await img.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+          return [
+            for (final o in at)
+              () {
+                final i = ((o.dy * k).round() * img.width + (o.dx * k).round()) * 4;
+                return Color.fromARGB(255, d.getUint8(i), d.getUint8(i + 1), d.getUint8(i + 2));
+              }(),
+          ];
+        }))!;
+    final top = M2Layout.collapsedBar / 2, spots = [Offset(200, top), const Offset(2, 2), const Offset(357, 2), Offset(2, M2Layout.collapsedBar - 3), Offset(357, M2Layout.collapsedBar - 3)];
+    await t.tap(find.text('You'));
+    await t.pump();
+    for (var i = 0; i < 20; i++) {
+      await t.pump(const Duration(milliseconds: 16));
+      for (final (j, c) in (await pixels(spots)).indexed) {
+        expect((c.r - M2Color.dm.r).abs() < .25 && (c.g - M2Color.dm.g).abs() < .25, isTrue, reason: 'frame $i, spot ${spots[j]}: $c');
+      }
+    }
+    await drain(t);
   });
 
   testWidgets('Halls settles on its own: the bands and meters are at rest before the stars\' menus are read, and the stars follow', (t) async {

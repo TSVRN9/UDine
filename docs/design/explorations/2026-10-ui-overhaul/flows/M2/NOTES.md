@@ -32,6 +32,12 @@
   - Meal tabs now overlap their fades too.
   - `test.js` samples frames during each tab switch and fails if one is more than 8 points whiter than the panes at rest.
   - `whiteness.py` reports the same measure for every recorded interaction. None flashes: the remaining "excess" rows are content that really is white (the You pane, search results replacing the maroon events list).
+- **Round 14 (owner, 2026-10-20): "Fade content, keep ground."** Supersedes round 3's overlap, for tab switches and meal tabs.
+  - Round 3's overlapped fades drew doubled text ("You" over "Lunch", doubled dish names), which the owner calls flicker.
+  - The maroon header bands and the page background stay opaque throughout. Only the content fades.
+  - The old content goes out linearly over the first `sharedX.at` (35%) of `fadeThrough.d`; then the new content fades in on `fadeThrough.e`, settling from `.97`. Never both at once, so there is no white flash and no doubled text.
+  - Meal tabs keep their 30 px slide; the new list starts fading in only when the old one is gone (`sharedX.at`).
+  - `test.js` keeps the "no whiter than at rest" check and adds: no frame shows both panes' content above 5% opacity.
 - **Pinned cafés use UMass Dining's own location photos** (`assets/retail/`, 640×341, sources in `index.json`, embedded at q80 with no retouching). There's no varsity letter, so the Wasabi "W" clash is gone.
   - Pins are a 2-up grid of rounded photo cards at the top of Cafés & markets: inset, half width and rounded, so they stay secondary to the four full-bleed bands.
   - Each card shows the name and live status over a deep-maroon gradient. The gradient is graded only for AA: `node contrast-pins.js` pins all 27 and measures white text over the brightest pixel behind it, worst 6.55:1.

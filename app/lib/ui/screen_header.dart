@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import '../theme/tokens.dart';
+import '../motion/fade_through.dart';
 import 'back_button.dart';
 
 /// The maroon header every tab and page opens with. `title`: the deep-maroon head of Halls and You (`.hhead`, `.yhead`): a row with
@@ -28,7 +29,7 @@ class ScreenHeader extends StatelessWidget {
         ]),
       );
     }
-    return Container(
+    return GroundMark(child: Container(
       color: M2Color.dm,
       padding: EdgeInsets.fromLTRB(M2Space.gutter, top + M2Layout.headerPadTop, M2Space.gutter, bottomPad),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -41,6 +42,6 @@ class ScreenHeader extends StatelessWidget {
         ),
         Padding(padding: const EdgeInsets.only(top: M2Layout.titleGap), child: Semantics(header: true, child: Text(title!, style: M2Text.hallTitle.style(M2Color.white)))),
       ]),
-    );
+    ));
   }
 }
