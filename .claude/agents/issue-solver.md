@@ -100,7 +100,8 @@ conversation that created the task.
 
 ## 4. Open the PR
 
-Commit, push, `gh pr create --base <base given, default main>` with the template
+Commit, push, `gh pr create --base <base given, default main> --head <your branch> --body-file <a file in your worktree or
+~/.cache/udine-scratch/<branch>.md, never a shared /tmp path>` with the template
 (`.github/PULL_REQUEST_TEMPLATE.md`): brief + task, artboard, screenshot paths, the red line
 verbatim, lanes run with results, residency row. Plus the `grep -rn` output for other call sites of
 what you changed. Never merge. Never force-push. Never skip hooks.
