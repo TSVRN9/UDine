@@ -46,7 +46,7 @@ SheetHandle openDishSheet(
   // (tracking off: a build station's dishes are just dishes, M2 CONCEPT R10 §2)
   build = !AppScope.of(context).prefs.track ? null : build ?? (day == 0 && !plain ? buildFor(fx, place, meal, dish) : null);
   final book = WhereBook(AppScope.of(context).repo, fx, cafeIds, false);
-  return ShellScope.of(context).pushSheet((handle, done) => DishSheet(
+  return ShellScope.of(context).pushSheet(label: dish.dishName, (handle, done) => DishSheet(
         handle: handle, dish: dish, place: place, meal: meal, day: day, fx: fx, book: book, avoid: avoid, refs: refs, onServe: onServe, build: build, sel: sel, edit: edit, update: update,
         onClosed: () {
           book.dispose();

@@ -50,6 +50,7 @@ abstract final class M2Layout {
   static const tabIcon = 24.0, tabGap = 3.0, tabIconStroke = 1.8;
   static const chevron = 18.0, chevronStroke = 2.2;
   static const backSize = 24.0;
+  static const kbMin = 80.0; // `frame.classList.toggle('kb', kb>80)`: an inset past this is the on-screen keyboard
   static const safeBottomMin = 10.0; // `--sb: max(10px, env(safe-area-inset-bottom))`
   // felt patches: gold felt with maroon stitching (`.tg`, `.mk`, `.hchip .hl`)
   static const patch = 20.0, patchGlyph = 12.0; // `.tg` size, `.tg .gl`

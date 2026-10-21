@@ -2,6 +2,7 @@ import 'dart:async' show Completer, Timer, scheduleMicrotask;
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
+import 'package:flutter/scheduler.dart' show SchedulerBinding, SchedulerPhase;
 import 'package:flutter/widgets.dart';
 import '../theme/tokens.dart';
 import 'haptics.dart';
@@ -119,6 +120,9 @@ class M2Sheet extends StatefulWidget {
 
 class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
   final _dsc = DraggableScrollableController();
+  /// The sheet's extent for the scrim. A frame whose height changes replaces the extent while the tree is building, and the scrim must not be
+  /// marked dirty then: it follows a frame later.
+  final _extent = ValueNotifier<double>(0);
   late final Spring _spring = Spring(this);
   final _bodyKey = GlobalKey();
   double _h = 0, _midPx = 0, _px = 0, _target = 0;
@@ -182,6 +186,7 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
     _spring.dispose();
     _dsc.removeListener(_onSize);
     _dsc.dispose();
+    _extent.dispose();
     _over.dispose();
     super.dispose();
   }
@@ -299,6 +304,12 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
 
   void _onSize() {
     if (!_dsc.isAttached) return;
+    final e = _dsc.size;
+    if (SchedulerBinding.instance.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _extent.value = e; });
+    } else {
+      _extent.value = e;
+    }
     final px = _dsc.size * _h;
     if (!_spring.running) {
       _px = px;
@@ -387,10 +398,9 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
         child: Stack(children: [
         if (widget.scrim)
           Positioned.fill(
-            child: AnimatedBuilder(
-              animation: _dsc,
-              builder: (_, _) {
-                final s = _dsc.isAttached ? _dsc.size : 0.0;
+            child: ValueListenableBuilder<double>(
+              valueListenable: _extent,
+              builder: (_, s, _) {
                 // (closed - y) / (closed - mid): from the sheet's lowest height, not from nothing
                 final f = midFrac <= minFrac ? 0.0 : ((s - minFrac) / (midFrac - minFrac)).clamp(0.0, 1.0);
                 return IgnorePointer(
