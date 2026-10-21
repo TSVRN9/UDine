@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:udine/alerts/alert_check.dart';
 import 'package:udine/core/date.dart';
+import 'package:udine/core/favorite_match.dart';
+import 'package:udine/screens/hall/hall_controller.dart' show mealsOfItems;
 import 'package:udine/core/m2/board.dart';
 import 'package:udine/core/m2/where.dart';
 import 'package:udine/core/store/db.dart';
@@ -33,6 +35,21 @@ void main() {
   });
 
   Future<int> run(DateTime now) => runAlertCheck(store: store, now: () => now, loadBoard: (_) async => board, notify: (n) async => sent.add(n));
+
+  test('a Fountain Drink favourited before round 12d never alerts: nothing is favouritable, so no alert', () async {
+    final b = Board(
+      clock: board.clock, places: board.places, hours: board.hours, grab: board.grab, events: board.events,
+      days: {
+        for (final MapEntry(key: iso, value: places) in board.days.entries)
+          iso: {for (final MapEntry(key: p, value: meals) in places.entries) p: isCafe(p) ? meals : mealsOfItems([for (final s in meals.values.expand((s) => s)) ...s.dishes], hall: true)},
+      },
+    );
+    expect(b.days['2026-10-08']!['W']!['lunch']!.last.dishes.single.dishName, 'Fountain Drink');
+    await store.removeFavorite(DishFavorite(thigh));
+    await store.addFavorite(const DishFavorite('Fountain Drink'));
+    expect(dueAlerts(b, await store.favorites(), at('12:41')), isEmpty);
+    expect(matchFavoritedDishes(await store.favorites(), [for (final st in b.days['2026-10-08']!['W']!['lunch']!) ...st.dishes]), isEmpty);
+  });
 
   test('a favourited dish on today\'s menu posts one notice: the name, then where and when, every serving today in one body', () async {
     expect(await run(at('12:41')), 1);

@@ -132,6 +132,26 @@ void main() {
     return book;
   }
 
+  test('only a dining commons ends its meals with Beverages: a café\'s own board and the book\'s café days never do (round 12d)', () async {
+    final w = await worcester();
+    final book = await bookOf(w);
+    // (cafés have Beverages stations of their own, and a priced Fountain Drink; the synthetic one has no price)
+    bool bev(Board b, String p) => [for (final d in b.days.values) ...?d[p]?.values.expand((s) => s.expand((x) => x.dishes))].any((d) => d.key == 'fountain drink' && d.price == null);
+    expect(bev(book.board!, 'W'), isTrue);
+    final cafes = {for (final d in book.board!.days.values) ...d.keys.where(isCafe)};
+    expect(cafes, isNotEmpty);
+    for (final k in cafes) {
+      expect(bev(book.board!, k), isFalse, reason: k);
+    }
+    final c = HallController(repo, 'c12')..load(0);
+    await settled(c, [0]);
+    expect(c.board.days[c.isos[0]]!['c12'], isNotNull, reason: 'the café has a menu to check');
+    expect(bev(c.board, 'c12'), isFalse);
+    c.dispose();
+    book.dispose();
+    w.dispose();
+  });
+
   test('a second dish sheet asks for no place-day the first had (halls and cafés), and never more than four requests are in flight', () async {
     final c = await worcester();
     expect(c.cafeIds, isNotEmpty);

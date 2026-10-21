@@ -71,6 +71,12 @@ void main() {
     expect(m.calls, isEmpty);
   });
 
+  test('a Fountain Drink favourited before round 12d follows no topic: it is served everywhere, so nothing to alert on', () async {
+    final m = FakeMessaging();
+    await PushSync(await _store(['Pizza', 'Fountain Drink']), m).sync(on: true);
+    expect(m.calls.where((c) => c.startsWith('sub:')), ['sub:$a']);
+  });
+
   test('the diff: an unfavourited dish is unsubscribed, a new one subscribed, the rest untouched', () async {
     final store = await _store(['Pizza']), m = FakeMessaging(), p = PushSync(store, m);
     await p.sync(on: true);

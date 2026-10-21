@@ -30,11 +30,14 @@ extension M2MenuItem on MenuItem {
       .fold(0, (bits, e) => dietTags.contains(e.$1) || dietCodes.contains(e.$2) ? bits | e.$3 : bits);
 
   /// M2 `ALWAYS`: served at every hall at every meal, so nothing to spot (no star, no alert) and not food (no diet preference hides it).
-  bool get always => key == 'fountain drink';
+  bool get always => isAlways(dishName);
 
   /// The plate's per-serving macros as M2 sums them: calories whole, grams to a tenth.
   Macro get macro => nutrition.macro;
 }
+
+/// M2 `ALWAYS` by name: a favourite stored before round 12d can still name it, and must never alert or follow a topic.
+bool isAlways(String name) => dishKey(name) == 'fountain drink';
 
 /// M2 R12d: the one synthetic record every dining commons menu ends with, every nutrient blank.
 MenuItem fountainDrink(MenuItem like) => MenuItem(
