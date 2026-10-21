@@ -9,7 +9,8 @@ class Host extends StatefulWidget {
   final SheetHandle handle;
   final bool Function() closed;
   final void Function()? onClosed;
-  const Host(this.handle, {super.key, required this.closed, this.onClosed});
+  final double inset;
+  const Host(this.handle, {super.key, required this.closed, this.onClosed, this.inset = 0});
   @override
   State<Host> createState() => _HostState();
 }
@@ -20,7 +21,7 @@ class _HostState extends State<Host> {
   Widget build(BuildContext context) => Directionality(
         textDirection: TextDirection.ltr,
         child: MediaQuery(
-          data: const MediaQueryData(size: Size(390, 844)),
+          data: MediaQueryData(size: const Size(390, 844), padding: EdgeInsets.only(top: widget.inset)),
           child: shut
               ? const SizedBox()
               : M2Sheet(
@@ -57,11 +58,11 @@ class GrowerState extends State<Grower> {
 }
 
 void main() {
-  Future<void> boot(WidgetTester t, SheetHandle h, {void Function()? onClosed}) async {
+  Future<void> boot(WidgetTester t, SheetHandle h, {void Function()? onClosed, double inset = 0}) async {
     t.view.physicalSize = const Size(390, 844);
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.reset);
-    await t.pumpWidget(Host(h, closed: () => false, onClosed: onClosed));
+    await t.pumpWidget(Host(h, closed: () => false, onClosed: onClosed, inset: inset));
   }
 
   testWidgets('opens on the spring from nothing to its resting height, and arrives at mount (the first frames already move)', (t) async {
@@ -240,6 +241,25 @@ void main() {
     await t.pumpAndSettle();
     expect(t.getTopLeft(find.byType(CustomScrollView)).dy, closeTo(32, 0.5));
     expect(h.px, closeTo(844 - 32, 1));
+  });
+
+  testWidgets('under a status bar the band stops at the status bar: a long over-pull and its release keep the head below the inset on every frame', (t) async {
+    final h = SheetHandle();
+    await boot(t, h, inset: 24); // the sheet's top is inset + 8 = 32
+    await t.pumpAndSettle();
+    double top() => t.getTopLeft(find.byType(CustomScrollView)).dy;
+    final g = await drag(t, const Offset(195, 700), -20, 50); // 1000 dp up
+    expect(top(), lessThan(32));
+    for (var i = 0; i < 5; i++) {
+      await g.moveBy(const Offset(0, -20), timeStamp: Duration(milliseconds: 16 * (51 + i)));
+      await t.pump(const Duration(milliseconds: 16));
+      expect(top(), greaterThanOrEqualTo(24 - 0.01), reason: 'held, frame $i');
+    }
+    await g.up();
+    for (var i = 0; i < 60; i++) {
+      await t.pump(const Duration(milliseconds: 16));
+      expect(top(), greaterThanOrEqualTo(24 - 0.01), reason: 'released, frame $i');
+    }
   });
 
   testWidgets('reversing past the top, the sheet follows the finger 1:1 through the rubber curve on every frame, then on down', (t) async {

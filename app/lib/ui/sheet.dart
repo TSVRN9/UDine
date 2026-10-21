@@ -46,12 +46,12 @@ class SheetHandle {
   void backEnd({required bool commit}) => _s?._backEnd(commit);
 }
 
-/// M2's `rubber(x, d)`: how far a drag `x` past the top detent moves the sheet; it approaches `d` and never reaches it. The sheet passes `d` = its
-/// top inset, not the frame (M2 does): the band gives the same at first, but stops short of lifting the head off the screen.
-double sheetRubber(double x, double d) => (1 - 1 / (x * M2Motion.sheetReleaseRubber / d + 1)) * d;
+/// M2's `rubber(x, d)`: how far a drag `x` past the top detent moves the sheet; it approaches `d` and never reaches it. The sheet passes `d` = the room
+/// between the status bar and its top detent, not the frame (M2 does): the band starts the same, but stops short of lifting the head under the status bar.
+double sheetRubber(double x, double d) => d <= 0 ? 0 : (1 - 1 / (x * M2Motion.sheetReleaseRubber / d + 1)) * d;
 
 /// The inverse of [sheetRubber]: the drag that has moved the sheet `y` past the top.
-double _unrubber(double y, double d) => y <= 0 ? 0 : d / M2Motion.sheetReleaseRubber * (1 / (1 - y / d) - 1);
+double _unrubber(double y, double d) => y <= 0 || d <= 0 ? 0 : d / M2Motion.sheetReleaseRubber * (1 / (1 - y / d) - 1);
 
 /// M2 `release`: the height (dp) a sheet released at `px` going `v` dp/s upward settles at. The finger's velocity is projected
 /// `sheetReleaseProject` seconds ahead and the nearest detent wins (top, then mid, then closed on a tie, as M2 loops them); a mid
@@ -185,6 +185,8 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
   }
 
   double get _max => (_h - widget.top);
+  /// How far the rubber band can lift the sheet: up to the status bar's bottom edge, so the head stays in view.
+  double get _band => math.max(0, widget.top - MediaQuery.paddingOf(context).top);
   double _clampPx(double v) => v.clamp(widget.min, _max);
 
   double get _pad => widget.bottomPad ?? (M2Layout.sheetBottom + safeBottom(context));
@@ -233,11 +235,12 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
     if (_h == 0) return;
     _closed = false;
     _target = _clampPx(px);
+    final ceiling = math.max(_max, _px);
     _spring.run(
       from: _px, to: _target, v0: v0, snap: reducedMotion(context),
-      // a spring that starts at or below the top never carries the sheet past it: the overshoot would lift the head under the status bar
-      // (one released from the rubber band, above the top, springs back as it is)
-      onTick: _px > _max + 0.5 ? _jump : (x) => _jump(math.min(x, _max)),
+      // a spring never carries the sheet higher than the top, or than where it started if that was above it (a release from the rubber
+      // band): the overshoot would lift the head under the status bar
+      onTick: (x) => _jump(math.min(x, ceiling)),
       onDone: () {
         if (_target <= widget.min + 0.5 && widget.min == 0) _finishClose();
       },
@@ -323,7 +326,7 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
     _lastY = e.position.dy;
     _g0 = _dsc.isAttached ? _dsc.size * _h + _over.value : _px;
     _y = _g0;
-    _pastTop = _unrubber(_over.value, widget.top); // (a sheet caught on its way back from the rubber band)
+    _pastTop = _unrubber(_over.value, _band); // (a sheet caught on its way back from the rubber band)
     _owned = _pastTop > 0;
     _below = _g0 < _max - 2 || _owned; // M2: from the top, the body scrolls; from below, the finger has the sheet whatever it does
   }
@@ -340,7 +343,7 @@ class _M2SheetState extends State<M2Sheet> with TickerProviderStateMixin {
     if (past <= 0 && !_owned) return;
     _owned = true;
     _pastTop = past > 0 ? past : 0;
-    _y = past > 0 ? _max + sheetRubber(past, widget.top) : (_max + past).clamp(widget.min, _max);
+    _y = past > 0 ? _max + sheetRubber(past, _band) : (_max + past).clamp(widget.min, _max);
     _over.value = _y - (_dsc.isAttached ? _dsc.size * _h : _px);
   }
 
