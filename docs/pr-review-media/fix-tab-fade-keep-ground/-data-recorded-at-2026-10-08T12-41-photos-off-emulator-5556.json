@@ -1,16 +1,16 @@
 {
-  "sha": "7d058f453482611ec162af9f14d97009c1385192",
+  "sha": "37d20042af5d5486546f7055791269ab64e99e03",
   "branch": "fix/tab-fade-keep-ground",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/fix-tab-fade-keep-ground",
   "route": "/?data=recorded&at=2026-10-08T12:41&photos=off",
   "device": "sdk_gphone64_x86_64",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-21T02:35:39Z",
+  "ts": "2026-10-21T03:17:36Z",
   "own": {
-    "app/lib/motion/fade_through.dart": "cb4d24bba1ef9297e64c516f173fa640d518eeb3",
+    "app/lib/motion/fade_through.dart": "fe9b106c711f0897231b1084f8b671d2345cde9f",
     "app/lib/screens/hall/meal_pager.dart": "a2a405b1a23e0e17fa67885fc59ddbb440086045",
-    "app/lib/shell/shell.dart": "9c8c393f88f57b5de949e78bd4f43e9330553074",
+    "app/lib/shell/shell.dart": "7cc4e4e3cd5ec1cfe96c141df1e6e3efe5b95206",
     "app/lib/ui/screen_header.dart": "dabda7e5b2a7f6aabc2e90fa152004a468be397b"
   },
   "argv": [
