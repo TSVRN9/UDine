@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 import '../theme/tokens.dart';
 import '../motion/fade_through.dart';
@@ -34,10 +35,10 @@ class ScreenHeader extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(M2Space.gutter, top + M2Layout.headerPadTop, M2Space.gutter, bottomPad),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         SizedBox(
-          height: M2Layout.brandRowH,
+          height: M2Layout.brandRowH * math.max(1, MediaQuery.textScalerOf(context).scale(1)), // 30 dp at 1.0; the row's text is taller than 30 when it scales
           child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
             if (mark != null) Text(mark!, style: M2Text.brand.normal().style(M2Color.gold) /* `.brand` sets no line-height: the 32.6 dp normal line puts its baseline 3 dp lower than m2.json's 26 */) else if (dateLeft && date != null) Text(date!, style: M2Text.date.style(M2Color.onDm)) else const SizedBox.shrink(),
-            if (!dateLeft && date != null) Text(date!, style: M2Text.date.style(M2Color.onDm)),
+            if (!dateLeft && date != null) Flexible(child: Text(date!, maxLines: 1, overflow: TextOverflow.ellipsis, style: M2Text.date.style(M2Color.onDm))),
           ]),
         ),
         Padding(padding: const EdgeInsets.only(top: M2Layout.titleGap), child: Semantics(header: true, child: Text(title!, style: M2Text.hallTitle.style(M2Color.white)))),

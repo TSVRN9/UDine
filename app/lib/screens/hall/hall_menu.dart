@@ -682,7 +682,7 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
                   builder: (_, _) {
                     final name = c.name, pins = scope.prefs.pins, on = pins.contains(name);
                     return PinButton(pinned: on, onTap: () {
-                      on ? Haptics.selection() : Haptics.light();
+                      Haptics.light(); // M2: light (8) pinning, light (4) unpinning
                       scope.prefs.setPins(on ? [for (final n in pins) if (n != name) n] : [...pins, name]);
                     });
                   },

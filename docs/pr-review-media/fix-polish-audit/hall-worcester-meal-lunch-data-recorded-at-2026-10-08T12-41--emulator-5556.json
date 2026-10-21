@@ -1,0 +1,28 @@
+{
+  "sha": "eabb2891206288a1bb7caba3963791840465e333",
+  "branch": "fix/polish-audit",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/fix-polish-audit",
+  "route": "/hall/worcester?meal=lunch&data=recorded&at=2026-10-08T12:41&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-10-21T05:38:29Z",
+  "own": {
+    "app/lib/motion/routes.dart": "178e21fde2c7ddaff5f1d6215fab74464e4f1d92",
+    "app/lib/screens/hall/dish_row.dart": "3debf512c7a2ec8e21c2f5b6331fe2249437a94b",
+    "app/lib/screens/hall/hall_header.dart": "686fe9bb2f9301c5aa1d7471b16ddf1da0e83a77",
+    "app/lib/screens/hall/hall_menu.dart": "402d3ce0db61bac096c610208d18d53d0c4f42a0",
+    "app/lib/screens/hall/meal_tabs.dart": "f85faa291d5f0738b0d78c962776be58ae8310dd",
+    "app/lib/ui/badge.dart": "d08949b0abb0f5545f0707e5772ba07b8685e4f6",
+    "app/lib/ui/band.dart": "3d66a5e6c90f91f2324ee0c09b70f04b23e6e3e7",
+    "app/lib/ui/chip.dart": "299f5ce135ffccba855cde77348f43e74d2e392b",
+    "app/lib/ui/pin_button.dart": "2baec2a144ca62e1c20b71cbeca0c8cd7e7fa4ac",
+    "app/lib/ui/press.dart": "775cd52abfc7394b9cb60e959c2c12f4912c89d0",
+    "app/lib/ui/screen_header.dart": "e2c4a309bd3215f234b2a487b72fac3f0d48bb48",
+    "app/lib/ui/tab_bar.dart": "18e11be1ba97ead6978d4feec10e6f64056643bb",
+    "app/lib/ui/variant_picker.dart": "8801096eae0ff19e46e401ee578b9563647baafa"
+  },
+  "argv": [
+    "/hall/worcester?meal=lunch&data=recorded&at=2026-10-08T12:41"
+  ]
+}

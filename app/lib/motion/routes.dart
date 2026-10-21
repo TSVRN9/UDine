@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import '../theme/tokens.dart';
+import '../ui/haptics.dart';
 import '../ui/motion.dart';
 import 'container_math.dart';
 import 'container_transform.dart';
@@ -142,6 +143,7 @@ abstract class StackRoute<T> extends PageRoute<T> {
     final c = controller;
     if (c == null || !navigator!.userGestureInProgress) return;
     if (close) {
+      Haptics.light(); // M2: the drag-back commits
       navigator!.pop();
     } else {
       c.animateWith(_Shaped(from: c.value, to: 1, anim: _use(anim)));
@@ -334,11 +336,14 @@ class CardRoute<T> extends StackRoute<T> {
 
 /// Pushes and pops on the nearest Navigator: the app's stack. Every route can be covered by another, to any depth.
 abstract final class Nav {
-  static Future<T?> push<T>(BuildContext context, WidgetBuilder builder) =>
-      Navigator.of(context).push(PushRoute<T>(reduced: reducedMotion(context), builder: builder));
+  static Future<T?> push<T>(BuildContext context, WidgetBuilder builder) {
+    Haptics.light(); // M2: every row into a page
+    return Navigator.of(context).push(PushRoute<T>(reduced: reducedMotion(context), builder: builder));
+  }
 
   /// Opens a card from `band` (global coordinates). `off` is where the band's window into the page's header starts (px).
   static Future<T?> openCard<T>(BuildContext context, {required Object source, required BandHider hider, required Rect band, required double off, required Widget Function(BuildContext, CardPage) builder}) {
+    Haptics.light(); // M2: a band into its hall
     final nav = Navigator.of(context);
     final origin = (nav.context.findRenderObject()! as RenderBox).localToGlobal(Offset.zero);
     return nav.push(CardRoute<T>(reduced: reducedMotion(context), source: source, hider: hider, rect: BandRect(band.top - origin.dy, band.height, off), builder: builder));

@@ -57,14 +57,14 @@ class M2TabBar extends StatelessWidget {
                     child: Press(
                       label: tabs[i].$2, scale: true,
                       onTap: disabled.contains(i) ? null : () { if (i != selected) onSelect(i); },
-                      child: SizedBox(
-                        height: M2Size.tabBar,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: M2Size.tabBar),
                         child: ExcludeSemantics(
-                          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          child: Center(heightFactor: 1, child: Column(mainAxisSize: MainAxisSize.min, children: [
                             CustomPaint(size: const Size(M2Layout.tabIcon, M2Layout.tabIcon), painter: _Icon(tabs[i].$1, i == selected ? M2Color.vm : M2Color.slate)),
                             const SizedBox(height: M2Layout.tabGap),
                             Text(tabs[i].$2, style: M2Text.tabBar.style(i == selected ? M2Color.vm : M2Color.slate)),
-                          ]),
+                          ])),
                         ),
                       ),
                     ),

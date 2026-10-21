@@ -31,7 +31,7 @@ class Badge extends StatelessWidget {
       WidgetSpan(
         alignment: PlaceholderAlignment.baseline, baseline: TextBaseline.alphabetic,
         child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
-          Text(text.substring(i + 1), style: style),
+          Text(text.substring(i + 1), style: style, textScaler: TextScaler.noScaling), // (the paragraph already scales a placeholder's child: scaled here too, the word grows twice)
           if (badge != null)
             Padding(padding: const EdgeInsets.only(left: M2Layout.patchLeft), child: BaselineAt(baseline: M2Layout.patchBaseline, child: badge)),
           if (star != null) BaselineAt(baseline: M2Layout.starBaseline, child: star),

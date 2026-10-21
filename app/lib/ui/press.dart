@@ -56,9 +56,9 @@ class _PressState extends State<Press> {
       },
       onPointerUp: !live ? null : (_) => _set(false),
       onPointerCancel: !live ? null : (_) => _set(false),
-      child: GestureDetector(behavior: HitTestBehavior.opaque, onTap: widget.onTap, child: c),
+      child: GestureDetector(behavior: HitTestBehavior.opaque, excludeFromSemantics: true, onTap: widget.onTap, child: c),
     );
-    if (widget.semantics) out = Semantics(button: true, label: widget.label, onTap: widget.onTap, child: out);
-    return out;
+    // one node per pressable: the detector's own is excluded; `semantics: false` means the caller's wrapper says button and label, the tap action stays here
+    return Semantics(button: widget.semantics, label: widget.label, onTap: widget.onTap, child: out);
   }
 }

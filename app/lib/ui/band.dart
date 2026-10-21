@@ -48,16 +48,18 @@ class Band extends StatelessWidget {
   Widget build(BuildContext context) {
     final h = card ? M2Layout.cardH : compact ? M2Layout.bandCompact : M2Size.band, small = compact || card;
     Widget late(Widget c) => fade == null ? c : FadeTransition(opacity: fade!, child: c);
-    final body = SizedBox(
-      height: h,
+    final body = ConstrainedBox(
+      constraints: BoxConstraints(minHeight: h), // grows only when the text scales past what h holds
       child: ClipRect(
         child: Stack(children: [
           if (!ghost) const Positioned.fill(child: ColoredBox(color: M2Color.vm)),
           ?photo,
           if (!ghost) const Positioned.fill(child: BandGrade()),
           ?letter,
-          Positioned(
-            left: M2Space.gutter, top: card ? M2Layout.cardTextTop : compact ? M2Space.pinTextTop : M2Space.bandTextTop,
+          SizedBox(
+            width: double.infinity,
+            child: Padding(
+            padding: EdgeInsets.only(left: M2Space.gutter, top: card ? M2Layout.cardTextTop : compact ? M2Space.pinTextTop : M2Space.bandTextTop),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               if (star && !ghost)
                 Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -88,6 +90,7 @@ class Band extends StatelessWidget {
                 if (busy != null) late(busy!),
               ],
             ]),
+            ),
           ),
         ]),
       ),
@@ -95,10 +98,7 @@ class Band extends StatelessWidget {
     if (ghost) return IgnorePointer(child: body);
     return Padding(
       padding: const EdgeInsets.only(top: M2Layout.seam),
-      child: Semantics(
-        container: true, button: true, label: [name, if (star) 'Serves a favorite', ?status].join(', '),
-        child: Press(onTap: onTap, overlay: M2Color.pressBand, child: ExcludeSemantics(child: body)),
-      ),
+      child: Press(label: [name, if (star) 'Serves a favorite', ?status].join(', '), onTap: onTap, overlay: M2Color.pressBand, child: ExcludeSemantics(child: body)),
     );
   }
 }
