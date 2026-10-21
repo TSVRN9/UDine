@@ -53,6 +53,13 @@ elif at_cmd 'gh pr create\b'; then
   # Stacked PR: judge the branch against the base it will open against (--base X, --base=X, -B X, -B=X; default main).
   base="$(base_flag)"
   [[ "$base" == gh-pages ]] && exit 0
+  # --head <branch>: gate the worktree that has it checked out. An agent's session cwd can snap back to the main checkout
+  # (2026-10-20, #644), and the gate then judged main's state instead of the agent's branch.
+  head="$(grep -Eo '(--head|-H)[= ] *[^ ;&|]+' <<<"$cmd" | head -1 | sed -E "s/^(--head|-H)[= ] *//; s/^[\"']//; s/[\"']\$//" || true)"
+  if [[ -n $head ]]; then
+    wt="$(git -C "$root" worktree list --porcelain | awk -v b="branch refs/heads/$head" '/^worktree /{w=substr($0,10)} $0==b{print w; exit}')"
+    [[ -n $wt ]] && root="$wt"
+  fi
   out="$(cd "$root" && "$root/scripts/pr-gate.sh" ${base:+--base "$base"} 2>&1)"; rc=$?
   if [[ $rc -ne 0 ]]; then echo "pr-gate failed -- fix before opening the PR:"$'\n'"$out" >&2; exit 2; fi
 fi
