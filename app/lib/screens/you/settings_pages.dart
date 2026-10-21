@@ -1,17 +1,24 @@
 import 'package:flutter/widgets.dart';
 
-import '../../core/m2/board.dart' show MenuItem, M2MenuItem, clockMeal, dishKey, halls;
+import '../../alerts/alert_check.dart' show namesAnd;
+import '../../core/m2/board.dart' show Board, Place, clockMeal, halls, placeName;
+import '../../core/m2/history.dart' show cafeIdsOf;
+import '../../core/m2/places.dart' show Roster;
+import '../../core/m2/where.dart' show notServed, whenText, wherePlan;
+import '../../data/repository.dart' show addDays;
+import '../../data/states.dart' show Loaded, LoadedOffline;
+import '../dish/where_book.dart';
+import '../halls/halls_controller.dart';
+import '../hall/hall_controller.dart' show grabsOf;
 import '../../core/saved_food.dart';
 import '../../core/serving_text.dart';
 import '../dish/food_sheet.dart';
-import '../../core/m2/plate.dart' show hallLabel;
 import '../../core/m2/rank.dart';
 import '../../core/ranking.dart';
 import '../../core/types.dart';
 import '../../shell/app_scope.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
-import '../plate/plate_sheet.dart' show plateBoard;
 import 'favorites_notify.dart';
 import 'you_parts.dart';
 
@@ -72,8 +79,8 @@ class DietPage extends StatelessWidget {
   }
 }
 
-/// Favorites: the dishes starred, each with where it is at lunch today (the halls whose menu carries it, read through the repository's
-/// background prefetch, as Search does; a hall that did not answer is left out).
+/// Favorites: the dishes starred, each with where it is next served: the dish sheet's own sentence (`wherePlan`'s soonest group through
+/// `whenText`, as the alert body says it), read through the same `WhereBook` Search and the sheet use.
 class FavoritesPage extends StatefulWidget {
   const FavoritesPage({super.key, required this.top});
   final double top;
@@ -82,27 +89,39 @@ class FavoritesPage extends StatefulWidget {
 }
 
 class _FavoritesPageState extends State<FavoritesPage> {
-  Map<String, List<String>>? _lunch; // dish key -> the halls (W F H B) serving it at lunch today
+  late final HallsController _hours = HallsController(AppScope.of(context).repo, menus: false)..addListener(_onHours);
+  WhereBook? _book;
 
   @override
   void initState() {
     super.initState();
     AppScope.of(context).alerts.refresh();
-    final repo = AppScope.of(context).repo, day = repo.today;
-    repo.prefetchMenus([for (var t = 1; t <= halls.length; t++) (t, day)]).then((got) {
-      final at = <String, List<String>>{};
-      for (var t = 1; t <= halls.length; t++) {
-        for (final d in got[(t, day)] ?? const <MenuItem>[]) {
-          if (d.mealPeriod == MealPeriod.lunch) (at[d.key] ??= []).add(halls[t - 1]);
-        }
-      }
-      if (mounted) setState(() => _lunch = at);
-    });
+    _onHours();
+  }
+
+  void _onHours() {
+    final repo = AppScope.of(context).repo;
+    final h = switch (_hours.state) { Loaded(:final value) || LoadedOffline(:final value) => value, _ => null };
+    if (_book != null || h == null) return;
+    final roster = Roster.fromFeed(h.feed), today = repo.today;
+    final base = Board(
+      clock: repo.now(),
+      places: [for (var i = 0; i < halls.length; i++) Place(key: halls[i], name: diningHalls[i].name, area: -1), ...roster.cafes],
+      hours: roster.hours, grab: grabsOf(h.feed), days: {today: const {}, addDays(today, 1): const {}}, events: const [],
+    );
+    _book = WhereBook(repo, base, cafeIdsOf(h.feed))..addListener(() => mounted ? setState(() {}) : null);
+  }
+
+  @override
+  void dispose() {
+    _hours.dispose();
+    _book?.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final scope = AppScope.of(context), prefs = scope.prefs, fx = plateBoard(scope.repo.now());
+    final scope = AppScope.of(context), prefs = scope.prefs;
     return SettingsPage(
       top: widget.top,
       title: 'Favorites',
@@ -111,10 +130,11 @@ class _FavoritesPageState extends State<FavoritesPage> {
         builder: (context, _) {
           final f = prefs.favorites.toList();
           if (f.isEmpty) return const Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [NotifyRow(), _Empty("Star a dish from its details and it shows up here, with where it's served today.")]);
+          final fx = _book?.board;
           String? line(String n) {
-            if (n.startsWith('f:')) return null; // (a family is served at cafés, whose menus this page does not read)
-            final at = _lunch?[dishKey(n)];
-            return _lunch == null ? null : at == null ? 'Not on lunch today' : 'At lunch now at ${hallLabel(fx, at)}';
+            if (n.startsWith('f:') || fx == null || !_book!.complete) return null; // (a family is served at cafés, whose menus this page does not read)
+            final plan = wherePlan(fx, n, fx.clock, newton: prefs.charlesRiver);
+            return plan.isEmpty ? notServed : '${whenText(plan.first)}, at ${namesAnd([for (final h in plan.first.halls) placeName(fx, h)])}';
           }
 
           return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [const NotifyRow(), for (final (i, n) in f.indexed) LRow(title: n.startsWith('f:') ? n.substring(2) : n, subtitle: line(n), chevron: false, last: i == f.length - 1)]);

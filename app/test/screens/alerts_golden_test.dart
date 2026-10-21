@@ -21,7 +21,7 @@ void main() {
         await b.prefs.toggleFavorite('Golden BBQ Chicken Thigh');
       });
       await openYou(t, b, w: w, route: '/you/favs');
-      await until(t, () => find.text('At lunch now at Worcester').evaluate().isNotEmpty);
+      await until(t, () => find.textContaining(', at Worcester').evaluate().isNotEmpty);
       if (tap) {
         await t.tap(find.text('Notify me'));
         await wrote(t);

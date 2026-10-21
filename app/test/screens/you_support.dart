@@ -11,8 +11,8 @@ import 'support.dart';
 enum History { none, today, full }
 
 /// The recorded app with `h` already in the log, as an upgraded RN database would hold it.
-Future<Boot> bootYou(WidgetTester t, [History h = History.full, AlertsOs? alertsOs, bool alertsOn = false, bool track = true]) async {
-  final b = await bootRecorded(t, alertsOs: alertsOs, alertsOn: alertsOn, track: track);
+Future<Boot> bootYou(WidgetTester t, [History h = History.full, AlertsOs? alertsOs, bool alertsOn = false, bool track = true, DateTime? at]) async {
+  final b = await bootRecorded(t, alertsOs: alertsOs, alertsOn: alertsOn, track: track, at: at);
   await t.runAsync(() async {
     await b.store!.addEntries([if (h != History.none) ...seedToday, if (h == History.full) ...seedEarlier]);
     await b.log!.reload();

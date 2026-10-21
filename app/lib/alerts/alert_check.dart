@@ -16,7 +16,8 @@ class AlertNotice {
 /// No alert before this hour (local).
 const alertsFromHour = 7;
 
-String _names(List<String> n) => n.length < 2 ? n.join() : '${n.sublist(0, n.length - 1).join(', ')} and ${n.last}';
+/// "A", "A and B", "A, B and C".
+String namesAnd(List<String> n) => n.length < 2 ? n.join() : '${n.sublist(0, n.length - 1).join(', ')} and ${n.last}';
 
 /// Favourited dishes on today's menu in the four halls (the rule shared with TS and Deno), each with every place and time it is still
 /// to be served today in one body. A dish with no serving left (every window has ended) is left out, which is the "never after the
@@ -29,7 +30,7 @@ List<AlertNotice> dueAlerts(Board fx, List<Favorite> favorites, DateTime now, {b
     final plan = wherePlan(fx, name, now, newton: newton).where((g) => g.day == 0).toList();
     if (plan.isEmpty) continue;
     final body = [
-      for (var i = 0; i < plan.length; i++) '${whenText(plan[i], i > 0 ? plan[i - 1] : null)}, at ${_names([for (final h in plan[i].halls) placeName(fx, h)])}',
+      for (var i = 0; i < plan.length; i++) '${whenText(plan[i], i > 0 ? plan[i - 1] : null)}, at ${namesAnd([for (final h in plan[i].halls) placeName(fx, h)])}',
     ].join('\n');
     final slug = diningHalls[halls.indexOf(plan.first.halls.first)].slug;
     out.add(AlertNotice(name, body, Uri(path: '/hall/$slug', queryParameters: {'meal': plan.first.meal, 'day': day, 'dish': name}).toString()));

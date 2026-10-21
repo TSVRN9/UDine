@@ -136,3 +136,6 @@ int boardDay(Board fx, WhereGroup g) {
   final i = fx.days.keys.toList().indexOf(g.iso);
   return i < 0 ? g.day : i;
 }
+
+/// What the dish sheet says of a dish with no group left today or tomorrow.
+const notServed = 'Not on the menu again today or tomorrow';
