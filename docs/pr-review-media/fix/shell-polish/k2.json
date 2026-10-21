@@ -1,0 +1,27 @@
+{
+  "sha": "877778765ebf0ff4082ffbb0b35dd781a2c1def4",
+  "branch": "fix/shell-polish",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/fix-shell-polish",
+  "route": "/plate?seed=one&data=recorded&at=2026-10-08T12:41&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-10-21T05:34:57Z",
+  "own": {
+    "app/lib/screens/dish/dish_sheet.dart": "2cc1ad84fab46fa9e96135cc6f2da167c11ce37a",
+    "app/lib/shell/shell.dart": "fbc14571edef7f86b4599211fc82a11fc83ec196",
+    "app/lib/shell/shell_scope.dart": "189f55aa2f48f8c7517ad63dc8b139b94c013f02",
+    "app/lib/theme/layout.dart": "9f3eb8b8274eb49d4efbe4e00e9b8c101d90c971",
+    "app/lib/ui/sheet.dart": "faea05f8122cf1709be9b32998763807d7a370e7"
+  },
+  "argv": [
+    "/plate?seed=one&data=recorded&at=2026-10-08T12:41",
+    "--tap",
+    "540",
+    "1760",
+    "--settle",
+    "4",
+    "--out",
+    "docs/pr-review-media/fix/shell-polish/k2.png"
+  ]
+}
