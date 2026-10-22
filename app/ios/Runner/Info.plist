@@ -32,6 +32,8 @@
 	<false/>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>UDine writes the meals you log to Apple Health. It never reads from Health.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
