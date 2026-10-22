@@ -15,7 +15,7 @@ Widget? bandPhoto(BandVM b, double top) {
 }
 
 /// The page a band opens into: the hall's menu (`HallMenu`) hung from the band's photo by the container transform, its letter, title,
-/// status line and busy meter travelling from where the card drew them (M2 R13 §4), and Back. A café with dishes is the same page.
+/// status line and busy meter travelling from where the card drew them (the letter comes in with the page) (M2 R13 §4), and Back. A café with dishes is the same page.
 class HallPage extends StatefulWidget {
   const HallPage({super.key, required this.band, required this.page, required this.top, this.card = false});
   final BandVM band;
@@ -30,7 +30,7 @@ class HallPage extends StatefulWidget {
 
 class _HallPageState extends State<HallPage> {
   final _menu = GlobalKey<HallMenuState>();
-  late final _parts = BandParts(hasLetter: !widget.band.isCafe && !widget.card, hasStatus: widget.band.status?.isNotEmpty ?? false, hasMeter: widget.band.lamps != null);
+  late final _parts = BandParts(hasLetter: false, hasStatus: widget.band.status?.isNotEmpty ?? false, hasMeter: widget.band.lamps != null);
 
   @override
   void initState() {
@@ -48,7 +48,6 @@ class _HallPageState extends State<HallPage> {
         ghost: Band(
           ghost: true, compact: cafe, card: widget.card, name: b.name, status: b.status, parts: _parts,
           busy: b.lamps == null ? null : widget.card ? Meter(key: _parts.meter, lit: b.lamps!) : BusyRow(lamps: b.lamps!, word: b.word!, meterKey: _parts.meter),
-          letter: cafe || widget.card ? null : HallLetter(key: _parts.letter, letter: b.key, x: hallLx[b.key]!),
         ),
         parts: _parts, seedStatus: b.status, seedBusy: b.lamps == null ? null : (lamps: b.lamps!, word: b.word!, extra: b.hasExtra),
       ),
