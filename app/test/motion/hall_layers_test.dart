@@ -39,9 +39,10 @@ void main() {
       }
       counts[want] = offscreenLayers(t.binding.renderViews.first.debugLayer!);
     }
-    // M2 R13 §4: at most 3 a frame while it runs. The photo's duotone is the third (see the Photo test below; the page draws none here, so
-    // the budget left for everything else is 3: the back button's fade, the busy board's and the header letter's, which now comes in
-    // with the page since the band carries none).
+    // M2 R13 §4: at most 3 a frame while it runs. This bound is photos-off only: the photo's duotone is a further layer when photos are on
+    // (main already counted {4,6,6,4} there; this change makes it {4,7,7,4}, the overshoot being pre-existing). Photos off, the budget is 3:
+    // the back button's fade, the busy board's, and the header letter's fade, which comes in with the page now that the band carries no
+    // letter (the same layer Search's card path draws).
     for (final n in counts.values) {
       expect(n, lessThanOrEqualTo(3), reason: 'offscreen layers by p: $counts');
     }

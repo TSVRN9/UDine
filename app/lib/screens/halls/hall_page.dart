@@ -15,7 +15,7 @@ Widget? bandPhoto(BandVM b, double top) {
 }
 
 /// The page a band opens into: the hall's menu (`HallMenu`) hung from the band's photo by the container transform, its letter, title,
-/// status line and busy meter travelling from where the card drew them (the letter comes in with the page) (M2 R13 §4), and Back. A café with dishes is the same page.
+/// status line and busy meter travelling from where the card drew them (M2 R13 §4), and Back. The letter is not carried (the band has none): the header's comes in with the page. A café with dishes is the same page.
 class HallPage extends StatefulWidget {
   const HallPage({super.key, required this.band, required this.page, required this.top, this.card = false});
   final BandVM band;
