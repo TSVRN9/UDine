@@ -7,9 +7,11 @@ plugins {
     id("com.google.gms.google-services") // reads google-services.json (both packages: one file serves both flavors)
 }
 
-// The internal flavor signs with the key outside the repo (app/tool/build-internal-android.sh); without it, it keeps Flutter's debug key.
-val internalKey = file("${System.getProperty("user.home")}/.config/udine/key.properties").takeIf { it.exists() }
+// Each flavor signs with its key outside the repo: internal (app/tool/build-internal-android.sh) and store, Play's upload key
+// (app/tool/build-store-android.sh); without one, that flavor keeps Flutter's debug key.
+fun keyProps(name: String) = file("${System.getProperty("user.home")}/.config/udine/$name").takeIf { it.exists() }
     ?.let { f -> Properties().apply { f.inputStream().use { load(it) } } }
+val keys = mapOf("internal" to keyProps("key.properties"), "store" to keyProps("store-key.properties"))
 
 android {
     namespace = "com.udinetogether.udine"
@@ -34,11 +36,11 @@ android {
     }
 
     signingConfigs {
-        if (internalKey != null) create("internal") {
-            storeFile = file(internalKey.getProperty("storeFile"))
-            storePassword = internalKey.getProperty("storePassword")
-            keyAlias = internalKey.getProperty("keyAlias")
-            keyPassword = internalKey.getProperty("keyPassword")
+        for ((name, key) in keys) if (key != null) create(name) {
+            storeFile = file(key.getProperty("storeFile"))
+            storePassword = key.getProperty("storePassword")
+            keyAlias = key.getProperty("keyAlias")
+            keyPassword = key.getProperty("keyPassword")
         }
     }
 
@@ -66,10 +68,10 @@ android {
     }
 }
 
-// A build type's signing config outranks a flavor's, and Flutter's profile type inherits debug's: set it on the internal variants instead.
+// A build type's signing config outranks a flavor's, and Flutter's profile type inherits debug's: set it on each flavor's variants instead.
 androidComponents {
-    onVariants(selector().withFlavor("channel" to "internal")) { v ->
-        if (internalKey != null) v.signingConfig.setConfig(android.signingConfigs.getByName("internal"))
+    for ((name, key) in keys) onVariants(selector().withFlavor("channel" to name)) { v ->
+        if (key != null) v.signingConfig.setConfig(android.signingConfigs.getByName(name))
     }
 }
 

@@ -1,0 +1,45 @@
+# Builds the Flutter app (app/) for iOS on a macOS runner and uploads it to TestFlight. Manual only: `gh workflow run testflight.yml`.
+# There is no Mac in the project; this is the iOS build. Secrets: ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY (the App Store Connect API
+# key EAS submit used, mobile/AuthKey_*.p8), IOS_DIST_KEY (the private key of this workflow's distribution certificate, which
+# fetch-signing-files creates on first run) and PHOTOS_DEPLOY_KEY (read-only key to the private photos repo: UMass's photos ship in
+# the app but never go in this public repo).
+name: TestFlight
+on:
+  workflow_dispatch:
+jobs:
+  ios:
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      APP_STORE_CONNECT_KEY_IDENTIFIER: ${{ secrets.ASC_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+      CERTIFICATE_PRIVATE_KEY: ${{ secrets.IOS_DIST_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: TSVRN9/udine-photos
+          ssh-key: ${{ secrets.PHOTOS_DEPLOY_KEY }}
+          path: photos
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.8
+          channel: stable
+          cache: true
+      - run: pipx install codemagic-cli-tools
+      - name: Signing
+        working-directory: app
+        run: |
+          keychain initialize
+          app-store-connect fetch-signing-files com.udinetogether.udine --type IOS_APP_STORE --create
+          keychain add-certificates
+          xcode-project use-profiles
+      - name: Build
+        working-directory: app
+        run: |
+          tool/link_photos.sh "$GITHUB_WORKSPACE/photos"
+          n=$(($(app-store-connect get-latest-testflight-build-number 6809176937) + 1))
+          flutter build ipa --release --build-number "$n" --export-options-plist="$HOME/export_options.plist"
+      - name: Upload to TestFlight
+        run: app-store-connect publish --path app/build/ios/ipa/*.ipa
