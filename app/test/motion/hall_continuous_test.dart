@@ -57,7 +57,8 @@ void main() {
     Finder within(Finder f) => find.descendant(of: band, matching: f);
     final texts = within(find.byType(Text)).evaluate().map((e) => e.widget as Text).toList();
     expect(texts.length, greaterThanOrEqualTo(2), reason: 'the band has a name and a status');
-    return Shared(t.getRect(within(find.byType(HallLetter))), t.getRect(within(find.text(name))), t.getRect(within(find.text(texts[1].data!))), t.getRect(within(find.byType(Meter))));
+    expect(within(find.byType(HallLetter)), findsNothing, reason: 'a home band draws no letter');
+    return Shared(Rect.zero, t.getRect(within(find.text(name))), t.getRect(within(find.text(texts[1].data!))), t.getRect(within(find.byType(Meter))));
   }
 
   Shared header(WidgetTester t, String name, String status) {
@@ -70,14 +71,16 @@ void main() {
     final p = t.widget<HallMenu>(find.byType(HallMenu)).progress.value, now = header(t, name, status);
     Finder within(Finder f) => find.descendant(of: find.byType(HallHeader), matching: f);
     final finders = [within(find.byType(HallLetter)).first, within(find.text(name)).last, within(find.text(status)).last, within(find.byType(Meter)).last];
-    for (var i = 0; i < 4; i++) {
+    // no band letter to carry: the header's comes in with the page
+    if (opaque) expect(opacityAbove(t, finders[0]), closeTo(incomingOpacity(p), 0.01), reason: '$at (p $p): the letter comes in with the page');
+    for (var i = 1; i < 4; i++) {
       final k = ['letter', 'title', 'status', 'meter'][i];
       // (`home` is where the page settled, measured on its own earlier open: never what the element reports it is drawing toward)
       final want = lerpRect(from.all[i], home.all[i], p);
       if (opaque) expect(opacityAbove(t, finders[i]), 1, reason: '$at (p $p): the $k is never faded');
       final tx = finders[i].evaluate().first.widget;
       if (opaque && i == 1 && tx is Text) expect(tx.style!.color!.a, 1, reason: '$at (p $p): the $k text is opaque');
-      // the letter and the title scale from the card's size; the status and the meter keep their own
+      // the title scales from the card's size; the status and the meter keep their own
       final scaled = i < 2;
       expect((now.all[i].left - want.left).abs(), lessThan(1.5), reason: '$at (p $p): the $k is on the line from the card (x ${now.all[i].left} vs ${want.left})');
       expect((now.all[i].top - want.top).abs(), lessThan(1.5), reason: '$at (p $p): the $k is on the line from the card (y ${now.all[i].top} vs ${want.top})');

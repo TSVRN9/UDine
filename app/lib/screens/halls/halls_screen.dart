@@ -145,7 +145,6 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
           name: b.name, compact: cafe, status: b.status, star: b.star, fade: _arrive,
           photo: bandPhoto(b, widget.top),
           busy: b.lamps == null ? null : BusyRow(lamps: b.lamps!, word: b.word!),
-          letter: cafe ? null : HallLetter(letter: b.key, x: hallLx[b.key]!),
           onTap: () => _open(b),
         ),
       ),
