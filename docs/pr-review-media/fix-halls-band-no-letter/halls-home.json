@@ -1,19 +1,21 @@
 {
-  "sha": "d9e0cc207f1d76e8e3cd60ff6f329957545aee4b",
-  "branch": "fix/halls-band-no-letter",
+  "sha": "e3221f25c90d21737952c76a27ed62081eb3ea23",
+  "branch": "HEAD",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/fix-halls-band-no-letter",
   "route": "/halls?data=recorded&at=2026-10-08T12:41&photos=off",
   "device": "sdk_gphone64_x86_64",
   "stress": "",
   "dirty": false,
-  "ts": "2026-10-22T04:38:25Z",
+  "ts": "2026-10-22T05:17:19Z",
   "own": {
-    "app/lib/screens/halls/hall_page.dart": "15a670f0080c248bf38b301b10d989ae0ccd01a3",
+    "app/lib/screens/halls/hall_page.dart": "ff0304eaf81cf3983ccbc0e8809351fbdafd090f",
     "app/lib/screens/halls/halls_screen.dart": "96c7e5886e71594e0f2e708dfd5331fc275cd019"
   },
   "argv": [
     "/halls?data=recorded&at=2026-10-08T12:41",
     "--out",
-    "docs/pr-review-media/fix/halls-band-no-letter/halls-home.png"
+    "docs/pr-review-media/fix/halls-band-no-letter/halls-home.png",
+    "--out",
+    "docs/pr-review-media/fix-halls-band-no-letter/halls-home.png"
   ]
 }
