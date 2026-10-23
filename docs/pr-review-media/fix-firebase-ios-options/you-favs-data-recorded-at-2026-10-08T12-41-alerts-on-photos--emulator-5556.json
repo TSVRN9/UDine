@@ -1,0 +1,16 @@
+{
+  "sha": "703e8d890277c5c67a0ef0f6f2b6bedc78ae24ba",
+  "branch": "fix/firebase-ios-options",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/firebase-ios",
+  "route": "/you/favs?data=recorded&at=2026-10-08T12:41&alerts=on&photos=off&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-10-23T17:05:31Z",
+  "own": {
+    "app/lib/alerts/push_firebase.dart": "e75badf11a087a3d0dbe0528e34affb8f4dac896"
+  },
+  "argv": [
+    "/you/favs?data=recorded&at=2026-10-08T12:41&alerts=on&photos=off"
+  ]
+}
