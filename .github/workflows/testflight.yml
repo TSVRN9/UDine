@@ -1,7 +1,7 @@
 # Builds the Flutter app (app/) for iOS on a macOS runner and uploads it to TestFlight. Manual only: `gh workflow run testflight.yml`.
 # There is no Mac in the project; this is the iOS build. Secrets: ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY (the App Store Connect API
-# key EAS submit used, mobile/AuthKey_*.p8), IOS_DIST_KEY (the private key of this workflow's distribution certificate, which
-# fetch-signing-files creates on first run) and PHOTOS_DEPLOY_KEY (read-only key to the private photos repo: UMass's photos ship in
+# key EAS submit used, mobile/AuthKey_*.p8), IOS_DIST_KEY (an RSA private key, PEM, generated once by the
+# owner; fetch-signing-files --create makes the distribution certificate for it on first run) and PHOTOS_DEPLOY_KEY (read-only key to the private photos repo: UMass's photos ship in
 # the app but never go in this public repo).
 name: TestFlight
 on:
