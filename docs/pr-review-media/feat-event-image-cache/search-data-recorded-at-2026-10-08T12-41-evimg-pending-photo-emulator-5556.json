@@ -1,0 +1,27 @@
+{
+  "sha": "62bbfb692e8120dca0a490e0242dd9dfb0a5950c",
+  "branch": "feat/event-image-cache",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/event-images",
+  "route": "/search?data=recorded&at=2026-10-08T12:41&evimg=pending&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-11-06T04:26:28Z",
+  "own": {
+    "app/lib/boot.dart": "cc789aa507a4c81fdb0bd1a3a6ed8471f80c4389",
+    "app/lib/data/pdf_cache.dart": "c90f68e0de8e94473986e29db5fef42ee1a9e548",
+    "app/lib/data/recorded/flags.dart": "663ae37c285bfc0cbb3778a73385a15b7973c6d4",
+    "app/lib/data/recorded/recorded.dart": "1fee2f70ecf3e7619feaf4712af9a57087a492ad",
+    "app/lib/data/repository.dart": "605b82fa1c8ec6a9939203b326d17b73e6efc2a4",
+    "app/lib/screens/event/event_banner.dart": "33dbeea8235b6bb1d9508fd35ae4cd0f418c6ef5",
+    "app/lib/screens/event/event_page.dart": "ffa52699c15f45cc17f72d68e36e82b1bc3486b1",
+    "app/lib/screens/search/events.dart": "f68a2789758a26f54440e0b5d945021289ef93f9",
+    "app/lib/theme/layout.dart": "2a0f415820aeb72bfd2f2d082edec611a5a9467d",
+    "app/lib/ui/photo.dart": "158049432a4641081b8b799985c52cce04cbba0a"
+  },
+  "argv": [
+    "/search?data=recorded&at=2026-10-08T12:41&evimg=pending",
+    "--record",
+    "3"
+  ]
+}
