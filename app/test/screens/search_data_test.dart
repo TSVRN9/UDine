@@ -89,9 +89,7 @@ void main() {
     final c = SearchController(repo, prefs, plate, packaged: r.packaged, lookupSource: r.lookup);
     addTearDown(c.dispose);
     await ready(c);
-    c.setQuery('chick');
-    await Future<void>.delayed(const Duration(milliseconds: 100));
-    var old = c.result;
+    final old = c.result;
     final seen = <bool>[];
     c.addListener(() {
       seen.add(!identical(c.result, old));
