@@ -604,11 +604,19 @@ class HallMenuState extends State<HallMenu> with TickerProviderStateMixin {
         Positioned.fill(
           child: AnimatedBuilder(
             animation: Listenable.merge([p, _arrive, _dayFade, _flash]),
+            // M2 round 15 §1: the list's chalk arrives with the list over the card's maroon (a veil of maroon, not a layer); the day and arrival
+            // fades are chalk over chalk as before.
             builder: (_, c) => ChalkFade(
-              key: const ValueKey('fade-list'), opacity: (incomingOpacity(p.value) * _arrive.value * _dayFade.value * _flash.value).clamp(0.0, 1.0),
-              child: Transform.scale(
-                key: const ValueKey('day-scale'), alignment: Alignment(0, (_pin + (h - _pin) / 2) / h * 2 - 1),
-                scale: _dayIn && !reducedMotion(context) ? M2Motion.fadeThroughScale + (1 - M2Motion.fadeThroughScale) * _dayFade.value : 1.0, child: c,
+              key: const ValueKey('fade-open'), opacity: incomingOpacity(p.value).clamp(0.0, 1.0), ground: M2Color.dm,
+              child: ColoredBox(
+                color: M2Color.chalk,
+                child: ChalkFade(
+                  key: const ValueKey('fade-list'), opacity: (_arrive.value * _dayFade.value * _flash.value).clamp(0.0, 1.0),
+                  child: Transform.scale(
+                    key: const ValueKey('day-scale'), alignment: Alignment(0, (_pin + (h - _pin) / 2) / h * 2 - 1),
+                    scale: _dayIn && !reducedMotion(context) ? M2Motion.fadeThroughScale + (1 - M2Motion.fadeThroughScale) * _dayFade.value : 1.0, child: c,
+                  ),
+                ),
               ),
             ),
             child: SharedAxisLayer(
@@ -745,14 +753,17 @@ class _FadeProduct extends Animation<double> with AnimationLocalListenersMixin, 
 /// pixels (the screen's ground is chalk), without compositing the whole scroll view into an offscreen texture on every frame of the
 /// container transform.
 class ChalkFade extends StatelessWidget {
-  const ChalkFade({super.key, required this.opacity, required this.child});
+  const ChalkFade({super.key, required this.opacity, required this.child, this.ground = M2Color.chalk});
   final double opacity;
+
+  /// What it fades into (chalk unless the surface under it is not).
+  final Color ground;
   final Widget child;
   @override
   Widget build(BuildContext context) => opacity >= 1
       ? child
       : Stack(fit: StackFit.passthrough, children: [
           child,
-          if (opacity > 0) Positioned.fill(child: IgnorePointer(child: ColoredBox(color: M2Color.chalk.withValues(alpha: 1 - opacity)))) else Positioned.fill(child: IgnorePointer(child: ColoredBox(color: M2Color.chalk))),
+          if (opacity > 0) Positioned.fill(child: IgnorePointer(child: ColoredBox(color: ground.withValues(alpha: 1 - opacity)))) else Positioned.fill(child: IgnorePointer(child: ColoredBox(color: ground))),
         ]);
 }

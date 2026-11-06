@@ -1423,6 +1423,18 @@ im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('RGB'); d=list(im.get
       const x1 = await at(.1), x5 = await at(.5);
       assert(x1.bzx < .01 && x1.sch < .01 && x5.bzx > .3 && x5.bzx < 1 && f.bzx === 1, 'what the header adds (the "Calmer around" line, the chevron) crossfades in on top of the travelling element');
     });
+    await scen('round 15: under a growing band card the ground is the deep maroon until the list\'s chalk fades in (no white bar below the station row), and the list arrives with its own chalk', async () => {
+      await go(); await page.waitForTimeout(300);
+      await ev(() => { const b = document.querySelector('#bands .band[data-h=F]'); openHall('F', false, b); cancelAnimationFrame(xfRaf); });
+      const at = p => ev(p => { XP = p; paint(p, 0); return { bg: getComputedStyle(document.getElementById('mcont')).backgroundColor, list: +getComputedStyle(document.getElementById('mscroll')).opacity }; }, p);
+      for (const p of [0, .1, .2, .3, .5, .8, .95]) { const r = await at(p);
+        assert.equal(r.bg, 'rgb(59, 10, 15)', 'p ' + p + ': the container surface is the deep maroon, not chalk (' + r.bg + ')'); }
+      const m = await at(.5), e = await at(1);
+      assert(m.list > 0 && m.list < 1, 'p .5: the list (and its chalk) is part way in: ' + m.list);
+      assert.equal(e.list, 1, 'p 1: the list is whole');
+      await ev(() => { XP = 1; paint(1, 0); });
+      assert.equal(await ev(() => getComputedStyle(document.getElementById('mcont')).backgroundColor), 'rgb(248, 249, 251)', 'at rest the menu is chalk');
+    });
     await scen('a busy reading that lands late: the title and the letter stay put, the block grows in below, the tabs and the list ride down; loaded titles keep M2\'s positions', async () => {
       const m = () => ev(() => { const r = e => { const q = document.querySelector(e).getBoundingClientRect(); return [Math.round(q.left * 10) / 10, Math.round(q.top * 10) / 10]; }; return { nm: r('#mtn'), let: r('#mlet'), tabs: r('#mtabs'), list: r('#mlist .row') }; });
       const loaded = {}; for (const h of ['W', 'F', 'H', 'B']) { await go('?state=menu&hall=' + h); await page.waitForTimeout(500); loaded[h] = await m(); }

@@ -53,7 +53,7 @@ the cause was in the frames, not where the code suggested).
 Common lanes: `cd app && flutter analyze && tool/test.sh test/motion <touched test dirs>`, recordings via
 `app/tool/screenshot.sh --record` (one emulator via `emu.lock`, Gradle via `heavy.lock`).
 
-1. **Hall card open/close.** Files: `app/lib/motion/container_transform.dart`, `container_math.dart`, `routes.dart`,
+1. **Hall card open/close.** Artifact named (emulator, `main` 7ece956d, 60 fps): a hard white bar under the station row at p of about .1 to .4, on open (`base-back-f/f-011`, `f-012`) and on close (`pb-commit-f/f-072`, `f-073`). Cause: the container surface was opaque chalk (`#mcont`) while the list fades in over p .2 to .8. Owner decision 2026-11-05: "maroon until the list fades in" (M2 round 15 §1). The ~3 px title shift before the card expands is the shared-element travel starting (frames identical until `lateStart` releases), not a defect. Files: `app/lib/motion/container_transform.dart`, `container_math.dart`, `routes.dart`,
    `app/lib/screens/halls/` — lanes: common — blocked by: none — PR:
 2. **Tab fade-through.** Files: `app/lib/motion/fade_through.dart`, `app/lib/shell/shell.dart` — lanes: common —
    blocked by: `search-first-class` Task 1 (per-tab stacks change what sits under the fade) — PR:

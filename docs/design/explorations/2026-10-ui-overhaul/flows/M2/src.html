@@ -182,7 +182,7 @@ button:focus-visible,input:focus-visible,.band:focus-visible{outline:3px solid v
 
 /* ---------- hall menu ---------- */
 #menu{position:absolute;inset:0;z-index:5}
-/* container transform: the opaque container surface, and the source's content drawn inside it while it fades out */
+/* container transform: the container surface (chalk at rest; under a growing band card it is the stack's deep maroon until the list's chalk fades in, round 15), and the source's content drawn inside it while it fades out */
 #mcont{position:absolute;inset:0;background:var(--chalk)}
 #mghost{position:absolute;left:0;right:0;top:0;pointer-events:none;z-index:4}
 #mghost.gband{overflow:hidden;background:var(--vm);color:#fff;text-align:left}
@@ -1621,7 +1621,8 @@ function changeDay(i){
    transform below. From anything else (a Search result, a café row, a dish's "where") it is pushed (navPush).
    Container transform (Material container transform / App Store zoom): the tapped band grows into the full screen; back is the same frames
    reversed, and can be scrubbed by the finger. One progress p drives every element (p 0 = the source, 1 = the screen).
-   - The container window grows from the source's rect to the full screen; inside it the chalk surface is opaque.
+   - The container window grows from the source's rect to the full screen; inside it the ground is opaque: the stack's deep maroon under a band's card (round 15: the list's chalk
+     arrives with the list, over p .2 to .8), chalk under a row's.
    - The hall photo is the shared element (band sources): the screen's layer is offset so the photo stays where the
      band showed it, and its duotone develops into colour. From a row (no shared photo) the hall lies still under the window.
    - Outgoing content (the band's letter and text, or the row) fades out over p 0-.3; everything incoming (header text,
@@ -1638,6 +1639,7 @@ function paint(p,y){
   const sh=X.band && X.sh && p<1-1e-4 ? X.sh : null;   // the shared elements are travelling
   const WT=X.T*q, WB=H-q*(H-X.T-X.BH), ty=X.y0*q, hy=ty-d;   // the container window [WT, WB]; the screen layer's offset
   E.mcont.style.clipPath = open ? `inset(${WT}px 0 ${H-WB}px 0)` : 'none';
+  E.mcont.style.background = open && X.band ? 'var(--dm)' : '';   // round 15: maroon until the list fades in; chalk (the sheet's own) once p is 1 and at rest
   E.mhead.style.transform=`translate3d(0,${hy}px,0)`;
   E.mhead.style.clipPath= open ? `inset(${Math.max(0,WT-hy)}px 0 ${Math.max(0,HH-(WB-hy))}px 0)` : 'none';
   E.phw.style.transformOrigin='50% 0';

@@ -111,7 +111,7 @@ class BackSwipeRecognizer extends OneSequenceGestureRecognizer {
   String get debugDescription => 'back swipe';
 }
 
-/// The window and the layer: the container surface (chalk) clipped to [WT, WB], and `child` (the screen, `height` tall) hung
+/// The window and the layer: the container surface (the stack's deep maroon, M2 round 15 §1: the page's own chalk arrives with its list) clipped to [WT, WB], and `child` (the screen, `height` tall) hung
 /// from its photo. Paint only; the screen is laid out once.
 class ContainerWindow extends StatelessWidget {
   final Animation<double> progress;
@@ -126,7 +126,7 @@ class ContainerWindow extends StatelessWidget {
     return ClipRect(
       clipper: _WindowClipper(progress, r, height),
       child: ColoredBox(
-        color: M2Color.chalk,
+        color: M2Color.dm,
         child: AnimatedBuilder(
           animation: progress,
           child: SizedBox(height: height, child: child),
