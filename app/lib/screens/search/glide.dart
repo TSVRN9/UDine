@@ -1,3 +1,4 @@
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../theme/tokens.dart';
@@ -19,7 +20,7 @@ class GlideTracker {
     _before.clear();
     for (final e in _live.entries) {
       final t = e.value._top;
-      if (t != null) _before[e.key] = t;
+      if (t != null) _before[e.key] = t + e.value._shift;
     }
     _armed = true;
   }
@@ -42,18 +43,27 @@ class _GlideState extends State<Glide> with SingleTickerProviderStateMixin {
   double _dy = 0;
   bool _fade = false;
   late bool _arrives;
+  // The old place of a row redrawn for a new result, until the first paint of it: that paint measures the move and draws the row back at
+  // the old place, so no frame shows it at the new one (a post-frame measure drew one frame there first).
+  double? _from;
+  bool _going = false;
+  // (read in didChangeDependencies: paint may not look up the tree)
+  late Anim _a;
+  late bool _reduced;
 
+  /// where the row is laid out, and how far it is drawn from there now
   double? get _top {
     final o = context.findRenderObject();
     return o is RenderBox && o.attached && o.hasSize ? o.localToGlobal(Offset.zero).dy : null;
   }
 
+  double get _shift => _dy == 0 ? 0 : _dy * (1 - _a.curve.transform(_going ? _c.value : 0));
+
   void _run({required double dy, required bool fade}) {
-    final a = resolveAnim(context, M2Motion.settle);
-    _dy = reducedMotion(context) ? 0 : dy;
+    _dy = _reduced ? 0 : dy;
     _fade = fade;
     _c
-      ..duration = a.duration
+      ..duration = _a.duration
       ..forward(from: 0);
   }
 
@@ -69,6 +79,8 @@ class _GlideState extends State<Glide> with SingleTickerProviderStateMixin {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _a = resolveAnim(context, M2Motion.settle);
+    _reduced = reducedMotion(context);
     if (_arrives) {
       _arrives = false;
       _run(dy: 0, fade: true); // from the first frame, so the row never shows at full opacity first
@@ -80,12 +92,21 @@ class _GlideState extends State<Glide> with SingleTickerProviderStateMixin {
     super.didUpdateWidget(old);
     if (widget.generation == _gen) return;
     _gen = widget.generation;
+    _from = widget.tracker._before[widget.id];
+    WidgetsBinding.instance.addPostFrameCallback((_) => _from = null);
+  }
+
+  /// Called by the row's first paint after a redraw, with where it is laid out now.
+  void _moved(double to) {
+    final from = _from;
+    _from = null;
+    if (from == null || (from - to).abs() <= 1) return;
+    _dy = _reduced ? 0 : from - to;
+    _going = false;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final from = widget.tracker._before[widget.id], to = _top;
-      if (from != null && to != null && (from - to).abs() > 1) {
-        _run(dy: from - to, fade: false);
-      }
+      _going = true;
+      _run(dy: _dy, fade: false);
     });
   }
 
@@ -97,13 +118,47 @@ class _GlideState extends State<Glide> with SingleTickerProviderStateMixin {
   }
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-        animation: _c,
-        child: widget.child,
-        builder: (_, child) {
-          if (_c.value >= 1) return child!;
-          final t = resolveAnim(context, M2Motion.settle).curve.transform(_c.value);
-          return Transform.translate(offset: Offset(0, _dy * (1 - t)), child: _fade ? Opacity(opacity: t, child: child) : child);
-        },
+  Widget build(BuildContext context) => _Shift(
+        state: this,
+        child: AnimatedBuilder(
+          animation: _c,
+          child: widget.child,
+          builder: (_, child) {
+            if (_c.value >= 1 || !_fade) return child!;
+            return Opacity(opacity: _a.curve.transform(_c.value), child: child);
+          },
+        ),
       );
+}
+
+/// Draws its child [_GlideState._shift] away from where it is laid out, and tells the state where that is on a redrawn row's first paint.
+class _Shift extends SingleChildRenderObjectWidget {
+  const _Shift({required this.state, super.child});
+  final _GlideState state;
+  @override
+  RenderObject createRenderObject(BuildContext context) => _RenderShift(state);
+  @override
+  void updateRenderObject(BuildContext context, _RenderShift r) => r
+    ..state = state
+    ..markNeedsPaint(); // (a row's own layer is not repainted when only its place changed, and this paint is what measures the place)
+}
+
+class _RenderShift extends RenderProxyBox {
+  _RenderShift(this.state) {
+    state._c.addListener(markNeedsPaint);
+  }
+  _GlideState state;
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    if (state._from != null) state._moved(localToGlobal(Offset.zero).dy);
+    super.paint(context, offset + Offset(0, state._shift));
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
+      result.addWithPaintOffset(offset: Offset(0, state._shift), position: position, hitTest: (r, p) => child?.hitTest(r, position: p) ?? false);
+
+  @override
+  void applyPaintTransform(RenderBox child, Matrix4 transform) => transform.translateByDouble(0, state._shift, 0, 1);
 }

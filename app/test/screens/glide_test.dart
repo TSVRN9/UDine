@@ -39,4 +39,33 @@ void main() {
       await t.pump(const Duration(milliseconds: 16));
     }
   });
+
+  testWidgets('a row that moves is drawn at its old place in the first frame it is laid out at the new one, then glides', (t) async {
+    final tracker = GlideTracker();
+    var ids = ['a', 'b', 'c'];
+    var gen = 0;
+    Widget list() => Directionality(
+          textDirection: TextDirection.ltr,
+          child: MediaQuery(
+            data: const MediaQueryData(),
+            child: ListView(children: [for (final id in ids) SizedBox(key: ValueKey(id), height: 100, child: Glide(id: id, tracker: tracker, generation: gen, child: Text(id)))]),
+          ),
+        );
+    await t.pumpWidget(list());
+    expect(t.getTopLeft(find.text('c')).dy, 200);
+    tracker.snapshot(ids);
+    ids = ['b', 'c']; // 'a' leaves: b and c move up 100
+    gen++;
+    await t.pumpWidget(list());
+    expect(t.getTopLeft(find.text('c')).dy, 200, reason: 'frame 0 is at the old place');
+    final seen = <double>[];
+    for (var f = 0; f < 20; f++) {
+      await t.pump(const Duration(milliseconds: 16));
+      seen.add(t.getTopLeft(find.text('c')).dy);
+    }
+    expect(seen.reduce((a, b) => a < b ? a : b), 100, reason: 'comes to rest at the new place');
+    for (var f = 1; f < seen.length; f++) {
+      expect(seen[f], lessThanOrEqualTo(seen[f - 1]), reason: 'frame ${f + 1} never goes back');
+    }
+  });
 }
