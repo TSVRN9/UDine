@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:udine/core/hours.dart';
 import 'package:udine/core/m2/search.dart';
+import 'package:udine/data/recorded/flags.dart';
 import 'package:udine/data/recorded/recorded.dart';
 import 'package:udine/data/recorded/recorded_client.dart';
 import 'package:udine/data/repository.dart';
@@ -75,6 +76,24 @@ void main() {
     expect(c.index, isNotNull);
     c.setQuery('chicken');
     expect(c.result.now, isNotEmpty);
+  });
+
+  test('a keystroke notifies only once its result is made: what asking the packaged sources starts never redraws Search from the old one', () async {
+    await prefs.setTrack(true);
+    final r = await recordedPackaged(RecordedFlags(at: lunch), read: _read);
+    final c = SearchController(repo, prefs, plate, packaged: r.packaged, lookupSource: r.lookup);
+    addTearDown(c.dispose);
+    await ready(c);
+    c.setQuery('chick');
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    var old = c.result;
+    final seen = <bool>[];
+    c.addListener(() {
+      seen.add(!identical(c.result, old));
+    });
+    c.setQuery('chicken');
+    expect(seen, isNotEmpty);
+    expect(seen, everyElement(isTrue), reason: 'a notify with the old result');
   });
 
   test('nothing is fetched until a controller exists (the tab being launched is not Search opening)', () {
