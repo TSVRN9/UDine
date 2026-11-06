@@ -1,14 +1,14 @@
 {
-  "sha": "a315bbd18e0acfba199e08f9f61624737b228b16",
+  "sha": "bf4e6b25d5f7835665aded2e46428c05b3195148",
   "branch": "fix/tab-fade-artifacts",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/tab-fade",
   "route": "/?data=recorded&at=2026-10-08T12:41&photos=off",
   "device": "sdk_gphone64_x86_64",
   "stress": "",
   "dirty": false,
-  "ts": "2026-11-06T04:40:28Z",
+  "ts": "2026-11-06T04:59:54Z",
   "own": {
-    "app/lib/motion/fade_through.dart": "9ee1293cb5fe1c49fe062b416552af34cbdf3752",
+    "app/lib/motion/fade_through.dart": "38a09d0d32de1877ab897a2eadbc9c8eb757353d",
     "app/lib/theme/m2_tokens.g.dart": "155dc142a5609deb5990cccc3a97eb51fa39e556"
   },
   "argv": [
@@ -18,6 +18,8 @@
     "--tap",
     "540",
     "1830",
+    "--out",
+    "docs/pr-review-media/fix-tab-fade-artifacts/halls-to-search.png",
     "--out",
     "docs/pr-review-media/fix-tab-fade-artifacts/halls-to-search.png"
   ]
