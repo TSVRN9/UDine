@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:udine/core/hours.dart';
 import 'package:udine/core/m2/search.dart';
-import 'package:udine/data/recorded/flags.dart';
 import 'package:udine/data/recorded/recorded.dart';
 import 'package:udine/data/recorded/recorded_client.dart';
 import 'package:udine/data/repository.dart';

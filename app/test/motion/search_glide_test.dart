@@ -1,7 +1,6 @@
 // Search's rows hold still when nothing about them changed: the Events block is in place in the first frame that draws a row (it is
 // built again with each return to idle, not waited for), and a row that survives a keystroke starts its glide where it was
 // (M2 `renderSearch`: FLIP, then `setIdle`).
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/screens/hall/dish_row.dart';
