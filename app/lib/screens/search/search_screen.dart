@@ -78,6 +78,8 @@ class _SearchScreenState extends State<SearchScreen> {
     if (_c != null || widget.tab.value != widget.index || !mounted) return;
     final scope = AppScope.of(context);
     _c = SearchController(scope.repo, scope.prefs, scope.plate, packaged: scope.packaged, lookupSource: scope.lookup, foods: scope.foods)..addListener(_changed);
+    _hereN = ShellScope.of(context).here..addListener(_onHere);
+    _c!.here = _hereN!.value;
     for (final l in widget.lenses) {
       _c!.toggleLens(l);
     }
@@ -85,6 +87,9 @@ class _SearchScreenState extends State<SearchScreen> {
     _text.selection = TextSelection.collapsed(offset: _text.text.length);
     _focus.requestFocus();
   }
+
+  ValueListenable<String?>? _hereN;
+  void _onHere() => _c?.setHere(_hereN!.value);
 
   void _onTab() {
     if (widget.tab.value != widget.index || !mounted) return;
@@ -110,6 +115,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void dispose() {
     widget.tab.removeListener(_onTab);
+    _hereN?.removeListener(_onHere);
     _c?.removeListener(_changed);
     _c?.dispose();
     _text.dispose();
@@ -129,7 +135,7 @@ class _SearchScreenState extends State<SearchScreen> {
     if (f != null) {
       _plate.step(f.plate.id, st.key, 1);
     } else {
-      _plate.add(meal, st.name, st.refs, null, st.key);
+      _plate.add(meal, st.name, _addRefs(st.refs), null, st.key);
     }
     Haptics.add();
   }
@@ -144,11 +150,18 @@ class _SearchScreenState extends State<SearchScreen> {
     if (vs == null) return (d: e.row.d, chip: null, key: g.key, name: g.name, refs: g.refs);
     final scope = AppScope.of(context), meal = c.index!.meal;
     final v = vs[varFor(g, searchWords(c.query), _plate.state, meal, allow: _reveal ? null : (d) => prefOK(scope.prefs.diet, d))];
-    final d = servingOf(v.refs, _plate.state, meal)!;
+    final d = v.refs[c.here] ?? servingOf(v.refs, _plate.state, meal)!;
     return (d: d, chip: v.chip, key: v.key, name: shownOf(familiesOf(c.index!.fx), d), refs: v.refs);
   }
 
+  /// What a + writes: at the open place when it serves the dish, else the row's own servings.
+  Map<String, MenuItem> _addRefs(Map<String, MenuItem> refs) {
+    final h = _c?.here, d = refs[h];
+    return d == null ? refs : {h!: d};
+  }
+
   double _code(NowEntry e, String meal, String key, Map<String, MenuItem> refs) {
+    refs = _addRefs(refs);
     final f = findItem(_plate.state, meal, key, e.cafe ? e.row.g.places.first : null);
     if (f != null) return f.item.qty;
     return wouldSplit(_plate.state, meal, refs.keys.toList()) ? -1 : 0;
@@ -188,7 +201,7 @@ class _SearchScreenState extends State<SearchScreen> {
       code: _code(e, meal, st.key, st.refs), track: scope.prefs.track, tags: _tags(fx, g.places, 'Served now'),
       onOpen: () => _open(d, place: place, meal: meal, day: 0, refs: st.refs),
       onAdd: () {
-        _plate.add(meal, st.name, st.refs, null, st.key);
+        _plate.add(meal, st.name, _addRefs(st.refs), null, st.key);
         Haptics.add();
       },
       onInc: () {
@@ -389,7 +402,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   color: M2Color.dm,
                   padding: EdgeInsets.fromLTRB(M2Space.gutter, top + M2Layout.searchHeadTop, M2Space.gutter, M2Layout.searchHeadBottom),
                   child: SearchField(
-                    controller: _text, focus: _focus, hint: 'Search ${mealLabel[meal]!.toLowerCase()} at every hall', onChanged: _query,
+                    controller: _text, focus: _focus, hint: 'Search ${mealLabel[meal]!.toLowerCase()} at ${c?.here == null || ix == null ? 'every hall' : placeName(ix.fx, c!.here!)}', onChanged: _query,
                     onSubmit: _submit,
                     onClear: () {
                       _text.clear();

@@ -11,8 +11,8 @@ import 'package:udine/screens/search/search_entries.dart';
 import 'support.dart';
 
 final now = DateTime.parse('2026-10-08T12:41:00-04:00');
-SearchResult run(String q, {Set<Lens> lenses = const {}, bool newton = false, Set<String> favorites = const {}, PlateState plate = emptyPlates}) =>
-    runSearch(SearchIndex(board, now, charlesRiver: newton), query: q, lenses: lenses, favorites: favorites, plate: plate);
+SearchResult run(String q, {Set<Lens> lenses = const {}, bool newton = false, Set<String> favorites = const {}, PlateState plate = emptyPlates, String? here}) =>
+    runSearch(SearchIndex(board, now, charlesRiver: newton), query: q, lenses: lenses, favorites: favorites, plate: plate, here: here);
 
 void main() {
   test('searchWords is the normalizer matchesQuery reads', () {
@@ -103,6 +103,18 @@ void main() {
       for (var i = 1; i < r.later.length; i++) {
         expect(rank[r.later[i - 1].g.st]!, lessThanOrEqualTo(rank[r.later[i].g.st]!));
       }
+    });
+    test('here (search-first-class): the dishes served now at the open place come first, each speaking for that place', () {
+      for (final h in ['W', 'F', 'H', 'B']) {
+        final r = run('chicken', here: h).now;
+        final at = r.where((x) => x.g.refs.containsKey(h)).length;
+        expect(at, greaterThan(0), reason: h);
+        for (var i = 0; i < r.length; i++) {
+          expect(r[i].g.refs.containsKey(h), i < at, reason: '\$h row \$i');
+          if (i < at) expect(identical(r[i].d, r[i].g.refs[h]), isTrue, reason: '\$h row \$i speaks for the open place');
+        }
+      }
+      expect(run('chicken', here: 'W').now.any((x) => !x.g.refs.containsKey('W')), isTrue);
     });
     test('no query, no later rows, even with a lens', () => expect(run('', lenses: {Lens.protein}).later, isEmpty));
     test('Places: the hall by word-prefix, a café by name', () {

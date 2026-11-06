@@ -193,15 +193,16 @@ MenuItem? servingOf(Map<String, MenuItem> refs, PlateState plate, String meal) {
 /// which rows sort after the ones that would split the plate (`join`): the screen computes this when the query, lenses or data
 /// change, never on a plate change, so rows never move under a finger that has just added one.
 SearchResult runSearch(SearchIndex ix,
-    {required String query, Set<Lens> lenses = const {}, Set<String> favorites = const {}, PlateState plate = emptyPlates, bool Function(MenuItem d)? allow}) {
+    {required String query, Set<Lens> lenses = const {}, Set<String> favorites = const {}, PlateState plate = emptyPlates, bool Function(MenuItem d)? allow, String? here}) {
   final toks = searchWords(query), favKeys = {for (final f in favorites) favKey(f)};
 
-  MenuItem? repOf(Map<String, MenuItem> refs) => servingOf(refs, plate, ix.meal);
+  // (search-first-class: the open place, when it serves the dish, is the serving a row speaks for)
+  MenuItem? repOf(Map<String, MenuItem> refs) => refs[here] ?? servingOf(refs, plate, ix.meal);
 
   MenuItem? rep(DishGroup g) => repOf(g.refs);
 
   List<NowRow> results(List<DishGroup> groups) {
-    final out = <({NowRow row, int rank, int join})>[];
+    final out = <({NowRow row, int rank, int at, int join})>[];
     for (final g in groups) {
       if (toks.isNotEmpty && !matchesQuery(g.hay, query)) continue;
       final vi = g.vars == null ? null : varFor(g, toks, plate, ix.meal, allow: allow);
@@ -218,10 +219,11 @@ SearchResult runSearch(SearchIndex ix,
       if (lenses.contains(Lens.lowc) && !(d.carbon == 'A' || d.carbon == 'B')) continue;
       final t0 = dishKey(toks.firstOrNull ?? '');
       final rank = t0.isEmpty ? 0 : g.key.startsWith(t0) ? 0 : g.key.split(' ').any((w) => w.startsWith(t0)) ? 1 : 2;
-      out.add((row: NowRow(g, d, vi == null ? null : g.vars![vi].chip), rank: rank, join: wouldSplit(plate, ix.meal, g.refs.keys.toList()) ? 1 : 0));
+      out.add((row: NowRow(g, d, vi == null ? null : g.vars![vi].chip), rank: rank, at: here != null && g.refs.containsKey(here) ? 0 : 1, join: wouldSplit(plate, ix.meal, g.refs.keys.toList()) ? 1 : 0));
     }
     final light = lenses.contains(Lens.light);
-    int by(({NowRow row, int rank, int join}) a, ({NowRow row, int rank, int join}) b) {
+    int by(({NowRow row, int rank, int at, int join}) a, ({NowRow row, int rank, int at, int join}) b) {
+      if (a.at != b.at) return a.at - b.at;
       final c = a.join - b.join != 0 ? a.join - b.join : a.rank - b.rank != 0 ? a.rank - b.rank : 0;
       if (c != 0) return c;
       final da = a.row.d.nutrition, db = b.row.d.nutrition;
