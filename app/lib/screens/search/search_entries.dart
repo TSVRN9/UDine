@@ -1,4 +1,4 @@
-import '../../core/m2/board.dart' show M2MenuItem, MenuItem, mealLabel;
+import '../../core/m2/board.dart' show M2MenuItem, MenuItem, isCafe, mealLabel;
 import '../../core/packaged_food.dart';
 import '../../core/saved_food.dart';
 import '../../core/search.dart' show matchesQuery;
@@ -202,3 +202,10 @@ List<SearchEntry> searchEntries({
   }
   return out;
 }
+
+/// The café a row's plate item is looked up at (a café's menu only sees the plates it can serve); null for a hall's row.
+String? entryCtx(SearchEntry e) => switch (e) {
+      NowEntry(:final cafe, :final row) when cafe => row.g.places.first,
+      LaterEntry(:final row) when isCafe(row.g.halls.first) => row.g.halls.first,
+      _ => null,
+    };

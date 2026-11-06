@@ -65,6 +65,8 @@ class ShellState extends State<Shell> with WidgetsBindingObserver, SingleTickerP
   late final _hereObs = _HereObserver(_here);
   @override
   ValueListenable<String?> get here => _here;
+  @override
+  final searchMeal = ValueNotifier<String?>(null);
 
   @override
   void initState() {
@@ -131,7 +133,10 @@ class ShellState extends State<Shell> with WidgetsBindingObserver, SingleTickerP
   void handleBack(SheetHandle? Function()? openSheet) => _plateBack = openSheet;
 
   @override
-  void openSearch({required String meal}) => _select(1);
+  void openSearch({required String meal}) {
+    searchMeal.value = meal;
+    _select(1);
+  }
 
   void _remove(_Sheet s) {
     if (mounted) setState(() => _sheets.remove(s));
@@ -186,6 +191,7 @@ class ShellState extends State<Shell> with WidgetsBindingObserver, SingleTickerP
     _lift?.detach();
     _tab.dispose();
     _here.dispose();
+    searchMeal.dispose();
     super.dispose();
   }
 

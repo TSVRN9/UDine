@@ -1,0 +1,24 @@
+{
+  "sha": "2647d110dd798f4137d3a1360938dba6210e3a8a",
+  "branch": "feat/search-plus-every-row",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/search-plus",
+  "route": "/search?q=pancakes&data=recorded&at=2026-10-08T12:41&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-11-06T04:27:10Z",
+  "own": {
+    "app/lib/core/m2/search.dart": "1a6d3afd9c70e10afde56a48b0738369b724ed49",
+    "app/lib/screens/search/search_entries.dart": "51315a05d0a5377f6ffea37fe063a671543c732a",
+    "app/lib/screens/search/search_screen.dart": "b0b676dce3f5f7e9af3a2ed87a6fea5fd64cd791",
+    "app/lib/shell/shell.dart": "a3aacf3ec9e84f6ec86cb1e530ff5ae6ba04ef2e",
+    "app/lib/shell/shell_scope.dart": "1ffa312d27c81a17445a97959237cf5e217d12ff"
+  },
+  "argv": [
+    "/search?q=pancakes&data=recorded&at=2026-10-08T12:41",
+    "--out",
+    "docs/pr-review-media/feat-search-plus-every-row/later-plus-before.png",
+    "--out",
+    "docs/pr-review-media/feat-search-plus-every-row/later-plus-before.png"
+  ]
+}

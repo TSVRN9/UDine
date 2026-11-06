@@ -72,6 +72,7 @@ class _SearchScreenState extends State<SearchScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _hereN ??= ShellScope.of(context).here..addListener(_onHere);
+    _mealN ??= ShellScope.of(context).searchMeal..addListener(_onMeal);
     _start(); // (dependencies also change when the keyboard comes up: that must never touch the selection)
   }
 
@@ -90,12 +91,21 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   ValueListenable<String?>? _hereN;
+  ValueNotifier<String?>? _mealN;
+  void _onMeal() {
+    if (mounted) setState(() {});
+  }
+
+  /// The meal a + writes to: the plate's, when Add something else brought the user here; else the clock's.
+  String _meal(SearchController c) => _mealN?.value ?? c.index!.meal;
+
   void _onHere() {
     _c?.setHere(_hereN!.value);
     if (mounted) setState(() {}); // (the hint reads it before the index, even before the first load)
   }
 
   void _onTab() {
+    if (widget.tab.value != widget.index) _mealN?.value = null; // (leaving Search ends the plate's visit)
     if (widget.tab.value != widget.index || !mounted) return;
     if (_c == null) {
       _start();
@@ -120,6 +130,7 @@ class _SearchScreenState extends State<SearchScreen> {
   void dispose() {
     widget.tab.removeListener(_onTab);
     _hereN?.removeListener(_onHere);
+    _mealN?.removeListener(_onMeal);
     _c?.removeListener(_changed);
     _c?.dispose();
     _text.dispose();
@@ -128,14 +139,15 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void _query(String q) {
+    if (q.isEmpty) _mealN?.value = null; // (a cleared query ends the plate's visit)
     _c?.setQuery(q);
   }
 
   /// M2: the keyboard's search key presses the first row's + (or, once it is on the plate, its stepper's +).
   void _submit() {
-    final e = _entries.whereType<NowEntry>().firstOrNull, c = _c;
+    final e = _entries.where((e) => e is NowEntry || e is LaterEntry).firstOrNull, c = _c;
     if (e == null || c?.index == null) return;
-    final meal = c!.index!.meal, st = _stand(e, c), ctx = e.cafe ? e.row.g.places.first : null, f = findItem(_plate.state, meal, st.key, ctx);
+    final meal = _meal(c!), st = e is NowEntry ? _stand(e, c) : _standLater(e as LaterEntry, c), ctx = entryCtx(e), f = findItem(_plate.state, meal, st.key, ctx);
     if (f != null) {
       _plate.step(f.plate.id, st.key, 1);
     } else {
@@ -158,6 +170,12 @@ class _SearchScreenState extends State<SearchScreen> {
     return (d: d, chip: v.chip, key: v.key, name: shownOf(familiesOf(c.index!.fx), d), refs: v.refs);
   }
 
+  /// A Later row as `_stand` has a now row: the variant it shows, keyed as the plate keys it, with the serving at each place the group lists.
+  ({MenuItem d, String? chip, String key, String name, Map<String, MenuItem> refs}) _standLater(LaterEntry e, SearchController c) {
+    final fx = c.index!.fx, d = e.row.d;
+    return (d: d, chip: e.row.family == null ? null : familiesOf(fx).variantIn(d)?.chip, key: d.key, name: shownOf(familiesOf(fx), d), refs: laterRefs(fx, e.row));
+  }
+
   /// The open place's name: the index's, or before it loads the bundled table's (a hall); null when none is open.
   String? _hereName(SearchIndex? ix) {
     final h = _hereN?.value ?? ShellScope.of(context).here.value;
@@ -172,9 +190,9 @@ class _SearchScreenState extends State<SearchScreen> {
     return d == null ? refs : {h!: d};
   }
 
-  double _code(NowEntry e, String meal, String key, Map<String, MenuItem> refs) {
+  double _code(SearchEntry e, String meal, String key, Map<String, MenuItem> refs) {
     refs = _addRefs(refs);
-    final f = findItem(_plate.state, meal, key, e.cafe ? e.row.g.places.first : null);
+    final f = findItem(_plate.state, meal, key, entryCtx(e));
     if (f != null) return f.item.qty;
     return wouldSplit(_plate.state, meal, refs.keys.toList()) ? -1 : 0;
   }
@@ -204,14 +222,14 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _now(NowEntry e, SearchController c) {
-    final scope = AppScope.of(context), fx = c.index!.fx, meal = c.index!.meal, g = e.row.g, st = _stand(e, c), d = st.d, ctx = e.cafe ? g.places.first : null;
+    final scope = AppScope.of(context), fx = c.index!.fx, meal = _meal(c), g = e.row.g, st = _stand(e, c), d = st.d, ctx = entryCtx(e);
     final place = st.refs.entries.firstWhere((x) => identical(x.value, d)).key;
     final fam = g.vars == null ? null : familiesOf(fx).familyOf(d);
     return DishRow(
       key: ValueKey(e.id), dish: d, scores: scope.prefs.scores, contains: _reveal ? hits(scope.prefs.diet, d) : const [],
       favorite: scope.prefs.isFavorite(fam == null ? d.dishName : favoriteOf(fam)), family: st.chip == null ? null : g.name, chip: st.chip,
       code: _code(e, meal, st.key, st.refs), track: scope.prefs.track, tags: _tags(fx, g.places, 'Served now'),
-      onOpen: () => _open(d, place: place, meal: meal, day: 0, refs: st.refs),
+      onOpen: () => _open(d, place: place, meal: c.index!.meal, day: 0, refs: st.refs),
       onAdd: () {
         _plate.add(meal, st.name, _addRefs(st.refs), null, st.key);
         Haptics.add();
@@ -236,7 +254,7 @@ class _SearchScreenState extends State<SearchScreen> {
   String _said(WhereGroup g) => g.meal == 'all' ? (g.day > 0 ? 'Tomorrow' : 'Later') : g.day > 0 ? 'Tomorrow ${g.meal == 'grab' ? "Grab 'N Go" : mealLabel[g.meal]!.toLowerCase()}' : mealLabel[g.meal]!;
 
   Widget _food(SavedFood f, SearchController c) {
-    final scope = AppScope.of(context), meal = c.index?.meal ?? clockMeal(scope.repo.now());
+    final scope = AppScope.of(context), meal = _mealN?.value ?? c.index?.meal ?? clockMeal(scope.repo.now());
     ({Plate plate, PlateItem item})? on() => findItem(_plate.state, meal, f.key);
     return FoodRow(
       key: ValueKey('f:${f.id}'), food: f, code: on()?.item.qty ?? 0,
@@ -267,16 +285,30 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _later(LaterEntry e, SearchController c) {
-    final scope = AppScope.of(context), fx = c.index!.fx, g = e.row.g, d = e.row.d, said = _said(g), fam = e.row.family;
+    final scope = AppScope.of(context), fx = c.index!.fx, g = e.row.g, d = e.row.d, said = _said(g), fam = e.row.family, st = _standLater(e, c), meal = _meal(c), ctx = entryCtx(e);
+    void step(int by) {
+      final f = findItem(_plate.state, meal, st.key, ctx);
+      if (f != null) {
+        _plate.step(f.plate.id, st.key, by);
+        by > 0 ? Haptics.add() : Haptics.remove();
+      }
+    }
     return DishRow(
       key: ValueKey(e.id), dish: d, scores: scope.prefs.scores, contains: _reveal ? hits(scope.prefs.diet, d) : const [],
-      favorite: scope.prefs.isFavorite(fam == null ? d.dishName : favoriteOf(fam)), family: fam?.name, chip: fam == null ? null : familiesOf(fx).variantIn(d)?.chip,
+      favorite: scope.prefs.isFavorite(fam == null ? d.dishName : favoriteOf(fam)), family: fam?.name, chip: st.chip,
+      code: _code(e, meal, st.key, st.refs), track: scope.prefs.track,
       tail: Row(mainAxisSize: MainAxisSize.min, children: [
         Text(said, style: M2Text.meta.style(M2Color.slate)),
         const SizedBox(width: M2Layout.nextToTags),
         _tags(fx, g.halls, said),
       ]),
-      onOpen: () => _open(d, place: g.halls.first, meal: g.meal, day: boardDay(fx, g)), onAdd: () {}, onInc: () {}, onDec: () {},
+      onOpen: () => _open(d, place: g.halls.first, meal: g.meal, day: boardDay(fx, g)),
+      onAdd: () {
+        _plate.add(meal, st.name, _addRefs(st.refs), null, st.key);
+        Haptics.add();
+      },
+      onInc: () => step(1),
+      onDec: () => step(-1),
     );
   }
 
@@ -377,7 +409,7 @@ class _SearchScreenState extends State<SearchScreen> {
           }),
         CustomEntry(:final query, :final solid) => CustomFoodButton(label: 'Add “$query” as a custom food', solid: solid, onTap: () {
             _focus.unfocus();
-            openCustomFood(context, name: query, meal: c.index?.meal ?? clockMeal(AppScope.of(context).repo.now()));
+            openCustomFood(context, name: query, meal: _mealN?.value ?? c.index?.meal ?? clockMeal(AppScope.of(context).repo.now()));
           }),
       }),
     );
@@ -386,7 +418,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final scope = AppScope.of(context), top = widget.top, c = _c, ix = c?.index;
-    final meal = ix?.meal ?? clockMeal(scope.repo.now());
+    final shown = ix?.meal ?? clockMeal(scope.repo.now()), meal = _mealN?.value ?? shown;
     final extras = c == null
         ? const <SearchEntry>[]
         : extraEntries(
@@ -395,7 +427,7 @@ class _SearchScreenState extends State<SearchScreen> {
           );
     final entries = c == null || ix == null
         ? const <SearchEntry>[]
-        : searchEntries(raw: c.result, query: c.query, lenses: c.lenses, meal: meal, prefs: scope.prefs.diet, reveal: _reveal, track: scope.prefs.track, extras: extras, net: c.menusIn ? c.net : NetLine.failed);
+        : searchEntries(raw: c.result, query: c.query, lenses: c.lenses, meal: shown, prefs: scope.prefs.diet, reveal: _reveal, track: scope.prefs.track, extras: extras, net: c.menusIn ? c.net : NetLine.failed);
     _entries = entries;
     final ids = {for (var i = 0; i < entries.length; i++) entries[i].id: i}; // a row that survives a keystroke keeps its element at its new index
     final idle = c != null && c.query.trim().isEmpty && c.lenses.isEmpty;

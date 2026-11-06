@@ -25,6 +25,9 @@ abstract class ShellApi {
   /// Search's own stack, so it never sets this. Closing the place clears it.
   ValueListenable<String?> get here;
 
+  /// The meal the plate's Add something else came for: Search adds to it, until the tab is left or the query is cleared. Null: the clock's meal.
+  ValueNotifier<String?> get searchMeal;
+
 }
 
 class ShellScope extends InheritedWidget {
