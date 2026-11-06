@@ -14,10 +14,12 @@ import '../hall/hall_controller.dart' show hoursEvents;
 /// Search's idle state (M2 `#sdisc`): "Events" and a row of cards on the deep-maroon band, each opening its event page. Nothing at all
 /// when the feed has no event that hasn't expired. The feed's own failure is the same: no events, no band.
 class EventsIdle extends StatefulWidget {
-  const EventsIdle({super.key, required this.top, this.onOpen});
+  const EventsIdle({super.key, required this.top, this.onOpen, this.onResolved});
   final double top;
   /// replaces the push of the event page (tests)
   final void Function(int index)? onOpen;
+  /// the feed has answered (or is slow enough that Search stops waiting): Search draws its rows with this block in place
+  final VoidCallback? onResolved;
   @override
   State<EventsIdle> createState() => _EventsIdleState();
 }
@@ -34,6 +36,7 @@ class _EventsIdleState extends State<EventsIdle> {
         final v = s is Loaded<List<DiningEvent>> ? s.value : (s as LoadedOffline<List<DiningEvent>>).value;
         if (mounted) setState(() => _events = hoursEvents(v));
       }
+      if (s is! Loading<List<DiningEvent>> && mounted) widget.onResolved?.call();
     });
   }
 

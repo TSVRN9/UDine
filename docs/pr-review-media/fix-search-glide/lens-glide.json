@@ -1,0 +1,32 @@
+{
+  "sha": "52ea53941c204f9f7dd7d62b149d68e3d062c410",
+  "branch": "fix/search-glide",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/search-glide",
+  "route": "/search?data=recorded&at=2026-10-08T12:41&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-11-06T05:07:39Z",
+  "own": {
+    "app/lib/screens/search/events.dart": "d2e812f65f6688256753fcd5fba8e3047a2d5363",
+    "app/lib/screens/search/glide.dart": "3681e19d4aa370984716d01b5919b15132df6108",
+    "app/lib/screens/search/search_controller.dart": "504ff964b38d4cdd096b2030dc9f60d31d5b1b99",
+    "app/lib/screens/search/search_screen.dart": "758e30437b6df3713caac57d223372536a6b0731",
+    "app/lib/shell/shell.dart": "5c42c025d41483bd08faaa531201bb338d1b11b6"
+  },
+  "argv": [
+    "/search?data=recorded&at=2026-10-08T12:41",
+    "--record",
+    "6",
+    "--tap",
+    "443",
+    "390",
+    "--tap",
+    "443",
+    "390",
+    "--tap-gap",
+    "2",
+    "--out",
+    "docs/pr-review-media/fix-search-glide/lens-glide.png"
+  ]
+}

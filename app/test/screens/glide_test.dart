@@ -39,4 +39,74 @@ void main() {
       await t.pump(const Duration(milliseconds: 16));
     }
   });
+
+  testWidgets('a row that moves is drawn at its old place in the first frame it is laid out at the new one, then glides', (t) async {
+    final tracker = GlideTracker();
+    var ids = ['a', 'b', 'c'];
+    var gen = 0;
+    Widget list() => Directionality(
+          textDirection: TextDirection.ltr,
+          child: MediaQuery(
+            data: const MediaQueryData(),
+            child: ListView(children: [for (final id in ids) SizedBox(key: ValueKey(id), height: 100, child: Glide(id: id, tracker: tracker, generation: gen, child: Text(id)))]),
+          ),
+        );
+    await t.pumpWidget(list());
+    expect(t.getTopLeft(find.text('c')).dy, 200);
+    tracker.snapshot(ids);
+    ids = ['b', 'c']; // 'a' leaves: b and c move up 100
+    gen++;
+    await t.pumpWidget(list());
+    expect(t.getTopLeft(find.text('c')).dy, 200, reason: 'frame 0 is at the old place');
+    final seen = <double>[];
+    for (var f = 0; f < 20; f++) {
+      await t.pump(const Duration(milliseconds: 16));
+      seen.add(t.getTopLeft(find.text('c')).dy);
+    }
+    expect(seen.reduce((a, b) => a < b ? a : b), 100, reason: 'comes to rest at the new place');
+    for (var f = 1; f < seen.length; f++) {
+      expect(seen[f], lessThanOrEqualTo(seen[f - 1]), reason: 'frame ${f + 1} never goes back');
+    }
+  });
+
+  testWidgets('mid-glide a tap lands on the row where it is drawn, and a second move starts from where the row is seen', (t) async {
+    final tracker = GlideTracker();
+    var ids = ['a', 'b', 'c'];
+    var gen = 0;
+    var taps = <String>[];
+    Widget list() => Directionality(
+          textDirection: TextDirection.ltr,
+          child: MediaQuery(
+            data: const MediaQueryData(),
+            child: ListView(children: [
+              for (final id in ids)
+                SizedBox(key: ValueKey(id), height: 100, child: Glide(id: id, tracker: tracker, generation: gen, child: GestureDetector(behavior: HitTestBehavior.opaque, onTap: () => taps.add(id), child: SizedBox.expand(child: Text(id))))),
+            ]),
+          ),
+        );
+    await t.pumpWidget(list());
+    tracker.snapshot(ids);
+    ids = ['b', 'c'];
+    gen++;
+    await t.pumpWidget(list());
+    double drawn() => t.getTopLeft(find.text('c')).dy;
+    for (var f = 0; f < 30 && drawn() > 190 || drawn() > 190; f++) {
+      await t.pump(const Duration(milliseconds: 16));
+    }
+    expect(drawn(), inInclusiveRange(110, 190), reason: 'mid-glide');
+    final seen = drawn();
+    await t.tapAt(Offset(5, seen - 5)); // laid out under the row, but above where it is drawn
+    expect(taps, isEmpty);
+    await t.tapAt(Offset(5, seen + 5));
+    expect(taps, ['c']);
+    // a second move while it is still gliding: frame 0 of it is where the row was seen, not where it was laid out
+    tracker.snapshot(ids);
+    ids = ['c'];
+    gen++;
+    await t.pumpWidget(list());
+    expect(drawn(), closeTo(seen, 0.5));
+    await t.pump();
+    await t.pump(const Duration(seconds: 1));
+    expect(drawn(), 0);
+  });
 }

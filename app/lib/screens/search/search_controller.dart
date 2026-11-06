@@ -156,9 +156,9 @@ class SearchController extends ChangeNotifier {
 
   void _compute() {
     final ix = index;
-    _asks();
     generation++;
     result = ix == null ? const SearchResult() : runSearch(ix, query: query, lenses: lenses, favorites: prefs.favorites, plate: plate.state, here: here, allow: (d) => prefOK(prefs.diet, d));
+    _asks(); // (after the result: what it starts can notify, and a list drawn from the old result would glide on the way)
     notifyListeners();
   }
 

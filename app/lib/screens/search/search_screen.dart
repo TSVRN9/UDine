@@ -45,7 +45,7 @@ class SearchScreen extends StatefulWidget {
   final int index;
   final String query;
   final Set<Lens> lenses;
-  final Widget? idle;
+  final Widget Function(VoidCallback resolved)? idle;
   @override
   State<SearchScreen> createState() => _SearchScreenState();
 }
@@ -59,6 +59,7 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _reveal = false;
   List<SearchEntry> _entries = const [];
   final _glide = GlideTracker();
+  bool _idleIn = false; // the idle block has answered: before that its rows would be drawn a frame before it and pushed down
   int _gen = 0;
 
   @override
@@ -92,6 +93,10 @@ class _SearchScreenState extends State<SearchScreen> {
 
   ValueListenable<String?>? _hereN;
   ValueNotifier<String?>? _mealN;
+  void _resolved() {
+    if (mounted && !_idleIn) setState(() => _idleIn = true);
+  }
+
   void _onMeal() {
     if (mounted) setState(() {});
   }
@@ -425,12 +430,13 @@ class _SearchScreenState extends State<SearchScreen> {
             track: scope.prefs.track, online: c.net != NetLine.offline, query: c.query, foods: scope.foods?.foods ?? const [],
             pack: c.pack?.phase ?? PackPhase.idle, packHits: c.pack?.hits ?? const [], lookup: c.lookup?.phase ?? LookupPhase.idle, lookupFoods: c.lookup?.foods ?? const [], resetsAt: c.lookup?.resetsAt, reason: c.lookup?.reason,
           );
-    final entries = c == null || ix == null
+    final a = resolveAnim(context, M2Motion.settle), idle = c != null && c.query.trim().isEmpty && c.lenses.isEmpty;
+    final waits = idle && widget.idle != null && c.net != NetLine.failed && !_idleIn;
+    final entries = c == null || ix == null || waits
         ? const <SearchEntry>[]
         : searchEntries(raw: c.result, query: c.query, lenses: c.lenses, meal: shown, prefs: scope.prefs.diet, reveal: _reveal, track: scope.prefs.track, extras: extras, net: c.menusIn ? c.net : NetLine.failed);
     _entries = entries;
     final ids = {for (var i = 0; i < entries.length; i++) entries[i].id: i}; // a row that survives a keystroke keeps its element at its new index
-    final idle = c != null && c.query.trim().isEmpty && c.lenses.isEmpty;
     return ColoredBox(
       color: M2Color.chalk,
       child: ListenableBuilder(
@@ -460,7 +466,17 @@ class _SearchScreenState extends State<SearchScreen> {
             SliverToBoxAdapter(child: _lenses(c)),
             if (c != null && c.net == NetLine.offline) SliverToBoxAdapter(child: NetNote(text: offlineLine(c.savedCafes))),
             if (c != null && c.net == NetLine.failed) SliverToBoxAdapter(child: NetFail(onRetry: () { Haptics.light(); c.hallsData.retry(); })),
-            if (idle && widget.idle != null && c.net != NetLine.failed) SliverToBoxAdapter(child: widget.idle),
+            // (kept built while a query or a lens is on, so coming back to idle has the block in its first frame: it fades in, M2 `setIdle`)
+            if (c != null && widget.idle != null && c.net != NetLine.failed)
+              SliverVisibility(
+                visible: idle, maintainState: true,
+                sliver: SliverToBoxAdapter(
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(end: idle ? 1.0 : 0.0), duration: idle ? a.duration : Duration.zero, curve: a.curve,
+                    builder: (_, v, child) => Opacity(opacity: v, child: child), child: widget.idle!(_resolved),
+                  ),
+                ),
+              ),
             SliverList(delegate: SliverChildBuilderDelegate((context, i) => _entry(entries[i], c!), childCount: entries.length, addAutomaticKeepAlives: false, findChildIndexCallback: (k) => ids[(k as ValueKey<String>).value])),
             SliverToBoxAdapter(child: SizedBox(height: M2Layout.listFoot + safeBottom(context) + MediaQuery.viewInsetsOf(context).bottom)),
           ],
