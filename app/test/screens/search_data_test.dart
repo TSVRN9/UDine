@@ -18,6 +18,8 @@ import 'package:udine/screens/halls/halls_model.dart' show NetLine;
 import 'package:udine/screens/search/search_controller.dart';
 import 'package:udine/shell/plate_model.dart';
 import 'package:udine/shell/prefs.dart';
+import 'package:udine/core/store/db.dart' show StoreReady, openStore;
+import 'package:udine/core/store/store.dart' show UdineStore;
 
 import 'hall_data_test.dart' show CountingNet;
 
@@ -79,7 +81,11 @@ void main() {
   });
 
   test('a keystroke notifies only once its result is made: what asking the packaged sources starts never redraws Search from the old one', () async {
-    await prefs.setTrack(true);
+    // (tracking is on with a store: only then are the packaged sources asked)
+    databaseFactory = databaseFactoryFfi;
+    final full = (await openStore('file:track-test?mode=memory&cache=private')) as StoreReady;
+    addTearDown(full.db.close);
+    prefs = await AppPrefs.load(UdineStore(full.db));
     final r = await recordedPackaged(RecordedFlags(at: lunch), read: _read);
     final c = SearchController(repo, prefs, plate, packaged: r.packaged, lookupSource: r.lookup);
     addTearDown(c.dispose);
