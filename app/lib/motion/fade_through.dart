@@ -6,8 +6,8 @@ double _clamp(double x) => x < 0 ? 0 : x > 1 ? 1 : x;
 
 /// Top-level tabs: M2's round-14 fade through, "fade content, keep ground". The old tab's content goes out linearly over the first
 /// `sharedXAt` of `fadeThrough` (`fadeThroughOut`); the new one fades in on `fadeThrough`'s curve while settling from `.97`, starting
-/// `fadeThroughOverlap` before the old is gone (M2 round 15 §2, "Overlapped crossfade": never a bare page, both faint for ~1-2 frames). The page background and the header bands never fade: a `GroundMark` in a pane (the
-/// header of Halls and You) and `pinned[i]` (a header fixed at the top of pane `i`, Search's field) are painted under the panes, in
+/// `fadeThroughOverlap` before the old is gone (M2 round 15 §2, "Overlapped crossfade": never a bare page, both faint for 2-3 frames).
+/// The page background and the header bands never fade: a `GroundMark` in a pane (the header of Halls and You) and `pinned[i]` (a header fixed at the top of pane `i`, Search's field) are painted under the panes, in
 /// the colour they have, for as long as a change runs. Nothing slides. Under reduced motion the same, over `rmFade`, without the scale.
 class FadeThroughTabs extends StatefulWidget {
   final int index;
@@ -97,7 +97,7 @@ class _FadeThroughTabsState extends State<FadeThroughTabs> with SingleTickerProv
   }
 
   /// Pane `i`'s content opacity at clock `v`: the old one out linearly by `sharedXAt`, the new one in from `fadeThroughOverlap` of the
-/// duration before that (round 15 §2: both are faintly visible for a frame or two, and the page is never bare).
+/// duration before that (round 15 §2: both are faintly visible for 2-3 frames, and the page is never bare).
   double _fade(int i, double v) {
     final at = M2Motion.sharedXAt, start = at - M2Motion.fadeThroughOverlap;
     if (v >= 1) return 1;
