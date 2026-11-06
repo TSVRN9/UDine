@@ -38,7 +38,7 @@ Future<String> readRecorded(String name) => File('assets/recorded/$name').readAs
 /// isolate) runs under `runAsync`.
 Repository? _booted;
 
-Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? at, List<String> pins = const [], bool charlesRiver = false, Duration? slow, bool health = false, bool carbon = false, bool track = true, bool firstRun = false, Set<String> savedCafes = const {}, bool persistPins = false, List<String> avoid = const [], List<String> onlyShow = const [], PdfOpen? pages, bool pdfsLinked = true, Future<String> Function(String)? read, Future<void> Function(String)? shareFlyer, bool foods = false, LookupMode lookup = LookupMode.found, bool packFail = false, bool busyLate = false, HangingClient? hangLookup, CountingClient? count, AlertsOs? alertsOs, bool alertsOn = false}) async {
+Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? at, List<String> pins = const [], bool charlesRiver = false, Duration? slow, bool health = false, bool carbon = false, bool track = true, bool firstRun = false, Set<String> savedCafes = const {}, bool persistPins = false, List<String> avoid = const [], List<String> onlyShow = const [], PdfOpen? pages, bool pdfsLinked = true, Future<String> Function(String)? read, Future<void> Function(String)? shareFlyer, bool foods = false, LookupMode lookup = LookupMode.found, bool packFail = false, bool busyLate = false, HangingClient? hangLookup, CountingClient? count, AlertsOs? alertsOs, bool alertsOn = false, Future<void>? eventsHold}) async {
   forgetShownNames(); // (a family's names are the session's: no test reads what an earlier one learned)
   return (await t.runAsync(() async {
     sqfliteFfiInit();
@@ -55,7 +55,7 @@ Future<Boot> bootRecorded(WidgetTester t, {NetMode net = NetMode.ok, DateTime? a
     // the recorded PDFs are UMass's and never in the repo: a test's are synthetic, and its pages are drawn by [pages]
     final pdfDir = Directory.systemTemp.createTempSync('udine-test-pdf');
     addTearDown(() => pdfDir.deleteSync(recursive: true));
-    final repo = await recordedRepository(RecordedFlags(at: at ?? lunch, net: net, savedCafes: savedCafes, busyLate: busyLate), db.db, read: read ?? readRecorded, slow: slow, pins: pins, readPdf: (_) async => pdfsLinked ? utf8.encode('%PDF-1.4\n%synthetic\n') : throw 'not linked', pdfDir: pdfDir);
+    final repo = await recordedRepository(RecordedFlags(at: at ?? lunch, net: net, savedCafes: savedCafes, busyLate: busyLate), db.db, read: read ?? readRecorded, slow: slow, pins: pins, readPdf: (_) async => pdfsLinked ? utf8.encode('%PDF-1.4\n%synthetic\n') : throw 'not linked', pdfDir: pdfDir, eventsHold: eventsHold);
     _booted = repo;
     final flags = RecordedFlags(at: at ?? lunch, net: net, lookup: lookup, packFail: packFail);
     final r = await recordedPackaged(flags, read: read ?? readRecorded, wrap: count == null ? null : (inner) => count..inner = inner);
