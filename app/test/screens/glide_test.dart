@@ -105,6 +105,7 @@ void main() {
     gen++;
     await t.pumpWidget(list());
     expect(drawn(), closeTo(seen, 0.5));
+    await t.pump();
     await t.pump(const Duration(seconds: 1));
     expect(drawn(), 0);
   });
