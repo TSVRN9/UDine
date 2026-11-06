@@ -268,7 +268,20 @@ class Repository {
   );
 
   /// Events are saved for the day like hours (`events:v2:<date>`), so offline Search keeps its Events row; always re-fetched behind the saved copy.
-  Stream<DataState<List<DiningEvent>>> events() => _load(key: 'events:v2:$today', fetch: source.events, parse: (raw, _) => parseEvents(raw as Map<String, dynamic>));
+  Stream<DataState<List<DiningEvent>>> events() {
+    final day = today;
+    return _load(key: 'events:v2:$day', fetch: source.events, parse: (raw, _) => parseEvents(raw as Map<String, dynamic>)).map((s) {
+      if (s is Loaded<List<DiningEvent>>) _eventsSeen = (day, s.value);
+      if (s is LoadedOffline<List<DiningEvent>>) _eventsSeen = (day, s.value);
+      return s;
+    });
+  }
+
+  (String, List<DiningEvent>)? _eventsSeen;
+
+  /// Today's events as already read from the saved copy or the feed this run (the launch warm reads them), so a screen can draw them in its
+  /// first frame; null until one answer has come.
+  List<DiningEvent>? get eventsSeen => _eventsSeen != null && _eventsSeen!.$1 == today ? _eventsSeen!.$2 : null;
 
   /// Launch: drop entries older than yesterday, then warm today and tomorrow for the four halls, and today's hours and events, and the PDFs of the
   /// [pins]' menus (pinned cafés only: owner, round 11). Per-item failures are swallowed; this never throws.

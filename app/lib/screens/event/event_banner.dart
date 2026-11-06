@@ -11,15 +11,17 @@ import '../../ui/ui.dart';
 /// follows [Photos.enabled]; with it off the maroon felt and stitch are all that draws. [cache] is where it is kept on the phone: a saved picture
 /// draws in the first frame; one still coming shimmers on the felt, then fades in over `settle`; none (offline, a bad answer) leaves the felt.
 class EventBanner extends StatelessWidget {
-  const EventBanner({super.key, required this.image, this.cache, this.framed = false});
+  const EventBanner({super.key, this.image = '', this.cache, this.framed = false, this.loading = false});
   final String image;
+  /// no event yet (the feed has not answered): the felt shimmers, as a picture still coming does
+  final bool loading;
   final PdfCache? cache;
   final bool framed;
 
   @override
   Widget build(BuildContext context) {
     final c = cache;
-    final pic = (Photos.enabled || Photos.pending) && image.isNotEmpty && c != null ? _Picture(image, c, key: ValueKey(image)) : const SizedBox.expand();
+    final pic = loading ? ((Photos.enabled || Photos.pending) ? const _Shimmer() : const SizedBox.expand()) : (Photos.enabled || Photos.pending) && image.isNotEmpty && c != null ? _Picture(image, c, key: ValueKey(image)) : const SizedBox.expand();
     return DecoratedBox(
       // the white ring is outside the patch (`box-shadow: 0 0 0 3px #fff`), so it takes no room
       decoration: const BoxDecoration(borderRadius: BorderRadius.all(Radius.circular(M2Felt.frameRadius)), boxShadow: [BoxShadow(color: M2Color.white, spreadRadius: M2Size.ring)]),
@@ -52,8 +54,7 @@ class _Picture extends StatefulWidget {
   State<_Picture> createState() => _PictureState();
 }
 
-class _PictureState extends State<_Picture> with SingleTickerProviderStateMixin {
-  late final AnimationController _sweep;
+class _PictureState extends State<_Picture> {
   StreamSubscription<DataState<File>>? _sub;
   File? _file;
   late final bool _saved = widget.cache.file(widget.url).existsSync();
@@ -62,7 +63,6 @@ class _PictureState extends State<_Picture> with SingleTickerProviderStateMixin 
   @override
   void initState() {
     super.initState();
-    _sweep = AnimationController(vsync: this, duration: EventShimmer.sweep.duration);
     if (_saved) return;
     _loading = true;
     _sub = widget.cache.open(widget.url).listen((s) {
@@ -77,7 +77,6 @@ class _PictureState extends State<_Picture> with SingleTickerProviderStateMixin 
   @override
   void dispose() {
     _sub?.cancel();
-    _sweep.dispose();
     super.dispose();
   }
 
@@ -85,20 +84,8 @@ class _PictureState extends State<_Picture> with SingleTickerProviderStateMixin 
   Widget build(BuildContext context) {
     Widget draw(File f) => Image.file(f, fit: BoxFit.cover, width: double.infinity, height: double.infinity, errorBuilder: (_, _, _) => const SizedBox.shrink());
     if (_saved) return draw(widget.cache.file(widget.url));
-    final still = MediaQuery.disableAnimationsOf(context);
-    if (_loading && !still && !_sweep.isAnimating) _sweep.repeat();
-    if ((!_loading || still) && _sweep.isAnimating) _sweep.stop();
     return Stack(fit: StackFit.expand, children: [
-      if (_loading)
-        still
-            ? ColoredBox(key: const ValueKey('ev-still'), color: M2Color.white.withValues(alpha: EventShimmer.stillAlpha))
-            : AnimatedBuilder(
-                animation: _sweep,
-                builder: (_, _) => DecoratedBox(
-                  key: const ValueKey('ev-sweep'),
-                  decoration: BoxDecoration(gradient: LinearGradient(colors: [M2Color.white.withValues(alpha: 0), M2Color.white.withValues(alpha: EventShimmer.bandAlpha), M2Color.white.withValues(alpha: 0)], transform: _Slide(EventShimmer.sweep.curve.transform(_sweep.value)))),
-                ),
-              ),
+      if (_loading) const _Shimmer(),
       AnimatedOpacity(
         opacity: _file == null ? 0 : 1,
         duration: M2Motion.settle.duration,
@@ -106,6 +93,40 @@ class _PictureState extends State<_Picture> with SingleTickerProviderStateMixin 
         child: _file == null ? const SizedBox.expand() : draw(_file!),
       ),
     ]);
+  }
+}
+
+/// The band sweeping across the felt on a loop (reduce-motion: the whole felt, lighter and still).
+class _Shimmer extends StatefulWidget {
+  const _Shimmer();
+  @override
+  State<_Shimmer> createState() => _ShimmerState();
+}
+
+class _ShimmerState extends State<_Shimmer> with SingleTickerProviderStateMixin {
+  late final AnimationController _sweep = AnimationController(vsync: this, duration: EventShimmer.sweep.duration);
+
+  @override
+  void dispose() {
+    _sweep.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final still = MediaQuery.disableAnimationsOf(context);
+    if (still) {
+      _sweep.stop();
+      return ColoredBox(key: const ValueKey('ev-still'), color: M2Color.white.withValues(alpha: EventShimmer.stillAlpha));
+    }
+    if (!_sweep.isAnimating) _sweep.repeat();
+    return AnimatedBuilder(
+      animation: _sweep,
+      builder: (_, _) => DecoratedBox(
+        key: const ValueKey('ev-sweep'),
+        decoration: BoxDecoration(gradient: LinearGradient(colors: [M2Color.white.withValues(alpha: 0), M2Color.white.withValues(alpha: EventShimmer.bandAlpha), M2Color.white.withValues(alpha: 0)], transform: _Slide(EventShimmer.sweep.curve.transform(_sweep.value)))),
+      ),
+    );
   }
 }
 

@@ -55,6 +55,9 @@ void main() {
       expect(recordedFlags('/?data=recorded&saved=pdf:Lunch,Green Fields,Worcester Café')!.savedCafes, {'Green Fields', 'Worcester Café'});
       expect(recordedFlags('/?data=recorded&events=0')!.noEvents, isTrue); // M2's `?events=0`
       expect(recordedFlags('/?data=recorded')!.noEvents, isFalse);
+      expect(recordedFlags('/?data=recorded&events=pending')!.eventsPending, isTrue);
+      expect(recordedFlags('/?data=recorded&events=late')!.eventsLate, isTrue);
+      expect(recordedFlags('/?data=recorded')!.eventsPending || recordedFlags('/?data=recorded')!.eventsLate, isFalse);
     });
     test('avoid=Milk,Eggs and only=Halal set the Avoid list and "Only show" tags for a capture', () {
       final f = recordedFlags('/?data=recorded&avoid=Milk,Eggs&only=Halal')!;

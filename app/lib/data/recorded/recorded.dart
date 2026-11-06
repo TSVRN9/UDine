@@ -62,6 +62,7 @@ Future<Repository> recordedRepository(RecordedFlags f, Database db, {
   Future<List<int>> Function(String file) readPdf = _pdfFromBundle,
   Directory? pdfDir,
   http.Client? imageClient,
+  Future<void>? eventsHold,
 }) async {
   read ??= _fromBundle;
   final client = RecordedClient(
@@ -70,6 +71,7 @@ Future<Repository> recordedRepository(RecordedFlags f, Database db, {
     events: f.noEvents ? '{"events":[]}' : await read('events-raw.json'),
     pdf: readPdf,
     busyDelay: f.busyLate ? defaultSlow : null,
+    eventsHold: eventsHold ?? (f.eventsPending ? Completer<void>().future : f.eventsLate ? Future<void>.delayed(defaultSlow) : null),
   );
   final net = NetClient(client, f.net == NetMode.offline ? NetMode.ok : f.net, slow ?? defaultSlow);
   final at = f.at;

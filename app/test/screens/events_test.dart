@@ -107,6 +107,7 @@ void main() {
 
   testWidgets('no events this week: idle Search has no band and no heading', (t) async {
     await openApp(t, await bootRecorded(t, read: (n) async => n == 'events-raw.json' ? '{"events":[]}' : readRecorded(n)), route: '/search');
+    await until(t, () => find.text('Events').evaluate().isEmpty);
     await settle(t);
     expect(find.text('Events'), findsNothing);
     expect(find.byType(EventCard), findsNothing);
