@@ -8,10 +8,11 @@ import 'package:udine/screens/hall/meal_pager.dart';
 import 'package:udine/theme/tokens.dart';
 import 'package:udine/ui/screen_header.dart';
 
-// M2 round 14, "Fade content, keep ground": at every frame of a tab switch or a meal change the old and the new content are never
-// both above a sliver of opacity (no doubled text), and the ground (the header band, the page background) is never faded.
+// M2 round 14, "Fade content, keep ground", as round 15 §2 overlaps it ("Overlapped crossfade"): in a tab switch there is no frame where
+// neither pane's content is above `floor` (never a bare page), the two are above a sliver together for at most 2 frames, and the ground
+// (the header band, the page background) is never faded. A meal change still waits for the old list to be gone.
 void main() {
-  const frame = Duration(milliseconds: 16), sliver = 0.05;
+  const frame = Duration(milliseconds: 16), sliver = 0.05, floor = 0.08;
   Widget pane(String n) => ColoredBox(
         color: M2Color.chalk,
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [ScreenHeader.title(top: 24, title: 'T$n'), Expanded(child: Text('content $n'))]),
@@ -45,10 +46,12 @@ void main() {
     final k = GlobalKey(), names = ['A', 'B', 'C'];
     await t.pumpWidget(host(k, from));
     await t.pumpWidget(host(k, to));
+    var both = 0;
     for (var i = 0; i < 20; i++) {
       await t.pump(frame);
       final o = opacityOf(t, 'content ${names[from]}'), n = opacityOf(t, 'content ${names[to]}');
-      expect(o < sliver || n < sliver, isTrue, reason: 'frame $i shows both: old $o, new $n');
+      if (i < 15) expect(o > floor || n > floor, isTrue, reason: 'frame $i is a bare page: old $o, new $n');
+      if (o > sliver && n > sliver) both++;
       if (checkGround) {
         // inside the header band, clear of its text: dm at every frame, whichever pane's content is showing
         // the whole band, edges and corners included: the incoming pane settles from .97, which pulls its own edges in
@@ -58,6 +61,7 @@ void main() {
         }
       }
     }
+    expect(both, inInclusiveRange(1, 2), reason: 'frames with both visible');
     await t.pumpAndSettle();
     expect(opacityOf(t, 'content ${names[to]}'), 1);
   }
