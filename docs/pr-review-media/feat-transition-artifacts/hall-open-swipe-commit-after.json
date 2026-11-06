@@ -1,0 +1,30 @@
+{
+  "sha": "dc39eeca7ab17c67af8c41dc3ac0b902217c5c5f",
+  "branch": "feat/transition-artifacts",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/transition-artifacts",
+  "route": "/?data=recorded&at=2026-10-08T12:41&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-11-06T03:12:29Z",
+  "own": {
+    "app/lib/motion/container_transform.dart": "c96c08c7fdfbd742256acd77ac16dc8e01939be8",
+    "app/lib/screens/hall/hall_menu.dart": "c38d3631600da85a9ac1c22e3d7ae506678385e9"
+  },
+  "argv": [
+    "/?data=recorded&at=2026-10-08T12:41",
+    "--record",
+    "8",
+    "--tap",
+    "540",
+    "920",
+    "--then-swipe",
+    "1",
+    "960",
+    "700",
+    "960",
+    "900",
+    "--out",
+    "docs/pr-review-media/feat-transition-artifacts/hall-open-swipe-commit-after.png"
+  ]
+}
