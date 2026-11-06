@@ -1357,3 +1357,14 @@ they clamp, their right edge at the content edge, 340. A café's name keeps the 
   for a live hall), so it is absent before the reading lands; it sits in the header's foot band (10 dp from the bottom, 30 tall), which is already inside the header, so it adds nothing to D. D is the
   busy lines only.
 
+## Round 15: the card's ground (owner, 2026-11-05)
+
+### 1. Maroon until the list fades in
+**The defect (found in Flutter frames, transition-artifacts Task 1).** Round 13 §4 fades the list in over p .2 to .8, but `#mcont`, the container surface, was an opaque chalk,
+so under a growing band card a hard white bar showed below the station row while the list was still invisible (frames: the card at p of about .1 to .4, open and
+back). The owner, shown the frames: "Yes, fix it: maroon until the list fades in."
+**The spec.** The inside of the growing card stays the header's ground, the stack's deep maroon (`--dm`), and the white list surface arrives with the list: the list's own
+chalk fades in over p .2 to .8 (`fin`) and out over the same window going back, on top of the maroon. Nothing chalk is drawn under the station row before `fin` starts. A card that
+opens from a row (no photo to share) keeps its chalk surface. At p 1 and at rest the menu is chalk as before. Motion, durations and curves unchanged.
+`paint(p,y)` sets `#mcont`'s background (`--dm` while a band card is open); `test.js` ("round 15") asserts it at p 0 to .95 and that it is chalk at rest.
+
