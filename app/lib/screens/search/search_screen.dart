@@ -51,6 +51,8 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final _text = TextEditingController(), _focus = FocusNode();
+  // Search's own: the Halls bands (same keys) have theirs, and both tabs are live
+  final _hider = BandHider();
   final _keys = <String, GlobalKey>{};
   SearchController? _c;
   bool _reveal = false;
@@ -288,9 +290,9 @@ class _SearchScreenState extends State<SearchScreen> {
         for (final b in vm.halls)
           if (e.keys.contains(b.key))
             ListenableBuilder(
-              key: _keys.putIfAbsent(b.key, GlobalKey.new), listenable: scope.hider,
+              key: _keys.putIfAbsent(b.key, GlobalKey.new), listenable: _hider,
               builder: (_, _) => Opacity(
-                opacity: scope.hider.hides(b.key) ? 0 : 1,
+                opacity: _hider.hides(b.key) ? 0 : 1,
                 child: Band(
                   name: b.name, card: true, star: b.star, status: b.status, photo: bandPhoto(b, top),
                   busy: b.lamps == null ? null : Meter(lit: b.lamps!),
@@ -307,7 +309,7 @@ class _SearchScreenState extends State<SearchScreen> {
     scope.prefs.lastHall = b.key;
     final box = _keys[b.key]!.currentContext!.findRenderObject()! as RenderBox, o = box.localToGlobal(Offset.zero);
     Nav.openCard<void>(
-      context, source: b.key, hider: scope.hider, off: bandOff(b.key, widget.top),
+      context, source: b.key, hider: _hider, off: bandOff(b.key, widget.top),
       band: Rect.fromLTWH(o.dx, o.dy + M2Layout.seam, box.size.width, box.size.height - M2Layout.seam),
       builder: (_, page) => HallPage(band: b, page: page, top: widget.top, card: true),
     );

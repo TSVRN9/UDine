@@ -334,18 +334,22 @@ class CardRoute<T> extends StackRoute<T> {
   }
 }
 
+/// A route that is a place's page (a hall's menu, a café's, a Grab 'N Go's) carries its key in its settings; the shell reads "here" from it.
+RouteSettings placeSettings(String place) => RouteSettings(name: 'place', arguments: place);
+String? placeOf(Route<dynamic> r) => r.settings.name == 'place' ? r.settings.arguments as String? : null;
+
 /// Pushes and pops on the nearest Navigator: the app's stack. Every route can be covered by another, to any depth.
 abstract final class Nav {
-  static Future<T?> push<T>(BuildContext context, WidgetBuilder builder) {
+  static Future<T?> push<T>(BuildContext context, WidgetBuilder builder, {String? place}) {
     Haptics.light(); // M2: every row into a page
-    return Navigator.of(context).push(PushRoute<T>(reduced: reducedMotion(context), builder: builder));
+    return Navigator.of(context).push(PushRoute<T>(settings: place == null ? null : placeSettings(place), reduced: reducedMotion(context), builder: builder));
   }
 
   /// Opens a card from `band` (global coordinates). `off` is where the band's window into the page's header starts (px).
-  static Future<T?> openCard<T>(BuildContext context, {required Object source, required BandHider hider, required Rect band, required double off, required Widget Function(BuildContext, CardPage) builder}) {
+  static Future<T?> openCard<T>(BuildContext context, {required Object source, required BandHider hider, required Rect band, required double off, required Widget Function(BuildContext, CardPage) builder, String? place}) {
     Haptics.light(); // M2: a band into its hall
     final nav = Navigator.of(context);
     final origin = (nav.context.findRenderObject()! as RenderBox).localToGlobal(Offset.zero);
-    return nav.push(CardRoute<T>(reduced: reducedMotion(context), source: source, hider: hider, rect: BandRect(band.top - origin.dy, band.height, off), builder: builder));
+    return nav.push(CardRoute<T>(settings: place == null ? null : placeSettings(place), reduced: reducedMotion(context), source: source, hider: hider, rect: BandRect(band.top - origin.dy, band.height, off), builder: builder));
   }
 }

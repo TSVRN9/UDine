@@ -21,6 +21,14 @@ Future<void> tapText(WidgetTester t, String text) async {
 bool checked(WidgetTester t, String label) => t.widget<CheckRow>(find.widgetWithText(CheckRow, label)).on;
 Future<T> real<T>(WidgetTester t, Future<T> Function() f) async => (await t.runAsync(f)) as T;
 
+/// Halls is a live tab under You now (its own stack, not covered by You's page): its reads land before the test closes the store.
+Future<void> finishHalls(WidgetTester t) async {
+  for (var i = 0; i < 12; i++) {
+    await t.pump(const Duration(milliseconds: 200));
+    await drain(t);
+  }
+}
+
 void main() {
   setUpAll(loadFonts);
 
@@ -126,6 +134,7 @@ void main() {
       final b = await bootYou(t, History.today);
       await openYou(t, b, route: '/you/rank');
       await until(t, () => find.text('or').evaluate().isNotEmpty);
+      await finishHalls(t);
       await t.runAsync(() => b.store!.db.close());
       await t.tap(find.text('Hard Boiled Egg'));
       await wrote(t);

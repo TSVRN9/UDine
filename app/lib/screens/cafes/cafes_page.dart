@@ -99,7 +99,7 @@ class _CafesPageState extends State<CafesPage> {
       leading: Thumb(path: photoOf(p.key, p.name)),
       title: p.name, subtitle: p.building, last: last,
       trailing: r.status == null ? const SizedBox.shrink() : Text(r.status!, style: (r.open ? M2Text.placeStatus : M2Text.status).style(r.open ? M2Color.vm : M2Color.slate)),
-      onTap: () => Nav.push<void>(context, (_) => HallMenuPage(place: p.key, top: widget.top)),
+      onTap: () => Nav.push<void>(context, (_) => HallMenuPage(place: p.key, top: widget.top), place: p.key),
     );
   }
 }

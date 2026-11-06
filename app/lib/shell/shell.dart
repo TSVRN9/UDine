@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show ValueListenable;
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -56,6 +58,14 @@ class ShellState extends State<Shell> with WidgetsBindingObserver, SingleTickerP
   SheetHandle? Function()? _plateBack;
   final navigator = GlobalKey<NavigatorState>();
 
+  /// One stack per tab (Halls, Search, You): leaving a tab leaves its pages as they are, and the tab bar, the plate bar and the sheets are above all of them.
+  final _navs = [for (var i = 0; i < 3; i++) GlobalKey<NavigatorState>()];
+  NavigatorState? get _nav => _navs[_tab.value].currentState;
+  final _here = ValueNotifier<String?>(null);
+  late final _hereObs = _HereObserver(_here);
+  @override
+  ValueListenable<String?> get here => _here;
+
   @override
   void initState() {
     super.initState();
@@ -93,7 +103,9 @@ class ShellState extends State<Shell> with WidgetsBindingObserver, SingleTickerP
       if (!s.onboarding) s.handle.close();
     }
     _plateBack?.call()?.close();
-    navigator.currentState?.popUntil((r) => r.isFirst);
+    for (final n in _navs) {
+      n.currentState?.popUntil((r) => r.isFirst);
+    }
     _tab.value = 0;
     if (dish.isNotEmpty) unawaited(openAlertDish(navigator.currentContext!, dish).catchError((Object e) => debugPrint('alert dish: $e')));
   }
@@ -113,7 +125,7 @@ class ShellState extends State<Shell> with WidgetsBindingObserver, SingleTickerP
 
   @override
   void openPlace(String place, {required String meal, required int day, required String dish}) =>
-      Nav.push<void>(navigator.currentContext!, (_) => HallMenuPage(place: place, top: safeTop(context), day: day, meal: meal, landOn: dish));
+      Nav.push<void>(_navs[_tab.value].currentContext!, (_) => HallMenuPage(place: place, top: safeTop(context), day: day, meal: meal, landOn: dish), place: place);
 
   @override
   void handleBack(SheetHandle? Function()? openSheet) => _plateBack = openSheet;
@@ -173,6 +185,7 @@ class ShellState extends State<Shell> with WidgetsBindingObserver, SingleTickerP
     _book?.removeListener(_wantCafeIds);
     _lift?.detach();
     _tab.dispose();
+    _here.dispose();
     super.dispose();
   }
 
@@ -181,11 +194,18 @@ class ShellState extends State<Shell> with WidgetsBindingObserver, SingleTickerP
         builder: (_) => ValueListenableBuilder<int>(
           valueListenable: _tab,
           builder: (_, i, _) => FadeThroughTabs(index: i, pinned: [top, top + M2Layout.searchHeadTop + M2Layout.fieldH + M2Layout.searchHeadBottom, top], children: [
-            HallsScreen(top: top),
-            SearchScreen(top: top, tab: _tab, query: searchLaunch(widget.initialRoute)?.$1 ?? '', lenses: searchLaunch(widget.initialRoute)?.$2 ?? const {}, idle: EventsIdle(top: top)),
-            YouScreen(top: top),
+            _stack(0, HallsScreen(top: top), hallLaunchRoute(widget.initialRoute, top)),
+            _stack(1, SearchScreen(top: top, tab: _tab, query: searchLaunch(widget.initialRoute)?.$1 ?? '', lenses: searchLaunch(widget.initialRoute)?.$2 ?? const {}, idle: EventsIdle(top: top)), null),
+            _stack(2, YouScreen(top: top), _youLaunch(widget.initialRoute, top)),
           ]),
         ),
+      );
+
+  /// Tab `i`'s own stack: its screen as the base, a launch route over it.
+  Widget _stack(int i, Widget screen, Route<void>? launch) => Navigator(
+        key: _navs[i],
+        observers: [if (i == 0) _hereObs],
+        onGenerateInitialRoutes: (_, _) => [BaseRoute<void>(settings: const RouteSettings(name: '/'), builder: (_) => screen), ?launch],
       );
 
   /// `/you/day/2026-10-07`, `/you/diet`, `/you/rank`, `/you/export`, `/you/favs` and `/you/foods` open that page over You at launch (screenshot routes).
@@ -201,7 +221,7 @@ class ShellState extends State<Shell> with WidgetsBindingObserver, SingleTickerP
     Haptics.selection();
     if (i != 1) FocusManager.instance.primaryFocus?.unfocus(); // (Search stays mounted: its field would keep the keyboard)
     if (i == 2) AppScope.of(context).alerts.refresh();
-    navigator.currentState?.popUntil((r) => r.isFirst);
+    if (i == _tab.value) _nav?.popUntil((r) => r.isFirst);
     _tab.value = i;
   }
 
@@ -211,7 +231,7 @@ class ShellState extends State<Shell> with WidgetsBindingObserver, SingleTickerP
 
   /// The page back pops, when there is one over the tab that moves.
   StackRoute<dynamic>? _backPage() {
-    final n = navigator.currentState;
+    final n = _nav;
     if (n == null || !n.canPop()) return null;
     Route<dynamic>? top;
     n.popUntil((r) {
@@ -265,7 +285,7 @@ class ShellState extends State<Shell> with WidgetsBindingObserver, SingleTickerP
   }
 
   void _back() {
-    final n = navigator.currentState;
+    final n = _nav;
     if (_backSheet() case final s?) {
       s.close();
     } else if (n != null && n.canPop()) {
@@ -292,7 +312,7 @@ class ShellState extends State<Shell> with WidgetsBindingObserver, SingleTickerP
               Positioned.fill(
                 child: Navigator(
                   key: navigator,
-                  onGenerateInitialRoutes: (_, name) => [_tabs(const RouteSettings(name: '/'), top), ?hallLaunchRoute(widget.initialRoute, top), ?_youLaunch(widget.initialRoute, top)],
+                  onGenerateInitialRoutes: (_, name) => [_tabs(const RouteSettings(name: '/'), top)],
                   onGenerateRoute: (s) => _tabs(s, top),
                 ),
               ),
@@ -324,4 +344,44 @@ class ShellState extends State<Shell> with WidgetsBindingObserver, SingleTickerP
   if (u.path != '/search') return null;
   final names = Lens.values.asNameMap();
   return (u.queryParameters['q'] ?? '', {for (final l in (u.queryParameters['lens'] ?? '').split(',')) ?names[l]});
+}
+
+/// Which place page is open on the Halls stack: the last of its routes that is one (a page over it, an event or a café list, leaves it open).
+class _HereObserver extends NavigatorObserver {
+  _HereObserver(this.here);
+  final ValueNotifier<String?> here;
+  final _stack = <Route<dynamic>>[];
+
+  void _sync() {
+    final p = _stack.reversed.map(placeOf).nonNulls.firstOrNull;
+    if (p == here.value) return;
+    // (the first routes are pushed while the Navigator builds: a listener cannot rebuild then)
+    if (SchedulerBinding.instance.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) => here.value = _stack.reversed.map(placeOf).nonNulls.firstOrNull);
+    } else {
+      here.value = p;
+    }
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _stack.add(route);
+    _sync();
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _stack.remove(route);
+    _sync();
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) => didPop(route, previousRoute);
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    _stack.remove(oldRoute);
+    if (newRoute != null) _stack.add(newRoute);
+    _sync();
+  }
 }

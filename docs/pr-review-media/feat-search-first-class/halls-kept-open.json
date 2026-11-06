@@ -1,0 +1,40 @@
+{
+  "sha": "07585bea1606d1d50f73986099dff2578b76b260",
+  "branch": "feat/search-first-class",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/search-first-class",
+  "route": "/hall/worcester?data=recorded&at=2026-10-08T12:41&meal=dinner&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-11-06T02:45:36Z",
+  "own": {
+    "app/lib/motion/routes.dart": "5767531e5f5c3ca262e12f82e1dd1b71967fa999",
+    "app/lib/screens/cafes/cafes_page.dart": "86f92d573f4735b9aae10cf900256cef163e7006",
+    "app/lib/screens/hall/hall_route.dart": "57955185a32418fa185e154576e960da819e1ec7",
+    "app/lib/screens/halls/halls_screen.dart": "4938c4d01c58163cc6fd64b2ae9e247f449bb9fb",
+    "app/lib/screens/search/search_screen.dart": "b70b9aeeca357b32b1f5b95aa60d63528c6239f0",
+    "app/lib/shell/shell.dart": "dbf6d03d04c795bc3f71cc4974f77bfee1282343",
+    "app/lib/shell/shell_scope.dart": "eaf5ba2a7ca7ab6eb7e461c11458f32eebf06acd",
+    "app/lib/ui/tab_bar.dart": "5d0465cb598ad7468b82d006359bf4c0b29b6f17"
+  },
+  "argv": [
+    "/hall/worcester?data=recorded&at=2026-10-08T12:41&meal=dinner",
+    "--tap",
+    "540",
+    "1818",
+    "--tap",
+    "105",
+    "1845",
+    "--tap",
+    "180",
+    "1818",
+    "--tap-gap",
+    "2.5",
+    "--settle",
+    "3",
+    "--out",
+    "docs/pr-review-media/feat-search-first-class/halls-kept-open.png",
+    "--out",
+    "docs/pr-review-media/feat-search-first-class/halls-kept-open.png"
+  ]
+}

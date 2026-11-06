@@ -47,7 +47,7 @@ Route<void>? hallLaunchRoute(String route, double top) {
     return null;
   }
   return BaseRoute<void>(
-    settings: RouteSettings(name: route),
+    settings: placeSettings(place),
     builder: (context) {
       final iso = u.queryParameters['day'], today = AppScope.of(context).repo.today;
       final day = iso == null ? 0 : (DateTime.parse(iso).difference(DateTime.parse(today)).inDays).clamp(0, 14);
