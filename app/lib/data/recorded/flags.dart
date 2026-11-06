@@ -11,7 +11,7 @@ enum LookupMode { found, none, fail, limited, inProgress }
 const recordedAvailable = !kReleaseMode;
 
 class RecordedFlags {
-  const RecordedFlags({this.at, this.net = NetMode.ok, this.scores = (health: false, carbon: false), this.avoid = const [], this.onlyShow = const [], this.savedPdfs = const {}, this.savedCafes = const {}, this.noEvents = false, this.trackOff = false, this.firstRun = false, this.lookup = LookupMode.found, this.packFail = false, this.seedFoods = false, this.os = 'android', this.health = 'allow', this.busyLate = false, this.evimgPending = false, this.eventsPending = false});
+  const RecordedFlags({this.at, this.net = NetMode.ok, this.scores = (health: false, carbon: false), this.avoid = const [], this.onlyShow = const [], this.savedPdfs = const {}, this.savedCafes = const {}, this.noEvents = false, this.trackOff = false, this.firstRun = false, this.lookup = LookupMode.found, this.packFail = false, this.seedFoods = false, this.os = 'android', this.health = 'allow', this.busyLate = false, this.evimgPending = false, this.eventsPending = false, this.eventsLate = false});
   final DateTime? at;
   final NetMode net;
 
@@ -38,6 +38,8 @@ class RecordedFlags {
   final bool evimgPending;
   /// `events=pending`: the events feed is never answered, so Search's placeholder block can be captured.
   final bool eventsPending;
+  /// `events=late`: the feed answers after [defaultSlow].
+  final bool eventsLate;
   /// `scores=health,carbon`: the You switches a capture has no screen to set yet.
   final ({bool health, bool carbon}) scores;
   /// `avoid=Milk,Eggs` and `only=Halal`: You's Avoid list and "Only show" tags, likewise.
@@ -64,6 +66,7 @@ RecordedFlags? recordedFlags(String route, {bool available = recordedAvailable})
     busyLate: q['busy'] == 'late',
     evimgPending: q['evimg'] == 'pending',
     eventsPending: q['events'] == 'pending',
+    eventsLate: q['events'] == 'late',
     savedPdfs: {for (final x in (q['saved'] ?? '').split(',')) if (x.startsWith('pdf:')) x.substring(4)},
     savedCafes: {for (final x in (q['saved'] ?? '').split(',')) if (x.isNotEmpty && !x.startsWith('pdf:')) x},
     scores: (health: (q['scores'] ?? '').split(',').contains('health'), carbon: (q['scores'] ?? '').split(',').contains('carbon')),
