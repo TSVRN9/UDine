@@ -1,0 +1,34 @@
+{
+  "sha": "0deb49400f3f5ade9333f0e887ad39187fd54f5b",
+  "branch": "feat/search-here",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/search-here",
+  "route": "/hall/franklin?data=recorded&at=2026-10-08T12:41&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-11-06T03:20:22Z",
+  "own": {
+    "app/lib/core/m2/search.dart": "396de4a865a1ee5f5f4054883cf6eb5b28397110",
+    "app/lib/screens/search/search_controller.dart": "710fe40686813c3ab07ca364a57fe5989c41f9ce",
+    "app/lib/screens/search/search_screen.dart": "30f8c863999c2c55786e94fc642172d2d9ef81fe"
+  },
+  "argv": [
+    "/hall/franklin?data=recorded&at=2026-10-08T12:41",
+    "--tap",
+    "540",
+    "1760",
+    "--tap",
+    "105",
+    "1845",
+    "--tap-gap",
+    "3",
+    "--settle",
+    "5",
+    "--out",
+    "/home/tavern/Projects/js/UDine/.claude/worktrees/search-here/docs/pr-review-media/feat-search-here/here-franklin-search.png",
+    "--out",
+    "docs/pr-review-media/feat-search-here/here-franklin-search.png",
+    "--out",
+    "docs/pr-review-media/feat-search-here/here-franklin-search.png"
+  ]
+}

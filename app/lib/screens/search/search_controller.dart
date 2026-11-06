@@ -43,6 +43,8 @@ class SearchController extends ChangeNotifier {
   SearchIndex? index;
   String query = '';
   Set<Lens> lenses = const {};
+  /// the place page open on Halls (`ShellApi.here`): its dishes rank first and speak for it
+  String? here;
   SearchResult result = const SearchResult();
   /// bumps whenever the result is made again (a keystroke, a lens, data, a preference), never on a plate change
   int generation = 0;
@@ -156,13 +158,19 @@ class SearchController extends ChangeNotifier {
     final ix = index;
     _asks();
     generation++;
-    result = ix == null ? const SearchResult() : runSearch(ix, query: query, lenses: lenses, favorites: prefs.favorites, plate: plate.state, allow: (d) => prefOK(prefs.diet, d));
+    result = ix == null ? const SearchResult() : runSearch(ix, query: query, lenses: lenses, favorites: prefs.favorites, plate: plate.state, here: here, allow: (d) => prefOK(prefs.diet, d));
     notifyListeners();
   }
 
   void setQuery(String q) {
     if (q == query) return;
     query = q;
+    _compute();
+  }
+
+  void setHere(String? h) {
+    if (h == here) return;
+    here = h;
     _compute();
   }
 
