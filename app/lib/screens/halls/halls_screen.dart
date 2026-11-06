@@ -127,7 +127,7 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
     final box = _keys[b.key]!.currentContext!.findRenderObject()! as RenderBox;
     final o = box.localToGlobal(Offset.zero);
     Nav.openCard<void>(
-      context, source: b.key, hider: scope.hider, off: bandOff(b.key, widget.top),
+      context, source: b.key, hider: scope.hider, off: bandOff(b.key, widget.top), place: b.key,
       band: Rect.fromLTWH(o.dx, o.dy + M2Layout.seam, box.size.width, box.size.height - M2Layout.seam), // the seam above a band is not the band
       builder: (_, page) => HallPage(band: b, page: page, top: widget.top),
     );

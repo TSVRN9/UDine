@@ -56,7 +56,7 @@ class M2TabBar extends StatelessWidget {
                     selected: i == selected, enabled: !disabled.contains(i),
                     child: Press(
                       label: tabs[i].$2, scale: true,
-                      onTap: disabled.contains(i) ? null : () { if (i != selected) onSelect(i); },
+                      onTap: disabled.contains(i) ? null : () => onSelect(i),
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(minHeight: M2Size.tabBar),
                         child: ExcludeSemantics(

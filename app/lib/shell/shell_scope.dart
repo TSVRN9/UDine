@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 
 import '../ui/sheet.dart';
@@ -19,6 +20,10 @@ abstract class ShellApi {
   /// Android back is offered to this sheet first (after any pushed sheet, before the pages) while the function returns it: the sheet
   /// closes to its lowest height, following the gesture when it is the predictive one. Null to stop offering.
   void handleBack(SheetHandle? Function()? openSheet);
+
+  /// The place page (`W`, `c3`) open on the Halls tab's stack, or null: where Search takes the user to be. A page Search itself opens is on
+  /// Search's own stack, so it never sets this. Closing the place clears it.
+  ValueListenable<String?> get here;
 
 }
 
