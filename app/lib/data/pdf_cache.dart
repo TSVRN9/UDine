@@ -10,10 +10,19 @@ import 'states.dart';
 /// Runs a network job. The repository's `_pooled` when one is wired in (shared slots and offline window), else the job itself.
 typedef Pool = Future<T> Function<T>(Future<T> Function() job);
 
-/// Café menu PDFs kept on the phone: one file per URL under [dir] (the app support directory's `pdf/`). A saved file is the answer, with no
+/// Café menu PDFs (or, as [PdfCache.images], event pictures) kept on the phone: one file per URL under [dir] (the app support directory's `pdf/`). A saved file is the answer, with no
 /// request: a changed URL is simply another file, and [prune] drops the ones the feed no longer lists.
 class PdfCache {
-  PdfCache(this.dir, this.client, {this.timeout = const Duration(seconds: 15), Duration? stillLoadingAfter}) : stillLoadingAfter = stillLoadingAfter ?? stillLoadingDelay;
+  PdfCache(this.dir, this.client, {this.timeout = const Duration(seconds: 15), Duration? stillLoadingAfter, this.ext = 'pdf', this.allow = isUmassDiningHost, this.valid = _isPdf})
+      : stillLoadingAfter = stillLoadingAfter ?? stillLoadingDelay;
+
+  /// Event pictures: any http(s) host (the feed names its own), JPEG / PNG / GIF / WebP bodies up to 5 MB, under [dir] (the app support directory's `events/`).
+  PdfCache.images(Directory dir, http.Client client, {Duration? stillLoadingAfter}) : this(dir, client, stillLoadingAfter: stillLoadingAfter, ext: 'img', allow: _isWebUrl, valid: _isImage);
+
+  /// The file extension, the URL check (before any request) and the body check (before any write).
+  final String ext;
+  final bool Function(String url) allow;
+  final bool Function(List<int> bytes) valid;
   final Directory dir;
   final http.Client client;
   final Duration timeout, stillLoadingAfter;
@@ -26,7 +35,7 @@ class PdfCache {
     for (final c in url.codeUnits) {
       h = (h ^ c) * 0x100000001b3;
     }
-    return '${h.toUnsigned(64).toRadixString(16).padLeft(16, '0')}.pdf';
+    return '${h.toUnsigned(64).toRadixString(16).padLeft(16, '0')}.$ext';
   }
 
   /// Fetches in flight by URL: a second ask (the launch prefetch and a tap on the same menu) joins the first, and [prune] knows whose `.part` is live.
@@ -53,7 +62,7 @@ class PdfCache {
     yield done;
   }
 
-  /// Fetches [url] into its file (throws [Unreachable], [BadStatus] or [ArgumentError]). A body without the %PDF header is refused:
+  /// Fetches [url] into its file (throws [Unreachable], [BadStatus], [ArgumentError] or [FormatException]). A body [valid] refuses (no %PDF header, not an image):
   /// the viewer would render whatever the server sent. Written to a temp name first, so a half-written file is never a hit.
   Future<File> fetch(String url) {
     final f = _fetching[url] ??= _fetch(url).whenComplete(() {
@@ -63,9 +72,9 @@ class PdfCache {
   }
 
   Future<File> _fetch(String url) async {
-    if (!isUmassDiningHost(url)) throw ArgumentError.value(url, 'url', 'not a umassdining.com link');
+    if (!allow(url)) throw ArgumentError.value(url, 'url', 'not an allowed link');
     final bytes = await pool(() => sendBytes(client, timeout, 'GET', Uri.parse(url)));
-    if (bytes.length < 5 || String.fromCharCodes(bytes.take(5)) != '%PDF-') throw FormatException('not a PDF', url);
+    if (!valid(bytes)) throw FormatException('not the expected file type', url);
     dir.createSync(recursive: true);
     final f = file(url), tmp = File('${f.path}.part');
     await tmp.writeAsBytes(bytes, flush: true);
@@ -80,4 +89,20 @@ class PdfCache {
       if (e is File && !names.contains(e.uri.pathSegments.last)) await e.delete();
     }
   }
+}
+
+bool _isPdf(List<int> b) => b.length >= 5 && String.fromCharCodes(b.take(5)) == '%PDF-';
+
+bool _isWebUrl(String url) {
+  final u = Uri.tryParse(url);
+  return u != null && (u.scheme == 'http' || u.scheme == 'https') && u.host.isNotEmpty;
+}
+
+const _imageCap = 5 * 1024 * 1024;
+
+/// JPEG, PNG, GIF or WebP by its first bytes, no larger than [_imageCap].
+bool _isImage(List<int> b) {
+  if (b.length < 4 || b.length >= _imageCap) return false;
+  bool at(int i, String s) => String.fromCharCodes(b.skip(i).take(s.length)) == s;
+  return (b[0] == 0xFF && b[1] == 0xD8 && b[2] == 0xFF) || (b[0] == 0x89 && at(1, 'PNG')) || at(0, 'GIF8') || (at(0, 'RIFF') && at(8, 'WEBP'));
 }

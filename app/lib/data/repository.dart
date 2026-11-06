@@ -87,8 +87,9 @@ String addDays(String iso, int days) {
 /// menu_cache:* rows are never touched. Raw responses are stored and re-parsed on read, so parser fixes apply to old
 /// entries and fields toJson omits (health, carbon) survive.
 class Repository {
-  Repository(this.source, this.db, {this.supabase, this.pdfs, DateTime Function()? now, Duration? stillLoadingAfter})
+  Repository(this.source, this.db, {this.supabase, this.pdfs, this.images, DateTime Function()? now, Duration? stillLoadingAfter})
     : now = now ?? DateTime.now, stillLoadingAfter = stillLoadingAfter ?? stillLoadingDelay {
+    images?.pool = _pooled;
     pdfs?.pool = _pooled; // PDFs take the same slots and honour the same offline window as the menus
   }
   final UmassSource source;
@@ -96,6 +97,9 @@ class Repository {
 
   /// Café menu PDFs on the phone; null where there is nowhere to keep them.
   final PdfCache? pdfs;
+
+  /// Event pictures kept on the phone; null with Photos off (nothing is fetched).
+  final PdfCache? images;
   final Database db;
   final DateTime Function() now;
   final Duration stillLoadingAfter;
@@ -275,7 +279,29 @@ class Repository {
       for (final d in [t, addDays(t, 1)])
         for (final h in diningHalls) menu(h.tid, d).drain<void>(),
       _warmHours(t, pins),
-      events().drain<void>(),
+      _warmImages(),
+    ]);
+  }
+
+  /// Saves every listed event's picture and drops saved ones the feed no longer lists. One failing picture doesn't stop the rest.
+  Future<void> _warmImages() async {
+    final cache = images;
+    List<DiningEvent>? last;
+    await for (final s in events()) {
+      if (s case Loaded(:final value) || LoadedOffline(:final value)) last = value;
+    }
+    if (cache == null || last == null) return;
+    final urls = {for (final e in last) if (e.featuredImage.isNotEmpty) e.featuredImage};
+    try {
+      await cache.prune(urls);
+    } catch (e) {
+      if (!kReleaseMode) debugPrint('image prune: $e');
+    }
+    await Future.wait([
+      for (final u in urls)
+        if (!cache.file(u).existsSync()) cache.fetch(u).then<void>((_) {}, onError: (Object e) {
+          if (!kReleaseMode) debugPrint('image prefetch $u: $e');
+        }),
     ]);
   }
 

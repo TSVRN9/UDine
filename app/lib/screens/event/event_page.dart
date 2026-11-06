@@ -47,7 +47,7 @@ class EventPage extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Space.eventTop, M2Space.gutter, M2Space.eventBottom),
                     child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                      if (pic) Semantics(label: e.title, image: true, child: EventBanner(image: e.image, framed: true)),
+                      if (pic) Semantics(label: e.title, image: true, child: EventBanner(image: e.image, cache: AppScope.of(context).repo.images, framed: true)),
                       if (when.isNotEmpty) Padding(padding: const EdgeInsets.only(top: M2Space.paragraph + M2Space.eventDate), child: Text(when, style: M2Text.pstat.style(M2Color.gold))),
                       if (e.flyer.isNotEmpty) Padding(padding: const EdgeInsets.only(top: M2Space.group), child: FlyerPicture(url: e.flyer)),
                       Padding(

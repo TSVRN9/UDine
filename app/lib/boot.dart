@@ -105,6 +105,7 @@ class Boot {
     await clearExports(tmp: tmp); // last session's exports: plaintext copies of the log, not kept past the next start
     if (photosOff(route)) Photos.enabled = false;
     final flags = recordedFlags(route);
+    if (flags?.evimgPending ?? false) Photos.pending = true;
     final pinsQuery = Uri.parse(route).queryParameters['pins'], pinsFlag = int.tryParse(pinsQuery ?? '');
     final (cache, store) = await openDb(dbPath: flags != null ? inMemoryDatabasePath : (dbPath ?? await udineDbPath()));
     if (flags != null) {
@@ -127,10 +128,11 @@ class Boot {
     if (flags != null) {
       // `at` is Eastern wall-clock time, as M2 reads it, wherever the device is
       final a = flags.at;
-      repo = await recordedRepository(RecordedFlags(at: a == null ? null : easternInstant(DateTime.utc(a.year, a.month, a.day, a.hour, a.minute)), net: flags.net, savedPdfs: flags.savedPdfs, savedCafes: flags.savedCafes, noEvents: flags.noEvents, busyLate: flags.busyLate), cache, pins: prefs.pins, read: read);
+      repo = await recordedRepository(RecordedFlags(at: a == null ? null : easternInstant(DateTime.utc(a.year, a.month, a.day, a.hour, a.minute)), net: flags.net, savedPdfs: flags.savedPdfs, savedCafes: flags.savedCafes, noEvents: flags.noEvents, busyLate: flags.busyLate, evimgPending: flags.evimgPending), cache, pins: prefs.pins, read: read);
     } else {
       final client = http.Client();
-      repo = Repository(UmassSource(client), cache, supabase: SupabaseSource(client), pdfs: PdfCache(Directory('${(await getApplicationSupportDirectory()).path}/pdf'), client));
+      repo = Repository(UmassSource(client), cache, supabase: SupabaseSource(client), pdfs: PdfCache(Directory('${(await getApplicationSupportDirectory()).path}/pdf'), client),
+          images: Photos.enabled ? PdfCache.images(Directory('${(await getApplicationSupportDirectory()).path}/events'), client) : null);
     }
     if (flags == null) repo.launch(pins: prefs.pins); // warm today and tomorrow; never throws
     final Boot boot;

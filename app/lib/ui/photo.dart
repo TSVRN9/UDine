@@ -4,6 +4,9 @@ import '../theme/tokens.dart';
 /// Tests that must not render UMass's photos (golden PNGs are committed) switch them off.
 abstract final class Photos {
   static bool enabled = true;
+
+  /// Recorded `evimg=pending`: event pictures are held mid-fetch with [enabled] off, so a capture shows the shimmer with nothing of UMass's drawn.
+  static bool pending = false;
 }
 
 const _aspect = 640 / 341;

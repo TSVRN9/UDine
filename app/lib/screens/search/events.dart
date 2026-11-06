@@ -93,7 +93,7 @@ class EventCard extends StatelessWidget {
     return Press(
       overlay: M2Color.pressOnDm, label: when.isEmpty ? event.title : '${event.title}, $when', onTap: onTap,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        EventBanner(image: event.image),
+        EventBanner(image: event.image, cache: AppScope.of(context).repo.images),
         Padding(
           padding: const EdgeInsets.only(top: M2Layout.evCapTop),
           child: Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -60,6 +61,7 @@ Future<Repository> recordedRepository(RecordedFlags f, Database db, {
   List<String> pins = const [],
   Future<List<int>> Function(String file) readPdf = _pdfFromBundle,
   Directory? pdfDir,
+  http.Client? imageClient,
 }) async {
   read ??= _fromBundle;
   final client = RecordedClient(
@@ -71,7 +73,8 @@ Future<Repository> recordedRepository(RecordedFlags f, Database db, {
   );
   final net = NetClient(client, f.net == NetMode.offline ? NetMode.ok : f.net, slow ?? defaultSlow);
   final at = f.at;
-  final repo = Repository(UmassSource(net), db, supabase: SupabaseSource(net), now: at == null ? null : () => at, pdfs: PdfCache(pdfDir ?? Directory.systemTemp.createTempSync('udine-pdf'), net));
+  final repo = Repository(UmassSource(net), db, supabase: SupabaseSource(net), now: at == null ? null : () => at, pdfs: PdfCache(pdfDir ?? Directory.systemTemp.createTempSync('udine-pdf'), net),
+      images: PdfCache.images(Directory.systemTemp.createTempSync('udine-events'), imageClient ?? (f.evimgPending ? _Pending() : net)));
   if (f.net == NetMode.offline) {
     await repo.launch(pins: pins);
     await repo.savePdfs(f.savedPdfs);
@@ -92,4 +95,10 @@ Future<({PackagedSource packaged, LookupDishSource lookup})> recordedPackaged(Re
     packFail: f.packFail,
   ));
   return (packaged: PackagedSource(client), lookup: LookupDishSource(client, now: () => f.at ?? DateTime.now()));
+}
+
+/// `evimg=pending`: a picture's request is never answered.
+class _Pending extends http.BaseClient {
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) => Completer<http.StreamedResponse>().future;
 }

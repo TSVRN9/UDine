@@ -1,3 +1,4 @@
+import 'package:flutter/animation.dart' show Curves;
 import 'package:flutter/painting.dart';
 import 'kinds.dart';
 import 'm2_tokens.g.dart' show M2Text;
@@ -260,4 +261,12 @@ abstract final class M2Layout {
   static const feditTop = -3.0, feditRight = -12.0, feditBottom = -8.0; // `.dish .fedit` margin -3 -12 -8 auto: centred on the name's first line
   static const editFadeFrom = 0.4; // a sheet's content becoming another in place: opacity .4 to 1 on `settle`
   static const fdelTop = 10.0; // `.fdel` margin 10 auto 0
+}
+
+/// The event banner's loading shimmer (the owner's 2026-11-05 request; M2 has no skeletons): a lighter band sweeping across the felt on a loop.
+abstract final class EventShimmer {
+  static const sweep = Anim(1400, Curves.easeInOut); // one pass of the band, restarted at once
+  static const bandWidth = 0.4; // of the banner's width
+  static const bandAlpha = 0.18; // white over the felt, at the band's centre
+  static const stillAlpha = 0.08; // reduce-motion: the whole felt, lighter and still
 }
