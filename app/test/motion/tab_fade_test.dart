@@ -9,10 +9,10 @@ import 'package:udine/theme/tokens.dart';
 import 'package:udine/ui/screen_header.dart';
 
 // M2 round 14, "Fade content, keep ground", as round 15 §2 overlaps it ("Overlapped crossfade"): in a tab switch there is no frame where
-// neither pane's content is above `floor` (never a bare page), the two are above a sliver together for at most 2 frames, and the ground
+// neither pane's content is above `floor` (never a bare page), the two are above a sliver together for at most 3 frames, at every vsync phase, and the ground
 // (the header band, the page background) is never faded. A meal change still waits for the old list to be gone.
 void main() {
-  const frame = Duration(milliseconds: 16), sliver = 0.05, floor = 0.08;
+  const frame = Duration(milliseconds: 16), sliver = 0.05, floor = 0.3;
   Widget pane(String n) => ColoredBox(
         color: M2Color.chalk,
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [ScreenHeader.title(top: 24, title: 'T$n'), Expanded(child: Text('content $n'))]),
@@ -43,27 +43,33 @@ void main() {
   Future<void> switchTo(WidgetTester t, int from, int to, {bool checkGround = true}) async {
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.resetDevicePixelRatio);
-    final k = GlobalKey(), names = ['A', 'B', 'C'];
-    await t.pumpWidget(host(k, from));
-    await t.pumpWidget(host(k, to));
-    var both = 0;
-    for (var i = 0; i < 20; i++) {
-      await t.pump(frame);
-      final o = opacityOf(t, 'content ${names[from]}'), n = opacityOf(t, 'content ${names[to]}');
-      if (i < 15) expect(o > floor || n > floor, isTrue, reason: 'frame $i is a bare page: old $o, new $n');
-      if (o > sliver && n > sliver) both++;
-      if (checkGround) {
-        // inside the header band, clear of its text: dm at every frame, whichever pane's content is showing
-        // the whole band, edges and corners included: the incoming pane settles from .97, which pulls its own edges in
-        for (final (x, y) in [(300, 50), (1, 1), (1, 60), (358, 1), (358, 60), (1, 78), (358, 78)]) {
-          final p = await pixel(t, k, x, y);
-          expect(isGround(p), isTrue, reason: 'frame $i: the header band at ($x, $y) is not ground ($p)');
+    final names = ['A', 'B', 'C'];
+    // 12 vsync phases: the first frame after the tap lands anywhere in a 16.7 ms period
+    for (var phase = 0; phase < 12; phase++) {
+      final k = GlobalKey();
+      await t.pumpWidget(host(k, from));
+      await t.pumpWidget(host(k, to));
+      var both = 0, lowest = 1.0;
+      await t.pump(Duration(microseconds: 1000 + phase * 1389));
+      for (var i = 0; i < 20; i++) {
+        final o = opacityOf(t, 'content ${names[from]}'), n = opacityOf(t, 'content ${names[to]}');
+        if (i < 15) lowest = lowest < (o > n ? o : n) ? lowest : (o > n ? o : n);
+        if (o > sliver && n > sliver) both++;
+        if (checkGround) {
+          // inside the header band, clear of its text: dm at every frame, whichever pane's content is showing
+          // the whole band, edges and corners included: the incoming pane settles from .97, which pulls its own edges in
+          for (final (x, y) in [(300, 50), (1, 1), (1, 60), (358, 1), (358, 60), (1, 78), (358, 78)]) {
+            final p = await pixel(t, k, x, y);
+            expect(isGround(p), isTrue, reason: 'phase $phase frame $i: the header band at ($x, $y) is not ground ($p)');
+          }
         }
+        await t.pump(const Duration(microseconds: 16667));
       }
+      expect(lowest, greaterThanOrEqualTo(floor), reason: 'phase $phase: a frame is a bare page (best pane at $lowest)');
+      expect(both, lessThanOrEqualTo(3), reason: 'phase $phase: frames with both visible');
+      await t.pumpAndSettle();
+      expect(opacityOf(t, 'content ${names[to]}'), 1);
     }
-    expect(both, inInclusiveRange(1, 2), reason: 'frames with both visible');
-    await t.pumpAndSettle();
-    expect(opacityOf(t, 'content ${names[to]}'), 1);
   }
 
   testWidgets('Halls to You: the content goes out, then comes in; the header band stays', (t) => switchTo(t, 0, 2));

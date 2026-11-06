@@ -1811,24 +1811,26 @@ print(json.dumps(out))" '${JSON.stringify(sm)}'`, { input: buf }).toString());
   assert.match(await page.locator('#mlist .row.here .n').textContent(), /Chinese Twist Cruller/);
   assert.equal(await page.locator('#mlist .row.here .add').count(), 0, "tomorrow's dishes carry no + (today's plate only)");
 
-  // round 3: no tab switch shows bare ground. Sample frames mid-switch; the share of near-white pixels never exceeds
-  // what the two panes show at rest by more than a little.
+  // round 3, as round 15 §2 overlaps it: no tab switch shows bare ground. Deterministic (screenshots take longer than the 250 ms switch, so a
+  // screenshot sampler hits a random phase): pause every animation at T ms and read the two panes' content opacity. The best of the two is
+  // never under .3 (never a bare page), and both are above 5% for at most 50 ms (the overlap, fadeThrough.overlap of d, is 40 ms).
   if (!process.env.RM) {
     await page.goto(URL); await page.waitForTimeout(400);
-    const white = async () => { const buf = await page.screenshot(); return +require('child_process').execSync(`python3 -c "
-import sys,io
-from PIL import Image
-im=Image.open(io.BytesIO(sys.stdin.buffer.read())).convert('L').resize((97,211))
-d=im.get_flattened_data(); print(sum(1 for v in d if v>236)/len(d))"`, { input: buf }).toString(); };
     for (const [from, to] of [['halls', 'you'], ['you', 'search'], ['search', 'halls']]) {
-      // round 15 §2 (overlapped crossfade, owner 2026-11-05): both panes' content is above 5% opacity for at most 3 animation frames (the overlap is fadeThrough.ov of d, ~1-2 frames); round 14's "never both" is gone
-      await page.evaluate(([f, t]) => { const op = k => document.getElementById('tab-' + k).classList.contains('hide') ? 0 : Math.max(0, ...tabParts(document.getElementById('tab-' + k).firstElementChild).map(e => +getComputedStyle(e).opacity)); window.__both = 0; const tick = () => { if (Math.min(op(f), op(t)) > .05) { window.__both++; (window.__log ||= []).push([performance.now() | 0, op(f), op(t)].join('/')); } if (!window.__stop) requestAnimationFrame(tick); }; window.__stop = false; tick(); }, [from, to]);
-      const w0 = await white(); await page.locator(`.tbar button[data-tab=${to}]`).tap(); let mx = 0;
-      for (let i = 0; i < 6; i++) mx = Math.max(mx, await white());
-      await page.waitForTimeout(400); const w1 = await white();
-      const both = await page.evaluate(() => { window.__stop = true; return [window.__both, (window.__log || []).join(' ')]; });
-      assert(both[0] <= 3, `${from} -> ${to}: ${both[0]} frames show both panes' content: ${both[1]}`);
-      assert(mx <= Math.max(w0, w1) + .08, `${from} -> ${to}: a frame is ${(mx * 100).toFixed(0)}% white (rest ${(w0 * 100).toFixed(0)}% / ${(w1 * 100).toFixed(0)}%)`);
+      await page.locator(`.tbar button[data-tab=${from}]`).tap(); await page.waitForTimeout(600);
+      await page.evaluate(() => { window.__st = window.setTimeout; window.setTimeout = (f, ms, ...a) => ms === 87.5 || ms === 250 ? 0 : window.__st(f, ms, ...a); });   // keep the old pane until we have looked
+      await page.locator(`.tbar button[data-tab=${to}]`).tap();
+      const rows = [];
+      for (let T = 0; T <= 250; T += 10) rows.push(await page.evaluate(([f, t, T]) => {
+        document.getAnimations({ subtree: true }).forEach(a => { a.pause(); a.currentTime = T; });
+        const op = k => { const el = document.getElementById('tab-' + k); return el.classList.contains('hide') ? 0 : Math.max(0, ...tabParts(el.firstElementChild).map(e => +getComputedStyle(e).opacity)); };
+        return [op(f), op(t)];
+      }, [from, to, T]));
+      await page.evaluate(() => { window.setTimeout = window.__st; });
+      const best = Math.min(...rows.map(([o, n]) => Math.max(o, n))), both = rows.filter(([o, n]) => o > .05 && n > .05).length * 10;
+      assert(best >= .3, `${from} -> ${to}: a bare page: the best pane is at ${best.toFixed(2)}`);
+      assert(both <= 50, `${from} -> ${to}: both panes' content is visible for ${both} ms`);
+      await page.waitForTimeout(500);
     }
   }
 

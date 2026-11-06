@@ -625,7 +625,7 @@ abstract final class M2Motion {
   /// MO.fadeThrough
   static const fadeThroughZ = 8.0;
   /// MO.fadeThrough
-  static const fadeThroughOverlap = 0.08;
+  static const fadeThroughOverlap = 0.16;
   /// the outgoing leg of a fade through: linear, over sharedX.at of fadeThrough.d (the incoming leg is fadeThrough.e)
   static const fadeThroughOut = Anim(250, Curves.linear);
   /// MO.sharedX
