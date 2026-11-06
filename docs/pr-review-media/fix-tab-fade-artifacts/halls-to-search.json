@@ -1,15 +1,15 @@
 {
-  "sha": "f04c3658505e391b33cef24016253359435c7b59",
+  "sha": "a315bbd18e0acfba199e08f9f61624737b228b16",
   "branch": "fix/tab-fade-artifacts",
   "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/tab-fade",
   "route": "/?data=recorded&at=2026-10-08T12:41&photos=off",
   "device": "sdk_gphone64_x86_64",
   "stress": "",
   "dirty": false,
-  "ts": "2026-11-06T04:17:34Z",
+  "ts": "2026-11-06T04:40:28Z",
   "own": {
     "app/lib/motion/fade_through.dart": "9ee1293cb5fe1c49fe062b416552af34cbdf3752",
-    "app/lib/theme/m2_tokens.g.dart": "a9ef14bedc59e1432e037e5312fab730c3ee5038"
+    "app/lib/theme/m2_tokens.g.dart": "155dc142a5609deb5990cccc3a97eb51fa39e556"
   },
   "argv": [
     "/?data=recorded&at=2026-10-08T12:41",
