@@ -147,7 +147,7 @@ class _SearchScreenState extends State<SearchScreen> {
   void _submit() {
     final e = _entries.where((e) => e is NowEntry || e is LaterEntry).firstOrNull, c = _c;
     if (e == null || c?.index == null) return;
-    final meal = _meal(c!), st = e is NowEntry ? _stand(e, c) : _standLater(e as LaterEntry, c), ctx = _ctx(e), f = findItem(_plate.state, meal, st.key, ctx);
+    final meal = _meal(c!), st = e is NowEntry ? _stand(e, c) : _standLater(e as LaterEntry, c), ctx = entryCtx(e), f = findItem(_plate.state, meal, st.key, ctx);
     if (f != null) {
       _plate.step(f.plate.id, st.key, 1);
     } else {
@@ -176,9 +176,6 @@ class _SearchScreenState extends State<SearchScreen> {
     return (d: d, chip: e.row.family == null ? null : familiesOf(fx).variantIn(d)?.chip, key: d.key, name: shownOf(familiesOf(fx), d), refs: laterRefs(fx, e.row));
   }
 
-  /// A café's menu only sees the plates that café can serve.
-  String? _ctx(SearchEntry e) => switch (e) { NowEntry(:final cafe) when cafe => e.row.g.places.first, LaterEntry() when isCafe(e.row.g.halls.first) => e.row.g.halls.first, _ => null };
-
   /// The open place's name: the index's, or before it loads the bundled table's (a hall); null when none is open.
   String? _hereName(SearchIndex? ix) {
     final h = _hereN?.value ?? ShellScope.of(context).here.value;
@@ -195,7 +192,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   double _code(SearchEntry e, String meal, String key, Map<String, MenuItem> refs) {
     refs = _addRefs(refs);
-    final f = findItem(_plate.state, meal, key, _ctx(e));
+    final f = findItem(_plate.state, meal, key, entryCtx(e));
     if (f != null) return f.item.qty;
     return wouldSplit(_plate.state, meal, refs.keys.toList()) ? -1 : 0;
   }
@@ -225,7 +222,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _now(NowEntry e, SearchController c) {
-    final scope = AppScope.of(context), fx = c.index!.fx, meal = _meal(c), g = e.row.g, st = _stand(e, c), d = st.d, ctx = _ctx(e);
+    final scope = AppScope.of(context), fx = c.index!.fx, meal = _meal(c), g = e.row.g, st = _stand(e, c), d = st.d, ctx = entryCtx(e);
     final place = st.refs.entries.firstWhere((x) => identical(x.value, d)).key;
     final fam = g.vars == null ? null : familiesOf(fx).familyOf(d);
     return DishRow(
@@ -288,7 +285,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _later(LaterEntry e, SearchController c) {
-    final scope = AppScope.of(context), fx = c.index!.fx, g = e.row.g, d = e.row.d, said = _said(g), fam = e.row.family, st = _standLater(e, c), meal = _meal(c), ctx = _ctx(e);
+    final scope = AppScope.of(context), fx = c.index!.fx, g = e.row.g, d = e.row.d, said = _said(g), fam = e.row.family, st = _standLater(e, c), meal = _meal(c), ctx = entryCtx(e);
     void step(int by) {
       final f = findItem(_plate.state, meal, st.key, ctx);
       if (f != null) {
