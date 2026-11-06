@@ -15,6 +15,26 @@ SearchResult run(String q, {Set<Lens> lenses = const {}, bool newton = false, Se
     runSearch(SearchIndex(board, now, charlesRiver: newton), query: q, lenses: lenses, favorites: favorites, plate: plate, here: here);
 
 void main() {
+  test('search-first-class: a Later row\'s + serves the dish at each place its group lists; a family row is the variant it shows', () {
+    MenuItem named(String n, String place, String iso) {
+      final d = dishes.first;
+      return MenuItem(dishName: n, category: d.category, mealPeriod: d.mealPeriod, hallTid: d.hallTid, date: iso, nutrition: d.nutrition, allergens: const [], dietTags: const []);
+    }
+    final iso = '2026-10-09';
+    final days = {for (final e in board.days.entries) e.key: {for (final p in e.value.entries) p.key: {...p.value}}};
+    for (final p in ['W', 'F']) {
+      days[iso]![p] = {...?days[iso]![p], 'dinner': [Station('Zzcafe', [named('Zzboba Oat Milk', p, iso), named('Zzboba Soy Milk', p, iso)]), Station('Zzgrill', [named('Zzplain', p, iso)])]};
+    }
+    final fx = Board(clock: board.clock, places: board.places, hours: board.hours, grab: board.grab, days: days, events: board.events);
+    final fam = runSearch(SearchIndex(fx, now), query: 'zzboba').later.single, plain = runSearch(SearchIndex(fx, now), query: 'zzplain').later.single;
+    expect(fam.family, isNotNull);
+    expect(fam.g.halls, ['W', 'F']);
+    expect(laterRefs(fx, plain).keys, ['W', 'F']);
+    expect(laterRefs(fx, plain).values.map((d) => d.dishName), ['Zzplain', 'Zzplain']);
+    // (the variant the row shows, at each place: not the other variant)
+    expect(laterRefs(fx, fam).values.map((d) => d.key).toSet(), {fam.d.key});
+    expect(laterRefs(fx, fam).keys, ['W', 'F']);
+  });
   test('searchWords is the normalizer matchesQuery reads', () {
     expect(searchWords("Peet’s  Coffee & Tea"), ['peet', 's', 'coffee', 'tea']);
     expect(searchWords('   '), isEmpty);
@@ -91,7 +111,8 @@ void main() {
       expect(r.cafes.every((x) => x.g.refs.keys.every(isCafe)), isTrue);
       expect(r.now.every((x) => x.g.refs.keys.every((p) => !isCafe(p))), isTrue);
     });
-    test('Later rows: not served now anywhere, soonest first, at most 8, none with a control group', () {
+    // (search-first-class: Later rows carry a + like any other row, a departure from M2 the owner chose, 2026-11-05: docs/briefs/search-first-class.md)
+    test('Later rows: not served now anywhere, soonest first, at most 8', () {
       final r = run('a');
       final nowKeys = {for (final x in [...r.now, ...r.cafes]) dishKey(x.g.name)};
       expect(r.later.length, lessThanOrEqualTo(8));

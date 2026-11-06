@@ -262,7 +262,7 @@ SearchResult runSearch(SearchIndex ix,
     final cafeKeys = {for (final g in ix.cafeGroups) g.key};
     for (final (key, name) in ix.laterCandidates) {
       if (cafeKeys.contains(key) || !matchesQuery(ix.laterHay[key] ?? name, query)) continue;
-      final g = wherePlan(ix.fx, name, ix.now, newton: ix.charlesRiver).where((g) => g.st != 'now' && g.halls.isNotEmpty).firstOrNull;
+      final g = wherePlan(ix.fx, key, ix.now, newton: ix.charlesRiver).where((g) => g.st != 'now' && g.halls.isNotEmpty).firstOrNull;
       final d = g == null ? null : _serving(ix.fx, g, key);
       if (g != null && d != null) later.add(LaterRow(g, d, familiesOf(ix.fx).familyOf(d)));
     }
@@ -295,6 +295,17 @@ MenuItem? _serving(Board fx, WhereGroup g, String key) {
     }
   }
   return null;
+}
+
+/// A Later row's serving at each place its group lists (the row's own dish, by key, in that group's day and meal): what its + puts on the plate.
+/// A family's row is the variant it shows (`d`'s own key), as a now row's `_stand` keys one.
+Map<String, MenuItem> laterRefs(Board fx, LaterRow r) {
+  final refs = <String, MenuItem>{};
+  for (final p in r.g.halls) {
+    final x = [for (final s in fx.days[r.g.iso]?[p]?[r.g.meal] ?? const <Station>[]) ...s.dishes].where((x) => x.key == r.d.key).firstOrNull;
+    if (x != null) refs[p] = x;
+  }
+  return refs;
 }
 
 /// How a favourite is spelled to compare: a dish's by its normalised name, a family's (`f:Boba`) by the family key (`f:boba`).
