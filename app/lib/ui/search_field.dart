@@ -39,7 +39,16 @@ class SearchField extends StatelessWidget {
   const SearchField({super.key, required this.controller, required this.focus, required this.hint, required this.onChanged, required this.onClear, this.onSubmit});
 
   @override
-  Widget build(BuildContext context) => Container(
+  // The whole 52 dp field takes the tap, not just the text line in it, and every tap asks for the keyboard (as TextField does):
+  // after the back key hides it the field keeps focus, and a tap that leaves the caret where it was would not bring it back.
+  Widget build(BuildContext context) => GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapUp: (d) {
+        final s = focus.context?.findAncestorStateOfType<EditableTextState>();
+        s?.renderEditable.selectPositionAt(from: d.globalPosition, cause: SelectionChangedCause.tap);
+        s?.requestKeyboard();
+      },
+      child: Container(
         height: M2Layout.fieldH,
         padding: const EdgeInsets.only(left: M2Layout.fieldPadL, right: M2Layout.fieldPadR),
         decoration: const BoxDecoration(color: M2Color.white, borderRadius: BorderRadius.all(Radius.circular(M2Radius.button))),
@@ -56,7 +65,7 @@ class SearchField extends StatelessWidget {
                   child: EditableText(
                     controller: controller, focusNode: focus, onChanged: onChanged, onEditingComplete: onSubmit ?? () {}, maxLines: 1, autocorrect: false, enableSuggestions: false,
                     style: M2Layout.fieldText.style(M2Color.ink), cursorColor: M2Color.vm, backgroundCursorColor: M2Color.hair, selectionColor: M2Color.tint,
-                    keyboardType: TextInputType.text, textInputAction: TextInputAction.search,
+                    keyboardType: TextInputType.text, textInputAction: TextInputAction.search, rendererIgnoresPointer: true,
                   ),
                 ),
               ]),
@@ -73,5 +82,5 @@ class SearchField extends StatelessWidget {
                   ),
           ),
         ]),
-      );
+      ));
 }
