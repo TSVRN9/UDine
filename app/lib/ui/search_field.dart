@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import '../theme/tokens.dart';
+import 'field_tap.dart';
 import 'press.dart';
 import 'svg_path.dart';
 
@@ -39,7 +40,9 @@ class SearchField extends StatelessWidget {
   const SearchField({super.key, required this.controller, required this.focus, required this.hint, required this.onChanged, required this.onClear, this.onSubmit});
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => FieldTap(
+      focus: focus,
+      child: Container(
         height: M2Layout.fieldH,
         padding: const EdgeInsets.only(left: M2Layout.fieldPadL, right: M2Layout.fieldPadR),
         decoration: const BoxDecoration(color: M2Color.white, borderRadius: BorderRadius.all(Radius.circular(M2Radius.button))),
@@ -56,7 +59,7 @@ class SearchField extends StatelessWidget {
                   child: EditableText(
                     controller: controller, focusNode: focus, onChanged: onChanged, onEditingComplete: onSubmit ?? () {}, maxLines: 1, autocorrect: false, enableSuggestions: false,
                     style: M2Layout.fieldText.style(M2Color.ink), cursorColor: M2Color.vm, backgroundCursorColor: M2Color.hair, selectionColor: M2Color.tint,
-                    keyboardType: TextInputType.text, textInputAction: TextInputAction.search,
+                    keyboardType: TextInputType.text, textInputAction: TextInputAction.search, rendererIgnoresPointer: true,
                   ),
                 ),
               ]),
@@ -73,5 +76,5 @@ class SearchField extends StatelessWidget {
                   ),
           ),
         ]),
-      );
+      ));
 }
