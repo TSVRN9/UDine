@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import '../theme/tokens.dart';
+import 'field_tap.dart';
 import 'press.dart';
 import 'svg_path.dart';
 
@@ -39,15 +40,8 @@ class SearchField extends StatelessWidget {
   const SearchField({super.key, required this.controller, required this.focus, required this.hint, required this.onChanged, required this.onClear, this.onSubmit});
 
   @override
-  // The whole 52 dp field takes the tap, not just the text line in it, and every tap asks for the keyboard (as TextField does):
-  // after the back key hides it the field keeps focus, and a tap that leaves the caret where it was would not bring it back.
-  Widget build(BuildContext context) => GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapUp: (d) {
-        final s = focus.context?.findAncestorStateOfType<EditableTextState>();
-        s?.renderEditable.selectPositionAt(from: d.globalPosition, cause: SelectionChangedCause.tap);
-        s?.requestKeyboard();
-      },
+  Widget build(BuildContext context) => FieldTap(
+      focus: focus,
       child: Container(
         height: M2Layout.fieldH,
         padding: const EdgeInsets.only(left: M2Layout.fieldPadL, right: M2Layout.fieldPadR),

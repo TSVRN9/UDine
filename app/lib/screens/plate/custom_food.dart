@@ -389,24 +389,28 @@ class _Field extends StatelessWidget {
       ),
       Semantics(
         label: label,
-        child: Container(
-          height: M2Layout.formFieldH,
-          padding: const EdgeInsets.symmetric(horizontal: M2Layout.fieldPadX),
-          alignment: Alignment.centerLeft,
-          decoration: const BoxDecoration(
-            color: M2Layout.fieldFill,
-            borderRadius: BorderRadius.all(Radius.circular(M2Radius.button)),
-          ),
-          child: EditableText(
-            controller: controller,
-            focusNode: focus,
+        child: FieldTap(
+          focus: focus,
+          child: Container(
+            height: M2Layout.formFieldH,
+            padding: const EdgeInsets.symmetric(horizontal: M2Layout.fieldPadX),
+            alignment: Alignment.centerLeft,
+            decoration: const BoxDecoration(
+              color: M2Layout.fieldFill,
+              borderRadius: BorderRadius.all(Radius.circular(M2Radius.button)),
+            ),
+            child: EditableText(
+              controller: controller,
+              focusNode: focus,
 
-            keyboardType: type,
-            textInputAction: action,
-            style: M2Layout.formInput.style(M2Color.ink),
-            cursorColor: M2Color.ink,
-            backgroundCursorColor: M2Color.slate,
-            onSubmitted: (_) => onSubmit?.call(),
+              keyboardType: type,
+              textInputAction: action,
+              style: M2Layout.formInput.style(M2Color.ink),
+              cursorColor: M2Color.ink,
+              backgroundCursorColor: M2Color.slate,
+              onSubmitted: (_) => onSubmit?.call(),
+              rendererIgnoresPointer: true,
+            ),
           ),
         ),
       ),

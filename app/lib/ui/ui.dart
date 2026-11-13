@@ -11,6 +11,7 @@ export 'chevron.dart';
 export 'facts.dart';
 export 'favorite_star.dart';
 export 'felt.dart';
+export 'field_tap.dart';
 export 'hall_letter.dart';
 export 'haptics.dart';
 export 'hall_tags.dart';
