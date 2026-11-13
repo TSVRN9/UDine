@@ -1,0 +1,26 @@
+{
+  "sha": "87065c513e46262130983621ecf418d37a51f4f1",
+  "branch": "fix/search-field-tap-keyboard",
+  "worktree": "/home/tavern/Projects/js/UDine",
+  "route": "/search?data=recorded&at=2026-10-08T12:41&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": true,
+  "ts": "2026-11-13T02:55:25Z",
+  "own": {
+    "app/lib/screens/plate/custom_food.dart": "3f2f4cc47dd0854994d535ab8e59a22e89ae77e4",
+    "app/lib/ui/field_tap.dart": "7b518f98693bebd2c2c5dfa2e83029aa71b6431d",
+    "app/lib/ui/search_field.dart": "f55d97b95ac5ff15e60528b124b6051cc300121d",
+    "app/lib/ui/ui.dart": "9afbdec3fae4aac587633e51ab80e0e0c1a59945"
+  },
+  "argv": [
+    "/search?data=recorded&at=2026-10-08T12:41",
+    "--record",
+    "6",
+    "--tap",
+    "531",
+    "130",
+    "--settle",
+    "4"
+  ]
+}
