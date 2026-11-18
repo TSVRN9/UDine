@@ -39,7 +39,8 @@ class DishRow extends StatelessWidget {
   /// M2 `.lane`: the control over the tags, both at the right edge; the tags keep clear of it by `tagRight` (a café's name by less). The control
   /// is the layer's: it fades, then closes, and with tracking off it is gone from layout. [fold]: the tags rode a meta line that closes with the
   /// figures, so they settle to the lane's centre (the line's copy fades as the figures do, the lane's comes in as it goes).
-  Widget? _lane(LiftFrame f, Widget control, {required bool fold}) {
+  /// [step]: 1 while the lane holds a stepper, whose 44 would cover tiles centred on the meta line; they ride the lane's bottom (M2 `.lane`) then.
+  Widget? _lane(LiftFrame f, Widget control, {required bool fold, double step = 0}) {
     final gone = f.size == 0 && f.alpha == 0;
     final ctl = gone ? null : f.size == 1 && f.alpha == 1 ? control : ClipRect(child: Align(alignment: Alignment.topRight, heightFactor: f.size, child: Opacity(opacity: f.alpha, child: control)));
     if (tags == null) return ctl;
@@ -49,6 +50,7 @@ class DishRow extends StatelessWidget {
       child: Stack(alignment: Alignment.centerRight, children: [
         if (ctl != null) Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [ctl, SizedBox(height: M2Layout.tagSize * f.size)]),
         if (inLane > 0) Opacity(opacity: inLane, child: Padding(padding: const EdgeInsets.only(right: M2Layout.tagRight), child: tags)),
+        if (step > 0 && ctl != null) Positioned(right: M2Layout.tagRight, bottom: 0, child: Opacity(opacity: step, child: tags!)),
       ]),
     );
   }
@@ -71,10 +73,14 @@ class DishRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     builds++;
-    return LiftBuilder(lift: AppScope.liftOf(context), rest: track, builder: (context, f, _) => _row(context, f));
+    final a = resolveAnim(context, M2Motion.settle);
+    return LiftBuilder(lift: AppScope.liftOf(context), rest: track, builder: (context, f, _) => TweenAnimationBuilder<double>(
+      tween: Tween(end: tags != null && code != null && code! > 0 ? 1 : 0), duration: a.duration, curve: a.curve,
+      builder: (context, step, _) => _row(context, f, step),
+    ));
   }
 
-  Widget _row(BuildContext context, LiftFrame f) {
+  Widget _row(BuildContext context, LiftFrame f, double step) {
     final d = dish, sc = rowScores(d.health, d.carbon, scores), gone = f.size == 0 && f.alpha == 0;
     // a line that held only the figures closes with them (`.m:not(:has(> :not(.fig)))`)
     final figsOnly = contains.isEmpty && chip == null && sc == null && tail == null;
@@ -99,12 +105,12 @@ class DishRow extends StatelessWidget {
       ],
     );
     final badge = Badge.forDiet(d.diet);
-    final control = code == null ? null : _lane(f, RowControl(qty: code! > 0 ? code! : 0, ghost: code! < 0, onAdd: onAdd, onInc: onInc, onDec: onDec), fold: figsOnly);
+    final control = code == null ? null : _lane(f, RowControl(qty: code! > 0 ? code! : 0, ghost: code! < 0, onAdd: onAdd, onInc: onInc, onDec: onDec), fold: figsOnly, step: step);
     return ListRow(
       label: '${family ?? d.dishName}${chip == null ? '' : ', $chip'}${gone ? '' : ', ${d.nutrition.knownCal == null ? 'calories not listed' : '${fc(d.nutrition.knownCal)} calories'}, ${d.nutrition.knownProtein == null ? 'protein not listed' : '${f1(d.nutrition.knownProtein)} grams protein'}'}',
       here: here, onTap: () { Haptics.selection(); onOpen(); }, stands: chip == null ? null : d,
       name: Badge.name(family ?? d.dishName, M2Text.rowName.style(M2Color.ink), badge: badge, star: favorite ? const StarMark() : null),
-      meta: meta, metaEnd: _tagSlot(figsOnly ? f.alpha : 1),
+      meta: meta, metaEnd: _tagSlot((figsOnly ? f.alpha : 1) * (1 - step)),
       minHeight: M2Size.rowOff + (M2Size.row - M2Size.rowOff) * f.size, metaOpen: figsOnly ? f.size : 1,
       control: control,
     );
