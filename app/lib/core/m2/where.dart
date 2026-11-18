@@ -41,6 +41,23 @@ String _fmtMin(int m) => '${((m ~/ 60 + 11) % 12) + 1}:${(m % 60).toString().pad
   return w == null ? null : (w.openTime, w.closeTime);
 }
 
+final _served = Expando<Map<String, Map<String, List<(String, String)>>>>('whereServed');
+
+/// dish key (or family key) -> the (place, meal)s serving it on [iso], in menu order: one scan of the day per board, so a plan costs what it finds
+/// (Search plans every matching dish on a keystroke).
+Map<String, List<(String, String)>> _servedOn(Board fx, String iso) => (_served[fx] ??= {})[iso] ??= () {
+      final fam = familiesOf(fx), out = <String, List<(String, String)>>{};
+      for (final MapEntry(key: place, value: meals) in (fx.days[iso] ?? const <String, Map<String, List<Station>>>{}).entries) {
+        for (final MapEntry(key: meal, value: stations) in meals.entries) {
+          final keys = <String>{for (final s in stations) for (final d in s.dishes) ...[d.key, ?fam.familyOf(d)?.key]};
+          for (final k in keys) {
+            (out[k] ??= []).add((place, meal));
+          }
+        }
+      }
+      return out;
+    }();
+
 String _shiftIso(String iso, int days) => DateTime.parse('${iso}T12:00:00Z').add(Duration(days: days)).toIso8601String().substring(0, 10);
 String _localIso(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
@@ -55,28 +72,25 @@ class _Acc {
 List<WhereGroup> wherePlan(Board fx, String dish, DateTime instant, {bool newton = false}) {
   final now = easternWall(instant);
   // a family (`f:Boba`) is served wherever any of its variants is
-  final key = dish.startsWith('f:') ? 'f:${dishKey(dish.substring(2))}' : dishKey(dish), fam = familiesOf(fx), today = _localIso(now), nowMin = now.hour * 60 + now.minute;
+  final key = dish.startsWith('f:') ? 'f:${dishKey(dish.substring(2))}' : dishKey(dish), today = _localIso(now), nowMin = now.hour * 60 + now.minute;
   final inNewton = {for (final p in fx.places) if (p.area == 4) p.key};
   final groups = <String, _Acc>{};
   // Yesterday's menus count too, for a window that crossed midnight and is still open.
   final days = [_shiftIso(today, -1), today, _shiftIso(today, 1)];
   for (var rel = -1; rel <= 1; rel++) {
     final day = rel == 1 ? 1 : 0;
-    for (final MapEntry(key: place, value: meals) in (fx.days[days[rel + 1]] ?? const <String, Map<String, List<Station>>>{}).entries) {
+    for (final (place, meal) in _servedOn(fx, days[rel + 1])[key] ?? const <(String, String)>[]) {
       if (inNewton.contains(place) && !newton) continue;
-      for (final MapEntry(key: meal, value: stations) in meals.entries) {
-        if (!stations.any((s) => s.dishes.any((d) => d.key == key || fam.familyOf(d)?.key == key))) continue;
-        final win = mealWindow(fx, place, meal, instant);
-        if (win == null) continue;
-        final w = (toMin(win.$1), toMin(win.$2));
-        final crosses = w.$2 <= w.$1; // a close at or before its open is the next day's
-        final end = crosses ? w.$2 + 1440 : w.$2;
-        final st = rel == 1 ? 'tomorrow' : rel == -1 ? (crosses && nowMin < w.$2 ? 'now' : 'past') : nowMin >= end ? 'past' : nowMin >= w.$1 ? 'now' : 'later';
-        if (st == 'past') continue;
-        final gk = '$st,$meal,${w.$1},${w.$2}';
-        final acc = groups.putIfAbsent(gk, () => _Acc(WhereGroup(st, meal, day, _fmtMin(w.$1), _fmtMin(w.$2), [], days[rel + 1]), w.$1, end, groups.length));
-        if (!acc.g.halls.contains(place)) acc.g.halls.add(place);
-      }
+      final win = mealWindow(fx, place, meal, instant);
+      if (win == null) continue;
+      final w = (toMin(win.$1), toMin(win.$2));
+      final crosses = w.$2 <= w.$1; // a close at or before its open is the next day's
+      final end = crosses ? w.$2 + 1440 : w.$2;
+      final st = rel == 1 ? 'tomorrow' : rel == -1 ? (crosses && nowMin < w.$2 ? 'now' : 'past') : nowMin >= end ? 'past' : nowMin >= w.$1 ? 'now' : 'later';
+      if (st == 'past') continue;
+      final gk = '$st,$meal,${w.$1},${w.$2}';
+      final acc = groups.putIfAbsent(gk, () => _Acc(WhereGroup(st, meal, day, _fmtMin(w.$1), _fmtMin(w.$2), [], days[rel + 1]), w.$1, end, groups.length));
+      if (!acc.g.halls.contains(place)) acc.g.halls.add(place);
     }
   }
   const rank = {'now': 0, 'later': 1, 'tomorrow': 2};
