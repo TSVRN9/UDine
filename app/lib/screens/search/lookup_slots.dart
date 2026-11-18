@@ -6,26 +6,13 @@ import '../../data/packaged_search.dart' show LookupPhase;
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 
-/// "Search UMass Dining for “x”" (`.lkb`): the lookup by hand, a maroon text button the width of the screen.
+/// "Search UMass Dining for “x”" (`.lkb`): the lookup by hand, the ringed line button the custom-food button is (same ring, radius, height, gutter).
 class LookupButton extends StatelessWidget {
   const LookupButton({super.key, required this.query, required this.onTap});
   final String query;
   final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) {
-    final label = 'Search UMass Dining for “$query”';
-    return Padding(
-      padding: const EdgeInsets.only(top: M2Layout.lkbTop),
-      child: Press(
-        label: label, onTap: onTap,
-        child: Container(
-          width: double.infinity, constraints: const BoxConstraints(minHeight: M2Size.tap),
-          padding: const EdgeInsets.symmetric(horizontal: M2Space.gutter), alignment: Alignment.centerLeft,
-          child: ExcludeSemantics(child: Text(label, style: M2Text.link.style(M2Color.vm))),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => CustomFoodButton(label: 'Search UMass Dining for “$query”', onTap: onTap);
 }
 
 /// `.lkst`: a state in the button's slot. [children] go under its padding (14 above, 4 below, 20 in).

@@ -54,7 +54,7 @@ void main() {
         }));
     testWidgets('laksa: none, $n dp', (t) => shot(t, 'laksa_none', 'laksa', lookup: LookupMode.none, act: (t) async {
           await ask(t);
-          await until(t, () => find.textContaining('has nothing else').evaluate().isNotEmpty);
+          await until(t, () => find.text('Search UMass Dining for “laksa”').evaluate().isEmpty);
         }));
     testWidgets('laksa: failed, $n dp', (t) => shot(t, 'laksa_fail', 'laksa', lookup: LookupMode.fail, act: (t) async {
           await ask(t);

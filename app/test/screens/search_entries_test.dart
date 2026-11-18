@@ -4,8 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/data/packaged_search.dart' show LookupPhase, PackPhase;
 import 'package:udine/core/types.dart';
 import 'package:udine/core/packaged_food.dart';
+import 'package:udine/core/saved_food.dart' show SavedFood;
 import 'package:udine/core/m2/menu_view.dart';
 import 'package:udine/core/m2/search.dart';
+import 'package:udine/data/repository.dart' show DishCatalogEntry;
 import 'package:udine/screens/halls/halls_model.dart' show NetLine;
 import 'package:udine/screens/search/search_entries.dart';
 import '../core/m2/support.dart';
@@ -76,6 +78,27 @@ void main() {
     expect(shape(entries('zzzq', net: NetLine.failed, extras: true)), ['extras', 'custom']);
   });
 
+  group('no results are said once', () {
+    List<String> miss(List<SearchEntry> extras, {NetLine net = NetLine.none}) => shape(searchEntries(
+        net: net, raw: runSearch(ix, query: 'zzzq'), query: 'zzzq', lenses: const {}, meal: 'lunch', prefs: noPrefs, reveal: false, track: true, extras: extras));
+    final lookup = (LookupPhase p) => LookupStateEntry(p, 'zzzq', null);
+
+    test('the lookup finding nothing adds no second line: the one miss line, then the solid custom button', () {
+      expect(miss([lookup(LookupPhase.none)]), ['empty', 'custom!']);
+    });
+    test('nothing asked yet: the miss line, the lookup button, the custom button', () {
+      expect(miss(const [LookupButtonEntry('zzzq')]), ['empty', 'extras', 'custom']);
+    });
+    test('failed and rate-limited lookups keep their line', () {
+      expect(miss([lookup(LookupPhase.failed)]), ['empty', 'lookup', 'custom']);
+      expect(miss([lookup(LookupPhase.limited)]), ['empty', 'lookup', 'custom']);
+    });
+    test('catalog matches answer the menu miss: no miss line, the group stands', () {
+      expect(miss([const GroupHead('UMass Dining'), FoodEntry(SavedFood.custom(CustomFood(id: 'x', name: 'zzzq', servingSize: '1', nutrition: NutritionFacts(servingSize: '1', calories: 1, caloriesFromFat: 0, totalFatG: 0, satFatG: 0, transFatG: 0, cholesterolMg: 0, sodiumMg: 0, totalCarbG: 0, dietaryFiberG: 0, sugarsG: 0, proteinG: 0))))]),
+          ['UMass Dining', 'food', 'custom']);
+    });
+  });
+
   group('extraEntries', () {
     PackagedFood hit(int i) => PackagedFood(
           source: OffSource(barcode: '$i', productName: 'Bar $i'), productName: 'Bar $i',
@@ -88,6 +111,25 @@ void main() {
       final e = run([for (var i = 0; i < 35; i++) hit(i)]);
       expect(e.whereType<FoodEntry>(), hasLength(20));
       expect((e.whereType<FoodEntry>().last.food.name), 'Bar 19');
+    });
+
+    DishCatalogEntry dish(String n) => DishCatalogEntry(dishName: n, nutrition: hit(0).nutrition, allergens: const [], dietTags: const [], updatedAt: '2026-10-01T00:00:00+00:00');
+    List<SearchEntry> withCatalog(List<DishCatalogEntry> c, {bool track = true, bool online = true, Set<String> served = const {}, LookupPhase lookup = LookupPhase.idle, List<PackagedFood> found = const []}) => extraEntries(
+        track: track, online: online, query: 'bar', foods: const [], pack: PackPhase.idle, packHits: const [], lookup: lookup, lookupFoods: found, catalog: c, served: served);
+
+    test('UMass Dining lists every catalog match that is on no menu: uncapped, tracking off or on, online or not', () {
+      final c = [for (var i = 0; i < 40; i++) dish('Bar $i'), dish('Soup')];
+      for (final (track, online) in [(true, true), (false, true), (true, false), (false, false)]) {
+        final e = withCatalog(c, track: track, online: online, served: {'bar 3'});
+        expect(e.whereType<GroupHead>().map((g) => g.title), ['UMass Dining']);
+        expect(e.whereType<FoodEntry>(), hasLength(39), reason: 'track $track online $online');
+      }
+    });
+
+    test('a lookup answer the catalog already holds is shown once', () {
+      final e = withCatalog([dish('Bar 1')], lookup: LookupPhase.found, found: [hit(1), hit(2)]);
+      expect(e.whereType<FoodEntry>().map((f) => f.food.name), ['Bar 1', 'Bar 2']);
+      expect(e.whereType<GroupHead>(), hasLength(1));
     });
 
     test('a name repeated by another source is cut before the 20 are counted', () {

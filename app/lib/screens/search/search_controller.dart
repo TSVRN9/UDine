@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../core/content.dart' show RetailMenuItems;
@@ -29,6 +31,7 @@ class SearchController extends ChangeNotifier {
     pack = packaged == null ? null : (PackagedSearch(packaged)..addListener(_onExtras));
     lookup = lookupSource == null ? null : (LookupRun(lookupSource)..addListener(_onExtras));
     foods?.addListener(_onExtras);
+    _loadCatalog();
     _onHours();
   }
   final Repository repo;
@@ -39,6 +42,9 @@ class SearchController extends ChangeNotifier {
   late final PackagedSearch? pack;
   late final LookupRun? lookup;
   final FoodBook? foods;
+  /// every dish UMass Dining has published (`public.dishes`, saved on the device): Search lists the ones no menu has today or tomorrow
+  List<DishCatalogEntry> catalog = const [];
+  StreamSubscription<DataState<List<DishCatalogEntry>>>? _catalogSub;
   WhereBook? _book;
   SearchIndex? index;
   String query = '';
@@ -73,6 +79,17 @@ class SearchController extends ChangeNotifier {
   }
 
   HoursData? get _hours => switch (hallsData.state) { Loaded(:final value) || LoadedOffline(:final value) => value, _ => null };
+
+  void _loadCatalog() {
+    if (repo.supabase == null) return;
+    _catalogSub = repo.dishCatalog().listen((s) {
+      if (_disposed) return;
+      if (s case Loaded(:final value) || LoadedOffline(:final value)) {
+        catalog = value;
+        _onExtras();
+      }
+    }, onError: (_) {}); // no catalog: Search is as it was
+  }
 
   void _onHours() {
     final h = _hours;
@@ -182,6 +199,7 @@ class SearchController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _catalogSub?.cancel();
     prefs.removeListener(_onPrefs);
     hallsData.removeListener(_onHours);
     hallsData.dispose();
