@@ -1,0 +1,26 @@
+{
+  "sha": "d1bc4f7f9114e5f120a5cea92c7b5c71183d898a",
+  "branch": "fix/closed-halls-clear",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/agent-a78695f1fe069c960",
+  "route": "/search?q=franklin&data=recorded&at=2026-10-08T21:30&track=off&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-11-18T03:30:36Z",
+  "own": {
+    "app/lib/core/m2/status.dart": "36acc89fbb28ee4abbd976efe0e57f4c8539ff58",
+    "app/lib/screens/cafes/cafes_model.dart": "68fe16b9093459683335e3572c760c8399256b74",
+    "app/lib/screens/hall/hall_controller.dart": "fc4ca85270137a9e255c8331a13cabfa9bbfb472",
+    "app/lib/screens/hall/meal_list.dart": "328cda9c13a4908af37238d25cdc4d967dd1af6c",
+    "app/lib/screens/halls/halls_model.dart": "bfb1da6a49a21d373eabc0e035974f6d2555d1f9",
+    "app/lib/screens/halls/halls_screen.dart": "2beb705fb2deec15e28ff3d3616ef1af970823d8",
+    "app/lib/screens/search/search_screen.dart": "3a39c74bec8e2e9cc52aabd06e07658a69a7bc1b",
+    "app/lib/theme/layout.dart": "24db219ed0df66aedc9d209528c4170afcc84134",
+    "app/lib/ui/band.dart": "5c62153f90d1e5c6112bb70b28fd5f2bb1301c06"
+  },
+  "argv": [
+    "/search?q=franklin&data=recorded&at=2026-10-08T21:30&track=off",
+    "--out",
+    "docs/pr-review-media/fix-closed-halls-clear/search-card-closed.png"
+  ]
+}
