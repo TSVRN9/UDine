@@ -1,0 +1,23 @@
+{
+  "sha": "6d6ed630760d0a7cfa56663245fb428552a1c64e",
+  "branch": "fix/search-row-stepper-overlap",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/agent-ac0ea317cc3a24ce8",
+  "route": "/search?q=chicken&data=recorded&at=2026-10-08T12:41&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-11-18T02:13:35Z",
+  "own": {
+    "app/lib/screens/hall/dish_row.dart": "66e6284e1953032be3708d9691e7ecbefb2ecb9a"
+  },
+  "argv": [
+    "/search?q=chicken&data=recorded&at=2026-10-08T12:41",
+    "--record",
+    "4",
+    "--tap",
+    "288",
+    "248",
+    "--out",
+    "docs/pr-review-media/fix-search-row-stepper-overlap/search_row_tap.mp4"
+  ]
+}
