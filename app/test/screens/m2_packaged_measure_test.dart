@@ -88,10 +88,11 @@ void main() {
     testWidgets('lookup none at $w dp', (t) async {
       await openQ(t, 'laksa', lookup: LookupMode.none, w: w.toDouble());
       await ask(t, 'laksa');
-      await until(t, () => find.textContaining('has nothing else').evaluate().isNotEmpty);
+      // (departs from M2 on purpose, brief search-beta-fixes: the menu miss line already says it, so the slot is gone)
+      await until(t, () => find.text('Search UMass Dining for “laksa”').evaluate().isEmpty);
       await settle(t);
-      near(t, 'slot', find.byType(LookupStatus), dom('laksa_none')['lkst'], tol: 1.5);
-      near(t, 'custom', custom(), dom('laksa_none')['custom'], tol: 1.5);
+      expect(find.byType(LookupStatus), findsNothing);
+      expect(find.textContaining('Nothing called'), findsOneWidget);
       await finish(t);
     });
 
