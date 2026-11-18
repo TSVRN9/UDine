@@ -257,7 +257,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final scope = AppScope.of(context), meal = _mealN?.value ?? c.index?.meal ?? clockMeal(scope.repo.now());
     ({Plate plate, PlateItem item})? on() => findItem(_plate.state, meal, f.key);
     return FoodRow(
-      key: ValueKey('f:${f.id}'), food: f, code: on()?.item.qty ?? 0, control: AppScope.of(context).prefs.track,
+      key: ValueKey('f:${f.id}'), food: f, code: on()?.item.qty ?? 0,
       onOpen: () {
         _focus.unfocus();
         openFoodSheet(context, food: f, meal: meal);
