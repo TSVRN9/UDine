@@ -50,4 +50,4 @@ that is otherwise four identical maroon bands; keeping order stable keeps muscle
 
 1. Closed bands dimmed, next opening in the status, no busy when closed — files: `app/lib/screens/halls/`,
    `app/lib/ui/band.dart`, `app/lib/core/m2/status.dart`, `app/lib/screens/hall/hall_header.dart`, `app/lib/screens/search/search_screen.dart`,
-   `app/lib/theme/tokens.dart` — lanes: flutter — blocked by: none — PR:
+   `app/lib/theme/tokens.dart` — lanes: flutter — blocked by: none — PR: https://github.com/TSVRN9/UDine/pull/676
