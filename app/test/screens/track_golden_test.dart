@@ -1,5 +1,6 @@
 // First run and tracking off (flutter-port-you Task 3) at 360 and 390 dp over M2's recordings and fixed clock (Thursday Oct 8, 12:41).
 // Photos are UMass's and never committed: nothing here draws one.
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/app.dart';
 import 'package:udine/boot.dart';
@@ -23,6 +24,8 @@ void main() {
       await until(t, ready);
       await t.pumpAndSettle();
       await act?.call();
+      // Search autofocuses its field: a focused field's cursor fades with the fake clock, which `until` advances once per real 25 ms, so under host load a capture caught it at another phase
+      FocusManager.instance.primaryFocus?.unfocus();
       for (var i = 0; i < 3; i++) {
         await drain(t);
       }
