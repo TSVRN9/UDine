@@ -149,7 +149,7 @@ void main() {
       }
 
       expect(await status(noon), 'Open until midnight');
-      expect(await status(early), 'Opens 7 AM');
+      expect(await status(early), 'Closed · opens 7 AM');
     });
   });
 

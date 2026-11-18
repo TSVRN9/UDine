@@ -18,8 +18,10 @@ enum NetLine { none, offline, failed }
 /// One band or pin: `status` and `lamps` are null while their data has not arrived (or, for lamps, is not live), and the band simply
 /// draws less. A café has no meter.
 class BandVM {
-  const BandVM({required this.key, required this.name, this.status, this.lamps, this.word, this.hasExtra = false, this.star = false});
+  const BandVM({required this.key, required this.name, this.status, this.lamps, this.word, this.hasExtra = false, this.star = false, this.closed = false});
   final String key, name;
+  /// the doors are shut now: the band is dimmed and carries no busy (lamps, word and extra stay empty)
+  final bool closed;
   final String? status, word;
   final int? lamps;
   /// whether the hall's header will have a second busy line ("Calmer around"): the page it opens is that tall from its first frame
@@ -75,8 +77,9 @@ HallsVM buildHalls({
   final favKeys = {for (final f in favorites) dishKey(f)};
 
   BandVM hall(String k) {
-    final r = busyBy[k], h = hallBy[k];
+    final h = hallBy[k], closed = h != null && !isOpenNow(h, now), r = closed ? null : busyBy[k];
     return BandVM(
+      closed: closed,
       key: k, name: diningHalls[halls.indexOf(k)].name, status: h == null ? null : statusText(h, now),
       star: board != null && day != null && hallStar(board, k, favKeys, day, now),
       lamps: r?.lamps, word: r == null ? null : busyWord(r.level, low: r.confidence == Confidence.low), hasExtra: r != null && HallBusyView.of(r).extra.isNotEmpty,
@@ -85,7 +88,7 @@ HallsVM buildHalls({
 
   BandVM pin(Place p) {
     final h = roster.hours[p.key];
-    return BandVM(key: p.key, name: p.name, status: feed == null || h == null ? null : statusText(h, now));
+    return BandVM(key: p.key, name: p.name, closed: h != null && !isOpenNow(h, now), status: feed == null || h == null ? null : statusText(h, now));
   }
 
   final shown = placesOn(roster.cafes, charlesRiver: charlesRiver);

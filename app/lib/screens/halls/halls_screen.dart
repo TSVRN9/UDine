@@ -142,7 +142,7 @@ class _HallsScreenState extends State<HallsScreen> with SingleTickerProviderStat
       builder: (_, _) => Opacity(
         opacity: hider.hides(b.key) ? 0 : 1,
         child: Band(
-          name: b.name, compact: cafe, status: b.status, star: b.star, fade: _arrive,
+          name: b.name, compact: cafe, status: b.status, star: b.star, closed: b.closed, fade: _arrive,
           photo: bandPhoto(b, widget.top),
           busy: b.lamps == null ? null : BusyRow(lamps: b.lamps!, word: b.word!),
           onTap: () => _open(b),

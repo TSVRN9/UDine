@@ -5,6 +5,7 @@ import '../../core/m2/history.dart' show cafeIdsOf;
 
 import '../../core/m2/board.dart';
 import '../../core/m2/places.dart';
+import '../../core/m2/status.dart' show isOpenNow;
 import '../../core/occupancy.dart';
 import '../../core/m2/schedule.dart' show NetMode;
 import '../../core/stations.dart' show normalizeStationName;
@@ -160,7 +161,8 @@ class HallController extends ChangeNotifier {
     }
     if (_disposed || run != _run) return;
     _busyPending = false;
-    busy = r;
+    final hrs = placeHours;
+    busy = hrs != null && !isOpenNow(hrs, repo.now()) ? null : r; // a shut hall has no headcount worth a meter
     notifyListeners();
   }
 

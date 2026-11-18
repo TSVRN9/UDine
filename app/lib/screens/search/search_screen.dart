@@ -319,13 +319,13 @@ class _SearchScreenState extends State<SearchScreen> {
       case GrabHit():
         final g = fx.grab[key]!, h = DiningHallHours(hallTid: 0, general: g);
         return PlaceRow(
-          name: "$name Grab 'N Go", detail: name, status: statusText(h, now), open: isOpenNow(h, now), photo: photoOf(key, ''),
+          name: "$name Grab 'N Go", detail: name, status: statusText(h, now, short: true), open: isOpenNow(h, now), photo: photoOf(key, ''),
           onTap: () => _push(HallMenuPage(place: key, top: widget.top, meal: 'grab')),
         );
       case CafeHit(:final item):
         final p = fx.places.firstWhere((p) => p.key == key), h = fx.hours[key];
         return PlaceRow(
-          name: name, detail: item ?? p.building, clampDetail: item != null, status: h == null ? '' : statusText(h, now), open: h != null && isOpenNow(h, now), photo: photoOf(key, name),
+          name: name, detail: item ?? p.building, clampDetail: item != null, status: h == null ? '' : statusText(h, now, short: true), open: h != null && isOpenNow(h, now), photo: photoOf(key, name),
           onTap: () => _push(HallMenuPage(place: key, top: widget.top)),
         );
       case HallHit():
@@ -351,7 +351,7 @@ class _SearchScreenState extends State<SearchScreen> {
               builder: (_, _) => Opacity(
                 opacity: _hider.hides(b.key) ? 0 : 1,
                 child: Band(
-                  name: b.name, card: true, star: b.star, status: b.status, photo: bandPhoto(b, top),
+                  name: b.name, card: true, star: b.star, closed: b.closed, status: b.status, photo: bandPhoto(b, top),
                   busy: b.lamps == null ? null : Meter(lit: b.lamps!),
                   onTap: () => _openCard(b, scope),
                 ),

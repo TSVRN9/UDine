@@ -1,6 +1,7 @@
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:udine/core/hours.dart' show easternInstant;
 import 'package:udine/data/recorded/recorded.dart';
 import 'package:udine/motion/container_transform.dart';
 import 'package:udine/screens/cafes/cafes_page.dart';
@@ -55,6 +56,38 @@ void main() {
     expect(find.text('Open until 9 PM'), findsNWidgets(4)); // Franklin, Hampshire, Harvest Market, Wasabi (11 AM to 9 PM on Oct 8)
     expect(find.text('Closed for today'), findsNothing);
     expect(lamps(t), hasLength(4));
+  });
+
+  group('closed halls (21:30: Franklin and Hampshire are shut)', () {
+    final late = easternInstant(DateTime.utc(2026, 10, 8, 21, 30));
+    Finder bandOf(String n) => find.byWidgetPredicate((w) => w is Band && w.name == n && !w.ghost).first;
+    double veil(WidgetTester t, String n) => t.widget<AnimatedOpacity>(find.descendant(of: bandOf(n), matching: find.byWidgetPredicate((w) => w is AnimatedOpacity && w.child is ColoredBox && (w.child! as ColoredBox).color == M2Closed.veil))).opacity;
+
+    testWidgets('a closed band is veiled with the token, says when it opens, and has no meter or busy word', (t) async {
+      await openApp(t, await bootRecorded(t, at: late));
+      await until(t, () => find.text('Open until midnight').evaluate().isNotEmpty && find.byType(Meter).evaluate().isNotEmpty);
+      expect([for (final n in ['Worcester', 'Franklin', 'Hampshire', 'Berkshire']) veil(t, n)], [0, 1, 1, 0]);
+      expect(t.widget<ColoredBox>(find.descendant(of: bandOf('Franklin'), matching: find.byWidgetPredicate((w) => w is ColoredBox && w.color == M2Closed.veil))).color, M2Closed.veil);
+      expect(find.text('Closed · opens 7 AM tomorrow'), findsNWidgets(2));
+      expect(lamps(t), hasLength(2)); // Worcester and Berkshire only
+      expect(find.descendant(of: bandOf('Franklin'), matching: find.byType(Meter)), findsNothing);
+      expect(find.descendant(of: bandOf('Hampshire'), matching: find.byType(BusyRow)), findsNothing);
+    });
+
+    for (final (hall, shut) in [('Worcester', false), ('Franklin', true)]) {
+      testWidgets('$hall\'s page header ${shut ? 'has no busy meter' : 'has one (control)'}', (t) async {
+        await openApp(t, await bootRecorded(t, at: late));
+        await until(t, () => find.text('Open until midnight').evaluate().isNotEmpty && find.byType(Meter).evaluate().isNotEmpty);
+        await t.tap(band(hall));
+        await menuIn(t);
+        await t.pumpAndSettle();
+        expect(find.descendant(of: find.byType(HallPage), matching: find.byType(Meter)), shut ? findsNothing : findsOneWidget);
+        expect(find.descendant(of: find.byType(HallPage), matching: find.byType(BusyRow)), shut ? findsNothing : findsOneWidget);
+        await t.tap(find.bySemanticsLabel('Back'));
+        await t.pumpAndSettle();
+        await drain(t);
+      });
+    }
   });
 
   group('the stack', () {

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/core/m2/busy.dart';
 import 'package:udine/core/m2/status.dart';
+import 'package:udine/core/types.dart' show DiningHallHours;
 import 'support.dart';
 
 void main() {
@@ -11,8 +12,18 @@ void main() {
     }
     test('says when a closed place opens', () {
       final early = DateTime.parse('2026-10-08T06:00:00-04:00');
-      expect(statusText(board.hours['W']!, early), 'Opens 7 AM');
+      expect(statusText(board.hours['W']!, early), 'Closed · opens 7 AM');
       expect(isOpenNow(board.hours['W']!, early), isFalse);
+    });
+    test('after the last close it names tomorrow\'s opening', () {
+      expect(statusText(board.hours['F']!, DateTime.parse('2026-10-08T21:30:00-04:00')), 'Closed · opens 7 AM tomorrow');
+    });
+    test('short is M2\'s words, for the list rows', () {
+      expect(statusText(board.hours['F']!, DateTime.parse('2026-10-08T21:30:00-04:00'), short: true), 'Closed for today');
+      expect(statusText(board.hours['W']!, DateTime.parse('2026-10-08T06:00:00-04:00'), short: true), 'Opens 7 AM');
+    });
+    test('says "Closed today" when nothing opens before tomorrow ends', () {
+      expect(statusText(const DiningHallHours(hallTid: 1), now), 'Closed today');
     });
   });
   group('busyView (M2 busyRow)', () {

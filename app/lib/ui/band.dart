@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import '../theme/tokens.dart';
+import 'motion.dart';
 import 'press.dart';
 
 /// M2's `.lgrad`: the deep-maroon left grade a band's text sits on.
@@ -34,6 +35,8 @@ class Band extends StatelessWidget {
   final String? status;
   final Widget? busy, photo, letter;
   final bool compact, ghost;
+  /// the doors are shut (M2Closed): the band is veiled and its text softer
+  final bool closed;
   /// a favourite is served here (M2 `.bstar`); named for a screen reader, never captioned
   final bool star;
   /// Search's hall card: a band at 76 dp, with no letter, its status and busy meter on one line
@@ -42,11 +45,12 @@ class Band extends StatelessWidget {
   final BandParts? parts;
   /// the status and busy fade in on this when they arrive late (a slow load or a retry)
   final Animation<double>? fade;
-  const Band({super.key, required this.name, this.status, this.busy, this.photo, this.letter, this.compact = false, this.card = false, this.ghost = false, this.star = false, this.onTap, this.fade, this.parts});
+  const Band({super.key, required this.name, this.status, this.busy, this.photo, this.letter, this.compact = false, this.card = false, this.ghost = false, this.closed = false, this.star = false, this.onTap, this.fade, this.parts});
 
   @override
   Widget build(BuildContext context) {
     final h = card ? M2Layout.cardH : compact ? M2Layout.bandCompact : M2Size.band, small = compact || card;
+    final swap = resolveAnim(context, M2Motion.settle);
     Widget late(Widget c) => fade == null ? c : FadeTransition(opacity: fade!, child: c);
     final body = ConstrainedBox(
       constraints: BoxConstraints(minHeight: h), // grows only when the text scales past what h holds
@@ -56,7 +60,10 @@ class Band extends StatelessWidget {
           ?photo,
           if (!ghost) const Positioned.fill(child: BandGrade()),
           ?letter,
-          SizedBox(
+          if (!ghost) Positioned.fill(child: IgnorePointer(child: AnimatedOpacity(opacity: closed ? 1 : 0, duration: swap.duration, curve: swap.curve, child: const ColoredBox(color: M2Closed.veil)))),
+          AnimatedOpacity(
+            opacity: closed ? M2Closed.textAlpha : 1, duration: swap.duration, curve: swap.curve,
+            child: SizedBox(
             width: double.infinity,
             child: Padding(
             padding: EdgeInsets.only(left: M2Space.gutter, top: card ? M2Layout.cardTextTop : compact ? M2Space.pinTextTop : M2Space.bandTextTop),
@@ -91,6 +98,7 @@ class Band extends StatelessWidget {
               ],
             ]),
             ),
+          ),
           ),
         ]),
       ),
