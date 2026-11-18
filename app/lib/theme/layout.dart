@@ -270,3 +270,10 @@ abstract final class EventShimmer {
   static const bandAlpha = 0.18; // white over the felt, at the band's centre
   static const stillAlpha = 0.08; // reduce-motion: the whole felt, lighter and still
 }
+
+/// A closed hall's band (owner, 2026-11-17: a dimmed band): a neutral dark veil over the maroon, photo and letter (darker, less saturated),
+/// and the name and status a step softer on it. Not in M2; the swap between open and closed plays `M2Motion.settle`.
+abstract final class M2Closed {
+  static const veil = Color.fromRGBO(24, 20, 21, 0.74);
+  static const textAlpha = 0.8; // of the text's own opacity, on the veiled ground
+}

@@ -102,9 +102,16 @@ void main() {
       expect(v.areas.map((a) => a.name), ['Campus Center', 'North, by Worcester', 'Library and academic core', 'Southwest, by Hampshire and Berkshire']);
       expect(v.areas.map((a) => a.count), ['12 of 12 open now', '8 of 8 open now', '4 of 4 open now', '5 of 5 open now']);
     });
-    test('a hall closed for the day says so', () {
+    test('a hall closed after its last meal names tomorrow\'s opening, and every hall closed late reads closed with no busy', () {
       final v = vm(Loaded(hours()), now: easternInstant(DateTime.utc(2026, 10, 8, 23, 59, 30)));
-      expect(v.halls.map((b) => b.status), everyElement('Closed for today'));
+      expect(v.halls.map((b) => b.status), everyElement(startsWith('Closed · opens ')));
+      expect(v.halls.map((b) => b.status), everyElement(endsWith(' tomorrow')));
+      expect(v.halls.every((b) => b.closed && b.lamps == null && b.word == null && !b.hasExtra), isTrue);
+    });
+    test('a closed hall carries no busy and the open ones keep theirs (21:30: Franklin and Hampshire closed)', () {
+      final v = vm(Loaded(hours()), now: easternInstant(DateTime.utc(2026, 10, 8, 21, 30)), r: reads());
+      expect({for (final b in v.halls) b.key: (b.closed, b.lamps != null)}, {'W': (false, true), 'F': (true, false), 'H': (true, false), 'B': (false, true)});
+      expect(v.halls.where((b) => b.closed).map((b) => b.status), everyElement(endsWith(' tomorrow')));
     });
   });
 

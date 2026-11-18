@@ -1,12 +1,14 @@
 // Search on the recorded Oct 8 12:41 data: the field, the lenses, the groups, add from a row, the dish sheet and the hall card.
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:udine/core/hours.dart' show easternInstant;
 import 'package:udine/screens/dish/dish_sheet.dart';
 import 'package:udine/screens/hall/dish_row.dart';
 import 'package:udine/screens/hall/hall_menu.dart';
 import 'package:udine/screens/search/search_screen.dart';
 import 'package:udine/shell/app_scope.dart';
 import 'package:udine/shell/plate_model.dart';
+import 'package:udine/theme/tokens.dart';
 import 'package:udine/ui/ui.dart';
 import '../fonts.dart';
 import 'support.dart';
@@ -25,8 +27,8 @@ Future<void> finish(WidgetTester t) async {
   }
 }
 
-Future<void> openSearch(WidgetTester t, {String route = '/search', double w = 390, bool reduced = false}) async {
-  await openApp(t, await bootRecorded(t), route: route, w: w, reduced: reduced);
+Future<void> openSearch(WidgetTester t, {String route = '/search', double w = 390, bool reduced = false, DateTime? at}) async {
+  await openApp(t, await bootRecorded(t, at: at), route: route, w: w, reduced: reduced);
   await until(t, () => find.byType(DishRow).evaluate().isNotEmpty || find.textContaining('Nothing called').evaluate().isNotEmpty || find.textContaining('No dishes').evaluate().isNotEmpty);
   await settle(t);
 }
@@ -206,6 +208,16 @@ void main() {
     await until(t, () => find.byType(HallMenu).evaluate().isNotEmpty);
     await settle(t);
     expect(find.byType(HallMenu), findsOneWidget);
+    await finish(t);
+  });
+
+  testWidgets('a closed hall\'s card is veiled, says when it opens, and has no meter (21:30: Franklin is shut)', (t) async {
+    await openSearch(t, at: easternInstant(DateTime.utc(2026, 10, 8, 21, 30)));
+    await type(t, 'franklin');
+    final card = t.widget<Band>(find.byType(Band));
+    expect([card.card, card.closed, card.busy == null], [true, true, true]);
+    expect(find.text('Closed · opens 7 AM tomorrow'), findsOneWidget);
+    expect(find.byType(Meter), findsNothing);
     await finish(t);
   });
 }

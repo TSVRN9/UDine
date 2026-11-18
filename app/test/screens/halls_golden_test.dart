@@ -45,7 +45,8 @@ void main() {
     testWidgets('Halls with 0 pins, end of the list, $n dp', (t) => shot(t, 'pins0', end: true));
     testWidgets('Halls with 2 pins, end of the list, $n dp', (t) => shot(t, 'pins2', pins: const ['Wasabi', 'Tamales'], end: true));
     testWidgets('Halls with 5 pins, end of the list, $n dp', (t) => shot(t, 'pins5', pins: five, end: true));
-    testWidgets('Halls with every hall closed for the day, $n dp', (t) => shot(t, 'closed', at: easternInstant(DateTime.utc(2026, 10, 8, 23, 59, 30))));
+    testWidgets('Halls with every hall closed for the day, $n dp', (t) => shot(t, 'closed', at: easternInstant(DateTime.utc(2026, 10, 8, 23, 59, 30)), settle: (t) => until(t, () => find.textContaining('Closed · opens').evaluate().length >= 4)));
+    testWidgets('Halls with Franklin and Hampshire closed (21:30), $n dp', (t) => shot(t, 'mixed', at: easternInstant(DateTime.utc(2026, 10, 8, 21, 30))));
     testWidgets('Halls loading: names and letters, hours and busy still to come, $n dp', (t) => shot(t, 'loading', net: NetMode.slow, settle: (t) => t.pump(const Duration(milliseconds: 500))));
     testWidgets('Halls offline, $n dp', (t) => shot(t, 'offline', net: NetMode.offline, settle: (t) => until(t, () => find.text("You're offline").evaluate().isNotEmpty)));
     testWidgets('Halls failed, $n dp', (t) => shot(t, 'failed', net: NetMode.fail, settle: (t) => until(t, () => find.text("Couldn't connect").evaluate().isNotEmpty)));

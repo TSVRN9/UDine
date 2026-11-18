@@ -45,7 +45,7 @@ CafesVM buildCafes({required DateTime now, required DataState<HoursData> state, 
   final shown = placesOn(roster.cafes, charlesRiver: charlesRiver);
   CafeRowVM row(Place p) {
     final h = roster.hours[p.key];
-    return CafeRowVM(place: p, status: feed == null || h == null ? null : statusText(h, now), open: h != null && isOpenNow(h, now));
+    return CafeRowVM(place: p, status: feed == null || h == null ? null : statusText(h, now, short: true), open: h != null && isOpenNow(h, now));
   }
 
   return CafesVM([

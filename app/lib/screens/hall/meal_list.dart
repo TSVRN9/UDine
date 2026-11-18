@@ -123,7 +123,7 @@ Widget buildItem(BuildContext context, ListItem it, {required Board fx, required
     case ItemKind.event:
       return _EventNote(title: it.text!, onTap: () => actions.onEvent(it.ev));
     case ItemKind.grab:
-      final g = it.grab!, st = statusText(DiningHallHours(hallTid: 0, general: g), fx.clock);
+      final g = it.grab!, st = statusText(DiningHallHours(hallTid: 0, general: g), fx.clock, short: true);
       return Padding(
         padding: const EdgeInsets.fromLTRB(M2Space.gutter, M2Layout.gnotePadTop, M2Space.gutter, M2Layout.gnotePadBottom),
         child: Text.rich(TextSpan(style: M2Text.date.style(M2Color.slate), children: [
