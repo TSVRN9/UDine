@@ -100,7 +100,7 @@ Future<void> drain(WidgetTester t) async {
   await writesLanded(t);
 }
 
-/// Waits until the last booted repository has no cache write in flight (real time for the isolate, a frame for the fake-zone side), so no
+/// Waits until the last booted repository has no cache read or write in flight (real time for the isolate, a frame for the fake-zone side), so no
 /// sqflite timer is left pending however slow the host. Call it after the last pump that lets a fetch land.
 Future<void> writesLanded(WidgetTester t) => until(t, () => _booted?.idle ?? true, tries: 400);
 

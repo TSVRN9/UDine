@@ -403,7 +403,7 @@ class Repository {
   static const _dishesKey = 'dishes:v2';
 
   Future<Map<String, dynamic>?> _kv(String key) async {
-    final rows = await db.query('preferences_kv', columns: ['value_json'], where: 'key = ?', whereArgs: [key]);
+    final rows = await _track(db.query('preferences_kv', columns: ['value_json'], where: 'key = ?', whereArgs: [key]));
     if (rows.isEmpty) return null;
     try {
       return jsonDecode(rows.first['value_json']! as String) as Map<String, dynamic>;
@@ -412,19 +412,22 @@ class Repository {
     }
   }
 
-  // cache writes not yet answered by the database isolate
+  // cache reads and writes not yet answered by the database isolate
   final _writes = <Future<Object?>>{};
 
-  /// True when no cache write is in flight (a test's teardown waits for it, so no database timer outlives the test).
+  /// True when no cache read or write is in flight (a test's teardown waits for it, so no database timer outlives the test).
   bool get idle => _writes.isEmpty;
 
+  Future<T> _track<T>(Future<T> q) {
+    _writes.add(q);
+    return q.whenComplete(() => _writes.remove(q));
+  }
+
   Future<void> _putKv(String key, Object value) {
-    final w = db.insert('preferences_kv', {
+    return _track(db.insert('preferences_kv', {
       'key': key,
       'value_json': jsonEncode({'fetchedAt': now().toUtc().toIso8601String(), 'raw': value}),
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
-    _writes.add(w);
-    return w.whenComplete(() => _writes.remove(w));
+    }, conflictAlgorithm: ConflictAlgorithm.replace));
   }
 
   /// Saved on the same (rollover-adjusted) day as now.
@@ -548,7 +551,7 @@ class Repository {
         T? saved;
         var savedAge = Duration.zero;
         if (key != null) {
-          final rows = await db.query('preferences_kv', columns: ['value_json'], where: 'key = ?', whereArgs: [key]);
+          final rows = await _track(db.query('preferences_kv', columns: ['value_json'], where: 'key = ?', whereArgs: [key]));
           if (rows.isNotEmpty) {
             try {
               final e = jsonDecode(rows.first['value_json']! as String) as Map<String, dynamic>;
