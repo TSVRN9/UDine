@@ -21,7 +21,7 @@ import 'you_support.dart';
 Future<AppScope> openQ(WidgetTester t, String q, {bool foods = true, bool track = true, NetMode net = NetMode.ok, LookupMode lookup = LookupMode.found, bool packFail = false, double w = 390, HangingClient? hang, CountingClient? count}) async {
   final b = await bootRecorded(t, foods: foods, track: track, net: net, lookup: lookup, packFail: packFail, hangLookup: hang, count: count);
   await openApp(t, b, route: '/search?q=$q', w: w);
-  await until(t, () => find.byType(DishRow).evaluate().isNotEmpty || find.textContaining('Nothing called').evaluate().isNotEmpty || find.textContaining('No dishes').evaluate().isNotEmpty);
+  await until(t, () => find.byType(DishRow).evaluate().isNotEmpty || find.textContaining('Nothing called').evaluate().isNotEmpty || find.textContaining('No dishes').evaluate().isNotEmpty || find.text('UMass Dining').evaluate().isNotEmpty);
   await settle(t);
   // (the packaged answer: the query rests, then real I/O, then its frame)
   for (var i = 0; i < 6; i++) {
@@ -109,10 +109,13 @@ void main() {
       await finish(t);
     });
 
-    testWidgets('none: "UMass Dining has nothing else called “laksa”."', (t) async {
+    testWidgets('none: one miss line, no second', (t) async {
       await openQ(t, 'laksa', lookup: LookupMode.none);
       await ask(t);
-      await until(t, () => find.text('UMass Dining has nothing else called “laksa”.').evaluate().isNotEmpty);
+      // (the menu miss line already says it: the lookup adds no second one, and its button is gone)
+      await until(t, () => find.text('Search UMass Dining for “laksa”').evaluate().isEmpty);
+      expect(find.textContaining('nothing else'), findsNothing);
+      expect(find.textContaining('Nothing called'), findsOneWidget);
       await finish(t);
     });
 
@@ -147,7 +150,7 @@ void main() {
     testWidgets('typing on puts the button back for the new query', (t) async {
       await openQ(t, 'laksa', lookup: LookupMode.none);
       await ask(t);
-      await until(t, () => find.textContaining('has nothing else called').evaluate().isNotEmpty);
+      await until(t, () => find.text('Search UMass Dining for “laksa”').evaluate().isEmpty);
       await t.enterText(find.byType(EditableText), 'laksas');
       await settle(t);
       expect(find.text('Search UMass Dining for “laksas”'), findsOneWidget);

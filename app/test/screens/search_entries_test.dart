@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/data/packaged_search.dart' show LookupPhase, PackPhase;
 import 'package:udine/core/types.dart';
 import 'package:udine/core/packaged_food.dart';
+import 'package:udine/core/saved_food.dart' show SavedFood;
 import 'package:udine/core/m2/menu_view.dart';
 import 'package:udine/core/m2/search.dart';
 import 'package:udine/data/repository.dart' show DishCatalogEntry;
@@ -75,6 +76,27 @@ void main() {
   test('failed: no empty line, only the custom button (solid) and the extras', () {
     expect(shape(entries('zzzq', net: NetLine.failed)), ['custom!']);
     expect(shape(entries('zzzq', net: NetLine.failed, extras: true)), ['extras', 'custom']);
+  });
+
+  group('no results are said once', () {
+    List<String> miss(List<SearchEntry> extras, {NetLine net = NetLine.none}) => shape(searchEntries(
+        net: net, raw: runSearch(ix, query: 'zzzq'), query: 'zzzq', lenses: const {}, meal: 'lunch', prefs: noPrefs, reveal: false, track: true, extras: extras));
+    final lookup = (LookupPhase p) => LookupStateEntry(p, 'zzzq', null);
+
+    test('the lookup finding nothing adds no second line: the one miss line, then the solid custom button', () {
+      expect(miss([lookup(LookupPhase.none)]), ['empty', 'custom!']);
+    });
+    test('nothing asked yet: the miss line, the lookup button, the custom button', () {
+      expect(miss(const [LookupButtonEntry('zzzq')]), ['empty', 'extras', 'custom']);
+    });
+    test('failed and rate-limited lookups keep their line', () {
+      expect(miss([lookup(LookupPhase.failed)]), ['empty', 'lookup', 'custom']);
+      expect(miss([lookup(LookupPhase.limited)]), ['empty', 'lookup', 'custom']);
+    });
+    test('catalog matches answer the menu miss: no miss line, the group stands', () {
+      expect(miss([const GroupHead('UMass Dining'), FoodEntry(SavedFood.custom(CustomFood(id: 'x', name: 'zzzq', servingSize: '1', nutrition: NutritionFacts(servingSize: '1', calories: 1, caloriesFromFat: 0, totalFatG: 0, satFatG: 0, transFatG: 0, cholesterolMg: 0, sodiumMg: 0, totalCarbG: 0, dietaryFiberG: 0, sugarsG: 0, proteinG: 0))))]),
+          ['UMass Dining', 'food', 'custom']);
+    });
   });
 
   group('extraEntries', () {

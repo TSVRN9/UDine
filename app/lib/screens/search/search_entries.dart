@@ -208,9 +208,14 @@ List<SearchEntry> searchEntries({
         : lenses.contains(Lens.fav)
             ? "Star a dish from its details and it shows up here whenever it's served."
             : 'No dishes match these filters at ${mealLabel[meal]!.toLowerCase()}.';
-    if (net != NetLine.failed) out.add(EmptyEntry(miss)); // (failed: no menu was to be had, so nothing is said of one)
-    out.addAll(extras);
-    if (custom) out.add(CustomEntry(query.trim(), solid: extras.isEmpty));
+    // The catalog's group answers a menu miss, so the miss line is left out; and with nothing in the catalog either, the lookup's own "nothing
+    // else" would say the same thing twice, so the one miss line stands for it.
+    final found = extras.any((e) => e is GroupHead && e.title == 'UMass Dining');
+    final said = net != NetLine.failed && !found && query.trim().isNotEmpty; // (failed: no menu was to be had, so nothing is said of one)
+    final rest = said ? [for (final e in extras) if (!(e is LookupStateEntry && e.phase == LookupPhase.none)) e] : extras;
+    if (net != NetLine.failed && !found) out.add(EmptyEntry(miss));
+    out.addAll(rest);
+    if (custom) out.add(CustomEntry(query.trim(), solid: rest.isEmpty));
   } else {
     out.addAll(extras);
     if (custom) out.add(CustomEntry(query.trim(), solid: false));
