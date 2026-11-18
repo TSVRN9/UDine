@@ -82,8 +82,8 @@ void main() {
     expect(find.textContaining('Nothing called'), findsNothing);
     // (online, so Packaged and Search UMass Dining are still offered, and the custom-food button follows them)
     await until(t, () => find.text('Packaged').evaluate().isNotEmpty);
-    await t.dragUntilVisible(find.byType(CustomFoodButton), find.byType(CustomScrollView), const Offset(0, -300));
-    expect(find.byType(CustomFoodButton), findsOneWidget);
+    await t.dragUntilVisible(find.text('Add “clif” as a custom food'), find.byType(CustomScrollView), const Offset(0, -300));
+    expect(find.text('Add “clif” as a custom food'), findsOneWidget);
     await finish(t);
   });
 

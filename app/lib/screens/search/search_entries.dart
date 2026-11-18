@@ -1,9 +1,11 @@
-import '../../core/m2/board.dart' show M2MenuItem, MenuItem, isCafe, mealLabel;
+import '../../core/m2/board.dart' show M2MenuItem, MenuItem, dishKey, isCafe, mealLabel;
 import '../../core/packaged_food.dart';
-import '../../core/saved_food.dart';
+import '../../core/saved_food.dart' show SavedFood, dietBits;
 import '../../core/search.dart' show matchesQuery;
 import '../../data/packaged.dart' show packagedGroup;
 import '../../data/packaged_search.dart' show LookupPhase, PackPhase;
+import '../../data/repository.dart' show DishCatalogEntry;
+import '../../core/types.dart' show UmassMenuSource;
 import '../../core/m2/menu_view.dart';
 import '../../core/m2/search.dart';
 import '../halls/halls_model.dart' show NetLine;
@@ -125,13 +127,27 @@ List<SearchEntry> extraEntries({
   required List<PackagedFood> lookupFoods,
   DateTime? resetsAt,
   String? reason,
+  List<DishCatalogEntry> catalog = const [],
+  Set<String> served = const {},
 }) {
   final q = query.trim();
-  if (!track || q.isEmpty) return const [];
-  final yours = [for (final f in foods) if (matchesQuery(f.name, q)) f];
+  if (q.isEmpty) return const [];
+  final yours = track ? [for (final f in foods) if (matchesQuery(f.name, q)) f] : const <SavedFood>[];
+  // every catalog dish that matches and is on no menu today or tomorrow (published menus are rarely complete), uncapped, then the lookup's own
+  // answers that the catalog does not already hold
+  final umass = <SavedFood>[
+    for (final d in catalog)
+      if (!served.contains(dishKey(d.dishName)) && matchesQuery(d.dishName, q))
+        SavedFood.packed(PackagedFood(source: UmassMenuSource(dishName: d.dishName, hallTid: 0), productName: d.dishName, nutrition: d.nutrition, allergens: d.allergens, diet: dietBits(d.dietTags))),
+  ];
+  if (track && online && lookup == LookupPhase.found) {
+    final have = {for (final f in umass) dishKey(f.name)};
+    umass.addAll([for (final f in lookupFoods) if (have.add(dishKey(f.productName))) SavedFood.packed(f)]);
+  }
   return [
     if (yours.isNotEmpty) ...[const GroupHead('Your foods'), for (final f in yours) FoodEntry(f)],
-    if (online) ...[
+    if (umass.isNotEmpty) ...[const GroupHead('UMass Dining'), for (final f in umass) FoodEntry(f)],
+    if (track && online) ...[
       if (pack == PackPhase.loading) const PackWaitEntry(),
       if (pack == PackPhase.fail) ...[const GroupHead('Packaged'), const PackFailEntry()],
       if (pack == PackPhase.ok)
@@ -139,9 +155,8 @@ List<SearchEntry> extraEntries({
           final group = packagedGroup(packHits, have: {for (final f in foods) f.name.trim().toLowerCase()}).take(packagedShown).toList();
           return [if (group.isNotEmpty) ...[const GroupHead('Packaged'), for (final f in group) FoodEntry(SavedFood.packed(f))]];
         }(),
-      if (lookup == LookupPhase.found) ...[const GroupHead('UMass Dining'), for (final f in lookupFoods) FoodEntry(SavedFood.packed(f))]
-      else if (lookup == LookupPhase.idle) LookupButtonEntry(q)
-      else LookupStateEntry(lookup, q, resetsAt, reason),
+      if (lookup == LookupPhase.idle) LookupButtonEntry(q)
+      else if (lookup != LookupPhase.found) LookupStateEntry(lookup, q, resetsAt, reason),
     ],
   ];
 }

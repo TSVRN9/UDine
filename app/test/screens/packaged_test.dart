@@ -81,7 +81,7 @@ void main() {
       await openQ(t, 'zzzq');
       expect(find.text('Nothing called “zzzq” is on any menu today or tomorrow.'), findsOneWidget);
       expect(find.text('Search UMass Dining for “zzzq”'), findsOneWidget);
-      expect(t.widget<CustomFoodButton>(find.byType(CustomFoodButton)).solid, isFalse);
+      expect(t.widget<CustomFoodButton>(find.byType(CustomFoodButton).last).solid, isFalse);
       await finish(t);
     });
 
@@ -204,6 +204,24 @@ void main() {
       await t.pump(const Duration(seconds: 6));
       await finish(t);
     });
+  });
+
+  group('the catalog in Search UMass Dining', () {
+    // (recorded catalog dishes that no recorded menu serves)
+    for (final (track, net) in [(true, NetMode.ok), (false, NetMode.ok)]) {
+      testWidgets('"quince": the catalog dish is listed and opens its sheet, tracking $track, $net, with a + only when tracking', (t) async {
+        await openQ(t, 'quince', track: track, net: net);
+        await t.pump(const Duration(seconds: 1));
+        expect(find.text('UMass Dining'), findsOneWidget);
+        final r = find.widgetWithText(FoodRow, 'Quince Tart');
+        expect(r, findsOneWidget);
+        expect(find.descendant(of: r, matching: find.byType(RowControl)), track ? findsOneWidget : findsNothing);
+        await t.tap(find.descendant(of: r, matching: find.text('Quince Tart')));
+        await t.pumpAndSettle(const Duration(milliseconds: 100));
+        expect(find.byType(FoodSheet), findsOneWidget);
+        await finish(t);
+      });
+    }
   });
 
   group('tracking off and offline', () {

@@ -58,14 +58,26 @@ void main() {
     expect(c.index, isNotNull);
     await Future<void>.delayed(const Duration(milliseconds: 200));
     final sends = net.sends;
-    // the hours, the four halls' busy curves, and today and tomorrow of every hall and café that has a menu: each once, nothing else
-    expect(sends, 1 + 4 + 2 * (4 + c.cafeIds.length));
+    // the hours, the four halls' busy curves, the dish catalog, and today and tomorrow of every hall and café that has a menu: each once, nothing else
+    expect(sends, 1 + 4 + 1 + 2 * (4 + c.cafeIds.length));
     for (final q in ['p', 'pi', 'piz', 'pizz', 'pizza']) {
       c.setQuery(q);
     }
     await Future<void>.delayed(const Duration(milliseconds: 50));
     expect(net.sends, sends);
     expect(c.result.now.every((x) => x.g.name.toLowerCase().contains('pizza')), isTrue);
+  });
+
+  test('the catalog is read when Search opens (never before), and its dishes that are on no menu match a typed name', () async {
+    expect(net.sends, 0);
+    final c = SearchController(repo, prefs, plate);
+    addTearDown(c.dispose);
+    await ready(c);
+    for (var i = 0; i < 100 && c.catalog.isEmpty; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    expect(c.catalog.map((d) => d.dishName), contains('Quince Tart'));
+    expect(c.index!.served, isNot(contains('quince tart')));
   });
 
   test('menus warmed before Search opens: the index is built at once, with the later place-days in it', () async {

@@ -257,7 +257,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final scope = AppScope.of(context), meal = _mealN?.value ?? c.index?.meal ?? clockMeal(scope.repo.now());
     ({Plate plate, PlateItem item})? on() => findItem(_plate.state, meal, f.key);
     return FoodRow(
-      key: ValueKey('f:${f.id}'), food: f, code: on()?.item.qty ?? 0,
+      key: ValueKey('f:${f.id}'), food: f, code: on()?.item.qty ?? 0, control: AppScope.of(context).prefs.track,
       onOpen: () {
         _focus.unfocus();
         openFoodSheet(context, food: f, meal: meal);
@@ -424,6 +424,7 @@ class _SearchScreenState extends State<SearchScreen> {
         : extraEntries(
             track: scope.prefs.track, online: c.net != NetLine.offline, query: c.query, foods: scope.foods?.foods ?? const [],
             pack: c.pack?.phase ?? PackPhase.idle, packHits: c.pack?.hits ?? const [], lookup: c.lookup?.phase ?? LookupPhase.idle, lookupFoods: c.lookup?.foods ?? const [], resetsAt: c.lookup?.resetsAt, reason: c.lookup?.reason,
+            catalog: c.catalog, served: c.index?.served ?? const {},
           );
     final a = resolveAnim(context, M2Motion.settle), idle = c != null && c.query.trim().isEmpty && c.lenses.isEmpty;
     final entries = c == null || ix == null

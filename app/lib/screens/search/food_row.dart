@@ -10,8 +10,10 @@ import '../hall/dish_row.dart' show CalPer100, CalProtein;
 /// A food in Your foods, Packaged or UMass Dining (M2 `foodRow`): Search's row, whose lane holds only the control, because the food is not
 /// served anywhere (a row says where, never where not). A per-100 g food's meta says so, and its + adds one 100 g serving.
 class FoodRow extends StatelessWidget {
-  const FoodRow({super.key, required this.food, required this.code, required this.onOpen, required this.onAdd, required this.onInc, required this.onDec});
+  const FoodRow({super.key, this.control = true, required this.food, required this.code, required this.onOpen, required this.onAdd, required this.onInc, required this.onDec});
   final SavedFood food;
+  /// false with tracking off: the row opens to its nutrition and has no +
+  final bool control;
   /// its quantity on the plate it would join, 0 for the plain +
   final double code;
   final VoidCallback onOpen, onAdd, onInc, onDec;
@@ -31,7 +33,7 @@ class FoodRow extends StatelessWidget {
           meta: Opacity(opacity: f.alpha, child: food.per100g ? CalPer100(cal: n.knownCal) : CalProtein(cal: n.knownCal, protein: n.knownProtein)),
           minHeight: M2Size.rowOff + (M2Size.row - M2Size.rowOff) * f.size, metaOpen: f.size,
           // (`.lane` min-height 66: the control at its top, so a food's row is the size of a dish's)
-          control: gone ? null : f.size == 1 && f.alpha == 1 ? lane : ClipRect(child: Align(alignment: Alignment.topRight, heightFactor: f.size, child: Opacity(opacity: f.alpha, child: lane))),
+          control: gone || !control ? null : f.size == 1 && f.alpha == 1 ? lane : ClipRect(child: Align(alignment: Alignment.topRight, heightFactor: f.size, child: Opacity(opacity: f.alpha, child: lane))),
         );
       });
 }

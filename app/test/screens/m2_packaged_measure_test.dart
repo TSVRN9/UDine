@@ -36,7 +36,11 @@ void main() {
 
     Finder head(String text) => find.ancestor(of: find.text(text), matching: find.byType(Padding)).first;
     Finder row(String name) => find.widgetWithText(ListRow, name);
-    Finder custom() => find.descendant(of: find.byType(CustomFoodButton), matching: find.byType(Container)).first;
+    // the last ringed button: when the lookup button is up, it is the one above (Search UMass Dining is now the custom-food button's own line, brief search-beta-fixes Task 4)
+    Finder custom() => find.descendant(of: find.byType(CustomFoodButton).last, matching: find.byType(Container)).first;
+    // M2's bare `.lkb` row becomes a ringed button: the gutter in, 52 tall; the custom button below it sits 16 lower (8 under it, 8 above it)
+    List<num> ring(Object? lkb) => [rect(lkb)[0] + 20, rect(lkb)[1], rect(lkb)[2] - 40, 52];
+    List<num> below(Object? custom) => [rect(custom)[0], rect(custom)[1] + 16, rect(custom)[2], rect(custom)[3]];
 
     Future<void> ask(WidgetTester t, String q) async {
       await t.tap(find.text('Search UMass Dining for “$q”'));
@@ -57,15 +61,15 @@ void main() {
       await openQ(t, 'chobani', w: w.toDouble());
       near(t, 'Your foods', head('Your foods'), kid('chobani', 'sgrp')['rect']);
       near(t, 'row', row('Chobani'), kid('chobani', 'row')['rect']);
-      near(t, 'lookup button', find.descendant(of: find.byType(LookupButton), matching: find.byType(Press)), dom('chobani')['lkb']);
-      near(t, 'custom', custom(), dom('chobani')['custom']);
+      near(t, 'lookup button', find.descendant(of: find.byType(LookupButton), matching: find.byType(Press)), ring(dom('chobani')['lkb']));
+      near(t, 'custom', custom(), below(dom('chobani')['custom']));
       await finish(t);
     });
 
     testWidgets('"laksa", waiting, at $w dp: the button sits 8 under the empty line, the custom button under it', (t) async {
       await openQ(t, 'laksa', w: w.toDouble());
-      near(t, 'lookup button', find.descendant(of: find.byType(LookupButton), matching: find.byType(Press)), dom('laksa_idle')['lkb']);
-      near(t, 'custom', custom(), dom('laksa_idle')['custom']);
+      near(t, 'lookup button', find.descendant(of: find.byType(LookupButton), matching: find.byType(Press)), ring(dom('laksa_idle')['lkb']));
+      near(t, 'custom', custom(), below(dom('laksa_idle')['custom']));
       await finish(t);
     });
 
@@ -75,6 +79,7 @@ void main() {
       await ask(t, 'laksa');
       await t.pump(const Duration(milliseconds: 100));
       near(t, 'slot', find.byType(LookupStatus), dom('laksa_loading')['lkst']);
+      await t.pump(const Duration(seconds: 1)); // (the custom button glides up from under the taller lookup button)
       near(t, 'custom', custom(), dom('laksa_loading')['custom']);
       hang.release();
       await finish(t);
@@ -113,7 +118,7 @@ void main() {
       await openQ(t, 'clif', packFail: true, w: w.toDouble());
       near(t, 'Packaged', head('Packaged'), kid('pack_fail', 'sgrp', 'Packaged')['rect']);
       near(t, 'slot', find.byType(PackFail), dom('pack_fail')['lkst'], tol: 1.5);
-      near(t, 'lookup button', find.descendant(of: find.byType(LookupButton), matching: find.byType(Press)), dom('pack_fail')['lkb'], tol: 1.5);
+      near(t, 'lookup button', find.descendant(of: find.byType(LookupButton), matching: find.byType(Press)), ring(dom('pack_fail')['lkb']), tol: 1.5);
       await finish(t);
     });
 

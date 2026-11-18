@@ -128,7 +128,7 @@ class RecordedClient extends http.BaseClient {
       '/uapp/get_infov2' => simulateLive(locations),
       '/uapp/get_beacons_events' => events,
       '/rest/v1/rpc/occupancy_typical' => typicalCurveJson((jsonDecode((request as http.Request).body) as Map)['p_location_id'] as int),
-      '/rest/v1/dishes' => '[]', // the recorded screens don't read the catalog
+      '/rest/v1/dishes' => _catalog,
       _ => throw StateError('no recording for $u'),
     };
     return http.StreamedResponse(Stream.value(utf8.encode(body)), 200, request: request);
@@ -157,3 +157,15 @@ class NetClient extends http.BaseClient {
     return inner.send(request);
   }
 }
+
+/// Catalog dishes that are on no recorded menu (Search lists them under UMass Dining).
+final _catalog = jsonEncode([
+  for (final (n, cal) in [('Quince Tart', 240), ('Zhoug Flatbread', 310), ('Dukkah Lentil Soup', 420)])
+    {
+      'dish_name': n, 'allergens': <String>[], 'diet_tags': <String>[], 'updated_at': '2026-10-01T00:00:00+00:00',
+      'nutrition': {
+        'servingSize': '1 serving', 'calories': cal, 'caloriesFromFat': 90, 'totalFatG': 10, 'satFatG': 2, 'transFatG': 0, 'cholesterolMg': 60,
+        'sodiumMg': 500, 'totalCarbG': 20, 'dietaryFiberG': 1, 'sugarsG': 4, 'proteinG': 22,
+      },
+    },
+]);
