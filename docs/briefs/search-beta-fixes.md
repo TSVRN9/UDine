@@ -67,7 +67,7 @@ lookup button stays as the fallback for a dish the catalog doesn't have yet.
    `checkCatalogHit` fills it: `last_seen_hall_tid ?? 0`), show them in "UMass Dining" right after Your foods, not
    gated by `online`, shown with tracking off (FoodRow without a control). Recorded fixture rows. — files:
    `app/lib/screens/search/search_controller.dart`, `search_entries.dart`, `search_screen.dart`, `food_row.dart`,
-   `app/lib/data/recorded/` — lanes: flutter — blocked by: none — PR:
+   `app/lib/data/recorded/` — lanes: flutter — blocked by: none — PR: #677
 2. Row + overlap: the stepper that replaces a Search row's + covers the hall tile(s) riding the meta line under it
    (`DishRow._tagSlot`/`_lane`, `RowControl`/`Stepper` in `app/lib/ui/stepper.dart`). Find where M2 puts the tiles
    when the lane holds a stepper and match it. — files: `app/lib/screens/hall/dish_row.dart`, `app/lib/ui/stepper.dart`
@@ -79,4 +79,4 @@ lookup button stays as the fallback for a dish the catalog doesn't have yet.
    `app/lib/core/m2/search.dart`, `app/lib/screens/search/` — lanes: flutter — blocked by: none — PR:
 4. Lookup button: restyle `LookupButton` (`app/lib/screens/search/lookup_slots.dart`) as a ringed line button
    consistent with `CustomFoodButton` (`app/lib/ui/custom_button.dart`): same ring, radius, height, gutter; its
-   `.lkst` states keep its place. — files: `lookup_slots.dart`, tokens if needed — lanes: flutter — blocked by: none — PR:
+   `.lkst` states keep its place. — files: `lookup_slots.dart`, tokens if needed — lanes: flutter — blocked by: none — PR: #677
