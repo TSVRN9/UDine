@@ -8,7 +8,6 @@ import 'package:udine/screens/hall/hall_menu.dart';
 import 'package:udine/screens/search/search_screen.dart';
 import 'package:udine/shell/app_scope.dart';
 import 'package:udine/shell/plate_model.dart';
-import 'package:udine/theme/tokens.dart';
 import 'package:udine/ui/ui.dart';
 import '../fonts.dart';
 import 'support.dart';
