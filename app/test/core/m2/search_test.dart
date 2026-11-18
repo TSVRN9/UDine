@@ -1,5 +1,7 @@
 // M2's Search groups (renderSearch, results, cafeResults, placeHits, laterHits) over the bake-off fixture's 15 days.
 // The first groups assert M2's rules (read from src.html); the last group runs M2's own `search` cases from vectors.json.
+import 'dart:collection';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:udine/core/m2/board.dart';
 import 'package:udine/core/m2/plate.dart';
@@ -34,6 +36,25 @@ void main() {
     // (the variant the row shows, at each place: not the other variant)
     expect(laterRefs(fx, fam).values.map((d) => d.key).toSet(), {fam.d.key});
     expect(laterRefs(fx, fam).keys, ['W', 'F']);
+  });
+  test('a one-letter query plans every matching Later dish without scanning the menus again for each (the first-letter hang)', () {
+    var reads = 0, total = 0;
+    final days = {for (final e in board.days.entries) e.key: {for (final p in e.value.entries) p.key: {for (final m in p.value.entries) m.key: [for (final s in m.value) Station(s.name, _Counting(s.dishes, () => reads++))]}}};
+    for (final d in days.values) {
+      for (final p in d.values) {
+        for (final m in p.values) {
+          for (final s in m) {
+            total += s.dishes.length;
+          }
+        }
+      }
+    }
+    final fx = Board(clock: board.clock, places: board.places, hours: board.hours, grab: board.grab, days: days, events: board.events);
+    final ix = SearchIndex(fx, now);
+    runSearch(ix, query: 'b'); // (the first plan indexes each day once; after that a keystroke reads less than one board)
+    reads = 0;
+    expect(runSearch(ix, query: 'c').later, hasLength(8));
+    expect(reads, lessThan(total), reason: 'a plan per matching dish used to rescan every menu: ${reads / total}x the board');
   });
   test('searchWords is the normalizer matchesQuery reads', () {
     expect(searchWords("Peet’s  Coffee & Tea"), ['peet', 's', 'coffee', 'tea']);
@@ -243,4 +264,23 @@ group('later rows between midnight and the rollover', () {
     expect(boardDay(b, r.g), 0);
   });
 });
+}
+
+/// A dish list that counts how often its dishes are read.
+class _Counting extends ListBase<MenuItem> {
+  _Counting(this._l, this._hit);
+  final List<MenuItem> _l;
+  final void Function() _hit;
+  @override
+  int get length => _l.length;
+  @override
+  set length(int n) => throw UnsupportedError('read-only');
+  @override
+  MenuItem operator [](int i) {
+    _hit();
+    return _l[i];
+  }
+
+  @override
+  void operator []=(int i, MenuItem v) => throw UnsupportedError('read-only');
 }
