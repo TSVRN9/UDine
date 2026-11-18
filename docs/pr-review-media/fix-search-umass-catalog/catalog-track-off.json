@@ -1,0 +1,25 @@
+{
+  "sha": "7c5a901f93cf64428551589b9ad3da49cbb114c2",
+  "branch": "fix/search-umass-catalog",
+  "worktree": "/home/tavern/Projects/js/UDine/.claude/worktrees/agent-afeff5b480e0a8cd3",
+  "route": "/search?q=quince&data=recorded&at=2026-10-08T12:41&track=off&photos=off",
+  "device": "sdk_gphone64_x86_64",
+  "stress": "",
+  "dirty": false,
+  "ts": "2026-11-18T03:43:46Z",
+  "own": {
+    "app/lib/data/recorded/recorded_client.dart": "60ebe723ac29ce18f76c650a4622cc4116cab306",
+    "app/lib/screens/search/lookup_slots.dart": "3ca605631152540fa673e5f4463f8becbcbac792",
+    "app/lib/screens/search/search_controller.dart": "18e540b67d03ea5da763a003d3b927d2fa46c623",
+    "app/lib/screens/search/search_entries.dart": "ef103ad8bdb7b4b440d7e212539a1eea1d1cda45",
+    "app/lib/screens/search/search_screen.dart": "a96cf70253f5762640eb136c17072813234ea484",
+    "app/lib/theme/layout.dart": "951caa8ec1722db839d1b6f49e068ac0675b3556"
+  },
+  "argv": [
+    "/search?q=quince&data=recorded&at=2026-10-08T12:41&track=off",
+    "--settle",
+    "5",
+    "--out",
+    "docs/pr-review-media/fix-search-umass-catalog/catalog-track-off.png"
+  ]
+}
